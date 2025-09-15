@@ -5,7 +5,10 @@
         ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent" ShowInTaskbar="False"
         Foreground="#FFFFFFFF" MouseLeftButtonDown="Window_MouseLeftButtonDown">
-    <Border CornerRadius="12" Background="#FF1E1E1E" BorderBrush="#33000000" BorderThickness="1" Padding="10">
+    <Border CornerRadius="12" Background="#FF1E1E1E" BorderBrush="#55FFFFFF" BorderThickness="1.5" Padding="10">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="0" Opacity="0.4"/>
+        </Border.Effect>
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>

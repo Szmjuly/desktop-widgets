@@ -13,6 +13,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Diagnostics;
 using CoffeeStockWidget.Core.Models;
 using CoffeeStockWidget.Core.Services;
 using CoffeeStockWidget.Infrastructure.Net;
@@ -259,6 +260,13 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ReloadBtn_Click(object? sender, RoutedEventArgs e)
+    {
+        StatusText.Text = "Refreshing...";
+        _loopCts?.Cancel();
+        StartLoop();
+    }
+
     private void SourceButton_Click(object sender, RoutedEventArgs e)
     {
         var cm = new ContextMenu
@@ -350,7 +358,7 @@ public partial class MainWindow : Window
         var price = i.PriceCents.HasValue ? ("$" + (i.PriceCents.Value / 100.0m).ToString("0.00")) : string.Empty;
         var stockText = i.InStock ? "In stock" : "Sold out";
         var stockBrush = i.InStock ? System.Windows.Media.Brushes.LightGreen : System.Windows.Media.Brushes.OrangeRed;
-        return new UiItem { Title = i.Title, Price = price, StockText = stockText, StockBrush = stockBrush };
+        return new UiItem { Title = i.Title, Price = price, StockText = stockText, StockBrush = stockBrush, Url = i.Url };
     }
 
     private class UiItem
@@ -359,5 +367,20 @@ public partial class MainWindow : Window
         public string Price { get; set; } = string.Empty;
         public string StockText { get; set; } = string.Empty;
         public System.Windows.Media.Brush StockBrush { get; set; } = System.Windows.Media.Brushes.Gray;
+        public Uri? Url { get; set; }
+    }
+
+    // Open item in the default browser on double-click
+    private void Item_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount < 2) return;
+        if (sender is FrameworkElement fe && fe.DataContext is UiItem ui && ui.Url != null)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo(ui.Url.ToString()) { UseShellExecute = true });
+            }
+            catch { /* ignore */ }
+        }
     }
 }

@@ -25,6 +25,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <Border x:Name="SourcePill" Grid.Row="0" Grid.Column="0" Margin="0,0,8,4" CornerRadius="14" Background="#FF1E1E1E" BorderBrush="#333" BorderThickness="1">
@@ -37,15 +38,19 @@
                     </Button>
                 </Border>
 
-                <Button x:Name="SettingsBtn" Grid.Row="0" Grid.Column="1" Content="⚙" Width="28" Height="28" Margin="0,0,6,4"
+                <Button x:Name="ReloadBtn" Grid.Row="0" Grid.Column="1" Content="⟳" Width="28" Height="28" Margin="0,0,6,4"
+                        Background="#22FFFFFF" Foreground="#FFEFEFEF" BorderBrush="#22FFFFFF"
+                        ToolTip="Reload now" Click="ReloadBtn_Click"/>
+
+                <Button x:Name="SettingsBtn" Grid.Row="0" Grid.Column="2" Content="⚙" Width="28" Height="28" Margin="0,0,6,4"
                         Background="#22FFFFFF" Foreground="#FFEFEFEF" BorderBrush="#22FFFFFF"
                         ToolTip="Settings" Click="SettingsBtn_Click"/>
 
-                <Button x:Name="CloseBtn" Grid.Row="0" Grid.Column="2" Content="✕" Width="28" Height="28" Margin="0,0,0,4"
+                <Button x:Name="CloseBtn" Grid.Row="0" Grid.Column="3" Content="✕" Width="28" Height="28" Margin="0,0,0,4"
                         Background="#22FFFFFF" Foreground="#FFEFEFEF" BorderBrush="#22FFFFFF"
                         ToolTip="Close" Click="CloseBtn_Click"/>
 
-                <TextBlock x:Name="StatusText" Grid.Row="1" Grid.ColumnSpan="3" Text="Starting..." Foreground="#99FFFFFF" FontSize="12"/>
+                <TextBlock x:Name="StatusText" Grid.Row="1" Grid.ColumnSpan="4" Text="Starting..." Foreground="#99FFFFFF" FontSize="12"/>
             </Grid>
 
             <!-- Content: Scrollable list of items -->
@@ -54,7 +59,7 @@
                     <ItemsControl x:Name="ItemsList">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid Margin="0,2">
+                                <Grid Margin="0,2" Cursor="Hand" MouseLeftButtonDown="Item_MouseLeftButtonDown">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
@@ -73,7 +78,7 @@
 
             <!-- Update bubble overlay -->
             <Ellipse x:Name="Bubble" Width="12" Height="12" Fill="#FF4CAF50" StrokeThickness="0"
-                     HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6" Visibility="Collapsed"/>
+                     HorizontalAlignment="Left" VerticalAlignment="Top" Margin="6" Visibility="Collapsed"/>
         </Grid>
     </Border>
 </Window>
