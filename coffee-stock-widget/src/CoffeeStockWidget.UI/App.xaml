@@ -52,6 +52,7 @@
             <Setter Property="Background" Value="#22FFFFFF"/>
             <Setter Property="BorderBrush" Value="#22FFFFFF"/>
             <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -150,7 +151,9 @@
         <Style TargetType="MenuItem">
             <Setter Property="Foreground" Value="#FFEFEFEF"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="MinHeight" Value="32"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="MenuItem">
