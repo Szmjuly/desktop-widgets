@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace CoffeeStockWidget.Core.Models;
 
@@ -6,4 +7,12 @@ public class AppSettings
 {
     public int PollIntervalSeconds { get; set; } = 300;
     public bool RunAtLogin { get; set; } = false;
+    public string? SelectedParserType { get; set; }
+    public int TransparencyPercent { get; set; } = 90; // 0-100
+    public bool BlurEnabled { get; set; } = false;
+    public int RetentionDays { get; set; } = 30;
+    public int ItemsPerSource { get; set; } = 500;
+    public int EventsPerSource { get; set; } = 1000;
+    public DateTimeOffset? LastAcknowledgedUtc { get; set; }
+    public List<string>? EnabledParsers { get; set; }
 }

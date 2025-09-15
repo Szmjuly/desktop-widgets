@@ -91,6 +91,28 @@ CREATE INDEX IF NOT EXISTS IX_Items_Url ON Items(Url);
 CREATE INDEX IF NOT EXISTS IX_Events_Source_Created ON Events(SourceId, CreatedUtc);
 ";
         cmd.ExecuteNonQuery();
+
+        EnsureSchemaUpgrades(conn);
+    }
+
+    private static void EnsureSchemaUpgrades(SqliteConnection conn)
+    {
+        // Add SeenUtc column to Items if missing
+        using var infoCmd = conn.CreateCommand();
+        infoCmd.CommandText = "PRAGMA table_info(Items);";
+        using var r = infoCmd.ExecuteReader();
+        var hasSeen = false;
+        while (r.Read())
+        {
+            var name = r.GetString(1);
+            if (string.Equals(name, "SeenUtc", StringComparison.OrdinalIgnoreCase)) { hasSeen = true; break; }
+        }
+        if (!hasSeen)
+        {
+            using var alter = conn.CreateCommand();
+            alter.CommandText = "ALTER TABLE Items ADD COLUMN SeenUtc TEXT";
+            alter.ExecuteNonQuery();
+        }
     }
 
     public async Task UpsertItemsAsync(IEnumerable<CoffeeItem> items, CancellationToken ct = default)
@@ -236,6 +258,205 @@ ON CONFLICT(Id) DO UPDATE SET
             await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }
 
+        // Per-source caps: keep only the most recent N items/events by timestamp
+        if (policy.ItemsPerSource > 0)
+        {
+            // Delete older items beyond the most recent N by LastSeenUtc for each source
+            using var getSources = conn.CreateCommand();
+            getSources.CommandText = "SELECT Id FROM Sources";
+            using var rdr = await getSources.ExecuteReaderAsync(ct).ConfigureAwait(false);
+            var sids = new List<int>();
+            while (await rdr.ReadAsync(ct).ConfigureAwait(false)) sids.Add(rdr.GetInt32(0));
+
+            foreach (var sid in sids)
+            {
+                using var capCmd = conn.CreateCommand();
+                capCmd.CommandText = @"
+DELETE FROM Items
+WHERE Id IN (
+  SELECT Id FROM Items WHERE SourceId = $sid
+  ORDER BY LastSeenUtc DESC
+  LIMIT -1 OFFSET $keep
+);";
+                capCmd.Parameters.AddWithValue("$sid", sid);
+                capCmd.Parameters.AddWithValue("$keep", policy.ItemsPerSource);
+                await capCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
+        }
+
+        if (policy.EventsPerSource > 0)
+        {
+            using var getSources2 = conn.CreateCommand();
+            getSources2.CommandText = "SELECT Id FROM Sources";
+            using var rdr2 = await getSources2.ExecuteReaderAsync(ct).ConfigureAwait(false);
+            var sids2 = new List<int>();
+            while (await rdr2.ReadAsync(ct).ConfigureAwait(false)) sids2.Add(rdr2.GetInt32(0));
+
+            foreach (var sid in sids2)
+            {
+                using var capCmd = conn.CreateCommand();
+                capCmd.CommandText = @"
+DELETE FROM Events
+WHERE Id IN (
+  SELECT Id FROM Events WHERE SourceId = $sid
+  ORDER BY CreatedUtc DESC
+  LIMIT -1 OFFSET $keep
+);";
+                capCmd.Parameters.AddWithValue("$sid", sid);
+                capCmd.Parameters.AddWithValue("$keep", policy.EventsPerSource);
+                await capCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
+        }
+
         tx.Commit();
+    }
+
+    public async Task ClearAsync(CancellationToken ct = default)
+    {
+        using var conn = Open();
+        using var tx = conn.BeginTransaction();
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = "DELETE FROM Events";
+            await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = "DELETE FROM Items";
+            await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
+        tx.Commit();
+    }
+
+    public async Task SetItemsUnseenAsync(int sourceId, IEnumerable<string> itemKeys, CancellationToken ct = default)
+    {
+        using var conn = Open();
+        using var tx = conn.BeginTransaction();
+        foreach (var key in itemKeys)
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE Items SET SeenUtc = NULL WHERE SourceId=$sid AND ItemKey=$key";
+            cmd.Parameters.AddWithValue("$sid", sourceId);
+            cmd.Parameters.AddWithValue("$key", key);
+            await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
+        tx.Commit();
+    }
+
+    public async Task SetItemSeenAsync(int sourceId, string itemKey, DateTimeOffset seenUtc, CancellationToken ct = default)
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE Items SET SeenUtc=$seen WHERE SourceId=$sid AND ItemKey=$key";
+        cmd.Parameters.AddWithValue("$sid", sourceId);
+        cmd.Parameters.AddWithValue("$key", itemKey);
+        cmd.Parameters.AddWithValue("$seen", seenUtc.UtcDateTime.ToString("o"));
+        await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+    }
+
+    public async Task<int> GetUnseenCountAsync(CancellationToken ct = default)
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM Items WHERE SeenUtc IS NULL";
+        var result = await cmd.ExecuteScalarAsync(ct).ConfigureAwait(false);
+        return result is long l ? (int)l : 0;
+    }
+
+    public async Task<int> GetTotalItemsCountAsync(CancellationToken ct = default)
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM Items";
+        var result = await cmd.ExecuteScalarAsync(ct).ConfigureAwait(false);
+        return result is long l ? (int)l : 0;
+    }
+
+    public async Task<Dictionary<int, int>> GetUnseenCountsBySourceAsync(CancellationToken ct = default)
+    {
+        var map = new Dictionary<int, int>();
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT SourceId, COUNT(*) FROM Items WHERE SeenUtc IS NULL GROUP BY SourceId";
+        using var rdr = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        while (await rdr.ReadAsync(ct).ConfigureAwait(false))
+        {
+            var sid = rdr.GetInt32(0);
+            var cnt = rdr.GetInt32(1);
+            map[sid] = cnt;
+        }
+        return map;
+    }
+
+    public async Task<List<CoffeeItem>> GetUnseenItemsAsync(CancellationToken ct = default)
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"SELECT Id, SourceId, ItemKey, Title, Url, PriceCents, InStock, FirstSeenUtc, LastSeenUtc
+                            FROM Items WHERE SeenUtc IS NULL ORDER BY LastSeenUtc DESC";
+        using var rdr = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        var list = new List<CoffeeItem>();
+        while (await rdr.ReadAsync(ct).ConfigureAwait(false))
+        {
+            list.Add(ReadItem(rdr));
+        }
+        return list;
+    }
+
+    public async Task<List<CoffeeItem>> GetUnseenItemsBySourceAsync(int sourceId, CancellationToken ct = default)
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"SELECT Id, SourceId, ItemKey, Title, Url, PriceCents, InStock, FirstSeenUtc, LastSeenUtc
+                            FROM Items WHERE SeenUtc IS NULL AND SourceId=$sid ORDER BY LastSeenUtc DESC";
+        cmd.Parameters.AddWithValue("$sid", sourceId);
+        using var rdr = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        var list = new List<CoffeeItem>();
+        while (await rdr.ReadAsync(ct).ConfigureAwait(false))
+        {
+            list.Add(ReadItem(rdr));
+        }
+        return list;
+    }
+
+    private static CoffeeItem ReadItem(SqliteDataReader rdr)
+    {
+        var urlStr = rdr.GetString(4);
+        Uri url;
+        try { url = new Uri(urlStr); } catch { url = new Uri("https://example.invalid"); }
+        int? price = rdr.IsDBNull(5) ? null : rdr.GetInt32(5);
+        var first = DateTimeOffset.TryParse(rdr.GetString(7), out var f) ? f : DateTimeOffset.UtcNow;
+        var last = DateTimeOffset.TryParse(rdr.GetString(8), out var l) ? l : DateTimeOffset.UtcNow;
+        return new CoffeeItem
+        {
+            Id = rdr.IsDBNull(0) ? null : rdr.GetInt32(0),
+            SourceId = rdr.GetInt32(1),
+            ItemKey = rdr.GetString(2),
+            Title = rdr.GetString(3),
+            Url = url,
+            PriceCents = price,
+            InStock = rdr.GetBoolean(6),
+            FirstSeenUtc = first,
+            LastSeenUtc = last
+        };
+    }
+
+    public async Task MarkAllSeenAsync(DateTimeOffset seenUtc, CancellationToken ct = default)
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE Items SET SeenUtc=$seen WHERE SeenUtc IS NULL";
+        cmd.Parameters.AddWithValue("$seen", seenUtc.UtcDateTime.ToString("o"));
+        await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+    }
+
+    public async Task MarkSourceSeenAsync(int sourceId, DateTimeOffset seenUtc, CancellationToken ct = default)
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE Items SET SeenUtc=$seen WHERE SourceId=$sid AND SeenUtc IS NULL";
+        cmd.Parameters.AddWithValue("$seen", seenUtc.UtcDateTime.ToString("o"));
+        cmd.Parameters.AddWithValue("$sid", sourceId);
+        await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
     }
 }

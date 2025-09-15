@@ -8,7 +8,7 @@
         Title="Coffee Stock Widget" Height="400" Width="360"
         ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Background="Transparent" Topmost="False" ShowInTaskbar="False"
         MouseLeftButtonDown="Window_MouseLeftButtonDown">
-    <Border CornerRadius="12" Padding="8" Background="#E0121212" BorderBrush="#33000000" BorderThickness="1">
+    <Border x:Name="RootBorder" CornerRadius="12" Padding="8" Background="#E0121212" BorderBrush="#33000000" BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -40,7 +40,7 @@
 
                 <Button x:Name="ReloadBtn" Grid.Row="0" Grid.Column="1" Content="⟳" Width="28" Height="28" Margin="0,0,6,4"
                         Background="#22FFFFFF" Foreground="#FFEFEFEF" BorderBrush="#22FFFFFF"
-                        ToolTip="Reload now" Click="ReloadBtn_Click"/>
+                        ToolTip="Run current roaster now (right-click for options)" Click="ReloadBtn_Click" MouseRightButtonUp="ReloadBtn_MouseRightButtonUp"/>
 
                 <Button x:Name="SettingsBtn" Grid.Row="0" Grid.Column="2" Content="⚙" Width="28" Height="28" Margin="0,0,6,4"
                         Background="#22FFFFFF" Foreground="#FFEFEFEF" BorderBrush="#22FFFFFF"
@@ -54,12 +54,12 @@
             </Grid>
 
             <!-- Content: Scrollable list of items -->
-            <Border Grid.Row="1" CornerRadius="8" Background="Transparent" Padding="6">
+            <Border x:Name="ContentBorder" Grid.Row="1" CornerRadius="8" Background="Transparent" Padding="6">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,12,0" Background="Transparent">
                     <ItemsControl x:Name="ItemsList">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid Margin="0,2" Cursor="Hand" MouseLeftButtonDown="Item_MouseLeftButtonDown">
+                                <Grid Margin="0,2" Cursor="Hand" MouseLeftButtonDown="Item_MouseLeftButtonDown" MouseEnter="Item_MouseEnter">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
@@ -75,6 +75,10 @@
                     </ItemsControl>
                 </ScrollViewer>
             </Border>
+
+            <!-- Empty state overlay -->
+            <TextBlock x:Name="EmptyMessage" Grid.Row="1" Text="Empty database — click ⟳ to fetch" Foreground="#77FFFFFF" FontSize="13"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
 
             <!-- Update bubble overlay -->
             <Ellipse x:Name="Bubble" Width="12" Height="12" Fill="#FF4CAF50" StrokeThickness="0"
