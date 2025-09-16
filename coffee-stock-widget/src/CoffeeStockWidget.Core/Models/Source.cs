@@ -10,4 +10,8 @@ public class Source
     public string ParserType { get; set; } = "Generic"; // e.g., "BlackAndWhite", "Generic"
     public int PollIntervalSeconds { get; set; } = 300;
     public bool Enabled { get; set; } = true;
+
+    // UI theming: default brand color and optional user override (hex ARGB or RGB)
+    public string DefaultColorHex { get; set; } = "#FF4CAF50"; // sensible default
+    public string? CustomColorHex { get; set; }
 }

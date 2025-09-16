@@ -44,14 +44,14 @@ public partial class MainWindow : Window
     private bool _attachToDesktop;
     private readonly SettingsService _settings = new();
     private readonly List<Source> _sources;
+    private Dictionary<string, string> _customColors = new(StringComparer.OrdinalIgnoreCase);
     private DateTimeOffset? _lastAcknowledgedUtc;
     private DateTimeOffset _lastEventUtc;
 
     private enum ViewMode
     {
         Normal,
-        UnseenAll,
-        UnseenCurrent
+        AllAggregated
     }
 
     private async Task RunCurrentAsync()
@@ -130,28 +130,26 @@ public partial class MainWindow : Window
                     });
                 }
             }
-            else if (_viewMode == ViewMode.UnseenAll)
+            else if (_viewMode == ViewMode.AllAggregated)
             {
-                var items = await _store.GetUnseenItemsAsync();
-                var ui = items.Select(ToUiItemForView).ToList();
+                var all = new List<CoffeeItem>();
+                foreach (var s in _sources)
+                {
+                    if (!s.Id.HasValue) continue;
+                    var items = await _store.GetItemsBySourceAsync(s.Id.Value);
+                    all.AddRange(items);
+                }
+                var ui = all
+                    .OrderBy(i => GetSourceShortNameById(i.SourceId))
+                    .ThenBy(i => i.Title)
+                    .Select(ToUiItemForView)
+                    .ToList();
                 await Dispatcher.InvokeAsync(() =>
                 {
                     ItemsList.ItemsSource = ui;
+                    SourceLabel.Text = "All coffees";
                     EmptyMessage.Visibility = ui.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
                 });
-            }
-            else if (_viewMode == ViewMode.UnseenCurrent)
-            {
-                if (_source.Id.HasValue)
-                {
-                    var items = await _store.GetUnseenItemsBySourceAsync(_source.Id.Value);
-                    var ui = items.Select(ToUiItemForView).ToList();
-                    await Dispatcher.InvokeAsync(() =>
-                    {
-                        ItemsList.ItemsSource = ui;
-                        EmptyMessage.Visibility = ui.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-                    });
-                }
             }
         }
         catch (Exception ex)
@@ -160,60 +158,153 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ReloadBtn_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    // Win32 blur-behind (reliable background blur without blurring content)
+    private void EnableBlurBehind(bool enable, bool acrylic)
     {
-        var cm = new ContextMenu
+        try
         {
-            PlacementTarget = ReloadBtn,
-            Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom
-        };
-        var runEnabled = new MenuItem { Header = "Run Enabled Now" };
-        runEnabled.Click += async (_, __) => await RunMassAsync(includeDisabled: false);
-        var runAll = new MenuItem { Header = "Run ALL Now (ignore enabled)" };
-        runAll.Click += async (_, __) => await RunMassAsync(includeDisabled: true);
-        var markAll = new MenuItem { Header = "Mark all as seen" };
-        markAll.Click += async (_, __) => { await _store.MarkAllSeenAsync(DateTimeOffset.UtcNow); await UpdateUnseenUiAsync(); };
-        cm.Items.Add(runEnabled);
-        cm.Items.Add(runAll);
-        cm.Items.Add(new Separator());
-        cm.Items.Add(markAll);
-        cm.IsOpen = true;
-    }
-    private ViewMode _viewMode = ViewMode.Normal;
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
 
-    public MainWindow()
+            var accent = new ACCENT_POLICY
+            {
+                AccentState = enable ? (acrylic ? ACCENT_STATE.ACCENT_ENABLE_ACRYLICBLURBEHIND : ACCENT_STATE.ACCENT_ENABLE_BLURBEHIND) : ACCENT_STATE.ACCENT_DISABLED,
+                AccentFlags = 2, // blur all borders
+                GradientColor = 0x00000000,
+                AnimationId = 0
+            };
+            int size = Marshal.SizeOf(accent);
+            IntPtr ptr = Marshal.AllocHGlobal(size);
+            try
+            {
+                Marshal.StructureToPtr(accent, ptr, false);
+                var data = new WINDOWCOMPOSITIONATTRIBDATA
+                {
+                    Attribute = WINDOWCOMPOSITIONATTRIB.WCA_ACCENT_POLICY,
+                    Data = ptr,
+                    SizeOfData = size
+                };
+                SetWindowCompositionAttribute(hwnd, ref data);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(ptr);
+            }
+        }
+        catch { /* ignore blur failures */ }
+    }
+
+    private enum WINDOWCOMPOSITIONATTRIB
+    {
+        WCA_ACCENT_POLICY = 19
+    }
+
+    private enum ACCENT_STATE
+    {
+        ACCENT_DISABLED = 0,
+        ACCENT_ENABLE_GRADIENT = 1,
+        ACCENT_ENABLE_TRANSPARENTGRADIENT = 2,
+        ACCENT_ENABLE_BLURBEHIND = 3,
+        ACCENT_ENABLE_ACRYLICBLURBEHIND = 4,
+        ACCENT_INVALID_STATE = 5
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ACCENT_POLICY
+    {
+        public ACCENT_STATE AccentState;
+        public uint AccentFlags;
+        public uint GradientColor;
+        public uint AnimationId;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WINDOWCOMPOSITIONATTRIBDATA
+    {
+        public WINDOWCOMPOSITIONATTRIB Attribute;
+        public IntPtr Data;
+        public int SizeOfData;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern int SetWindowCompositionAttribute(IntPtr hwnd, ref WINDOWCOMPOSITIONATTRIBDATA data);
+
+
+private void ReloadBtn_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+{
+    var cm = new ContextMenu
+    {
+        PlacementTarget = ReloadBtn,
+        Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom,
+        Style = TryFindResource("TrayMenuStyle") as Style
+    };
+    var miStyle = TryFindResource("TrayMenuItemStyle") as Style;
+    var runEnabled = new MenuItem { Header = "Run Enabled Now", Style = miStyle };
+    runEnabled.Click += async (_, __) => await RunMassAsync(includeDisabled: false);
+    var runAll = new MenuItem { Header = "Run ALL Now (ignore enabled)", Style = miStyle };
+    runAll.Click += async (_, __) => await RunMassAsync(includeDisabled: true);
+    var markAll = new MenuItem { Header = "Mark all as seen", Style = miStyle };
+    markAll.Click += async (_, __) => { await _store.MarkAllSeenAsync(DateTimeOffset.UtcNow); await UpdateUnseenUiAsync(); };
+    cm.Items.Add(runEnabled);
+    cm.Items.Add(runAll);
+    cm.Items.Add(new Separator());
+    cm.Items.Add(markAll);
+    cm.IsOpen = true;
+}
+
+private ViewMode _viewMode = ViewMode.Normal;
+
+public MainWindow()
+{
+    try
     {
         InitializeComponent();
-
-        _store = new SqliteDataStore();
-        _source = new Source
+    }
+    catch (Exception ex)
+    {
+        try
         {
-            Id = 1,
-            Name = "Black & White Roasters",
-            RootUrl = new Uri("https://www.blackwhiteroasters.com/collections/all-coffee"),
-            ParserType = "BlackAndWhite",
+            var dir = AppDomain.CurrentDomain.BaseDirectory;
+            var path = System.IO.Path.Combine(dir, "WindowInit.log");
+            System.IO.File.WriteAllText(path, ex.ToString());
+        }
+        catch { }
+        System.Windows.MessageBox.Show("Failed to initialize window. See WindowInit.log for details.\n" + ex.Message, "Coffee Stock Widget", MessageBoxButton.OK, MessageBoxImage.Error);
+        throw;
+    }
+
+    _store = new SqliteDataStore();
+    _source = new Source
+    {
+        Id = 1,
+        Name = "Black & White Roasters",
+        RootUrl = new Uri("https://www.blackwhiteroasters.com/collections/all-coffee"),
+        ParserType = "BlackAndWhite",
+        PollIntervalSeconds = 300,
+        Enabled = true
+    };
+
+    _scrapers = new Dictionary<string, ISiteScraper>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["BlackAndWhite"] = new BlackAndWhiteScraper(_http),
+        ["Brandywine"] = new BrandywineScraper(_http)
+    };
+
+    _source.DefaultColorHex = "#FF90CAF9"; // light blue
+
+    _sources = new List<Source>
+    {
+        _source,
+        new Source
+        {
+            Name = "Brandywine Coffee Roasters",
+            RootUrl = new Uri("https://www.brandywinecoffeeroasters.com/collections/all-coffee-1"),
+            ParserType = "Brandywine",
             PollIntervalSeconds = 300,
-            Enabled = true
-        };
-
-        _scrapers = new Dictionary<string, ISiteScraper>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["BlackAndWhite"] = new BlackAndWhiteScraper(_http),
-            ["Brandywine"] = new BrandywineScraper(_http)
-        };
-
-        _sources = new List<Source>
-        {
-            _source,
-            new Source
-            {
-                Name = "Brandywine Coffee Roasters",
-                RootUrl = new Uri("https://www.brandywinecoffeeroasters.com/collections/all-coffee-1"),
-                ParserType = "Brandywine",
-                PollIntervalSeconds = 300,
-                Enabled = true
-            }
-        };
+            Enabled = true,
+            DefaultColorHex = "#FF80CBC4" // teal
+        }
+    };
 
         _notifyIcon = CreateTrayIcon();
         Loaded += async (_, __) =>
@@ -237,6 +328,11 @@ public partial class MainWindow : Window
             // Apply visual settings and load acknowledgment time
             _lastAcknowledgedUtc = s.LastAcknowledgedUtc;
             ApplyVisualSettings(s);
+
+            // Load custom roaster colors
+            _customColors = s.CustomParserColors != null
+                ? new Dictionary<string, string>(s.CustomParserColors, StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             // Apply enabled sources from settings if present
             if (s.EnabledParsers is { Count: > 0 })
@@ -269,33 +365,53 @@ public partial class MainWindow : Window
             Visible = true,
             Text = "Coffee Stock Widget"
         };
-
-        var menu = new Forms.ContextMenuStrip();
-        var showItem = new Forms.ToolStripMenuItem("Show/Hide", null, (_, __) => ToggleWindow());
-        var pauseItem = new Forms.ToolStripMenuItem("Pause") { CheckOnClick = true };
-        pauseItem.Click += (_, __) => TogglePause(pauseItem);
-        var attachItem = new Forms.ToolStripMenuItem("Attach to Desktop") { CheckOnClick = true };
-        attachItem.Click += (_, __) => ToggleAttach(attachItem);
-        var runEnabledItem = new Forms.ToolStripMenuItem("Run Enabled Now", null, async (_, __) => await RunMassAsync(includeDisabled: false));
-        var runAllItem = new Forms.ToolStripMenuItem("Run ALL Now (ignore enabled)", null, async (_, __) => await RunMassAsync(includeDisabled: true));
-        var markAllSeenItem = new Forms.ToolStripMenuItem("Mark All as Seen", null, async (_, __) =>
-        {
-            await _store.MarkAllSeenAsync(DateTimeOffset.UtcNow);
-            await UpdateUnseenUiAsync();
-        });
-        var exitItem = new Forms.ToolStripMenuItem("Exit", null, (_, __) => System.Windows.Application.Current.Shutdown());
-        menu.Items.Add(showItem);
-        menu.Items.Add(pauseItem);
-        menu.Items.Add(attachItem);
-        menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add(runEnabledItem);
-        menu.Items.Add(runAllItem);
-        menu.Items.Add(markAllSeenItem);
-        menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add(exitItem);
-        ni.ContextMenuStrip = menu;
         ni.DoubleClick += (_, __) => ToggleWindow();
+        ni.MouseUp += (_, e) =>
+        {
+            if (e.Button == System.Windows.Forms.MouseButtons.Right)
+            {
+                Dispatcher.Invoke(ShowTrayMenu);
+            }
+            else if (e.Button == System.Windows.Forms.MouseButtons.Left)
+            {
+                Dispatcher.Invoke(ToggleWindow);
+            }
+        };
         return ni;
+    }
+
+    private void ShowTrayMenu()
+    {
+        var cm = new ContextMenu { Style = TryFindResource("TrayMenuStyle") as Style };
+
+        MenuItem NewItem(string header, RoutedEventHandler onClick, bool isCheckable = false, bool isChecked = false)
+        {
+            var mi = new MenuItem { Header = header, Style = TryFindResource("TrayMenuItemStyle") as Style, IsCheckable = isCheckable, IsChecked = isChecked };
+            mi.Click += onClick;
+            return mi;
+        }
+
+        cm.Items.Add(NewItem("Show/Hide", (_, __) => ToggleWindow()));
+        cm.Items.Add(new Separator());
+        cm.Items.Add(NewItem("Pause", (_, __) =>
+        {
+            _paused = !_paused;
+            StatusText.Text = _paused ? "Paused" : "Running";
+        }, isCheckable: true, isChecked: _paused));
+        cm.Items.Add(NewItem("Attach to Desktop", (_, __) =>
+        {
+            _attachToDesktop = !_attachToDesktop;
+            ApplyDesktopAttachment();
+        }, isCheckable: true, isChecked: _attachToDesktop));
+        cm.Items.Add(new Separator());
+        cm.Items.Add(NewItem("Run Enabled Now", async (_, __) => await RunMassAsync(includeDisabled: false)));
+        cm.Items.Add(NewItem("Run ALL Now (ignore enabled)", async (_, __) => await RunMassAsync(includeDisabled: true)));
+        cm.Items.Add(NewItem("Mark All as Seen", async (_, __) => { await _store.MarkAllSeenAsync(DateTimeOffset.UtcNow); await UpdateUnseenUiAsync(); }));
+        cm.Items.Add(new Separator());
+        cm.Items.Add(NewItem("Exit", (_, __) => System.Windows.Application.Current.Shutdown()));
+
+        cm.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+        cm.IsOpen = true;
     }
 
     private void ToggleWindow()
@@ -476,7 +592,7 @@ public partial class MainWindow : Window
 
     private async void SettingsBtn_Click(object sender, RoutedEventArgs e)
     {
-        var dlg = new SettingsWindow { Owner = this };
+        var dlg = new SettingsWindow { Owner = this, Sources = _sources };
         var ok = dlg.ShowDialog();
         if (ok == true)
         {
@@ -487,6 +603,27 @@ public partial class MainWindow : Window
             }
             ApplyVisualSettings(s);
             _ = _store.PruneAsync(new RetentionPolicy { Days = s.RetentionDays, ItemsPerSource = s.ItemsPerSource, EventsPerSource = s.EventsPerSource });
+            // Sync enabled roasters from settings
+            if (s.EnabledParsers is { Count: > 0 })
+            {
+                var set = new HashSet<string>(s.EnabledParsers, StringComparer.OrdinalIgnoreCase);
+                foreach (var src in _sources)
+                {
+                    src.Enabled = set.Contains(src.ParserType!);
+                }
+            }
+            else
+            {
+                // If none specified, ensure at least current source remains enabled
+                foreach (var src in _sources) src.Enabled = ReferenceEquals(src, _source);
+            }
+            // Refresh custom colors map
+            _customColors = s.CustomParserColors != null
+                ? new Dictionary<string, string>(s.CustomParserColors, StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            await RefreshViewAsync();
+            _loopCts?.Cancel();
+            StartLoop();
             await RefreshEmptyStateAsync();
         }
     }
@@ -517,77 +654,13 @@ public partial class MainWindow : Window
         };
         cm.MinWidth = SourcePill.ActualWidth;
         cm.Width = SourcePill.ActualWidth;
-
-        // Enable/disable sources submenu
-        var enableRoot = new MenuItem { Header = "Enable sources" };
-        foreach (var src in _sources)
-        {
-            var toggle = new MenuItem
-            {
-                Header = GetDisplayName(src),
-                IsCheckable = true,
-                IsChecked = src.Enabled,
-                Tag = src
-            };
-            toggle.Click += async (s, _) =>
-            {
-                if (s is MenuItem m && m.Tag is Source target)
-                {
-                    // Ensure at least one source remains enabled
-                    var currentlyEnabled = _sources.Count(x => x.Enabled);
-                    if (currentlyEnabled == 1 && target.Enabled)
-                    {
-                        // Prevent disabling the last enabled source
-                        m.IsChecked = true;
-                        return;
-                    }
-
-                    target.Enabled = m.IsChecked;
-                    await SaveEnabledParsersAsync();
-                    // Restart loop so change takes effect immediately
-                    _loopCts?.Cancel();
-                    StartLoop();
-                    await UpdateUnseenUiAsync();
-                }
-            };
-            enableRoot.Items.Add(toggle);
-        }
-        cm.Items.Add(enableRoot);
+        // Single aggregated entry
+        var showAll = new MenuItem { Header = "Show all coffees" };
+        showAll.Click += async (_, __) => { _viewMode = ViewMode.AllAggregated; await RefreshViewAsync(); };
+        cm.Items.Add(showAll);
         cm.Items.Add(new Separator());
 
-        // Mark seen actions
-        var markCurrent = new MenuItem { Header = "Mark current source as seen" };
-        markCurrent.Click += async (_, __) =>
-        {
-            if (_source.Id.HasValue)
-            {
-                await _store.MarkSourceSeenAsync(_source.Id.Value, DateTimeOffset.UtcNow);
-                await UpdateUnseenUiAsync();
-            }
-        };
-        var markAll = new MenuItem { Header = "Mark all as seen" };
-        markAll.Click += async (_, __) =>
-        {
-            await _store.MarkAllSeenAsync(DateTimeOffset.UtcNow);
-            await UpdateUnseenUiAsync();
-        };
-        cm.Items.Add(markCurrent);
-        cm.Items.Add(markAll);
-        cm.Items.Add(new Separator());
-
-        // View filters
-        var viewAll = new MenuItem { Header = "Show all items (current roaster)" };
-        viewAll.Click += async (_, __) => { _viewMode = ViewMode.Normal; await RefreshViewAsync(); };
-        var viewUnseenCurrent = new MenuItem { Header = "Show unseen for current roaster" };
-        viewUnseenCurrent.Click += async (_, __) => { _viewMode = ViewMode.UnseenCurrent; await RefreshViewAsync(); };
-        var viewUnseenAll = new MenuItem { Header = "Show unseen across all roasters" };
-        viewUnseenAll.Click += async (_, __) => { _viewMode = ViewMode.UnseenAll; await RefreshViewAsync(); };
-        cm.Items.Add(viewAll);
-        cm.Items.Add(viewUnseenCurrent);
-        cm.Items.Add(viewUnseenAll);
-        cm.Items.Add(new Separator());
-
-        // Unseen counts by source
+        // Per-roaster selection with unseen counts
         var unseenMap = await _store.GetUnseenCountsBySourceAsync();
         foreach (var src in _sources)
         {
@@ -608,6 +681,7 @@ public partial class MainWindow : Window
             {
                 if (s is MenuItem m && m.Tag is Source target)
                 {
+                    _viewMode = ViewMode.Normal;
                     SwitchSource(target);
                 }
             };
@@ -662,15 +736,8 @@ public partial class MainWindow : Window
         var shell = System.Windows.Media.Color.FromArgb(a, 0x12, 0x12, 0x12);
         RootBorder.Background = new System.Windows.Media.SolidColorBrush(shell);
         // Keep content transparent per design
-
-        if (s.BlurEnabled)
-        {
-            RootBorder.Effect = new BlurEffect { Radius = 8 };
-        }
-        else
-        {
-            RootBorder.Effect = null;
-        }
+        RootBorder.Effect = null; // never blur content; use OS blur-behind instead
+        EnableBlurBehind(s.BlurEnabled, acrylic: s.AcrylicEnabled);
     }
 
     private async Task SaveSelectedRoasterAsync()
@@ -763,18 +830,44 @@ public partial class MainWindow : Window
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
         int X, int Y, int cx, int cy, uint uFlags);
 
-    private static UiItem ToUiItem(CoffeeItem i)
+    private static System.Windows.Media.Color TryParseColor(string hex, System.Windows.Media.Color fallback)
+    {
+        try
+        {
+            var obj = System.Windows.Media.ColorConverter.ConvertFromString(hex);
+            if (obj is System.Windows.Media.Color c) return c;
+        }
+        catch { }
+        return fallback;
+    }
+
+    private string GetAccentHexFor(int sourceId)
+    {
+        var src = _sources.FirstOrDefault(s => s.Id == sourceId);
+        if (src == null) return "#696969"; // DimGray
+        if (!string.IsNullOrWhiteSpace(src.ParserType) && _customColors.TryGetValue(src.ParserType, out var custom))
+        {
+            return custom;
+        }
+        if (!string.IsNullOrWhiteSpace(src.CustomColorHex))
+        {
+            return src.CustomColorHex!;
+        }
+        return string.IsNullOrWhiteSpace(src.DefaultColorHex) ? "#696969" : src.DefaultColorHex!;
+    }
+
+    private UiItem ToUiItem(CoffeeItem i)
     {
         var price = i.PriceCents.HasValue ? ("$" + (i.PriceCents.Value / 100.0m).ToString("0.00")) : string.Empty;
         var stockText = i.InStock ? "In stock" : "Sold out";
-        var stockBrush = i.InStock ? System.Windows.Media.Brushes.LightGreen : System.Windows.Media.Brushes.OrangeRed;
-        return new UiItem { Title = i.Title, Price = price, StockText = stockText, StockBrush = stockBrush, Url = i.Url, ItemKey = i.ItemKey, SourceId = i.SourceId };
+        var accentHex = GetAccentHexFor(i.SourceId);
+        return new UiItem { Title = i.Title, Price = price, StockText = stockText, IsInStock = i.InStock, Url = i.Url, ItemKey = i.ItemKey, SourceId = i.SourceId, AccentHex = accentHex };
     }
 
     private UiItem ToUiItemForView(CoffeeItem i)
     {
         var ui = ToUiItem(i);
-        if (_viewMode == ViewMode.UnseenAll)
+        if (_viewMode == ViewMode.AllAggregated)
         {
             var prefix = GetSourceShortNameById(i.SourceId);
             if (!string.IsNullOrWhiteSpace(prefix))
@@ -790,10 +883,15 @@ public partial class MainWindow : Window
         public string Title { get; set; } = string.Empty;
         public string Price { get; set; } = string.Empty;
         public string StockText { get; set; } = string.Empty;
-        public System.Windows.Media.Brush StockBrush { get; set; } = System.Windows.Media.Brushes.Gray;
+        public bool IsInStock { get; set; }
         public Uri? Url { get; set; }
         public string ItemKey { get; set; } = string.Empty;
         public int SourceId { get; set; }
+        public string AccentHex { get; set; } = "#696969";
+
+        // Create brushes on the UI thread when the binding reads these properties
+        public System.Windows.Media.Brush StockBrush => IsInStock ? System.Windows.Media.Brushes.LightGreen : System.Windows.Media.Brushes.OrangeRed;
+        public System.Windows.Media.Brush AccentBrush => new System.Windows.Media.SolidColorBrush(TryParseColor(AccentHex, System.Windows.Media.Colors.DimGray));
     }
 
     // Open item in the default browser on double-click

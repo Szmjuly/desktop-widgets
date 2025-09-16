@@ -40,11 +40,11 @@
 
                 <Button x:Name="ReloadBtn" Grid.Row="0" Grid.Column="1" Content="⟳" Width="28" Height="28" Margin="0,0,6,4"
                         Background="#22FFFFFF" Foreground="#FFEFEFEF" BorderBrush="#22FFFFFF"
-                        ToolTip="Run current roaster now (right-click for options)" Click="ReloadBtn_Click" MouseRightButtonUp="ReloadBtn_MouseRightButtonUp"/>
+                        ToolTip="Run current roaster now. Right-click for Run Enabled / Run ALL / Mark all seen." Click="ReloadBtn_Click" MouseRightButtonUp="ReloadBtn_MouseRightButtonUp"/>
 
                 <Button x:Name="SettingsBtn" Grid.Row="0" Grid.Column="2" Content="⚙" Width="28" Height="28" Margin="0,0,6,4"
                         Background="#22FFFFFF" Foreground="#FFEFEFEF" BorderBrush="#22FFFFFF"
-                        ToolTip="Settings" Click="SettingsBtn_Click"/>
+                        ToolTip="Settings: polling, blur, retention, roasters, colors" Click="SettingsBtn_Click"/>
 
                 <Button x:Name="CloseBtn" Grid.Row="0" Grid.Column="3" Content="✕" Width="28" Height="28" Margin="0,0,0,4"
                         Background="#22FFFFFF" Foreground="#FFEFEFEF" BorderBrush="#22FFFFFF"
@@ -59,17 +59,35 @@
                     <ItemsControl x:Name="ItemsList">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid Margin="0,2" Cursor="Hand" MouseLeftButtonDown="Item_MouseLeftButtonDown" MouseEnter="Item_MouseEnter">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Orientation="Vertical" Grid.Column="0">
-                                        <TextBlock Text="{Binding Title}" Foreground="#FFEFEFEF" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding StockText}" Foreground="{Binding StockBrush}" FontSize="11"/>
-                                    </StackPanel>
-                                    <TextBlock Grid.Column="1" Text="{Binding Price}" Foreground="#FFEFEFEF" FontSize="12" Margin="8,0,6,0"/>
-                                </Grid>
+                                <Border CornerRadius="6" Background="#00000000" Padding="6" Margin="0,2"
+                                        Cursor="Hand" MouseLeftButtonDown="Item_MouseLeftButtonDown" MouseEnter="Item_MouseEnter">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="#00000000"/>
+                                            <Setter Property="BorderBrush" Value="#00000000"/>
+                                            <Setter Property="BorderThickness" Value="1"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#22FFFFFF"/>
+                                                    <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="6"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Rectangle Grid.Column="0" RadiusX="2" RadiusY="2" Fill="{Binding AccentBrush}" Margin="0,0,6,0"/>
+                                        <StackPanel Orientation="Vertical" Grid.Column="1">
+                                            <TextBlock Text="{Binding Title}" Foreground="#FFEFEFEF" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding StockText}" Foreground="{Binding StockBrush}" FontSize="11"/>
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="2" Text="{Binding Price}" Foreground="#FFEFEFEF" FontSize="12" Margin="8,0,6,0"/>
+                                    </Grid>
+                                </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

@@ -179,5 +179,9 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Keyed tray menu styles for explicit usage in code-behind -->
+        <Style x:Key="TrayMenuStyle" TargetType="ContextMenu" BasedOn="{StaticResource {x:Type ContextMenu}}"/>
+        <Style x:Key="TrayMenuItemStyle" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}"/>
     </Application.Resources>
 </Application>

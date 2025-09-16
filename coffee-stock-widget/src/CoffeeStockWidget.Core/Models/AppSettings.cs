@@ -15,4 +15,6 @@ public class AppSettings
     public int EventsPerSource { get; set; } = 1000;
     public DateTimeOffset? LastAcknowledgedUtc { get; set; }
     public List<string>? EnabledParsers { get; set; }
+    public Dictionary<string, string>? CustomParserColors { get; set; }
+    public bool AcrylicEnabled { get; set; } = false;
 }
