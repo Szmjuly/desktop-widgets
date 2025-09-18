@@ -251,8 +251,15 @@ public partial class MainWindow : Window
 
             if (_viewMode == ViewMode.Normal)
             {
-                var selectedUi = items.OrderBy(i => i.Title).Select(ToUiItemForView).ToList();
-                var selectedInStock = items.Count(i => i.InStock);
+                // Prefer freshly fetched items, but if fetch returned 0, fall back to cached DB items
+                IReadOnlyList<CoffeeItem> used = items;
+                if (used.Count == 0 && src.Id.HasValue)
+                {
+                    var cached = await _store.GetItemsBySourceAsync(src.Id.Value);
+                    if (cached.Count > 0) used = cached;
+                }
+                var selectedUi = used.OrderBy(i => i.Title).Select(ToUiItemForView).ToList();
+                var selectedInStock = used.Count(i => i.InStock);
                 var label = $"{GetSourceDisplayName()} ({selectedInStock})";
                 await Dispatcher.InvokeAsync(() =>
                 {
@@ -654,11 +661,18 @@ public partial class MainWindow : Window
 
                         if (ReferenceEquals(src, _source))
                         {
-                            selectedUi = items
+                            // Prefer freshly fetched items, but if the fetch returned 0, fall back to cached DB items to avoid flashing an empty view
+                            IReadOnlyList<CoffeeItem> used = items;
+                            if (used.Count == 0)
+                            {
+                                var cached = await _store.GetItemsBySourceAsync(src.Id!.Value, ct);
+                                if (cached.Count > 0) used = cached;
+                            }
+                            selectedUi = used
                                 .OrderBy(i => i.Title)
                                 .Select(ToUiItem)
                                 .ToList();
-                            selectedInStock = items.Count(i => i.InStock);
+                            selectedInStock = used.Count(i => i.InStock);
                         }
 
                         var newCount = events.Count(e => e.EventType is StockEventType.NewItem or StockEventType.BackInStock);
@@ -674,6 +688,7 @@ public partial class MainWindow : Window
                             {
                                 ItemsList.ItemsSource = selectedUi;
                                 SourceLabel.Text = label;
+                                UpdateEmptyOverlay(selectedUi.Count);
                             });
                         }
                     }
@@ -684,13 +699,12 @@ public partial class MainWindow : Window
 
                     // Unseen count across all roasters controls the bubble
                     var unseenCount = await _store.GetUnseenCountAsync(ct);
-                    // Also keep empty overlay in sync in Normal view
-                    if (_viewMode == ViewMode.Normal)
+                    // Avoid overriding the overlay state unless we have a freshly computed selection
+                    if (_viewMode == ViewMode.Normal && selectedUi != null)
                     {
                         await Dispatcher.InvokeAsync(() =>
                         {
-                            var count = selectedUi?.Count ?? 0;
-                            UpdateEmptyOverlay(count);
+                            UpdateEmptyOverlay(selectedUi.Count);
                         });
                     }
 
@@ -851,12 +865,12 @@ public partial class MainWindow : Window
                 Tag = src,
                 IsEnabled = implemented
             };
-            mi.Click += (s, _) =>
+            mi.Click += async (s, _) =>
             {
                 if (s is MenuItem m && m.Tag is Source target)
                 {
                     _viewMode = ViewMode.Normal;
-                    SwitchSource(target);
+                    await SwitchSourceAsync(target);
                 }
             };
             cm.Items.Add(mi);
@@ -864,14 +878,19 @@ public partial class MainWindow : Window
         cm.IsOpen = true;
     }
 
-    private void SwitchSource(Source s)
+    private async Task SwitchSourceAsync(Source s)
     {
         if (ReferenceEquals(_source, s)) return;
         _loopCts?.Cancel();
         _source = s;
+        // Update label quickly with name; detailed count will be applied by RefreshViewAsync
         SourceLabel.Text = GetSourceDisplayName();
+        // Ensure this source has a concrete Id so we can query cached items immediately
+        await _store.UpsertSourceAsync(_source);
+        // Load items from the database right away so the empty overlay and pill count are correct
+        await RefreshViewAsync();
         StartLoop();
-        _ = SaveSelectedRoasterAsync();
+        await SaveSelectedRoasterAsync();
     }
 
     private static bool IsParserImplemented(string? parserType)
@@ -1287,7 +1306,18 @@ public partial class MainWindow : Window
 
     private void UpdateEmptyOverlay(int count)
     {
-        // Force-collapses overlay when there are items, shows when 0; complements XAML triggers
-        EmptyMessage.Visibility = count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        // Adjust message based on current view
+        if (count == 0)
+        {
+            var msg = _viewMode == ViewMode.Normal
+                ? "No coffees for this roaster — click ⟳ to fetch"
+                : "Empty database — click ⟳ to fetch";
+            EmptyMessage.Text = msg;
+            EmptyMessage.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            EmptyMessage.Visibility = Visibility.Collapsed;
+        }
     }
 }

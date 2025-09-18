@@ -150,17 +150,12 @@
                 </ScrollViewer>
             </Border>
 
-            <!-- Empty state overlay: visible only when ItemsList has no items -->
+            <!-- Empty state overlay: visibility controlled in code-behind to avoid flicker -->
             <TextBlock x:Name="EmptyMessage" Grid.Row="1" Text="Empty database — click ⟳ to fetch" Foreground="#77FFFFFF" FontSize="13"
                        HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock">
                         <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding HasItems, ElementName=ItemsList}" Value="False">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
                     </Style>
                 </TextBlock.Style>
             </TextBlock>

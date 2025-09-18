@@ -153,7 +153,25 @@ ON CONFLICT(SourceId, ItemKey) DO UPDATE SET
     public async Task UpsertSourceAsync(Source source, CancellationToken ct = default)
     {
         using var conn = Open();
-        // Reuse existing Source row by RootUrl if present to avoid duplicate SourceIds
+        // Prefer reusing existing Source row by ParserType (stable identifier) to avoid duplicates when URLs change
+        if (!source.Id.HasValue && !string.IsNullOrWhiteSpace(source.ParserType))
+        {
+            using var findByParser = conn.CreateCommand();
+            // If multiple Sources share the same ParserType, prefer the one with the most Items
+            findByParser.CommandText = @"
+SELECT s.Id
+FROM Sources s
+WHERE lower(s.ParserType) = lower($parser)
+ORDER BY (SELECT COUNT(*) FROM Items i WHERE i.SourceId = s.Id) DESC, s.Id ASC
+LIMIT 1;";
+            findByParser.Parameters.AddWithValue("$parser", source.ParserType);
+            var existingByParser = await findByParser.ExecuteScalarAsync(ct).ConfigureAwait(false);
+            if (existingByParser is long exPid)
+            {
+                source.Id = (int)exPid;
+            }
+        }
+        // Fallback: reuse by RootUrl if present to avoid duplicate SourceIds
         if (!source.Id.HasValue)
         {
             using var find = conn.CreateCommand();
