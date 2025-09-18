@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:CoffeeStockWidget.UI"
         mc:Ignorable="d"
         Title="Coffee Stock Widget" Height="400" Width="360"
-        ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="True" Background="Transparent" Topmost="False" ShowInTaskbar="False"
+        ResizeMode="NoResize" WindowStyle="None" AllowsTransparency="False" Background="Transparent" Topmost="False" ShowInTaskbar="False"
         MouseLeftButtonDown="Window_MouseLeftButtonDown">
     <Border x:Name="RootBorder" CornerRadius="12" Padding="8" Background="#E0121212" BorderBrush="#33000000" BorderThickness="1">
         <Grid>
@@ -59,17 +59,21 @@
                     <ItemsControl x:Name="ItemsList">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border CornerRadius="6" Background="#00000000" Padding="6" Margin="0,2"
-                                        Cursor="Hand" MouseLeftButtonDown="Item_MouseLeftButtonDown" MouseEnter="Item_MouseEnter">
+                                <Border x:Name="ItemRoot" CornerRadius="6" Background="#00000000" Padding="6" Margin="0,2"
+                                        Cursor="Hand" MouseLeftButtonDown="Item_MouseLeftButtonDown" MouseLeftButtonUp="Item_MouseLeftButtonUp" MouseEnter="Item_MouseEnter">
+                                    <Border.ToolTip>
+                                        <ToolTip Placement="Mouse" MaxWidth="280">
+                                            <TextBlock Text="{Binding Notes}" TextWrapping="Wrap"/>
+                                        </ToolTip>
+                                    </Border.ToolTip>
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="#00000000"/>
                                             <Setter Property="BorderBrush" Value="#00000000"/>
-                                            <Setter Property="BorderThickness" Value="1"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
                                             <Style.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
                                                     <Setter Property="Background" Value="#22FFFFFF"/>
-                                                    <Setter Property="BorderBrush" Value="#33FFFFFF"/>
                                                 </Trigger>
                                             </Style.Triggers>
                                         </Style>
@@ -82,10 +86,62 @@
                                         </Grid.ColumnDefinitions>
                                         <Rectangle Grid.Column="0" RadiusX="2" RadiusY="2" Fill="{Binding AccentBrush}" Margin="0,0,6,0"/>
                                         <StackPanel Orientation="Vertical" Grid.Column="1">
+                                            <!-- Roaster -->
+                                            <TextBlock Text="{Binding Roaster}" Foreground="#99FFFFFF" FontSize="10" TextTrimming="CharacterEllipsis"/>
+                                            <!-- Coffee title -->
                                             <TextBlock Text="{Binding Title}" Foreground="#FFEFEFEF" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding StockText}" Foreground="{Binding StockBrush}" FontSize="11"/>
+                                            <!-- Notes | Stock row -->
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding Notes}" Foreground="#BBFFFFFF" FontSize="10" FontStyle="Italic" TextTrimming="CharacterEllipsis">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Notes}" Value="{x:Null}">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <TextBlock Grid.Column="1" Text="{Binding StockText}" Foreground="{Binding StockBrush}" FontSize="11" Margin="8,0,0,0"/>
+                                            </Grid>
                                         </StackPanel>
                                         <TextBlock Grid.Column="2" Text="{Binding Price}" Foreground="#FFEFEFEF" FontSize="12" Margin="8,0,6,0"/>
+                                        <!-- Overlay accent border shown on hover -->
+                                        <Border Grid.ColumnSpan="3" IsHitTestVisible="False" Margin="3" BorderBrush="{Binding AccentBrush}" BorderThickness="2" CornerRadius="6" Background="Transparent">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Opacity" Value="0"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMouseOver, ElementName=ItemRoot}" Value="True">
+                                                            <Setter Property="Opacity" Value="1"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                        </Border>
+                                        <!-- Subtle accent-tinted overlay on hover (toggle via settings) -->
+                                        <Border Grid.ColumnSpan="3" IsHitTestVisible="False" Margin="3" Background="{Binding AccentBrush}" CornerRadius="6">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Opacity" Value="0"/>
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding IsMouseOver, ElementName=ItemRoot}" Value="True"/>
+                                                                <Condition Binding="{Binding AccentHoverTintEnabled, RelativeSource={RelativeSource AncestorType=Window}}" Value="True"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Opacity" Value="0.08"/>
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                        </Border>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -94,9 +150,20 @@
                 </ScrollViewer>
             </Border>
 
-            <!-- Empty state overlay -->
+            <!-- Empty state overlay: visible only when ItemsList has no items -->
             <TextBlock x:Name="EmptyMessage" Grid.Row="1" Text="Empty database — click ⟳ to fetch" Foreground="#77FFFFFF" FontSize="13"
-                       HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                       HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasItems, ElementName=ItemsList}" Value="False">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
 
             <!-- Update bubble overlay -->
             <Ellipse x:Name="Bubble" Width="12" Height="12" Fill="#FF4CAF50" StrokeThickness="0"

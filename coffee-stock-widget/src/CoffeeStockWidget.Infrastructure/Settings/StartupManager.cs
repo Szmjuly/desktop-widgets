@@ -3,10 +3,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using System.Runtime.Versioning;
 using Microsoft.Win32;
 
 namespace CoffeeStockWidget.Infrastructure.Settings;
 
+[SupportedOSPlatform("windows")]
 public static class StartupManager
 {
     private const string RunKeyPath = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";

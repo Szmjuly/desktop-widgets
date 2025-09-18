@@ -103,6 +103,8 @@ public class BlackAndWhiteScraper : ISiteScraper
         return results;
     }
 
+    
+
     private static Uri MakeAbsolute(string href)
     {
         if (Uri.TryCreate(href, UriKind.Absolute, out var abs)) return abs;

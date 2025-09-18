@@ -17,4 +17,7 @@ public class AppSettings
     public List<string>? EnabledParsers { get; set; }
     public Dictionary<string, string>? CustomParserColors { get; set; }
     public bool AcrylicEnabled { get; set; } = false;
+    public bool AccentHoverTintEnabled { get; set; } = true;
+    public bool FetchNotesEnabled { get; set; } = false;
+    public int MaxNotesFetchPerRun { get; set; } = 5;
 }

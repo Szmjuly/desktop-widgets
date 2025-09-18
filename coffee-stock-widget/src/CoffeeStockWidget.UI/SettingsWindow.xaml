@@ -1,7 +1,7 @@
 <Window x:Class="CoffeeStockWidget.UI.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Settings" Height="420" Width="360"
+        Title="Settings" Height="460" Width="360"
         ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent" ShowInTaskbar="False"
         Foreground="#FFFFFFFF" MouseLeftButtonDown="Window_MouseLeftButtonDown">
@@ -19,6 +19,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
@@ -28,20 +29,36 @@
 
             <CheckBox x:Name="RunAtLoginBox" Grid.Row="1" Content="Run at login" FontSize="13"/>
 
-            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
-                <TextBlock Text="Transparency:" VerticalAlignment="Center" FontSize="13"/>
-                <Slider x:Name="TransparencySlider" Minimum="60" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True" Width="160" Margin="8,0,0,0"/>
-                <CheckBox x:Name="BlurToggle" Content="Blur background" Margin="12,0,0,0"/>
-                <CheckBox x:Name="AcrylicToggle" Content="Use acrylic" Margin="12,0,0,0" IsEnabled="{Binding IsChecked, ElementName=BlurToggle}"/>
+            <StackPanel Grid.Row="2" Orientation="Vertical" Margin="0,8,0,0">
+                <TextBlock Text="Appearance" FontWeight="Bold" FontSize="13" Margin="0,0,0,6"/>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Transp:" VerticalAlignment="Center" FontSize="13"/>
+                    <Slider x:Name="TransparencySlider" Minimum="60" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True" Width="120" Margin="8,0,0,0" ValueChanged="TransparencySlider_ValueChanged"/>
+                </StackPanel>
+                <WrapPanel Margin="0,6,0,0">
+                    <CheckBox x:Name="BlurToggle" Content="Blur bg" Margin="0,0,12,0" Checked="AppearanceToggle_Changed" Unchecked="AppearanceToggle_Changed"/>
+                    <CheckBox x:Name="AcrylicToggle" Content="Acrylic" Margin="0,0,12,0" IsEnabled="{Binding IsChecked, ElementName=BlurToggle}" Checked="AppearanceToggle_Changed" Unchecked="AppearanceToggle_Changed"/>
+                    <CheckBox x:Name="AccentTintToggle" Content="Accent tint" Checked="AppearanceToggle_Changed" Unchecked="AppearanceToggle_Changed"/>
+                </WrapPanel>
             </StackPanel>
 
-            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
-                <TextBlock Text="Retention (days):" VerticalAlignment="Center" FontSize="13"/>
-                <TextBox x:Name="RetentionBox" Width="70" Margin="8,0,0,0"/>
-                <Button x:Name="ClearDbBtn" Content="Clear database" Margin="12,0,0,0" Width="120" Click="ClearDbBtn_Click"/>
+            <StackPanel Grid.Row="3" Orientation="Vertical" Margin="0,8,0,0">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Retention (days):" VerticalAlignment="Center" FontSize="13"/>
+                    <TextBox x:Name="RetentionBox" Width="70" Margin="8,0,0,0"/>
+                    <Button x:Name="ClearDbBtn" Content="Clear database" Margin="12,0,0,0" Width="120" Click="ClearDbBtn_Click"/>
+                </StackPanel>
+                <StackPanel Margin="0,8,0,0">
+                    <TextBlock Text="Tasting notes" FontWeight="Bold" FontSize="13" Margin="0,0,0,6"/>
+                    <WrapPanel>
+                        <CheckBox x:Name="FetchNotesToggle" Content="Fetch notes (slower)" Margin="0,0,12,0"/>
+                        <TextBlock Text="Max per run:" VerticalAlignment="Center" FontSize="13"/>
+                        <TextBox x:Name="MaxNotesFetchBox" Width="50" Margin="6,0,0,0"/>
+                    </WrapPanel>
+                </StackPanel>
             </StackPanel>
 
-            <!-- Roaster management (mass run inclusion + colors) -->
+            <!-- Roaster management (mass run inclusion) -->
             <StackPanel Grid.Row="4" Orientation="Vertical" Margin="0,8,0,0">
                 <TextBlock Text="Roasters (included in 'Run Enabled')" FontWeight="Bold" FontSize="13" Margin="0,0,0,6"/>
                 <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="220">
@@ -52,13 +69,6 @@
                                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                                         <CheckBox Content="{Binding Name}" IsChecked="{Binding Enabled}" FontSize="13"/>
                                     </StackPanel>
-                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                                        <Border Width="16" Height="16" CornerRadius="4" Background="{Binding ColorBrush}" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="8,0,6,0"/>
-                                        <Button Content="Pick" Margin="0,0,6,0" Tag="pick" Click="RoasterAction_Click"/>
-                                        <TextBox Width="92" Text="{Binding ColorHex}"/>
-                                        <Button Content="Apply" Margin="6,0,0,0" Tag="apply" Click="RoasterAction_Click"/>
-                                        <Button Content="Reset" Margin="6,0,0,0" Tag="reset" Click="RoasterAction_Click"/>
-                                    </StackPanel>
                                 </DockPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -66,7 +76,32 @@
                 </ScrollViewer>
             </StackPanel>
 
-            <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,8,0,0">
+            <!-- Roaster Colors (separate section) -->
+            <StackPanel Grid.Row="5" Orientation="Vertical" Margin="0,8,0,0">
+                <TextBlock Text="Roaster Colors" FontWeight="Bold" FontSize="13" Margin="0,0,0,6"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="180">
+                    <ItemsControl x:Name="RoasterColorsPanel">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Vertical" Margin="0,2">
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                                        <Border Width="16" Height="16" CornerRadius="4" Background="{Binding ColorBrush}" BorderBrush="#55FFFFFF" BorderThickness="1" Margin="8,0,0,0" DockPanel.Dock="Right"/>
+                                    </DockPanel>
+                                    <WrapPanel Margin="0,4,0,0">
+                                        <TextBox Width="140" Text="{Binding ColorHex, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <Button Content="Pick" Margin="8,0,0,0" Tag="pick" Click="RoasterAction_Click"/>
+                                        <Button Content="Apply" Margin="8,0,0,0" Tag="apply" Click="RoasterAction_Click"/>
+                                        <Button Content="Reset" Margin="8,0,0,0" Tag="reset" Click="RoasterAction_Click"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </StackPanel>
+
+            <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,8,0,0">
                 <TextBlock Text="Max per source:" VerticalAlignment="Center" FontSize="13"/>
                 <TextBlock Text=" Items" VerticalAlignment="Center" FontSize="13" Margin="8,0,0,0"/>
                 <TextBox x:Name="ItemsCapBox" Width="70" Margin="4,0,0,0"/>
@@ -74,13 +109,13 @@
                 <TextBox x:Name="EventsCapBox" Width="70" Margin="4,0,0,0"/>
             </StackPanel>
 
-            <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
                 <Button x:Name="CancelBtn" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" Click="CancelBtn_Click"/>
                 <Button x:Name="SaveBtn" Content="Save" Width="80" Height="28" Click="SaveBtn_Click"/>
             </StackPanel>
 
             <!-- Overlay dialog for confirmations/success -->
-            <Grid x:Name="Overlay" Background="#AA000000" Visibility="Collapsed" Grid.RowSpan="8">
+            <Grid x:Name="Overlay" Background="#AA000000" Visibility="Collapsed" Grid.RowSpan="9">
                 <Border CornerRadius="10" Background="#FF2A2A2A" BorderBrush="#55FFFFFF" BorderThickness="1" Padding="12" Width="300" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <StackPanel>
                         <TextBlock x:Name="DialogTitle" Text="Title" FontSize="14" FontWeight="Bold" Margin="0,0,0,6"/>

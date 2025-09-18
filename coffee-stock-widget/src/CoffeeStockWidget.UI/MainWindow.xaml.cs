@@ -47,11 +47,180 @@ public partial class MainWindow : Window
     private Dictionary<string, string> _customColors = new(StringComparer.OrdinalIgnoreCase);
     private DateTimeOffset? _lastAcknowledgedUtc;
     private DateTimeOffset _lastEventUtc;
+    private ViewMode _viewMode = ViewMode.Normal;
+    private System.Windows.Media.Color _currentShellColor = System.Windows.Media.Color.FromArgb(0xE5, 0x12, 0x12, 0x12);
+
+    // Controls whether item hover shows a light accent-tinted overlay (bound in XAML)
+    public static readonly DependencyProperty AccentHoverTintEnabledProperty =
+        DependencyProperty.Register(nameof(AccentHoverTintEnabled), typeof(bool), typeof(MainWindow), new PropertyMetadata(true));
+
+    public bool AccentHoverTintEnabled
+    {
+        get => (bool)GetValue(AccentHoverTintEnabledProperty);
+        set => SetValue(AccentHoverTintEnabledProperty, value);
+    }
+
+    private void ApplyRoundedCorners(double radiusDip)
+    {
+        try
+        {
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+            var source = System.Windows.PresentationSource.FromVisual(this);
+            double scaleX = 1.0, scaleY = 1.0;
+            if (source?.CompositionTarget != null)
+            {
+                var m = source.CompositionTarget.TransformToDevice;
+                scaleX = m.M11; scaleY = m.M22;
+            }
+            int w = Math.Max(1, (int)Math.Round(ActualWidth * scaleX));
+            int h = Math.Max(1, (int)Math.Round(ActualHeight * scaleY));
+            int rx = Math.Max(1, (int)Math.Round(radiusDip * scaleX)) * 2;
+            int ry = Math.Max(1, (int)Math.Round(radiusDip * scaleY)) * 2;
+            IntPtr rgn = CreateRoundRectRgn(0, 0, w + 1, h + 1, rx, ry);
+            SetWindowRgn(hwnd, rgn, true);
+            // Do not delete region; the system owns it after SetWindowRgn
+        }
+        catch { }
+    }
 
     private enum ViewMode
     {
         Normal,
         AllAggregated
+    }
+
+    public MainWindow()
+    {
+        try
+        {
+            InitializeComponent();
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                var dir = AppDomain.CurrentDomain.BaseDirectory;
+                var path = System.IO.Path.Combine(dir, "WindowInit.log");
+                System.IO.File.WriteAllText(path, ex.ToString());
+            }
+            catch { }
+            System.Windows.MessageBox.Show("Failed to initialize window. See WindowInit.log for details.\n" + ex.Message, "Coffee Stock Widget", MessageBoxButton.OK, MessageBoxImage.Error);
+            throw;
+        }
+
+        _store = new SqliteDataStore();
+        _source = new Source
+        {
+            Name = "Black & White Roasters",
+            RootUrl = new Uri("https://www.blackwhiteroasters.com/collections/all-coffee"),
+            ParserType = "BlackAndWhite",
+            PollIntervalSeconds = 300,
+            Enabled = true
+        };
+
+        _scrapers = new Dictionary<string, ISiteScraper>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["BlackAndWhite"] = new BlackAndWhiteScraper(_http),
+            ["Brandywine"] = new BrandywineScraper(_http)
+        };
+
+        _source.DefaultColorHex = "#FF90CAF9"; // light blue
+
+        _sources = new List<Source>
+        {
+            _source,
+            new Source
+            {
+                Name = "Brandywine Coffee Roasters",
+                RootUrl = new Uri("https://www.brandywinecoffeeroasters.com/collections/all-coffee-1"),
+                ParserType = "Brandywine",
+                PollIntervalSeconds = 300,
+                Enabled = true,
+                DefaultColorHex = "#FF80CBC4" // teal
+            }
+        };
+
+        _notifyIcon = CreateTrayIcon();
+        Loaded += async (_, __) =>
+        {
+            // Load settings
+            var s = await _settings.LoadAsync();
+
+            // Select persisted roaster if available
+            if (!string.IsNullOrWhiteSpace(s.SelectedParserType))
+            {
+                var chosen = _sources.FirstOrDefault(x => string.Equals(x.ParserType, s.SelectedParserType, StringComparison.OrdinalIgnoreCase));
+                if (chosen != null) _source = chosen;
+            }
+
+            // Apply poll interval
+            if (s.PollIntervalSeconds >= 10)
+            {
+                _source.PollIntervalSeconds = s.PollIntervalSeconds;
+            }
+
+            // Apply visual settings and load acknowledgment time
+            _lastAcknowledgedUtc = s.LastAcknowledgedUtc;
+            ApplyVisualSettings(s);
+
+            // Load custom roaster colors
+            _customColors = s.CustomParserColors != null
+                ? new Dictionary<string, string>(s.CustomParserColors, StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            // Apply enabled sources from settings if present
+            if (s.EnabledParsers is { Count: > 0 })
+            {
+                var set = new HashSet<string>(s.EnabledParsers, StringComparer.OrdinalIgnoreCase);
+                foreach (var src in _sources)
+                {
+                    src.Enabled = set.Contains(src.ParserType!);
+                }
+            }
+
+            // Initial prune based on retention (clamp days >= 1)
+            var pruneDays = Math.Max(1, s.RetentionDays);
+            _ = _store.PruneAsync(new RetentionPolicy { Days = pruneDays, ItemsPerSource = s.ItemsPerSource, EventsPerSource = s.EventsPerSource });
+
+            // Set roaster label
+            SourceLabel.Text = GetSourceDisplayName();
+
+            // Ensure Source has a concrete Id so we can load cached items immediately
+            await _store.UpsertSourceAsync(_source);
+            await RefreshViewAsync();
+
+            StartLoop();
+            if (_attachToDesktop) ApplyDesktopAttachment();
+            await RefreshEmptyStateAsync();
+            ApplyRoundedCorners(12);
+            UpdateRootClip(12);
+        };
+        Activated += (_, __) => { if (_attachToDesktop) ApplyDesktopAttachment(); };
+        SourceInitialized += (_, __) =>
+        {
+            try
+            {
+                var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+                // Extend frame to enable transparent background composition for blur
+                var margins = new MARGINS { cxLeftWidth = -1 };
+                DwmExtendFrameIntoClientArea(hwnd, ref margins);
+                // Hide from Alt-Tab
+                int extendedStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+                SetWindowLong(hwnd, GWL_EXSTYLE, extendedStyle | WS_EX_TOOLWINDOW);
+
+                var src = System.Windows.Interop.HwndSource.FromHwnd(hwnd);
+                src!.CompositionTarget.BackgroundColor = System.Windows.Media.Colors.Transparent;
+
+                ApplyRoundedCorners(12);
+                UpdateRootClip(12);
+                // Apply Win11 rounded corner preference early (settings-based backdrop handled later)
+                ApplyWin11WindowAttributes(false, false);
+            }
+            catch { }
+        };
+        SizeChanged += (_, __) => { ApplyRoundedCorners(12); UpdateRootClip(12); };
+        Closed += (_, __) => { _notifyIcon.Visible = false; _notifyIcon.Dispose(); };
     }
 
     private async Task RunCurrentAsync()
@@ -66,6 +235,12 @@ public partial class MainWindow : Window
             var prevDict = prev.ToDictionary(i => i.ItemKey);
             var scraper = GetScraperFor(src);
             var items = await scraper.FetchAsync(src);
+            // Optional notes enrichment (slower): only for new/missing notes, capped
+            var s = await _settings.LoadAsync();
+            if (s.FetchNotesEnabled)
+            {
+                await EnrichNotesAsync(src, items, prevDict, s);
+            }
             var events = _detector.Compare(prev, items);
             await _store.UpsertItemsAsync(items);
 
@@ -83,6 +258,7 @@ public partial class MainWindow : Window
                 {
                     ItemsList.ItemsSource = selectedUi;
                     SourceLabel.Text = label;
+                    UpdateEmptyOverlay(selectedUi?.Count ?? 0);
                 });
             }
             else
@@ -126,7 +302,7 @@ public partial class MainWindow : Window
                     {
                         ItemsList.ItemsSource = ui;
                         SourceLabel.Text = label;
-                        EmptyMessage.Visibility = ui.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                        UpdateEmptyOverlay(ui.Count);
                     });
                 }
             }
@@ -148,7 +324,7 @@ public partial class MainWindow : Window
                 {
                     ItemsList.ItemsSource = ui;
                     SourceLabel.Text = "All coffees";
-                    EmptyMessage.Visibility = ui.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                    UpdateEmptyOverlay(ui.Count);
                 });
             }
         }
@@ -166,11 +342,19 @@ public partial class MainWindow : Window
             var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
             if (hwnd == IntPtr.Zero) return;
 
+            // Derive gradient color (ABGR) from the last computed shell color
+            // For ACCENT_ENABLE_BLURBEHIND, use a very low alpha so blur is clearly visible.
+            // For acrylic, use a stronger alpha to emulate acrylic tint.
+            uint ToAbgr(System.Windows.Media.Color c) => (uint)(c.A << 24 | c.B << 16 | c.G << 8 | c.R);
+            byte alpha = acrylic ? (byte)0xCC : (byte)0x18; // acrylic ~80% tint; blur ~9% tint
+            var tinted = System.Windows.Media.Color.FromArgb(alpha, _currentShellColor.R, _currentShellColor.G, _currentShellColor.B);
+            uint gradient = ToAbgr(tinted);
+
             var accent = new ACCENT_POLICY
             {
                 AccentState = enable ? (acrylic ? ACCENT_STATE.ACCENT_ENABLE_ACRYLICBLURBEHIND : ACCENT_STATE.ACCENT_ENABLE_BLURBEHIND) : ACCENT_STATE.ACCENT_DISABLED,
                 AccentFlags = 2, // blur all borders
-                GradientColor = 0x00000000,
+                GradientColor = gradient,
                 AnimationId = 0
             };
             int size = Marshal.SizeOf(accent);
@@ -192,6 +376,17 @@ public partial class MainWindow : Window
             }
         }
         catch { /* ignore blur failures */ }
+    }
+
+    private void UpdateRootClip(double radiusDip)
+    {
+        try
+        {
+            if (RootBorder.ActualWidth <= 0 || RootBorder.ActualHeight <= 0) return;
+            var rect = new System.Windows.Rect(0, 0, RootBorder.ActualWidth, RootBorder.ActualHeight);
+            RootBorder.Clip = new System.Windows.Media.RectangleGeometry(rect, radiusDip, radiusDip);
+        }
+        catch { }
     }
 
     private enum WINDOWCOMPOSITIONATTRIB
@@ -226,135 +421,93 @@ public partial class MainWindow : Window
         public int SizeOfData;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MARGINS
+    {
+        public int cxLeftWidth;
+        public int cxRightWidth;
+        public int cyTopHeight;
+        public int cyBottomHeight;
+    }
+
     [DllImport("user32.dll")]
     private static extern int SetWindowCompositionAttribute(IntPtr hwnd, ref WINDOWCOMPOSITIONATTRIBDATA data);
 
+    [DllImport("gdi32.dll")]
+    private static extern IntPtr CreateRoundRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect, int nWidthEllipse, int nHeightEllipse);
 
-private void ReloadBtn_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
-{
-    var cm = new ContextMenu
-    {
-        PlacementTarget = ReloadBtn,
-        Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom,
-        Style = TryFindResource("TrayMenuStyle") as Style
-    };
-    var miStyle = TryFindResource("TrayMenuItemStyle") as Style;
-    var runEnabled = new MenuItem { Header = "Run Enabled Now", Style = miStyle };
-    runEnabled.Click += async (_, __) => await RunMassAsync(includeDisabled: false);
-    var runAll = new MenuItem { Header = "Run ALL Now (ignore enabled)", Style = miStyle };
-    runAll.Click += async (_, __) => await RunMassAsync(includeDisabled: true);
-    var markAll = new MenuItem { Header = "Mark all as seen", Style = miStyle };
-    markAll.Click += async (_, __) => { await _store.MarkAllSeenAsync(DateTimeOffset.UtcNow); await UpdateUnseenUiAsync(); };
-    cm.Items.Add(runEnabled);
-    cm.Items.Add(runAll);
-    cm.Items.Add(new Separator());
-    cm.Items.Add(markAll);
-    cm.IsOpen = true;
-}
+    [DllImport("user32.dll")]
+    private static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
 
-private ViewMode _viewMode = ViewMode.Normal;
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmExtendFrameIntoClientArea(IntPtr hWnd, ref MARGINS pMarInset);
 
-public MainWindow()
-{
-    try
-    {
-        InitializeComponent();
-    }
-    catch (Exception ex)
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
+
+    [DllImport("user32.dll")]
+    private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll")]
+    private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+    private const int GWL_EXSTYLE = -20;
+    private const int WS_EX_TOOLWINDOW = 0x00000080;
+    private const int GWL_STYLE = -16;
+    private const int WS_SYSMENU = 0x80000;
+
+    // Windows 11 DWM attributes
+    private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+    private const int DWMWA_SYSTEMBACKDROP_TYPE = 38;
+    private const int DWMWCP_DEFAULT = 0;
+    private const int DWMWCP_DONOTROUND = 1;
+    private const int DWMWCP_ROUND = 2;
+    private const int DWMWCP_ROUNDSMALL = 3;
+    private const int DWMSBT_NONE = 0; // disable system backdrop
+    private const int DWMSBT_MAINWINDOW = 2; // Mica
+    private const int DWMSBT_TRANSIENTWINDOW = 3; // Acrylic-like
+
+    private void ApplyWin11WindowAttributes(bool blur, bool acrylic)
     {
         try
         {
-            var dir = AppDomain.CurrentDomain.BaseDirectory;
-            var path = System.IO.Path.Combine(dir, "WindowInit.log");
-            System.IO.File.WriteAllText(path, ex.ToString());
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+
+            // Always ask for rounded corners on Win11
+            int corner = DWMWCP_ROUND;
+            _ = DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref corner, sizeof(int));
+            
+            // Avoid setting a system backdrop here to prevent conflicts with AccentPolicy blur.
+            int backdrop = DWMSBT_NONE;
+            _ = DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, ref backdrop, sizeof(int));
         }
-        catch { }
-        System.Windows.MessageBox.Show("Failed to initialize window. See WindowInit.log for details.\n" + ex.Message, "Coffee Stock Widget", MessageBoxButton.OK, MessageBoxImage.Error);
-        throw;
+        catch { /* ignore on unsupported systems */ }
     }
 
-    _store = new SqliteDataStore();
-    _source = new Source
+    private void ReloadBtn_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
-        Id = 1,
-        Name = "Black & White Roasters",
-        RootUrl = new Uri("https://www.blackwhiteroasters.com/collections/all-coffee"),
-        ParserType = "BlackAndWhite",
-        PollIntervalSeconds = 300,
-        Enabled = true
-    };
-
-    _scrapers = new Dictionary<string, ISiteScraper>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["BlackAndWhite"] = new BlackAndWhiteScraper(_http),
-        ["Brandywine"] = new BrandywineScraper(_http)
-    };
-
-    _source.DefaultColorHex = "#FF90CAF9"; // light blue
-
-    _sources = new List<Source>
-    {
-        _source,
-        new Source
+        var cm = new ContextMenu
         {
-            Name = "Brandywine Coffee Roasters",
-            RootUrl = new Uri("https://www.brandywinecoffeeroasters.com/collections/all-coffee-1"),
-            ParserType = "Brandywine",
-            PollIntervalSeconds = 300,
-            Enabled = true,
-            DefaultColorHex = "#FF80CBC4" // teal
-        }
-    };
-
-        _notifyIcon = CreateTrayIcon();
-        Loaded += async (_, __) =>
-        {
-            // Load settings
-            var s = await _settings.LoadAsync();
-
-            // Select persisted roaster if available
-            if (!string.IsNullOrWhiteSpace(s.SelectedParserType))
-            {
-                var chosen = _sources.FirstOrDefault(x => string.Equals(x.ParserType, s.SelectedParserType, StringComparison.OrdinalIgnoreCase));
-                if (chosen != null) _source = chosen;
-            }
-
-            // Apply poll interval
-            if (s.PollIntervalSeconds >= 10)
-            {
-                _source.PollIntervalSeconds = s.PollIntervalSeconds;
-            }
-
-            // Apply visual settings and load acknowledgment time
-            _lastAcknowledgedUtc = s.LastAcknowledgedUtc;
-            ApplyVisualSettings(s);
-
-            // Load custom roaster colors
-            _customColors = s.CustomParserColors != null
-                ? new Dictionary<string, string>(s.CustomParserColors, StringComparer.OrdinalIgnoreCase)
-                : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            // Apply enabled sources from settings if present
-            if (s.EnabledParsers is { Count: > 0 })
-            {
-                var set = new HashSet<string>(s.EnabledParsers, StringComparer.OrdinalIgnoreCase);
-                foreach (var src in _sources)
-                {
-                    src.Enabled = set.Contains(src.ParserType!);
-                }
-            }
-
-            // Initial prune based on retention
-            _ = _store.PruneAsync(new RetentionPolicy { Days = s.RetentionDays, ItemsPerSource = s.ItemsPerSource, EventsPerSource = s.EventsPerSource });
-
-            // Set roaster label
-            SourceLabel.Text = GetSourceDisplayName();
-
-            StartLoop();
-            if (_attachToDesktop) ApplyDesktopAttachment();
+            PlacementTarget = ReloadBtn,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom,
+            Style = TryFindResource("TrayMenuStyle") as Style
         };
-        Activated += (_, __) => { if (_attachToDesktop) ApplyDesktopAttachment(); };
-        Closed += (_, __) => { _notifyIcon.Visible = false; _notifyIcon.Dispose(); };
+        var miStyle = TryFindResource("TrayMenuItemStyle") as Style;
+        var runEnabled = new MenuItem { Header = "Run Enabled Now", Style = miStyle };
+        runEnabled.Click += async (_, __) => await RunMassAsync(includeDisabled: false);
+        var runAll = new MenuItem { Header = "Run ALL Now (ignore enabled)", Style = miStyle };
+        runAll.Click += async (_, __) => await RunMassAsync(includeDisabled: true);
+        var refreshNotes = new MenuItem { Header = "Refresh notes (current source)", Style = miStyle };
+        refreshNotes.Click += async (_, __) => await RefreshNotesForCurrentSourceAsync();
+        var markAll = new MenuItem { Header = "Mark all as seen", Style = miStyle };
+        markAll.Click += async (_, __) => { await _store.MarkAllSeenAsync(DateTimeOffset.UtcNow); await UpdateUnseenUiAsync(); };
+        cm.Items.Add(runEnabled);
+        cm.Items.Add(runAll);
+        cm.Items.Add(refreshNotes);
+        cm.Items.Add(new Separator());
+        cm.Items.Add(markAll);
+        cm.IsOpen = true;
     }
 
     private Forms.NotifyIcon CreateTrayIcon()
@@ -531,10 +684,15 @@ public MainWindow()
 
                     // Unseen count across all roasters controls the bubble
                     var unseenCount = await _store.GetUnseenCountAsync(ct);
-                    await Dispatcher.InvokeAsync(() =>
+                    // Also keep empty overlay in sync in Normal view
+                    if (_viewMode == ViewMode.Normal)
                     {
-                        EmptyMessage.Visibility = (selectedUi == null || selectedUi.Count == 0) ? Visibility.Visible : Visibility.Collapsed;
-                    });
+                        await Dispatcher.InvokeAsync(() =>
+                        {
+                            var count = selectedUi?.Count ?? 0;
+                            UpdateEmptyOverlay(count);
+                        });
+                    }
 
                     if (totalNew > 0)
                     {
@@ -571,7 +729,8 @@ public MainWindow()
             try
             {
                 var s = await _settings.LoadAsync();
-                await _store.PruneAsync(new RetentionPolicy { Days = s.RetentionDays, ItemsPerSource = s.ItemsPerSource, EventsPerSource = s.EventsPerSource }, ct);
+                var pruneDays3 = Math.Max(1, s.RetentionDays);
+                await _store.PruneAsync(new RetentionPolicy { Days = pruneDays3, ItemsPerSource = s.ItemsPerSource, EventsPerSource = s.EventsPerSource }, ct);
             }
             catch { /* ignore prune errors */ }
 
@@ -601,8 +760,8 @@ public MainWindow()
             {
                 _source.PollIntervalSeconds = s.PollIntervalSeconds;
             }
-            ApplyVisualSettings(s);
-            _ = _store.PruneAsync(new RetentionPolicy { Days = s.RetentionDays, ItemsPerSource = s.ItemsPerSource, EventsPerSource = s.EventsPerSource });
+            var pruneDays2 = Math.Max(1, s.RetentionDays);
+            _ = _store.PruneAsync(new RetentionPolicy { Days = pruneDays2, ItemsPerSource = s.ItemsPerSource, EventsPerSource = s.EventsPerSource });
             // Sync enabled roasters from settings
             if (s.EnabledParsers is { Count: > 0 })
             {
@@ -625,6 +784,21 @@ public MainWindow()
             _loopCts?.Cancel();
             StartLoop();
             await RefreshEmptyStateAsync();
+        }
+    }
+
+    // Single-click: show details dialog with notes and actions
+    private void Item_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount > 1) return; // double-click handled elsewhere
+        if (sender is FrameworkElement fe && fe.DataContext is UiItem ui)
+        {
+            var dlg = new CoffeeDetailsWindow
+            {
+                Owner = this,
+                DataContext = ui
+            };
+            dlg.ShowDialog();
         }
     }
 
@@ -734,10 +908,36 @@ public MainWindow()
         var p = Math.Max(0, Math.Min(100, s.TransparencyPercent));
         byte a = (byte)Math.Round(p * 2.55);
         var shell = System.Windows.Media.Color.FromArgb(a, 0x12, 0x12, 0x12);
-        RootBorder.Background = new System.Windows.Media.SolidColorBrush(shell);
+        _currentShellColor = shell;
+        RootBorder.Background = s.BlurEnabled
+            ? System.Windows.Media.Brushes.Transparent
+            : new System.Windows.Media.SolidColorBrush(shell);
+        // Strengthen border when blur is on, to avoid it visually disappearing over bright backdrops
+        RootBorder.BorderBrush = s.BlurEnabled
+            ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF))
+            : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x33, 0x00, 0x00, 0x00));
         // Keep content transparent per design
         RootBorder.Effect = null; // never blur content; use OS blur-behind instead
         EnableBlurBehind(s.BlurEnabled, acrylic: s.AcrylicEnabled);
+        ApplyWin11WindowAttributes(s.BlurEnabled, s.AcrylicEnabled);
+        // Bindable flag for hover tint
+        AccentHoverTintEnabled = s.AccentHoverTintEnabled;
+        // Ensure window region stays rounded when toggling blur/acrylic
+        ApplyRoundedCorners(12);
+        UpdateRootClip(12);
+    }
+
+    // Allow live preview from SettingsWindow without persisting yet
+    public void ApplyAppearancePreview(int transparencyPercent, bool blur, bool acrylic, bool accentTint)
+    {
+        var s = new AppSettings
+        {
+            TransparencyPercent = transparencyPercent,
+            BlurEnabled = blur,
+            AcrylicEnabled = acrylic,
+            AccentHoverTintEnabled = accentTint
+        };
+        ApplyVisualSettings(s);
     }
 
     private async Task SaveSelectedRoasterAsync()
@@ -768,6 +968,7 @@ public MainWindow()
             int selectedInStock = 0;
 
             var list = includeDisabled ? _sources : _sources.Where(s => s.Enabled).ToList();
+            var settings = await _settings.LoadAsync();
             foreach (var src in list)
             {
                 await _store.UpsertSourceAsync(src);
@@ -775,6 +976,10 @@ public MainWindow()
                 var prevDict = prev.ToDictionary(i => i.ItemKey);
                 var scraper = GetScraperFor(src);
                 var items = await scraper.FetchAsync(src);
+                if (settings.FetchNotesEnabled)
+                {
+                    await EnrichNotesAsync(src, items, prevDict, settings);
+                }
                 var events = _detector.Compare(prev, items);
                 await _store.UpsertItemsAsync(items);
 
@@ -798,6 +1003,7 @@ public MainWindow()
                 {
                     ItemsList.ItemsSource = selectedUi;
                     SourceLabel.Text = label;
+                    UpdateEmptyOverlay(selectedUi.Count);
                 });
             }
 
@@ -861,7 +1067,10 @@ public MainWindow()
         var price = i.PriceCents.HasValue ? ("$" + (i.PriceCents.Value / 100.0m).ToString("0.00")) : string.Empty;
         var stockText = i.InStock ? "In stock" : "Sold out";
         var accentHex = GetAccentHexFor(i.SourceId);
-        return new UiItem { Title = i.Title, Price = price, StockText = stockText, IsInStock = i.InStock, Url = i.Url, ItemKey = i.ItemKey, SourceId = i.SourceId, AccentHex = accentHex };
+        var roaster = GetSourceShortNameById(i.SourceId);
+        string? notes = null;
+        if (i.Attributes != null && i.Attributes.TryGetValue("notes", out var n)) notes = n;
+        return new UiItem { Roaster = roaster, Title = i.Title, Price = price, StockText = stockText, IsInStock = i.InStock, Url = i.Url, ItemKey = i.ItemKey, SourceId = i.SourceId, AccentHex = accentHex, Notes = notes };
     }
 
     private UiItem ToUiItemForView(CoffeeItem i)
@@ -880,6 +1089,7 @@ public MainWindow()
 
     private class UiItem
     {
+        public string Roaster { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Price { get; set; } = string.Empty;
         public string StockText { get; set; } = string.Empty;
@@ -888,6 +1098,7 @@ public MainWindow()
         public string ItemKey { get; set; } = string.Empty;
         public int SourceId { get; set; }
         public string AccentHex { get; set; } = "#696969";
+        public string? Notes { get; set; }
 
         // Create brushes on the UI thread when the binding reads these properties
         public System.Windows.Media.Brush StockBrush => IsInStock ? System.Windows.Media.Brushes.LightGreen : System.Windows.Media.Brushes.OrangeRed;
@@ -920,6 +1131,139 @@ public MainWindow()
         }
     }
 
+    private async Task RefreshNotesForCurrentSourceAsync()
+    {
+        try
+        {
+            StatusText.Text = "Refreshing notes...";
+            if (!_source.Id.HasValue) return;
+            var settings = await _settings.LoadAsync();
+            var prev = await _store.GetItemsBySourceAsync(_source.Id!.Value);
+            var prevDict = prev.ToDictionary(i => i.ItemKey);
+            // Work from a copy of current DB items for enrichment
+            var items = prev.Select(i => new CoffeeItem
+            {
+                Id = i.Id,
+                SourceId = i.SourceId,
+                ItemKey = i.ItemKey,
+                Title = i.Title,
+                Url = i.Url,
+                PriceCents = i.PriceCents,
+                InStock = i.InStock,
+                FirstSeenUtc = i.FirstSeenUtc,
+                LastSeenUtc = i.LastSeenUtc,
+                Attributes = i.Attributes == null ? null : new Dictionary<string, string>(i.Attributes, StringComparer.OrdinalIgnoreCase)
+            }).ToList();
+            await EnrichNotesAsync(_source, items, prevDict, settings, force: true);
+            await _store.UpsertItemsAsync(items);
+            await RefreshViewAsync();
+            await UpdateUnseenUiAsync();
+            StatusText.Text = "Notes refreshed";
+        }
+        catch (Exception ex)
+        {
+            await Dispatcher.InvokeAsync(() => StatusText.Text = "Error: " + ex.Message);
+        }
+    }
+
+    private async Task EnrichNotesAsync(Source src, IReadOnlyList<CoffeeItem> items, Dictionary<string, CoffeeItem> prevDict, AppSettings settings, bool force = false)
+    {
+        var candidates = new List<CoffeeItem>();
+        foreach (var i in items)
+        {
+            if (i.Url == null) continue;
+            if (force)
+            {
+                candidates.Add(i);
+                continue;
+            }
+            if (!prevDict.TryGetValue(i.ItemKey, out var prev))
+            {
+                candidates.Add(i);
+            }
+            else
+            {
+                var hasPrevNotes = prev.Attributes != null && prev.Attributes.TryGetValue("notes", out var pv) && !string.IsNullOrWhiteSpace(pv);
+                if (!hasPrevNotes) candidates.Add(i);
+            }
+        }
+        if (candidates.Count == 0) return;
+
+        int cap = Math.Max(1, Math.Min(50, settings.MaxNotesFetchPerRun));
+        foreach (var i in candidates.Take(cap))
+        {
+            try
+            {
+                var html = await _http.GetStringAsync(i.Url!, null, CancellationToken.None).ConfigureAwait(false);
+                var notes = ExtractNotesFromHtml(html);
+                if (!string.IsNullOrWhiteSpace(notes))
+                {
+                    i.Attributes ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    i.Attributes["notes"] = notes!;
+                }
+            }
+            catch { /* ignore individual failures */ }
+        }
+    }
+
+    private static string? ExtractNotesFromHtml(string html)
+    {
+        if (string.IsNullOrWhiteSpace(html)) return null;
+
+        // Try common meta descriptions
+        static string? ExtractMeta(string html, string name)
+        {
+            try
+            {
+                var pattern = $"<meta[^>]+(?:name|property)=[\"']{name}[\"'][^>]*content=[\"'](.*?)[\"']";
+                var m = System.Text.RegularExpressions.Regex.Match(html, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+                if (m.Success) return System.Net.WebUtility.HtmlDecode(m.Groups[1].Value).Trim();
+            }
+            catch { }
+            return null;
+        }
+        var meta = ExtractMeta(html, "og:description") ?? ExtractMeta(html, "twitter:description") ?? ExtractMeta(html, "description");
+        if (!string.IsNullOrWhiteSpace(meta))
+        {
+            var lm = meta!.ToLowerInvariant();
+            if (lm.Contains("notes") || lm.Contains("tasting") || lm.Contains("flavor") || lm.Contains("flavour"))
+            {
+                return meta.Length > 300 ? meta.Substring(0, 300) : meta;
+            }
+        }
+
+        // Fallback: basic visible text scan
+        string text;
+        try
+        {
+            text = System.Text.RegularExpressions.Regex.Replace(html, "<script[\\s\\S]*?</script>", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            text = System.Text.RegularExpressions.Regex.Replace(text, "<style[\\s\\S]*?</style>", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            text = System.Text.RegularExpressions.Regex.Replace(text, "<[^>]+>", "\n");
+            text = System.Net.WebUtility.HtmlDecode(text);
+        }
+        catch { text = html; }
+
+        var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => s.Trim())
+                        .Where(s => s.Length > 0 && s.Length < 400)
+                        .ToList();
+        foreach (var line in lines)
+        {
+            var l = line.ToLowerInvariant();
+            if (l.Contains("tasting notes") || l.StartsWith("notes:") || l.Contains("flavor notes") || l.Contains("flavour notes"))
+            {
+                var idx = line.IndexOf(':');
+                if (idx >= 0 && idx + 1 < line.Length)
+                {
+                    var val = line.Substring(idx + 1).Trim();
+                    if (!string.IsNullOrWhiteSpace(val)) return val.Length > 300 ? val.Substring(0, 300) : val;
+                }
+                return line.Length > 300 ? line.Substring(0, 300) : line;
+            }
+        }
+        return null;
+    }
+
     private async Task SaveEnabledParsersAsync()
     {
         var s = await _settings.LoadAsync();
@@ -935,13 +1279,15 @@ public MainWindow()
             if (total == 0)
             {
                 ItemsList.ItemsSource = null;
-                EmptyMessage.Visibility = Visibility.Visible;
                 StatusText.Text = "Empty database — click ⟳ to fetch";
-            }
-            else
-            {
-                EmptyMessage.Visibility = Visibility.Collapsed;
+                UpdateEmptyOverlay(0);
             }
         });
+    }
+
+    private void UpdateEmptyOverlay(int count)
+    {
+        // Force-collapses overlay when there are items, shows when 0; complements XAML triggers
+        EmptyMessage.Visibility = count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 }

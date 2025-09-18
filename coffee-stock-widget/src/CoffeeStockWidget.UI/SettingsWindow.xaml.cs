@@ -32,9 +32,12 @@ public partial class SettingsWindow : Window
         var s = await _settingsService.LoadAsync();
         IntervalBox.Text = s.PollIntervalSeconds.ToString();
         RunAtLoginBox.IsChecked = await StartupManager.IsEnabledAsync();
-        TransparencySlider.Value = s.TransparencyPercent;
+        TransparencySlider.Value = Math.Max(60, Math.Min(100, s.TransparencyPercent));
         BlurToggle.IsChecked = s.BlurEnabled;
         AcrylicToggle.IsChecked = s.AcrylicEnabled;
+        AccentTintToggle.IsChecked = s.AccentHoverTintEnabled;
+        FetchNotesToggle.IsChecked = s.FetchNotesEnabled;
+        MaxNotesFetchBox.Text = s.MaxNotesFetchPerRun.ToString();
         RetentionBox.Text = s.RetentionDays.ToString();
         ItemsCapBox.Text = s.ItemsPerSource.ToString();
         EventsCapBox.Text = s.EventsPerSource.ToString();
@@ -61,6 +64,7 @@ public partial class SettingsWindow : Window
             }
         }
         RoastersPanel.ItemsSource = _rows;
+        RoasterColorsPanel.ItemsSource = _rows;
     }
 
     private void CancelBtn_Click(object sender, RoutedEventArgs e)
@@ -94,11 +98,21 @@ public partial class SettingsWindow : Window
             return;
         }
 
+        if (!int.TryParse(MaxNotesFetchBox.Text, out var maxNotes) || maxNotes < 0)
+        {
+            System.Windows.MessageBox.Show(this, "Please enter a valid max notes fetch per run (>= 0).", "Invalid Value", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         var existing = await _settingsService.LoadAsync();
         existing.PollIntervalSeconds = seconds;
-        existing.TransparencyPercent = (int)Math.Round(TransparencySlider.Value);
+        var transp = (int)Math.Round(TransparencySlider.Value);
+        existing.TransparencyPercent = Math.Max(60, Math.Min(100, transp));
         existing.BlurEnabled = BlurToggle.IsChecked == true;
         existing.AcrylicEnabled = AcrylicToggle.IsChecked == true;
+        existing.AccentHoverTintEnabled = AccentTintToggle.IsChecked == true;
+        existing.FetchNotesEnabled = FetchNotesToggle.IsChecked == true;
+        existing.MaxNotesFetchPerRun = Math.Max(0, Math.Min(50, maxNotes));
         existing.RetentionDays = days;
         existing.ItemsPerSource = itemsCap;
         existing.EventsPerSource = eventsCap;
@@ -124,7 +138,7 @@ public partial class SettingsWindow : Window
         DialogResult = true;
     }
 
-    private async void ClearDbBtn_Click(object sender, RoutedEventArgs e)
+    private void ClearDbBtn_Click(object sender, RoutedEventArgs e)
     {
         ShowDialogOverlay("Confirm Clear", "This will delete all stored coffees and events. Continue?", confirmMode: true);
     }
@@ -132,6 +146,24 @@ public partial class SettingsWindow : Window
     private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         try { DragMove(); } catch { }
+    }
+
+    private void TransparencySlider_ValueChanged(object sender, System.Windows.RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (Owner is MainWindow mw)
+        {
+            var transp = (int)Math.Round(TransparencySlider.Value);
+            mw.ApplyAppearancePreview(transp, BlurToggle.IsChecked == true, AcrylicToggle.IsChecked == true, AccentTintToggle.IsChecked == true);
+        }
+    }
+
+    private void AppearanceToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (Owner is MainWindow mw)
+        {
+            var transp = (int)Math.Round(TransparencySlider.Value);
+            mw.ApplyAppearancePreview(transp, BlurToggle.IsChecked == true, AcrylicToggle.IsChecked == true, AccentTintToggle.IsChecked == true);
+        }
     }
 
     private void ShowDialogOverlay(string title, string message, bool confirmMode)

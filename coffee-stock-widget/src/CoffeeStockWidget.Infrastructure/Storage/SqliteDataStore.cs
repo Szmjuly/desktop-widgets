@@ -153,6 +153,18 @@ ON CONFLICT(SourceId, ItemKey) DO UPDATE SET
     public async Task UpsertSourceAsync(Source source, CancellationToken ct = default)
     {
         using var conn = Open();
+        // Reuse existing Source row by RootUrl if present to avoid duplicate SourceIds
+        if (!source.Id.HasValue)
+        {
+            using var find = conn.CreateCommand();
+            find.CommandText = "SELECT Id FROM Sources WHERE RootUrl=$root LIMIT 1;";
+            find.Parameters.AddWithValue("$root", source.RootUrl.ToString());
+            var existing = await find.ExecuteScalarAsync(ct).ConfigureAwait(false);
+            if (existing is long exId)
+            {
+                source.Id = (int)exId;
+            }
+        }
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
 INSERT INTO Sources (Id, Name, RootUrl, ParserType, PollIntervalSeconds, Enabled)
