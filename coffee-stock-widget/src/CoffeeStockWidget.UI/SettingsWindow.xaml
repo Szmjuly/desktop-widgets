@@ -1,7 +1,7 @@
 <Window x:Class="CoffeeStockWidget.UI.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Settings" Height="460" Width="360"
+        Title="Settings" Height="600" Width="360"
         ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent" ShowInTaskbar="False"
         Foreground="#FFFFFFFF" MouseLeftButtonDown="Window_MouseLeftButtonDown">

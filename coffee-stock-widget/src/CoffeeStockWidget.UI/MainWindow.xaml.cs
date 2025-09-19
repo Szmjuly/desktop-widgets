@@ -21,6 +21,7 @@ using CoffeeStockWidget.Infrastructure.Net;
 using CoffeeStockWidget.Infrastructure.Storage;
 using CoffeeStockWidget.Scraping.BlackAndWhite;
 using CoffeeStockWidget.Scraping.Brandywine;
+using CoffeeStockWidget.Scraping;
 using CoffeeStockWidget.Core.Abstractions;
 using Forms = System.Windows.Forms;
 using System.Runtime.InteropServices;
@@ -284,6 +285,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            if (IsCancellation(ex)) return;
             await Dispatcher.InvokeAsync(() => StatusText.Text = "Error: " + ex.Message);
         }
     }
@@ -337,8 +339,14 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            if (IsCancellation(ex)) return;
             await Dispatcher.InvokeAsync(() => StatusText.Text = "Error: " + ex.Message);
         }
+    }
+
+    private bool IsCancellation(Exception ex)
+    {
+        return ex is OperationCanceledException || ex is TaskCanceledException;
     }
 
     // Win32 blur-behind (reliable background blur without blurring content)
@@ -634,6 +642,9 @@ public partial class MainWindow : Window
                     List<UiItem>? selectedUi = null;
                     int selectedInStock = 0;
 
+                    // Load settings once for this cycle (used for notes enrichment and pruning)
+                    var loopSettings = await _settings.LoadAsync();
+
                     foreach (var src in _sources.Where(s => s.Enabled))
                     {
                         // Ensure Source exists and has a concrete Id before item upserts
@@ -642,6 +653,11 @@ public partial class MainWindow : Window
                         var prevDict = prev.ToDictionary(i => i.ItemKey);
                         var scraper = GetScraperFor(src);
                         var items = await scraper.FetchAsync(src, ct);
+                        // Optional notes enrichment: only for new/missing notes, capped by settings
+                        if (loopSettings.FetchNotesEnabled)
+                        {
+                            try { await EnrichNotesAsync(src, items, prevDict, loopSettings); } catch { }
+                        }
                         var events = _detector.Compare(prev, items);
 
                         await _store.UpsertItemsAsync(items, ct);
@@ -734,6 +750,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
+                if (IsCancellation(ex) || ct.IsCancellationRequested) break;
                 await Dispatcher.InvokeAsync(() => StatusText.Text = "Error: " + ex.Message);
             }
 
@@ -1036,6 +1053,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            if (IsCancellation(ex)) return;
             await Dispatcher.InvokeAsync(() => StatusText.Text = "Error: " + ex.Message);
         }
     }
@@ -1181,6 +1199,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            if (IsCancellation(ex)) return;
             await Dispatcher.InvokeAsync(() => StatusText.Text = "Error: " + ex.Message);
         }
     }
@@ -1215,6 +1234,21 @@ public partial class MainWindow : Window
             {
                 var html = await _http.GetStringAsync(i.Url!, null, CancellationToken.None).ConfigureAwait(false);
                 var notes = ExtractNotesFromHtml(html);
+                if (!string.IsNullOrWhiteSpace(notes) && LooksNoisy(notes))
+                {
+                    notes = null;
+                }
+
+                if (string.IsNullOrWhiteSpace(notes))
+                {
+                    // DOM-based fallback per roaster
+                    var dom = NotesDomExtractor.TryExtract(html, src.ParserType ?? string.Empty);
+                    if (!string.IsNullOrWhiteSpace(dom) && !LooksNoisy(dom))
+                    {
+                        notes = dom;
+                    }
+                }
+
                 if (!string.IsNullOrWhiteSpace(notes))
                 {
                     i.Attributes ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -1229,7 +1263,55 @@ public partial class MainWindow : Window
     {
         if (string.IsNullOrWhiteSpace(html)) return null;
 
-        // Try common meta descriptions
+        // Helper: strip tags, decode entities, collapse whitespace and clamp length
+        static string Clean(string s)
+        {
+            try
+            {
+                s = System.Text.RegularExpressions.Regex.Replace(s, "<script[\\s\\S]*?</script>", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                s = System.Text.RegularExpressions.Regex.Replace(s, "<style[\\s\\S]*?</style>", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                s = System.Net.WebUtility.HtmlDecode(s);
+                s = System.Text.RegularExpressions.Regex.Replace(s, "<[^>]+>", " ");
+                s = System.Text.RegularExpressions.Regex.Replace(s, "\\s+", " ").Trim();
+                if (s.Length > 300) s = s.Substring(0, 300);
+                return s;
+            }
+            catch { return s; }
+        }
+
+        static string TrimLen(string s) => s.Length > 300 ? s.Substring(0, 300) : s;
+
+        // 1) Black & White Roasters: HOW IT TASTES disclosure block
+        try
+        {
+            var rxBw = new System.Text.RegularExpressions.Regex(
+                @"<summary[^>]*>[\s\S]*?HOW\s*IT\s*TASTES[\s\S]*?</summary>\s*<div[^>]*class\s*=\s*['""][^'""]*disclosure__panel[^'""]*['""][^>]*>\s*<div[^>]*class\s*=\s*['""][^'""]*disclosure__content[^'""]*['""][^>]*>([\s\S]*?)</div>",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+            var mBw = rxBw.Match(html);
+            if (mBw.Success)
+            {
+                var content = Clean(mBw.Groups[1].Value);
+                if (!string.IsNullOrWhiteSpace(content)) return content;
+            }
+        }
+        catch { }
+
+        // 2) Brandywine: "We Taste:" paragraph (may include nested spans)
+        try
+        {
+            var rxWeTaste = new System.Text.RegularExpressions.Regex(
+                @"<p[^>]*>\s*We\s*Taste\s*:\s*([\s\S]*?)</p>",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+            var mWt = rxWeTaste.Match(html);
+            if (mWt.Success)
+            {
+                var content = Clean(mWt.Groups[1].Value);
+                if (!string.IsNullOrWhiteSpace(content)) return content;
+            }
+        }
+        catch { }
+
+        // 3) Try common meta descriptions
         static string? ExtractMeta(string html, string name)
         {
             try
@@ -1245,13 +1327,85 @@ public partial class MainWindow : Window
         if (!string.IsNullOrWhiteSpace(meta))
         {
             var lm = meta!.ToLowerInvariant();
-            if (lm.Contains("notes") || lm.Contains("tasting") || lm.Contains("flavor") || lm.Contains("flavour"))
+            if (lm.Contains("notes") || lm.Contains("tasting") || lm.Contains("flavor") || lm.Contains("flavour") || lm.Contains("we taste") || lm.Contains("how it tastes"))
             {
-                return meta.Length > 300 ? meta.Substring(0, 300) : meta;
+                return TrimLen(meta);
             }
         }
 
-        // Fallback: basic visible text scan
+        // 4) Image alt attributes containing flavor notes (e.g., tasting card alt text)
+        try
+        {
+            var imgRx = new System.Text.RegularExpressions.Regex("<img[^>]+alt\\s*=\\s*[\"']([^\"']+)[\"'][^>]*>", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+            foreach (System.Text.RegularExpressions.Match m in imgRx.Matches(html))
+            {
+                var alt = System.Net.WebUtility.HtmlDecode(m.Groups[1].Value).Trim();
+                if (string.IsNullOrWhiteSpace(alt)) continue;
+                var lower = alt.ToLowerInvariant();
+                // patterns like "flavor notes of X" or "notes of X"
+                int keyIdx = lower.IndexOf("flavor notes");
+                if (keyIdx < 0) keyIdx = lower.IndexOf("notes of");
+                if (keyIdx >= 0)
+                {
+                    int start = keyIdx;
+                    var ofIdx = lower.IndexOf(" of ", keyIdx);
+                    if (ofIdx >= 0) start = ofIdx + 4; else start = keyIdx + (lower.IndexOf("flavor notes", keyIdx) == keyIdx ? "flavor notes".Length : "notes of".Length);
+                    if (start < alt.Length)
+                    {
+                        int end = alt.IndexOf(';', start);
+                        if (end < 0) end = alt.IndexOf('.', start);
+                        if (end < 0) end = alt.Length;
+                        var slice = alt.Substring(start, end - start).Trim().Trim('"');
+                        slice = System.Text.RegularExpressions.Regex.Replace(slice, "\\s+and\\s+", ", ", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                        slice = System.Text.RegularExpressions.Regex.Replace(slice, "\\s+", " ");
+                        if (!string.IsNullOrWhiteSpace(slice)) return TrimLen(slice);
+                    }
+                }
+            }
+        }
+        catch { }
+
+        // 5) Black & White: "TAKE A SIP" paragraph inside description
+        try
+        {
+            var rxSip = new System.Text.RegularExpressions.Regex("<p[^>]*>[\\s\\S]*?TAKE\\s*A\\s*SIP[\\s\\S]*?</p>", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+            var mSip = rxSip.Match(html);
+            if (mSip.Success)
+            {
+                var rawPara = mSip.Groups[0].Value;
+                var para = Clean(rawPara);
+                if (!string.IsNullOrWhiteSpace(para))
+                {
+                    var lower = para.ToLowerInvariant();
+                    var idx = lower.IndexOf("take a sip");
+                    if (idx >= 0)
+                    {
+                        int start = para.IndexOf('|', idx);
+                        if (start < 0) start = para.IndexOf(':', idx);
+                        if (start >= 0 && start + 1 < para.Length) para = para.Substring(start + 1).Trim();
+                        else para = para.Substring(idx + "take a sip".Length).Trim();
+                    }
+                    // Heuristic: extract concise tokens from phrases like "like jasmine", "like yuzu", "wildflower honey", "reminiscent of hops"
+                    var rxTokens = new System.Text.RegularExpressions.Regex(@"(?:like|reminiscent\s+of|notes?\s+of)\s+([^,.;\n\r]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    var toks = rxTokens.Matches(para)
+                        .Select(m => m.Groups[1].Value.Trim())
+                        .Select(t => System.Text.RegularExpressions.Regex.Replace(t, @"^(a|an|the)\s+", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                        .Select(t => System.Text.RegularExpressions.Regex.Replace(t, @"^(jar\s+of\s+)", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                        .Select(t => t.Trim())
+                        .Where(t => !string.IsNullOrWhiteSpace(t))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    if (toks.Count >= 2)
+                    {
+                        return TrimLen(string.Join(", ", toks));
+                    }
+                    if (!string.IsNullOrWhiteSpace(para)) return TrimLen(para);
+                }
+            }
+        }
+        catch { }
+
+        // 6) Fallback: basic visible text scan with roaster-specific markers
         string text;
         try
         {
@@ -1266,21 +1420,76 @@ public partial class MainWindow : Window
                         .Select(s => s.Trim())
                         .Where(s => s.Length > 0 && s.Length < 400)
                         .ToList();
-        foreach (var line in lines)
+
+        for (int i = 0; i < lines.Count; i++)
         {
+            var line = lines[i];
             var l = line.ToLowerInvariant();
+
+            // Brandywine style
+            if (l.Contains("we taste"))
+            {
+                var idx = line.IndexOf(':');
+                if (idx >= 0 && idx + 1 < line.Length)
+                {
+                    var val = line.Substring(idx + 1).Trim();
+                    if (!string.IsNullOrWhiteSpace(val)) return TrimLen(val);
+                }
+                // If no colon or empty value, try next non-empty line
+                var next = lines.Skip(i + 1).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s));
+                if (!string.IsNullOrWhiteSpace(next)) return TrimLen(next);
+                return TrimLen(line);
+            }
+
+            // Black & White style
+            if (l.Contains("how it tastes"))
+            {
+                var sb = new System.Text.StringBuilder();
+                for (int j = i + 1; j < lines.Count; j++)
+                {
+                    var lj = lines[j];
+                    if (string.IsNullOrWhiteSpace(lj)) break;
+                    var low = lj.ToLowerInvariant();
+                    if (low.StartsWith("coffee info") || low.StartsWith("process") || low.StartsWith("variety") || low.StartsWith("farm") || low.StartsWith("origin") || low.StartsWith("location") || low.StartsWith("altitude") || low.StartsWith("about"))
+                        break;
+                    if (sb.Length > 0) sb.Append(' ');
+                    sb.Append(lj);
+                    if (sb.Length > 300) break;
+                }
+                var result = sb.ToString().Trim();
+                if (!string.IsNullOrWhiteSpace(result)) return TrimLen(result);
+            }
+
+            // Generic markers
             if (l.Contains("tasting notes") || l.StartsWith("notes:") || l.Contains("flavor notes") || l.Contains("flavour notes"))
             {
                 var idx = line.IndexOf(':');
                 if (idx >= 0 && idx + 1 < line.Length)
                 {
                     var val = line.Substring(idx + 1).Trim();
-                    if (!string.IsNullOrWhiteSpace(val)) return val.Length > 300 ? val.Substring(0, 300) : val;
+                    if (!string.IsNullOrWhiteSpace(val)) return TrimLen(val);
                 }
-                return line.Length > 300 ? line.Substring(0, 300) : line;
+                return TrimLen(line);
             }
         }
         return null;
+    }
+
+    private static bool LooksNoisy(string s)
+    {
+        try
+        {
+            var l = s.ToLowerInvariant();
+            if (l.Contains("view details")) return true;
+            if (l.Contains("rating of")) return true;
+            if (l.Contains("the rating of this product")) return true;
+            if (l.Contains("add to cart")) return true;
+            if (l.Contains("select options")) return true;
+            if (l.Contains("meet the countries")) return true;
+            if (l.Contains("write a review")) return true;
+            return false;
+        }
+        catch { return false; }
     }
 
     private async Task SaveEnabledParsersAsync()

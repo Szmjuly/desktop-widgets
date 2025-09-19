@@ -1,9 +1,14 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\CoffeeStockWidget.Core\CoffeeStockWidget.Core.csproj" />
     <ProjectReference Include="..\CoffeeStockWidget.Scraping\CoffeeStockWidget.Scraping.csproj" />
     <ProjectReference Include="..\CoffeeStockWidget.Infrastructure\CoffeeStockWidget.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AngleSharp" Version="1.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
   </ItemGroup>
 
   <PropertyGroup>

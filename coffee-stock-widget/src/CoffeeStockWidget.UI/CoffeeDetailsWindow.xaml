@@ -28,9 +28,9 @@
                     <TextBlock Text="Tasting notes" FontWeight="Bold" Margin="0,0,0,6"/>
                     <TextBlock Text="{Binding Notes}" TextWrapping="Wrap"/>
                     <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                        <TextBlock Text="Status:" Foreground="#AAFFFFFF"/>
-                        <TextBlock Text=" {Binding StockText}"/>
-                        <TextBlock Text=", Price: " Foreground="#AAFFFFFF"/>
+                        <TextBlock Text="Status:" Foreground="#AAFFFFFF" Margin="0,0,4,0"/>
+                        <TextBlock Text="{Binding StockText}"/>
+                        <TextBlock Text=", Price: " Foreground="#AAFFFFFF" Margin="8,0,0,0"/>
                         <TextBlock Text="{Binding Price}"/>
                     </StackPanel>
                 </StackPanel>
