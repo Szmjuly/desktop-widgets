@@ -39,6 +39,7 @@ public partial class SettingsWindow : Window
         FetchNotesToggle.IsChecked = s.FetchNotesEnabled;
         MaxNotesFetchBox.Text = s.MaxNotesFetchPerRun.ToString();
         RetentionBox.Text = s.RetentionDays.ToString();
+        NewTagHoursBox.Text = Math.Max(1, s.NewTagHours).ToString();
         ItemsCapBox.Text = s.ItemsPerSource.ToString();
         EventsCapBox.Text = s.EventsPerSource.ToString();
 
@@ -98,6 +99,12 @@ public partial class SettingsWindow : Window
             return;
         }
 
+        if (!int.TryParse(NewTagHoursBox.Text, out var newTagHours) || newTagHours < 1)
+        {
+            System.Windows.MessageBox.Show(this, "Please enter a valid 'new' tag window in hours (>= 1).", "Invalid Value", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         if (!int.TryParse(MaxNotesFetchBox.Text, out var maxNotes) || maxNotes < 0)
         {
             System.Windows.MessageBox.Show(this, "Please enter a valid max notes fetch per run (>= 0).", "Invalid Value", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -114,6 +121,7 @@ public partial class SettingsWindow : Window
         existing.FetchNotesEnabled = FetchNotesToggle.IsChecked == true;
         existing.MaxNotesFetchPerRun = Math.Max(0, Math.Min(50, maxNotes));
         existing.RetentionDays = days;
+        existing.NewTagHours = Math.Max(1, newTagHours);
         existing.ItemsPerSource = itemsCap;
         existing.EventsPerSource = eventsCap;
 

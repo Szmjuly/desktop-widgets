@@ -133,7 +133,7 @@ ON CONFLICT(SourceId, ItemKey) DO UPDATE SET
   PriceCents=excluded.PriceCents,
   InStock=excluded.InStock,
   LastSeenUtc=excluded.LastSeenUtc,
-  AttributesJson=excluded.AttributesJson;
+  AttributesJson=COALESCE(excluded.AttributesJson, Items.AttributesJson);
 ";
             cmd.Parameters.AddWithValue("$sid", i.SourceId);
             cmd.Parameters.AddWithValue("$key", i.ItemKey);

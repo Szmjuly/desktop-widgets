@@ -50,6 +50,8 @@ public partial class MainWindow : Window
     private DateTimeOffset _lastEventUtc;
     private ViewMode _viewMode = ViewMode.Normal;
     private System.Windows.Media.Color _currentShellColor = System.Windows.Media.Color.FromArgb(0xE5, 0x12, 0x12, 0x12);
+    private int _newTagHours = 24;
+    private bool _filterNewOnlyForCurrent = false;
 
     // Controls whether item hover shows a light accent-tinted overlay (bound in XAML)
     public static readonly DependencyProperty AccentHoverTintEnabledProperty =
@@ -88,7 +90,8 @@ public partial class MainWindow : Window
     private enum ViewMode
     {
         Normal,
-        AllAggregated
+        AllAggregated,
+        AllNew
     }
 
     public MainWindow()
@@ -164,6 +167,7 @@ public partial class MainWindow : Window
             // Apply visual settings and load acknowledgment time
             _lastAcknowledgedUtc = s.LastAcknowledgedUtc;
             ApplyVisualSettings(s);
+            _newTagHours = Math.Max(1, s.NewTagHours);
 
             // Load custom roaster colors
             _customColors = s.CustomParserColors != null
@@ -243,6 +247,36 @@ public partial class MainWindow : Window
                 await EnrichNotesAsync(src, items, prevDict, s);
             }
             var events = _detector.Compare(prev, items);
+            // Merge existing attributes from DB and preserve original FirstSeenUtc
+            foreach (var i in items)
+            {
+                if (prevDict.TryGetValue(i.ItemKey, out var old) && old.Attributes != null)
+                {
+                    // Preserve original FirstSeenUtc so it's stable across runs
+                    i.FirstSeenUtc = old.FirstSeenUtc;
+                    if (i.Attributes == null)
+                    {
+                        i.Attributes = new Dictionary<string, string>(old.Attributes, StringComparer.OrdinalIgnoreCase);
+                    }
+                    else
+                    {
+                        foreach (var kv in old.Attributes)
+                        {
+                            if (!i.Attributes.ContainsKey(kv.Key)) i.Attributes[kv.Key] = kv.Value;
+                        }
+                    }
+                }
+            }
+            // Annotate back-in-stock timestamp for UI badges before upsert
+            var now = DateTimeOffset.UtcNow;
+            foreach (var i in items)
+            {
+                if (prevDict.TryGetValue(i.ItemKey, out var old) && !old.InStock && i.InStock)
+                {
+                    i.Attributes ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    i.Attributes["backUtc"] = now.UtcDateTime.ToString("o");
+                }
+            }
             await _store.UpsertItemsAsync(items);
 
             var newKeys = items.Where(i => !prevDict.ContainsKey(i.ItemKey)).Select(i => i.ItemKey);
@@ -252,15 +286,11 @@ public partial class MainWindow : Window
 
             if (_viewMode == ViewMode.Normal)
             {
-                // Prefer freshly fetched items, but if fetch returned 0, fall back to cached DB items
-                IReadOnlyList<CoffeeItem> used = items;
-                if (used.Count == 0 && src.Id.HasValue)
-                {
-                    var cached = await _store.GetItemsBySourceAsync(src.Id.Value);
-                    if (cached.Count > 0) used = cached;
-                }
-                var selectedUi = used.OrderBy(i => i.Title).Select(ToUiItemForView).ToList();
-                var selectedInStock = used.Count(i => i.InStock);
+                // Always display authoritative values from DB (FirstSeenUtc, merged attributes, etc.)
+                var latest = await _store.GetItemsBySourceAsync(src.Id!.Value);
+                var display = _filterNewOnlyForCurrent ? latest.Where(IsNewish) : latest;
+                var selectedUi = display.OrderBy(i => i.Title).Select(ToUiItemForView).ToList();
+                var selectedInStock = display.Count(i => i.InStock);
                 var label = $"{GetSourceDisplayName()} ({selectedInStock})";
                 await Dispatcher.InvokeAsync(() =>
                 {
@@ -305,8 +335,9 @@ public partial class MainWindow : Window
                 if (_source.Id.HasValue)
                 {
                     var items = await _store.GetItemsBySourceAsync(_source.Id.Value);
-                    var ui = items.OrderBy(i => i.Title).Select(ToUiItemForView).ToList();
-                    var label = $"{GetSourceDisplayName()} ({items.Count(i => i.InStock)})";
+                    var used = _filterNewOnlyForCurrent ? items.Where(IsNewish) : items;
+                    var ui = used.OrderBy(i => i.Title).Select(ToUiItemForView).ToList();
+                    var label = $"{GetSourceDisplayName()} ({used.Count(i => i.InStock)})";
                     await Dispatcher.InvokeAsync(() =>
                     {
                         ItemsList.ItemsSource = ui;
@@ -324,7 +355,8 @@ public partial class MainWindow : Window
                     var items = await _store.GetItemsBySourceAsync(s.Id.Value);
                     all.AddRange(items);
                 }
-                var ui = all
+                var filtered = _filterNewOnlyForCurrent ? all.Where(IsNewish) : all;
+                var ui = filtered
                     .OrderBy(i => GetSourceShortNameById(i.SourceId))
                     .ThenBy(i => i.Title)
                     .Select(ToUiItemForView)
@@ -332,7 +364,29 @@ public partial class MainWindow : Window
                 await Dispatcher.InvokeAsync(() =>
                 {
                     ItemsList.ItemsSource = ui;
-                    SourceLabel.Text = "All coffees";
+                    SourceLabel.Text = _filterNewOnlyForCurrent ? "All coffees (new)" : "All coffees";
+                    UpdateEmptyOverlay(ui.Count);
+                });
+            }
+            else if (_viewMode == ViewMode.AllNew)
+            {
+                var all = new List<CoffeeItem>();
+                foreach (var s in _sources)
+                {
+                    if (!s.Id.HasValue) continue;
+                    var items = await _store.GetItemsBySourceAsync(s.Id.Value);
+                    all.AddRange(items);
+                }
+                var ui = all
+                    .Where(IsNewish)
+                    .OrderBy(i => GetSourceShortNameById(i.SourceId))
+                    .ThenBy(i => i.Title)
+                    .Select(ToUiItemForView)
+                    .ToList();
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    ItemsList.ItemsSource = ui;
+                    SourceLabel.Text = "All new";
                     UpdateEmptyOverlay(ui.Count);
                 });
             }
@@ -660,6 +714,16 @@ public partial class MainWindow : Window
                         }
                         var events = _detector.Compare(prev, items);
 
+                        // Annotate back-in-stock timestamp for UI badges before upsert
+                        var now = DateTimeOffset.UtcNow;
+                        foreach (var i in items)
+                        {
+                            if (prevDict.TryGetValue(i.ItemKey, out var old) && !old.InStock && i.InStock)
+                            {
+                                i.Attributes ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                                i.Attributes["backUtc"] = now.UtcDateTime.ToString("o");
+                            }
+                        }
                         await _store.UpsertItemsAsync(items, ct);
 
                         // Mark new/back-in-stock as unseen
@@ -677,18 +741,14 @@ public partial class MainWindow : Window
 
                         if (ReferenceEquals(src, _source))
                         {
-                            // Prefer freshly fetched items, but if the fetch returned 0, fall back to cached DB items to avoid flashing an empty view
-                            IReadOnlyList<CoffeeItem> used = items;
-                            if (used.Count == 0)
-                            {
-                                var cached = await _store.GetItemsBySourceAsync(src.Id!.Value, ct);
-                                if (cached.Count > 0) used = cached;
-                            }
-                            selectedUi = used
+                            // Always display authoritative values from DB so FirstSeenUtc and attributes are correct
+                            var latest = await _store.GetItemsBySourceAsync(src.Id!.Value, ct);
+                            var display = _filterNewOnlyForCurrent ? latest.Where(IsNewish) : latest;
+                            selectedUi = display
                                 .OrderBy(i => i.Title)
                                 .Select(ToUiItem)
                                 .ToList();
-                            selectedInStock = used.Count(i => i.InStock);
+                            selectedInStock = display.Count(i => i.InStock);
                         }
 
                         var newCount = events.Count(e => e.EventType is StockEventType.NewItem or StockEventType.BackInStock);
@@ -791,6 +851,7 @@ public partial class MainWindow : Window
             {
                 _source.PollIntervalSeconds = s.PollIntervalSeconds;
             }
+            _newTagHours = Math.Max(1, s.NewTagHours);
             var pruneDays2 = Math.Max(1, s.RetentionDays);
             _ = _store.PruneAsync(new RetentionPolicy { Days = pruneDays2, ItemsPerSource = s.ItemsPerSource, EventsPerSource = s.EventsPerSource });
             // Sync enabled roasters from settings
@@ -863,6 +924,9 @@ public partial class MainWindow : Window
         var showAll = new MenuItem { Header = "Show all coffees" };
         showAll.Click += async (_, __) => { _viewMode = ViewMode.AllAggregated; await RefreshViewAsync(); };
         cm.Items.Add(showAll);
+        var showAllNew = new MenuItem { Header = "Show all new" };
+        showAllNew.Click += async (_, __) => { _viewMode = ViewMode.AllNew; await RefreshViewAsync(); };
+        cm.Items.Add(showAllNew);
         cm.Items.Add(new Separator());
 
         // Per-roaster selection with unseen counts
@@ -877,8 +941,8 @@ public partial class MainWindow : Window
             var mi = new MenuItem
             {
                 Header = header,
-                IsCheckable = true,
-                IsChecked = ReferenceEquals(src, _source),
+                IsCheckable = (_viewMode == ViewMode.Normal),
+                IsChecked = (_viewMode == ViewMode.Normal) && ReferenceEquals(src, _source),
                 Tag = src,
                 IsEnabled = implemented
             };
@@ -897,9 +961,13 @@ public partial class MainWindow : Window
 
     private async Task SwitchSourceAsync(Source s)
     {
-        if (ReferenceEquals(_source, s)) return;
+        // Even if the source is the same, we may be switching view modes (e.g., from All to Normal)
+        var same = ReferenceEquals(_source, s);
         _loopCts?.Cancel();
-        _source = s;
+        if (!same)
+        {
+            _source = s;
+        }
         // Update label quickly with name; detailed count will be applied by RefreshViewAsync
         SourceLabel.Text = GetSourceDisplayName();
         // Ensure this source has a concrete Id so we can query cached items immediately
@@ -907,7 +975,10 @@ public partial class MainWindow : Window
         // Load items from the database right away so the empty overlay and pill count are correct
         await RefreshViewAsync();
         StartLoop();
-        await SaveSelectedRoasterAsync();
+        if (!same)
+        {
+            await SaveSelectedRoasterAsync();
+        }
     }
 
     private static bool IsParserImplemented(string? parserType)
@@ -1017,6 +1088,36 @@ public partial class MainWindow : Window
                     await EnrichNotesAsync(src, items, prevDict, settings);
                 }
                 var events = _detector.Compare(prev, items);
+                // Merge existing attributes from DB and preserve original FirstSeenUtc when we upsert
+                foreach (var i in items)
+                {
+                    if (prevDict.TryGetValue(i.ItemKey, out var old) && old.Attributes != null)
+                    {
+                        // Preserve original FirstSeenUtc so it's stable across runs
+                        i.FirstSeenUtc = old.FirstSeenUtc;
+                        if (i.Attributes == null)
+                        {
+                            i.Attributes = new Dictionary<string, string>(old.Attributes, StringComparer.OrdinalIgnoreCase);
+                        }
+                        else
+                        {
+                            foreach (var kv in old.Attributes)
+                            {
+                                if (!i.Attributes.ContainsKey(kv.Key)) i.Attributes[kv.Key] = kv.Value;
+                            }
+                        }
+                    }
+                }
+                // Annotate back-in-stock timestamp for UI badges before upsert
+                var now = DateTimeOffset.UtcNow;
+                foreach (var i in items)
+                {
+                    if (prevDict.TryGetValue(i.ItemKey, out var old) && !old.InStock && i.InStock)
+                    {
+                        i.Attributes ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        i.Attributes["backUtc"] = now.UtcDateTime.ToString("o");
+                    }
+                }
                 await _store.UpsertItemsAsync(items);
 
                 var newKeys = items.Where(i => !prevDict.ContainsKey(i.ItemKey)).Select(i => i.ItemKey);
@@ -1026,8 +1127,11 @@ public partial class MainWindow : Window
 
                 if (ReferenceEquals(src, _source))
                 {
-                    selectedUi = items.OrderBy(i => i.Title).Select(ToUiItemForView).ToList();
-                    selectedInStock = items.Count(i => i.InStock);
+                    // Use authoritative DB values for display
+                    var latest = await _store.GetItemsBySourceAsync(src.Id!.Value);
+                    var display = _filterNewOnlyForCurrent ? latest.Where(IsNewish) : latest;
+                    selectedUi = display.OrderBy(i => i.Title).Select(ToUiItemForView).ToList();
+                    selectedInStock = display.Count(i => i.InStock);
                 }
                 totalNew += events.Count(e => e.EventType is StockEventType.NewItem or StockEventType.BackInStock);
             }
@@ -1107,13 +1211,22 @@ public partial class MainWindow : Window
         var roaster = GetSourceShortNameById(i.SourceId);
         string? notes = null;
         if (i.Attributes != null && i.Attributes.TryGetValue("notes", out var n)) notes = n;
-        return new UiItem { Roaster = roaster, Title = i.Title, Price = price, StockText = stockText, IsInStock = i.InStock, Url = i.Url, ItemKey = i.ItemKey, SourceId = i.SourceId, AccentHex = accentHex, Notes = notes };
+        var cutoff = DateTimeOffset.UtcNow.AddHours(-Math.Max(1, _newTagHours));
+        bool backWin = false;
+        if (i.Attributes != null && i.Attributes.TryGetValue("backUtc", out var bu) && DateTimeOffset.TryParse(bu, out var backUtc))
+        {
+            backWin = backUtc >= cutoff;
+        }
+        var newWin = i.FirstSeenUtc >= cutoff;
+        var badgeVisible = newWin || backWin;
+        var badgeText = backWin ? "BACK" : "NEW";
+        return new UiItem { Roaster = roaster, Title = i.Title, Price = price, StockText = stockText, IsInStock = i.InStock, Url = i.Url, ItemKey = i.ItemKey, SourceId = i.SourceId, AccentHex = accentHex, Notes = notes, IsNew = newWin, BadgeVisible = badgeVisible, BadgeText = badgeText };
     }
 
     private UiItem ToUiItemForView(CoffeeItem i)
     {
         var ui = ToUiItem(i);
-        if (_viewMode == ViewMode.AllAggregated)
+        if (_viewMode == ViewMode.AllAggregated || _viewMode == ViewMode.AllNew)
         {
             var prefix = GetSourceShortNameById(i.SourceId);
             if (!string.IsNullOrWhiteSpace(prefix))
@@ -1136,6 +1249,9 @@ public partial class MainWindow : Window
         public int SourceId { get; set; }
         public string AccentHex { get; set; } = "#696969";
         public string? Notes { get; set; }
+        public bool IsNew { get; set; }
+        public bool BadgeVisible { get; set; }
+        public string BadgeText { get; set; } = string.Empty;
 
         // Create brushes on the UI thread when the binding reads these properties
         public System.Windows.Media.Brush StockBrush => IsInStock ? System.Windows.Media.Brushes.LightGreen : System.Windows.Media.Brushes.OrangeRed;
@@ -1166,6 +1282,18 @@ public partial class MainWindow : Window
             Bubble.Visibility = unseen > 0 ? Visibility.Visible : Visibility.Collapsed;
             StatusText.Text = unseen > 0 ? $"{unseen} updates" : $"Last check: {DateTime.Now:t}";
         }
+    }
+
+    private bool IsNewish(CoffeeItem i)
+    {
+        var cutoff = DateTimeOffset.UtcNow.AddHours(-Math.Max(1, _newTagHours));
+        var newWin = i.FirstSeenUtc >= cutoff;
+        if (newWin) return true;
+        if (i.Attributes != null && i.Attributes.TryGetValue("backUtc", out var bu) && DateTimeOffset.TryParse(bu, out var backUtc))
+        {
+            return backUtc >= cutoff;
+        }
+        return false;
     }
 
     private async Task RefreshNotesForCurrentSourceAsync()
@@ -1518,9 +1646,21 @@ public partial class MainWindow : Window
         // Adjust message based on current view
         if (count == 0)
         {
-            var msg = _viewMode == ViewMode.Normal
-                ? "No coffees for this roaster — click ⟳ to fetch"
-                : "Empty database — click ⟳ to fetch";
+            string msg;
+            if (_viewMode == ViewMode.Normal)
+            {
+                msg = _filterNewOnlyForCurrent
+                    ? "No new coffees"
+                    : "No coffees — click ⟳";
+            }
+            else if (_viewMode == ViewMode.AllNew)
+            {
+                msg = "No new coffees";
+            }
+            else
+            {
+                msg = "No coffees — click ⟳";
+            }
             EmptyMessage.Text = msg;
             EmptyMessage.Visibility = Visibility.Visible;
         }
@@ -1528,5 +1668,25 @@ public partial class MainWindow : Window
         {
             EmptyMessage.Visibility = Visibility.Collapsed;
         }
+    }
+
+    private async void NewToggle_Checked(object sender, RoutedEventArgs e)
+    {
+        _filterNewOnlyForCurrent = true;
+        if (sender is System.Windows.Controls.Primitives.ToggleButton tb)
+        {
+            tb.Content = "New";
+        }
+        await RefreshViewAsync();
+    }
+
+    private async void NewToggle_Unchecked(object sender, RoutedEventArgs e)
+    {
+        _filterNewOnlyForCurrent = false;
+        if (sender is System.Windows.Controls.Primitives.ToggleButton tb)
+        {
+            tb.Content = "All";
+        }
+        await RefreshViewAsync();
     }
 }

@@ -20,4 +20,5 @@ public class AppSettings
     public bool AccentHoverTintEnabled { get; set; } = true;
     public bool FetchNotesEnabled { get; set; } = false;
     public int MaxNotesFetchPerRun { get; set; } = 5;
+    public int NewTagHours { get; set; } = 24;
 }
