@@ -107,25 +107,18 @@
                                             <TextBlock Text="{Binding Roaster}" Foreground="#99FFFFFF" FontSize="10" TextTrimming="CharacterEllipsis"/>
                                             <!-- Coffee title -->
                                             <TextBlock Text="{Binding Title}" Foreground="#FFEFEFEF" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="{Binding Notes}" Foreground="#BBFFFFFF" FontSize="10" FontStyle="Italic" TextTrimming="CharacterEllipsis">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding Notes}" Value="{x:Null}">
-                                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                                <TextBlock Grid.Column="1" Text="{Binding StockText}" Foreground="{Binding StockBrush}" FontSize="11" Margin="8,0,0,0"/>
-                                            </Grid>
+                                            <TextBlock Text="{Binding Notes}" Foreground="#BBFFFFFF" FontSize="10" FontStyle="Italic" TextTrimming="CharacterEllipsis">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Notes}" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
                                         </StackPanel>
                                         <!-- Right column: New/Back badge above the price -->
                                         <StackPanel Grid.Column="2" Orientation="Vertical" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="8,0,8,0">
@@ -150,7 +143,8 @@
                                                 </Border.Style>
                                                 <TextBlock Text="{Binding BadgeText}" Foreground="#FF000000" FontSize="10" FontWeight="Bold"/>
                                             </Border>
-                                            <TextBlock Text="{Binding Price}" Foreground="#FFEFEFEF" FontSize="12"/>
+                                            <TextBlock Text="{Binding Price}" Foreground="#FFEFEFEF" FontSize="12" HorizontalAlignment="Right" TextAlignment="Right"/>
+                                            <TextBlock Text="{Binding StockText}" Foreground="{Binding StockBrush}" FontSize="11" Margin="0,2,0,0" HorizontalAlignment="Right" TextAlignment="Right"/>
                                         </StackPanel>
                                         <!-- Subtle accent-tinted overlay on hover (toggle via settings) -->
                                         <Border Grid.ColumnSpan="3" Panel.ZIndex="-1" IsHitTestVisible="False" Margin="-4" Background="{Binding AccentBrush}" CornerRadius="8">

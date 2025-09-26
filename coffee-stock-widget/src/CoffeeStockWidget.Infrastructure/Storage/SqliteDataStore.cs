@@ -66,6 +66,10 @@ CREATE TABLE IF NOT EXISTS Items (
   FirstSeenUtc TEXT NOT NULL,
   LastSeenUtc TEXT NOT NULL,
   AttributesJson TEXT,
+  AiSummaryJson TEXT,
+  AiProcessedUtc TEXT,
+  AiModelVersion TEXT,
+  AiSummaryHash TEXT,
   UNIQUE(SourceId, ItemKey),
   FOREIGN KEY(SourceId) REFERENCES Sources(Id) ON DELETE CASCADE
 );
@@ -97,22 +101,56 @@ CREATE INDEX IF NOT EXISTS IX_Events_Source_Created ON Events(SourceId, CreatedU
 
     private static void EnsureSchemaUpgrades(SqliteConnection conn)
     {
-        // Add SeenUtc column to Items if missing
-        using var infoCmd = conn.CreateCommand();
-        infoCmd.CommandText = "PRAGMA table_info(Items);";
-        using var r = infoCmd.ExecuteReader();
-        var hasSeen = false;
-        while (r.Read())
-        {
-            var name = r.GetString(1);
-            if (string.Equals(name, "SeenUtc", StringComparison.OrdinalIgnoreCase)) { hasSeen = true; break; }
-        }
-        if (!hasSeen)
+        if (!TableHasColumn(conn, "Items", "SeenUtc"))
         {
             using var alter = conn.CreateCommand();
             alter.CommandText = "ALTER TABLE Items ADD COLUMN SeenUtc TEXT";
             alter.ExecuteNonQuery();
         }
+
+        if (!TableHasColumn(conn, "Items", "AiSummaryJson"))
+        {
+            using var alter = conn.CreateCommand();
+            alter.CommandText = "ALTER TABLE Items ADD COLUMN AiSummaryJson TEXT";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!TableHasColumn(conn, "Items", "AiProcessedUtc"))
+        {
+            using var alter = conn.CreateCommand();
+            alter.CommandText = "ALTER TABLE Items ADD COLUMN AiProcessedUtc TEXT";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!TableHasColumn(conn, "Items", "AiModelVersion"))
+        {
+            using var alter = conn.CreateCommand();
+            alter.CommandText = "ALTER TABLE Items ADD COLUMN AiModelVersion TEXT";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!TableHasColumn(conn, "Items", "AiSummaryHash"))
+        {
+            using var alter = conn.CreateCommand();
+            alter.CommandText = "ALTER TABLE Items ADD COLUMN AiSummaryHash TEXT";
+            alter.ExecuteNonQuery();
+        }
+    }
+
+    private static bool TableHasColumn(SqliteConnection conn, string tableName, string columnName)
+    {
+        using var infoCmd = conn.CreateCommand();
+        infoCmd.CommandText = $"PRAGMA table_info({tableName});";
+        using var reader = infoCmd.ExecuteReader();
+        while (reader.Read())
+        {
+            var name = reader.GetString(1);
+            if (string.Equals(name, columnName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     public async Task UpsertItemsAsync(IEnumerable<CoffeeItem> items, CancellationToken ct = default)
@@ -125,15 +163,19 @@ CREATE INDEX IF NOT EXISTS IX_Events_Source_Created ON Events(SourceId, CreatedU
             var attrs = i.Attributes != null ? JsonSerializer.Serialize(i.Attributes) : null;
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-INSERT INTO Items (SourceId, ItemKey, Title, Url, PriceCents, InStock, FirstSeenUtc, LastSeenUtc, AttributesJson)
-VALUES ($sid, $key, $title, $url, $price, $stock, $first, $last, $attrs)
+INSERT INTO Items (SourceId, ItemKey, Title, Url, PriceCents, InStock, FirstSeenUtc, LastSeenUtc, AttributesJson, AiSummaryJson, AiProcessedUtc, AiModelVersion, AiSummaryHash)
+VALUES ($sid, $key, $title, $url, $price, $stock, $first, $last, $attrs, $aiSummary, $aiProcessed, $aiModelVersion, $aiHash)
 ON CONFLICT(SourceId, ItemKey) DO UPDATE SET
   Title=excluded.Title,
   Url=excluded.Url,
   PriceCents=excluded.PriceCents,
   InStock=excluded.InStock,
   LastSeenUtc=excluded.LastSeenUtc,
-  AttributesJson=COALESCE(excluded.AttributesJson, Items.AttributesJson);
+  AttributesJson=COALESCE(excluded.AttributesJson, Items.AttributesJson),
+  AiSummaryJson=COALESCE(excluded.AiSummaryJson, Items.AiSummaryJson),
+  AiProcessedUtc=COALESCE(excluded.AiProcessedUtc, Items.AiProcessedUtc),
+  AiModelVersion=COALESCE(excluded.AiModelVersion, Items.AiModelVersion),
+  AiSummaryHash=COALESCE(excluded.AiSummaryHash, Items.AiSummaryHash);
 ";
             cmd.Parameters.AddWithValue("$sid", i.SourceId);
             cmd.Parameters.AddWithValue("$key", i.ItemKey);
@@ -144,6 +186,11 @@ ON CONFLICT(SourceId, ItemKey) DO UPDATE SET
             cmd.Parameters.AddWithValue("$first", i.FirstSeenUtc.UtcDateTime.ToString("o"));
             cmd.Parameters.AddWithValue("$last", i.LastSeenUtc.UtcDateTime.ToString("o"));
             cmd.Parameters.AddWithValue("$attrs", (object?)attrs ?? DBNull.Value);
+            var aiSummaryJson = i.AiSummary != null ? JsonSerializer.Serialize(i.AiSummary) : null;
+            cmd.Parameters.AddWithValue("$aiSummary", (object?)aiSummaryJson ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$aiProcessed", (object?)(i.AiProcessedUtc?.UtcDateTime.ToString("o")) ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$aiModelVersion", (object?)i.AiModelVersion ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$aiHash", (object?)i.AiSummaryHash ?? DBNull.Value);
             await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }
 
@@ -221,29 +268,12 @@ ON CONFLICT(Id) DO UPDATE SET
         var list = new List<CoffeeItem>();
         using var conn = Open();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = @"SELECT Id, ItemKey, Title, Url, PriceCents, InStock, FirstSeenUtc, LastSeenUtc, AttributesJson FROM Items WHERE SourceId=$sid";
+        cmd.CommandText = @"SELECT Id, SourceId, ItemKey, Title, Url, PriceCents, InStock, FirstSeenUtc, LastSeenUtc, AttributesJson, AiSummaryJson, AiProcessedUtc, AiModelVersion, AiSummaryHash FROM Items WHERE SourceId=$sid";
         cmd.Parameters.AddWithValue("$sid", sourceId);
         using var rdr = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
         while (await rdr.ReadAsync(ct).ConfigureAwait(false))
         {
-            var attrsJson = rdr.IsDBNull(8) ? null : rdr.GetString(8);
-            var attrs = string.IsNullOrWhiteSpace(attrsJson)
-                ? null
-                : JsonSerializer.Deserialize<Dictionary<string, string>>(attrsJson!);
-
-            list.Add(new CoffeeItem
-            {
-                Id = rdr.GetInt32(0),
-                SourceId = sourceId,
-                ItemKey = rdr.GetString(1),
-                Title = rdr.GetString(2),
-                Url = new Uri(rdr.GetString(3)),
-                PriceCents = rdr.IsDBNull(4) ? null : rdr.GetInt32(4),
-                InStock = rdr.GetInt32(5) != 0,
-                FirstSeenUtc = DateTimeOffset.Parse(rdr.GetString(6)),
-                LastSeenUtc = DateTimeOffset.Parse(rdr.GetString(7)),
-                Attributes = attrs
-            });
+            list.Add(ReadItem(rdr));
         }
         return list;
     }
@@ -422,7 +452,7 @@ WHERE Id IN (
     {
         using var conn = Open();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = @"SELECT Id, SourceId, ItemKey, Title, Url, PriceCents, InStock, FirstSeenUtc, LastSeenUtc
+        cmd.CommandText = @"SELECT Id, SourceId, ItemKey, Title, Url, PriceCents, InStock, FirstSeenUtc, LastSeenUtc, AttributesJson, AiSummaryJson, AiProcessedUtc, AiModelVersion, AiSummaryHash
                             FROM Items WHERE SeenUtc IS NULL ORDER BY LastSeenUtc DESC";
         using var rdr = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
         var list = new List<CoffeeItem>();
@@ -437,7 +467,7 @@ WHERE Id IN (
     {
         using var conn = Open();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = @"SELECT Id, SourceId, ItemKey, Title, Url, PriceCents, InStock, FirstSeenUtc, LastSeenUtc
+        cmd.CommandText = @"SELECT Id, SourceId, ItemKey, Title, Url, PriceCents, InStock, FirstSeenUtc, LastSeenUtc, AttributesJson, AiSummaryJson, AiProcessedUtc, AiModelVersion, AiSummaryHash
                             FROM Items WHERE SeenUtc IS NULL AND SourceId=$sid ORDER BY LastSeenUtc DESC";
         cmd.Parameters.AddWithValue("$sid", sourceId);
         using var rdr = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
@@ -451,24 +481,87 @@ WHERE Id IN (
 
     private static CoffeeItem ReadItem(SqliteDataReader rdr)
     {
-        var urlStr = rdr.GetString(4);
-        Uri url;
-        try { url = new Uri(urlStr); } catch { url = new Uri("https://example.invalid"); }
-        int? price = rdr.IsDBNull(5) ? null : rdr.GetInt32(5);
-        var first = DateTimeOffset.TryParse(rdr.GetString(7), out var f) ? f : DateTimeOffset.UtcNow;
-        var last = DateTimeOffset.TryParse(rdr.GetString(8), out var l) ? l : DateTimeOffset.UtcNow;
-        return new CoffeeItem
+        string? GetString(string column)
         {
-            Id = rdr.IsDBNull(0) ? null : rdr.GetInt32(0),
-            SourceId = rdr.GetInt32(1),
-            ItemKey = rdr.GetString(2),
-            Title = rdr.GetString(3),
-            Url = url,
-            PriceCents = price,
-            InStock = rdr.GetBoolean(6),
-            FirstSeenUtc = first,
-            LastSeenUtc = last
+            var ord = rdr.GetOrdinal(column);
+            return rdr.IsDBNull(ord) ? null : rdr.GetString(ord);
+        }
+
+        int? GetInt(string column)
+        {
+            var ord = rdr.GetOrdinal(column);
+            return rdr.IsDBNull(ord) ? null : rdr.GetInt32(ord);
+        }
+
+        bool GetBool(string column)
+        {
+            var ord = rdr.GetOrdinal(column);
+            if (rdr.IsDBNull(ord)) return false;
+            try { return rdr.GetBoolean(ord); }
+            catch { return rdr.GetInt32(ord) != 0; }
+        }
+
+        DateTimeOffset? GetDate(string column)
+        {
+            var str = GetString(column);
+            if (string.IsNullOrWhiteSpace(str)) return null;
+            return DateTimeOffset.TryParse(str, out var dto) ? dto : (DateTimeOffset?)null;
+        }
+
+        Uri ParseUri(string? urlStr)
+        {
+            if (!string.IsNullOrWhiteSpace(urlStr) && Uri.TryCreate(urlStr, UriKind.Absolute, out var uri))
+            {
+                return uri;
+            }
+            return new Uri("https://example.invalid");
+        }
+
+        CoffeeAiSummary? ParseSummary(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            try
+            {
+                return JsonSerializer.Deserialize<CoffeeAiSummary>(json);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        var item = new CoffeeItem
+        {
+            Id = GetInt("Id"),
+            SourceId = GetInt("SourceId") ?? 0,
+            ItemKey = GetString("ItemKey") ?? string.Empty,
+            Title = GetString("Title") ?? string.Empty,
+            Url = ParseUri(GetString("Url")),
+            PriceCents = GetInt("PriceCents"),
+            InStock = GetBool("InStock"),
+            FirstSeenUtc = GetDate("FirstSeenUtc") ?? DateTimeOffset.UtcNow,
+            LastSeenUtc = GetDate("LastSeenUtc") ?? DateTimeOffset.UtcNow,
+            Attributes = null,
+            AiSummary = ParseSummary(GetString("AiSummaryJson")),
+            AiProcessedUtc = GetDate("AiProcessedUtc"),
+            AiModelVersion = GetString("AiModelVersion"),
+            AiSummaryHash = GetString("AiSummaryHash")
         };
+
+        var attrsJson = GetString("AttributesJson");
+        if (!string.IsNullOrWhiteSpace(attrsJson))
+        {
+            try
+            {
+                item.Attributes = JsonSerializer.Deserialize<Dictionary<string, string>>(attrsJson);
+            }
+            catch
+            {
+                item.Attributes = null;
+            }
+        }
+
+        return item;
     }
 
     public async Task MarkAllSeenAsync(DateTimeOffset seenUtc, CancellationToken ct = default)

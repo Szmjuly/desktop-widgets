@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace CoffeeStockWidget.Core.Models;
 
@@ -15,6 +16,34 @@ public class CoffeeItem
     public DateTimeOffset FirstSeenUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset LastSeenUtc { get; set; } = DateTimeOffset.UtcNow;
     public Dictionary<string, string>? Attributes { get; set; }
+    public CoffeeAiSummary? AiSummary { get; set; }
+    public DateTimeOffset? AiProcessedUtc { get; set; }
+    public string? AiModelVersion { get; set; }
+    public string? AiSummaryHash { get; set; }
 
     public override string ToString() => $"[{ItemKey}] {Title} ({(InStock ? "In Stock" : "OOS")})";
+}
+
+public class CoffeeAiSummary
+{
+    [JsonPropertyName("shortTitle")]
+    public string? ShortTitle { get; set; }
+
+    [JsonPropertyName("summary")]
+    public string? Summary { get; set; }
+
+    [JsonPropertyName("producer")]
+    public string? Producer { get; set; }
+
+    [JsonPropertyName("origin")]
+    public string? Origin { get; set; }
+
+    [JsonPropertyName("elevation")]
+    public string? Elevation { get; set; }
+
+    [JsonPropertyName("process")]
+    public string? Process { get; set; }
+
+    [JsonPropertyName("tastingNotes")]
+    public List<string>? TastingNotes { get; set; }
 }

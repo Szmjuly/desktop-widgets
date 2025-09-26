@@ -21,4 +21,9 @@ public class AppSettings
     public bool FetchNotesEnabled { get; set; } = false;
     public int MaxNotesFetchPerRun { get; set; } = 5;
     public int NewTagHours { get; set; } = 24;
+    public bool AiSummarizationEnabled { get; set; } = false;
+    public string AiModel { get; set; } = "phi:latest";
+    public string AiEndpoint { get; set; } = "http://localhost:11434";
+    public int AiMaxSummariesPerRun { get; set; } = 3;
+    public double AiTemperature { get; set; } = 0.3;
 }
