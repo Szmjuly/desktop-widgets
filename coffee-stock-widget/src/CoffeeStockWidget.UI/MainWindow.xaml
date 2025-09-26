@@ -75,12 +75,12 @@
             </Grid>
 
             <!-- Content: Scrollable list of items -->
-            <Border x:Name="ContentBorder" Grid.Row="1" CornerRadius="8" Background="Transparent" Padding="6">
+            <Border x:Name="ContentBorder" Grid.Row="1" CornerRadius="8" Background="Transparent" Padding="4,6">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,12,0" Background="Transparent">
                     <ItemsControl x:Name="ItemsList">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border x:Name="ItemRoot" CornerRadius="6" Background="#00000000" Padding="16" Margin="0,2"
+                                <Border x:Name="ItemRoot" CornerRadius="6" Background="#00000000" Padding="14,12" Margin="0,0"
                                          Cursor="Hand" MouseLeftButtonDown="Item_MouseLeftButtonDown" MouseLeftButtonUp="Item_MouseLeftButtonUp" MouseEnter="Item_MouseEnter">
                                     <Border.ToolTip>
                                         <ToolTip Placement="Mouse" MaxWidth="280">
@@ -102,17 +102,16 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <Rectangle Grid.Column="0" RadiusX="2" RadiusY="2" Fill="{Binding AccentBrush}" Margin="0,0,6,0"/>
-                                        <StackPanel Orientation="Vertical" Grid.Column="1" Margin="12,0,12,0">
+                                        <StackPanel Orientation="Vertical" Grid.Column="1" Margin="8,0,8,0">
                                             <!-- Roaster -->
                                             <TextBlock Text="{Binding Roaster}" Foreground="#99FFFFFF" FontSize="10" TextTrimming="CharacterEllipsis"/>
                                             <!-- Coffee title -->
                                             <TextBlock Text="{Binding Title}" Foreground="#FFEFEFEF" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                                            <!-- Notes | Stock row -->
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
                                                 <TextBlock Grid.Column="0" Text="{Binding Notes}" Foreground="#BBFFFFFF" FontSize="10" FontStyle="Italic" TextTrimming="CharacterEllipsis">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
@@ -129,7 +128,7 @@
                                             </Grid>
                                         </StackPanel>
                                         <!-- Right column: New/Back badge above the price -->
-                                        <StackPanel Grid.Column="2" Orientation="Vertical" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="12,0,12,0">
+                                        <StackPanel Grid.Column="2" Orientation="Vertical" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="8,0,8,0">
                                             <Border CornerRadius="6" Background="{Binding AccentBrush}" Padding="6,2" Margin="0,0,0,4">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
@@ -154,7 +153,7 @@
                                             <TextBlock Text="{Binding Price}" Foreground="#FFEFEFEF" FontSize="12"/>
                                         </StackPanel>
                                         <!-- Subtle accent-tinted overlay on hover (toggle via settings) -->
-                                        <Border Grid.ColumnSpan="3" IsHitTestVisible="False" Margin="2" Background="{Binding AccentBrush}" CornerRadius="6">
+                                        <Border Grid.ColumnSpan="3" Panel.ZIndex="-1" IsHitTestVisible="False" Margin="-4" Background="{Binding AccentBrush}" CornerRadius="8">
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="Opacity" Value="0"/>
@@ -172,7 +171,7 @@
                                         </Border>
 
                                         <!-- Overlay accent border shown on hover (to match tint size) -->
-                                        <Border Grid.ColumnSpan="3" IsHitTestVisible="False" Margin="2" BorderBrush="{Binding AccentBrush}" BorderThickness="2" CornerRadius="6" Background="Transparent">
+                                        <Border Grid.ColumnSpan="3" Panel.ZIndex="1" IsHitTestVisible="False" Margin="-4" BorderBrush="{Binding AccentBrush}" BorderThickness="2" CornerRadius="8" Background="Transparent">
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="Opacity" Value="0"/>
