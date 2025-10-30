@@ -1,0 +1,11 @@
+{
+  "require_subscription": true,
+  "app_name": "Spec Header Date Updater",
+  "app_version": "1.0.0",
+  "min_plan": "free",
+  "feature_flags": {
+    "allow_trial": false,
+    "trial_days": 0,
+    "offline_grace_period_hours": 24
+  }
+}

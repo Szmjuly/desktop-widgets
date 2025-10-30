@@ -26,4 +26,7 @@ public class AppSettings
     public string AiEndpoint { get; set; } = "http://localhost:11434";
     public int AiMaxSummariesPerRun { get; set; } = 3;
     public double AiTemperature { get; set; } = 0.3;
+    public double AiTopP { get; set; } = 0.9;
+    public int AiMaxTokens { get; set; } = 256;
+    public int AiRequestTimeoutSeconds { get; set; } = 45;
 }

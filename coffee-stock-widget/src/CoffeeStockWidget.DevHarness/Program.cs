@@ -1,4 +1,5 @@
-using System.Threading.Tasks;
-using CoffeeStockWidget.DevHarness;
+namespace CoffeeStockWidget.DevHarness;
 
-return await Harness.RunAsync(args);
+public static class Program
+{
+}

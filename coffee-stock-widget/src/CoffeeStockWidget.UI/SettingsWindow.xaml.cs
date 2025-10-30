@@ -42,6 +42,14 @@ public partial class SettingsWindow : Window
         NewTagHoursBox.Text = Math.Max(1, s.NewTagHours).ToString();
         ItemsCapBox.Text = s.ItemsPerSource.ToString();
         EventsCapBox.Text = s.EventsPerSource.ToString();
+        AiEnabledToggle.IsChecked = s.AiSummarizationEnabled;
+        AiModelBox.Text = s.AiModel;
+        AiEndpointBox.Text = s.AiEndpoint;
+        AiPerRunBox.Text = s.AiMaxSummariesPerRun.ToString();
+        AiTemperatureBox.Text = s.AiTemperature.ToString("0.###");
+        AiTopPBox.Text = s.AiTopP.ToString("0.###");
+        AiMaxTokensBox.Text = s.AiMaxTokens.ToString();
+        AiTimeoutBox.Text = s.AiRequestTimeoutSeconds.ToString();
 
         // Build roaster rows
         _rows = new ObservableCollection<RoasterRow>();
@@ -66,6 +74,8 @@ public partial class SettingsWindow : Window
         }
         RoastersPanel.ItemsSource = _rows;
         RoasterColorsPanel.ItemsSource = _rows;
+        SectionTabs.SelectedIndex = 0;
+        ApplySearchFilter();
     }
 
     private void CancelBtn_Click(object sender, RoutedEventArgs e)
@@ -111,6 +121,36 @@ public partial class SettingsWindow : Window
             return;
         }
 
+        if (!int.TryParse(AiPerRunBox.Text, out var aiPerRun) || aiPerRun < 0)
+        {
+            System.Windows.MessageBox.Show(this, "Please enter a valid AI per-run limit (>= 0).", "Invalid Value", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!double.TryParse(AiTemperatureBox.Text, out var aiTemp) || aiTemp < 0 || aiTemp > 2)
+        {
+            System.Windows.MessageBox.Show(this, "Please enter a valid AI temperature (0-2).", "Invalid Value", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!double.TryParse(AiTopPBox.Text, out var aiTopP) || aiTopP <= 0 || aiTopP > 1)
+        {
+            System.Windows.MessageBox.Show(this, "Please enter a valid AI top-p (0-1).", "Invalid Value", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!int.TryParse(AiMaxTokensBox.Text, out var aiMaxTokens) || aiMaxTokens < 16)
+        {
+            System.Windows.MessageBox.Show(this, "Please enter a valid AI max tokens (>= 16).", "Invalid Value", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!int.TryParse(AiTimeoutBox.Text, out var aiTimeout) || aiTimeout < 5)
+        {
+            System.Windows.MessageBox.Show(this, "Please enter a valid AI timeout in seconds (>= 5).", "Invalid Value", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         var existing = await _settingsService.LoadAsync();
         existing.PollIntervalSeconds = seconds;
         var transp = (int)Math.Round(TransparencySlider.Value);
@@ -124,6 +164,14 @@ public partial class SettingsWindow : Window
         existing.NewTagHours = Math.Max(1, newTagHours);
         existing.ItemsPerSource = itemsCap;
         existing.EventsPerSource = eventsCap;
+        existing.AiSummarizationEnabled = AiEnabledToggle.IsChecked == true;
+        existing.AiModel = string.IsNullOrWhiteSpace(AiModelBox.Text) ? existing.AiModel : AiModelBox.Text.Trim();
+        existing.AiEndpoint = string.IsNullOrWhiteSpace(AiEndpointBox.Text) ? existing.AiEndpoint : AiEndpointBox.Text.Trim();
+        existing.AiMaxSummariesPerRun = Math.Max(0, aiPerRun);
+        existing.AiTemperature = Math.Max(0, Math.Min(2, aiTemp));
+        existing.AiTopP = Math.Max(0.01, Math.Min(1, aiTopP));
+        existing.AiMaxTokens = Math.Max(16, aiMaxTokens);
+        existing.AiRequestTimeoutSeconds = Math.Max(5, aiTimeout);
 
         // Persist enabled roasters and custom colors
         if (_rows.Count > 0)
@@ -149,6 +197,148 @@ public partial class SettingsWindow : Window
     private void ClearDbBtn_Click(object sender, RoutedEventArgs e)
     {
         ShowDialogOverlay("Confirm Clear", "This will delete all stored coffees and events. Continue?", confirmMode: true);
+    }
+
+    private void SearchBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        ApplySearchFilter();
+    }
+
+    private void SectionTabs_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (e.Source is System.Windows.Controls.TabControl)
+        {
+            ApplySearchFilter();
+        }
+    }
+
+    private void ApplySearchFilter()
+    {
+        if (SectionTabs == null) return;
+
+        var query = SearchBox.Text?.Trim() ?? string.Empty;
+        var tokens = query.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(t => t.ToLowerInvariant())
+            .ToArray();
+
+        foreach (var tab in SectionTabs.Items.OfType<System.Windows.Controls.TabItem>())
+        {
+            foreach (var group in EnumerateGroupBoxes(tab.Content))
+            {
+                if (tokens.Length == 0)
+                {
+                    group.Visibility = Visibility.Visible;
+                    continue;
+                }
+
+                var haystack = string.Join(' ', CollectKeywords(group)).ToLowerInvariant();
+                var matches = tokens.All(token => haystack.Contains(token, StringComparison.OrdinalIgnoreCase));
+                group.Visibility = matches ? Visibility.Visible : Visibility.Collapsed;
+            }
+        }
+    }
+
+    private static IEnumerable<System.Windows.Controls.GroupBox> EnumerateGroupBoxes(object? content)
+    {
+        if (content == null) yield break;
+
+        if (content is System.Windows.Controls.GroupBox gb)
+        {
+            yield return gb;
+        }
+
+        if (content is DependencyObject dep)
+        {
+            if (dep is System.Windows.Controls.Panel panel)
+            {
+                foreach (UIElement child in panel.Children)
+                {
+                    foreach (var nested in EnumerateGroupBoxes(child))
+                    {
+                        yield return nested;
+                    }
+                }
+            }
+            else if (dep is System.Windows.Controls.ContentControl cc)
+            {
+                foreach (var nested in EnumerateGroupBoxes(cc.Content))
+                {
+                    yield return nested;
+                }
+            }
+            else if (dep is System.Windows.Controls.Decorator decorator && decorator.Child != null)
+            {
+                foreach (var nested in EnumerateGroupBoxes(decorator.Child))
+                {
+                    yield return nested;
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<string> CollectKeywords(System.Windows.Controls.GroupBox group)
+    {
+        if (group.Header is string header)
+        {
+            yield return header;
+        }
+        if (group.Tag is string tag)
+        {
+            yield return tag;
+        }
+        if (group.Content is DependencyObject dep)
+        {
+            foreach (var keyword in CollectKeywordsRecursive(dep))
+            {
+                yield return keyword;
+            }
+        }
+    }
+
+    private static IEnumerable<string> CollectKeywordsRecursive(DependencyObject node)
+    {
+        if (node is FrameworkElement fe && fe.Tag is string tag && !string.IsNullOrWhiteSpace(tag))
+        {
+            yield return tag;
+        }
+
+        switch (node)
+        {
+            case System.Windows.Controls.TextBlock tb when !string.IsNullOrWhiteSpace(tb.Text):
+                yield return tb.Text;
+                break;
+            case System.Windows.Controls.CheckBox cb when cb.Content is string s && !string.IsNullOrWhiteSpace(s):
+                yield return s;
+                break;
+            case System.Windows.Controls.Button btn when btn.Content is string btnText && !string.IsNullOrWhiteSpace(btnText):
+                yield return btnText;
+                break;
+        }
+
+        if (node is System.Windows.Controls.Panel panel)
+        {
+            foreach (UIElement child in panel.Children)
+            {
+                foreach (var keyword in CollectKeywordsRecursive(child))
+                {
+                    yield return keyword;
+                }
+            }
+        }
+        else if (node is System.Windows.Controls.ContentControl cc && cc.Content is DependencyObject content)
+        {
+            foreach (var keyword in CollectKeywordsRecursive(content))
+            {
+                yield return keyword;
+            }
+        }
+        else if (node is System.Windows.Controls.Decorator decorator && decorator.Child is DependencyObject child)
+        {
+            foreach (var keyword in CollectKeywordsRecursive(child))
+            {
+                yield return keyword;
+            }
+        }
     }
 
     private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

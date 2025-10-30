@@ -26,6 +26,7 @@ using CoffeeStockWidget.Core.Abstractions;
 using Forms = System.Windows.Forms;
 using System.Runtime.InteropServices;
 using CoffeeStockWidget.Infrastructure.Settings;
+using CoffeeStockWidget.Infrastructure.Ai;
 
 namespace CoffeeStockWidget.UI;
 
@@ -44,6 +45,7 @@ public partial class MainWindow : Window
     private bool _paused;
     private bool _attachToDesktop;
     private readonly SettingsService _settings = new();
+    private readonly AiSummarizationManager _aiManager;
     private readonly List<Source> _sources;
     private Dictionary<string, string> _customColors = new(StringComparer.OrdinalIgnoreCase);
     private DateTimeOffset? _lastAcknowledgedUtc;
@@ -52,6 +54,7 @@ public partial class MainWindow : Window
     private System.Windows.Media.Color _currentShellColor = System.Windows.Media.Color.FromArgb(0xE5, 0x12, 0x12, 0x12);
     private int _newTagHours = 24;
     private bool _filterNewOnlyForCurrent = false;
+    private bool _aiEnabled;
 
     // Controls whether item hover shows a light accent-tinted overlay (bound in XAML)
     public static readonly DependencyProperty AccentHoverTintEnabledProperty =
@@ -114,6 +117,7 @@ public partial class MainWindow : Window
         }
 
         _store = new SqliteDataStore();
+        _aiManager = new AiSummarizationManager(new OllamaAiSummarizer());
         _source = new Source
         {
             Name = "Black & White Roasters",
@@ -168,6 +172,7 @@ public partial class MainWindow : Window
             _lastAcknowledgedUtc = s.LastAcknowledgedUtc;
             ApplyVisualSettings(s);
             _newTagHours = Math.Max(1, s.NewTagHours);
+            _aiEnabled = s.AiSummarizationEnabled;
 
             // Load custom roaster colors
             _customColors = s.CustomParserColors != null
@@ -225,7 +230,12 @@ public partial class MainWindow : Window
             catch { }
         };
         SizeChanged += (_, __) => { ApplyRoundedCorners(12); UpdateRootClip(12); };
-        Closed += (_, __) => { _notifyIcon.Visible = false; _notifyIcon.Dispose(); };
+        Closed += (_, __) =>
+        {
+            _notifyIcon.Visible = false;
+            _notifyIcon.Dispose();
+            _aiManager.Dispose();
+        };
     }
 
     private async Task RunCurrentAsync()
@@ -245,6 +255,11 @@ public partial class MainWindow : Window
             if (s.FetchNotesEnabled)
             {
                 await EnrichNotesAsync(src, items, prevDict, s);
+            }
+            _aiEnabled = s.AiSummarizationEnabled;
+            if (_aiEnabled)
+            {
+                await _aiManager.ApplySummariesAsync(items, prevDict, s, forceAll: false, CancellationToken.None);
             }
             var events = _detector.Compare(prev, items);
             // Merge existing attributes from DB and preserve original FirstSeenUtc
@@ -1210,7 +1225,14 @@ public partial class MainWindow : Window
         var accentHex = GetAccentHexFor(i.SourceId);
         var roaster = GetSourceShortNameById(i.SourceId);
         string? notes = null;
-        if (i.Attributes != null && i.Attributes.TryGetValue("notes", out var n)) notes = n;
+        if (_aiEnabled && i.AiSummary != null && !string.IsNullOrWhiteSpace(i.AiSummary.Summary))
+        {
+            notes = i.AiSummary.Summary;
+        }
+        else if (i.Attributes != null && i.Attributes.TryGetValue("notes", out var n))
+        {
+            notes = n;
+        }
         var cutoff = DateTimeOffset.UtcNow.AddHours(-Math.Max(1, _newTagHours));
         bool backWin = false;
         if (i.Attributes != null && i.Attributes.TryGetValue("backUtc", out var bu) && DateTimeOffset.TryParse(bu, out var backUtc))

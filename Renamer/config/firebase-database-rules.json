@@ -1,0 +1,25 @@
+{
+  "rules": {
+    "licenses": {
+      "$licenseKey": {
+        ".read": "auth != null && $licenseKey == data.child('license_key').val()",
+        ".write": false,
+        ".indexOn": ["email", "status", "app_id"]
+      }
+    },
+    "device_activations": {
+      "$deviceId": {
+        ".read": "auth != null && auth.uid == $deviceId",
+        ".write": "auth != null && auth.uid == $deviceId && newData.hasChildren(['app_id', 'license_key', 'activated_at', 'last_validated']) && newData.child('app_id').isString() && newData.child('license_key').isString() && newData.child('activated_at').isString() && newData.child('last_validated').isString()",
+        ".indexOn": ["license_key", "app_id"]
+      }
+    },
+    "usage_logs": {
+      "$logId": {
+        ".read": false,
+        ".write": "auth != null && newData.hasChildren(['app_id', 'device_id', 'license_key', 'documents_processed', 'timestamp']) && newData.child('app_id').isString() && newData.child('device_id').isString() && newData.child('license_key').isString() && newData.child('documents_processed').isNumber() && newData.child('timestamp').isString()",
+        ".indexOn": ["device_id", "license_key", "timestamp", "app_id"]
+      }
+    }
+  }
+}

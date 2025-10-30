@@ -1,0 +1,56 @@
+# Firebase sensitive files (root and config/)
+firebase_config.json
+config/firebase_config.json
+firebase-admin-key.json
+config/firebase-admin-key.json
+
+# App configuration (contains subscription settings)
+app_config.json
+config/app_config.json
+
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+*.pyc
+**/__pycache__/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.vs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Application data
+*.log
+data/
+!data/README.md
+!data/.gitkeep
+
+# Build/dist
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
