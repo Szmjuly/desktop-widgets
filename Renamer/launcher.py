@@ -11,7 +11,108 @@ Choose what to run:
 
 import sys
 import subprocess
+import json
 from pathlib import Path
+from datetime import datetime, timezone
+
+
+def show_licensing_status():
+    """Display current licensing status (for developers)."""
+    print("\n" + "="*60)
+    print("LICENSING STATUS")
+    print("="*60)
+    
+    try:
+        # Import SubscriptionManager
+        sys.path.insert(0, str(Path(__file__).parent))
+        from src.subscription import SubscriptionManager
+        
+        # Initialize subscription manager
+        try:
+            sub_mgr = SubscriptionManager(app_id="spec-updater")
+        except Exception as e:
+            print(f"\n❌ Error initializing subscription manager: {e}")
+            print("\nThis may indicate:")
+            print("  • Firebase config files are missing")
+            print("  • Firebase libraries are not installed")
+            print("  • Network connectivity issues")
+            return
+        
+        # Get subscription info
+        info = sub_mgr.get_subscription_info()
+        device_id = sub_mgr.device_id
+        
+        # Display status
+        status = info.get('status', 'inactive')
+        if status == 'active':
+            status_icon = "✅"
+            status_text = "ACTIVE"
+        else:
+            status_icon = "❌"
+            status_text = "INACTIVE"
+        
+        print(f"\n{status_icon} Subscription Status: {status_text}")
+        print(f"\nDevice ID: {device_id[:8]}...{device_id[-8:]}")
+        
+        if status == 'active':
+            expiry_date = info.get('expiry_date')
+            if expiry_date:
+                try:
+                    expiry = datetime.fromisoformat(expiry_date.replace('Z', '+00:00'))
+                    now = datetime.now(timezone.utc)
+                    days_remaining = (expiry - now).days
+                    
+                    print(f"\n📅 Expiry Date: {expiry.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+                    
+                    if days_remaining > 0:
+                        print(f"⏰ Days Remaining: {days_remaining}")
+                    else:
+                        print("⚠️  License has EXPIRED")
+                except (ValueError, TypeError) as e:
+                    print(f"\n📅 Expiry Date: {expiry_date}")
+            
+            plan = info.get('plan', 'unknown')
+            print(f"\n💳 Plan: {plan.upper()}")
+            
+            docs_limit = info.get('documents_limit', 0)
+            docs_remaining = info.get('documents_remaining', 0)
+            
+            if docs_limit < 0:
+                print("\n📄 Documents: Unlimited")
+            else:
+                print(f"\n📄 Documents: {docs_remaining} / {docs_limit} remaining")
+                
+            # Try to get last validation time
+            try:
+                sub_file = sub_mgr.subscription_file
+                if sub_file.exists():
+                    with open(sub_file, 'r') as f:
+                        sub_data = json.load(f)
+                    last_validated = sub_data.get('last_validated')
+                    if last_validated:
+                        try:
+                            validated_time = datetime.fromisoformat(last_validated.replace('Z', '+00:00'))
+                            print(f"\n🔄 Last Validated: {validated_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+                        except (ValueError, TypeError):
+                            print(f"\n🔄 Last Validated: {last_validated}")
+            except (IOError, json.JSONDecodeError):
+                pass
+        else:
+            print("\n⚠️  No active subscription found.")
+            print("\nTo activate:")
+            print("  • Run the Main Application and enter a license key")
+            print("  • Use Admin GUI to create/manage licenses")
+        
+    except ImportError as e:
+        print(f"\n❌ Error importing subscription module: {e}")
+        print("\nMake sure you're running from the correct directory")
+        print("and that all dependencies are installed.")
+    except Exception as e:
+        print(f"\n❌ Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    print("\n" + "="*60)
 
 
 def show_menu():
@@ -24,10 +125,11 @@ def show_menu():
     print("3. Toggle Subscription Requirement")
     print("4. Run Security Tests")
     print("5. Check Firebase Import")
-    print("6. Exit")
+    print("6. Show Licensing Status (Dev)")
+    print("7. Exit")
     print("\n" + "="*60)
     
-    choice = input("\nEnter your choice (1-6): ").strip()
+    choice = input("\nEnter your choice (1-7): ").strip()
     return choice
 
 
@@ -57,11 +159,14 @@ def main():
             subprocess.run([sys.executable, "tests/test_firebase_import.py"])
         
         elif choice == '6':
+            show_licensing_status()
+        
+        elif choice == '7':
             print("\n👋 Goodbye!")
             break
         
         else:
-            print("\n❌ Invalid choice. Please enter 1-6.")
+            print("\n❌ Invalid choice. Please enter 1-7.")
         
         input("\nPress Enter to continue...")
 
