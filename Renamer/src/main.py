@@ -2,6 +2,7 @@
 import sys, re, shutil, time, gc, webbrowser, json
 from pathlib import Path
 from datetime import datetime
+from typing import Dict
 
 # ---- third-party deps
 from PySide6.QtCore import Qt, QThread, Signal, Slot, QDate, QTimer
@@ -46,33 +47,117 @@ except Exception:
     win32 = None  # .doc and PDF export require Word + pywin32
 
 # ----------------------- Modern Design System -----------------------
+class Theme:
+    """Theme system for light and dark modes."""
+    
+    LIGHT = {
+        "PRIMARY": "#6366F1",      # Indigo 500
+        "PRIMARY_HOVER": "#4F46E5",  # Indigo 600
+        "SUCCESS": "#10B981",      # Emerald 500
+        "DANGER": "#EF4444",       # Red 500
+        "WARNING": "#F59E0B",      # Amber 500
+        "INFO": "#3B82F6",         # Blue 500
+        "BACKGROUND": "#F8FAFC",   # Slate 50
+        "CARD": "#FFFFFF",         # Pure white
+        "INPUT_BG": "#FFFFFF",     # White inputs
+        "BORDER": "#EDF2F7",       # Lighter Slate
+        "BORDER_FOCUS": "#6366F1", # Indigo 500
+        "TEXT": "#0F172A",         # Slate 900
+        "TEXT_SECONDARY": "#64748B",  # Slate 500
+        "TEXT_MUTED": "#94A3B8",   # Slate 400
+    }
+    
+    DARK = {
+        "PRIMARY": "#818CF8",      # Indigo 400 (lighter for dark mode)
+        "PRIMARY_HOVER": "#6366F1",  # Indigo 500
+        "SUCCESS": "#34D399",      # Emerald 400
+        "DANGER": "#F87171",       # Red 400
+        "WARNING": "#FBBF24",      # Amber 400
+        "INFO": "#60A5FA",         # Blue 400
+        "BACKGROUND": "#0F172A",   # Slate 900
+        "CARD": "#1E293B",         # Slate 800
+        "INPUT_BG": "#1E293B",     # Slate 800
+        "BORDER": "#334155",       # Slate 700
+        "BORDER_FOCUS": "#818CF8", # Indigo 400
+        "TEXT": "#F1F5F9",         # Slate 100
+        "TEXT_SECONDARY": "#CBD5E1",  # Slate 300
+        "TEXT_MUTED": "#94A3B8",   # Slate 400
+    }
+    
+    @staticmethod
+    def get_theme(is_dark: bool):
+        """Get theme colors based on mode."""
+        return Theme.DARK if is_dark else Theme.LIGHT
+
+
 class Colors:
-    PRIMARY = "#6366F1"      # Indigo 500
-    PRIMARY_HOVER = "#4F46E5"  # Indigo 600
-    SUCCESS = "#10B981"      # Emerald 500
-    DANGER = "#EF4444"       # Red 500
-    WARNING = "#F59E0B"      # Amber 500
-    INFO = "#3B82F6"         # Blue 500
+    """Dynamic color system that responds to theme changes."""
+    _theme = Theme.LIGHT
     
-    # Backgrounds
-    BACKGROUND = "#F8FAFC"   # Slate 50
-    CARD = "#FFFFFF"         # Pure white
-    INPUT_BG = "#FFFFFF"     # White inputs
+    @classmethod
+    def set_theme(cls, is_dark: bool):
+        """Set the current theme."""
+        cls._theme = Theme.get_theme(is_dark)
+        # Update all color attributes
+        cls._update_colors()
     
-    # Borders
-    BORDER = "#EDF2F7"       # Lighter Slate
-    BORDER_FOCUS = "#6366F1" # Indigo 500
+    @classmethod
+    def _update_colors(cls):
+        """Update class-level color attributes."""
+        cls.PRIMARY = cls._theme["PRIMARY"]
+        cls.PRIMARY_HOVER = cls._theme["PRIMARY_HOVER"]
+        cls.SUCCESS = cls._theme["SUCCESS"]
+        cls.DANGER = cls._theme["DANGER"]
+        cls.WARNING = cls._theme["WARNING"]
+        cls.INFO = cls._theme["INFO"]
+        cls.BACKGROUND = cls._theme["BACKGROUND"]
+        cls.CARD = cls._theme["CARD"]
+        cls.INPUT_BG = cls._theme["INPUT_BG"]
+        cls.BORDER = cls._theme["BORDER"]
+        cls.BORDER_FOCUS = cls._theme["BORDER_FOCUS"]
+        cls.TEXT = cls._theme["TEXT"]
+        cls.TEXT_SECONDARY = cls._theme["TEXT_SECONDARY"]
+        cls.TEXT_MUTED = cls._theme["TEXT_MUTED"]
     
-    # Text
-    TEXT = "#0F172A"         # Slate 900
-    TEXT_SECONDARY = "#64748B"  # Slate 500
-    TEXT_MUTED = "#94A3B8"   # Slate 400
+    # Initialize with light theme (set initial values directly)
+    PRIMARY = Theme.LIGHT["PRIMARY"]
+    PRIMARY_HOVER = Theme.LIGHT["PRIMARY_HOVER"]
+    SUCCESS = Theme.LIGHT["SUCCESS"]
+    DANGER = Theme.LIGHT["DANGER"]
+    WARNING = Theme.LIGHT["WARNING"]
+    INFO = Theme.LIGHT["INFO"]
+    BACKGROUND = Theme.LIGHT["BACKGROUND"]
+    CARD = Theme.LIGHT["CARD"]
+    INPUT_BG = Theme.LIGHT["INPUT_BG"]
+    BORDER = Theme.LIGHT["BORDER"]
+    BORDER_FOCUS = Theme.LIGHT["BORDER_FOCUS"]
+    TEXT = Theme.LIGHT["TEXT"]
+    TEXT_SECONDARY = Theme.LIGHT["TEXT_SECONDARY"]
+    TEXT_MUTED = Theme.LIGHT["TEXT_MUTED"]
 
 
 class ModernCard(QFrame):
     """Modern card widget with shadow effect."""
     def __init__(self, title=None, parent=None):
         super().__init__(parent)
+        self.title_label = None
+        self._title = title
+        self.update_style()
+        
+        layout = QVBoxLayout(self)
+        layout.setSpacing(4)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        if title:
+            self.title_label = QLabel(title)
+            layout.addWidget(self.title_label)
+        
+        self.content_layout = QVBoxLayout()
+        self.content_layout.setSpacing(4)
+        layout.addLayout(self.content_layout)
+    
+    def update_style(self):
+        """Update card styling for current theme."""
         self.setStyleSheet(f"""
             QFrame {{
                 background-color: {Colors.CARD};
@@ -81,25 +166,14 @@ class ModernCard(QFrame):
                 padding: 6px;
             }}
         """)
-        
-        layout = QVBoxLayout(self)
-        layout.setSpacing(4)
-        layout.setContentsMargins(0, 0, 0, 0)
-        
-        if title:
-            title_label = QLabel(title)
-            title_label.setStyleSheet(f"""
+        if self.title_label:
+            self.title_label.setStyleSheet(f"""
                 font-size: 12px;
                 font-weight: 600;
                 color: {Colors.TEXT};
                 padding-bottom: 4px;
                 border-bottom: 1px solid {Colors.BORDER};
             """)
-            layout.addWidget(title_label)
-        
-        self.content_layout = QVBoxLayout()
-        self.content_layout.setSpacing(4)
-        layout.addLayout(self.content_layout)
     
     def add_widget(self, widget):
         """Add widget to card content."""
@@ -110,7 +184,18 @@ class ModernButton(QPushButton):
     """Styled button with different variants."""
     def __init__(self, text, variant="primary", icon=None, parent=None):
         super().__init__(text, parent)
-        
+        self._variant = variant
+        self._icon = icon
+        self._original_text = text
+        if icon:
+            self.setText(f"{icon} {text}")
+        else:
+            self.setText(text)
+        self.update_style()
+        self.setCursor(Qt.PointingHandCursor)
+    
+    def update_style(self):
+        """Update button styling for current theme."""
         colors = {
             "primary": (Colors.PRIMARY, "#FFFFFF"),
             "success": (Colors.SUCCESS, "#FFFFFF"),
@@ -118,7 +203,10 @@ class ModernButton(QPushButton):
             "secondary": (Colors.BORDER, Colors.TEXT),
         }
         
-        bg_color, text_color = colors.get(variant, colors["primary"])
+        bg_color, text_color = colors.get(self._variant, colors["primary"])
+        
+        disabled_bg = "#64748B" if Colors._theme == Theme.DARK else "#D1D5DB"
+        disabled_text = "#94A3B8" if Colors._theme == Theme.DARK else "#9CA3AF"
         
         self.setStyleSheet(f"""
             QPushButton {{
@@ -126,10 +214,10 @@ class ModernButton(QPushButton):
                 color: {text_color};
                 border: none;
                 border-radius: 4px;
-                padding: 3px 8px;
+                padding: 0px 8px;
                 font-size: 11px;
                 font-weight: 600;
-                min-height: 26px;
+                height: 26px;
             }}
             QPushButton:hover {{
                 opacity: 0.9;
@@ -139,15 +227,10 @@ class ModernButton(QPushButton):
                 opacity: 0.8;
             }}
             QPushButton:disabled {{
-                background-color: #D1D5DB;
-                color: #9CA3AF;
+                background-color: {disabled_bg};
+                color: {disabled_text};
             }}
         """)
-        
-        if icon:
-            self.setText(f"{icon} {text}")
-        
-        self.setCursor(Qt.PointingHandCursor)
 
 
 # ----------------------- Core logic (from your script) -----------------------
@@ -196,35 +279,70 @@ def replace_in_headerlike(part, target_date, target_phase):
     """
     Replace (1) date strings like 'November 10, 2025' and
             (2) phase strings like '50% Construction Documents' -> target_phase
-    Returns True if any change occurred.
+    Returns (date_changed, phase_changed) tuple.
     """
-    changed = False
+    date_changed = False
+    phase_changed = False
 
-    def repl_fn(text):
-        # First: normalize any "...% Construction Documents" to target_phase
+    def repl_fn_date(text):
+        # Normalize any long-form Month Day, Year dates
+        new_text = DATE_RX.sub(target_date, text)
+        return new_text != text, new_text
+    
+    def repl_fn_phase(text):
+        # Normalize any "...% Construction Documents" to target_phase
         new_text = PHASE_RX.sub(target_phase, text)
-        # Then: normalize any long-form Month Day, Year dates
-        new_text = DATE_RX.sub(target_date, new_text)
-        return new_text
+        return new_text != text, new_text
 
     for p in iter_all_paragraphs(part):
-        if replace_in_paragraph(p, repl_fn):
-            changed = True
-    return changed
+        txt = "".join(run.text for run in p.runs) if hasattr(p, 'runs') else p.text
+        if DATE_RX.search(txt):
+            date_upd, new_text_date = repl_fn_date(txt)
+            if date_upd:
+                for run in p.runs if hasattr(p, 'runs') else []:
+                    run.text = DATE_RX.sub(target_date, run.text)
+                date_changed = True
+        if PHASE_RX.search(txt):
+            phase_upd, new_text_phase = repl_fn_phase(txt)
+            if phase_upd:
+                for run in p.runs if hasattr(p, 'runs') else []:
+                    run.text = PHASE_RX.sub(target_phase, run.text)
+                phase_changed = True
+    
+    return (date_changed, phase_changed)
 
-def update_docx_dates(path: Path, target_date: str, target_phase: str) -> bool:
+def update_docx_dates(path: Path, target_date: str, target_phase: str) -> Dict[str, bool]:
+    """
+    Update dates and phase text in document.
+    Returns dict with 'changed', 'date_changed', 'phase_changed'
+    """
     doc = Document(str(path))
+    date_changed = False
+    phase_changed = False
     changed = False
+    
     for section in doc.sections:
         for hdr in (section.header, section.first_page_header, section.even_page_header):
-            if hdr and replace_in_headerlike(hdr, target_date, target_phase):
-                changed = True
+            if hdr:
+                date_upd, phase_upd = replace_in_headerlike(hdr, target_date, target_phase)
+                if date_upd: date_changed = True
+                if phase_upd: phase_changed = True
+                if date_upd or phase_upd: changed = True
         for ftr in (section.footer, section.first_page_footer, section.even_page_footer):
-            if ftr and replace_in_headerlike(ftr, target_date, target_phase):
-                changed = True
+            if ftr:
+                date_upd, phase_upd = replace_in_headerlike(ftr, target_date, target_phase)
+                if date_upd: date_changed = True
+                if phase_upd: phase_changed = True
+                if date_upd or phase_upd: changed = True
+    
     if changed:
         doc.save(str(path))
-    return changed
+    
+    return {
+        'changed': changed,
+        'date_changed': date_changed,
+        'phase_changed': phase_changed
+    }
 
 def ensure_word():
     if win32 is None:
@@ -284,13 +402,14 @@ def kill_orphaned_winword():
 class UpdateWorker(QThread):
     log = Signal(str)               # plain text log
     progress = Signal(int, int)     # current, total
-    finished = Signal(int, int)     # updated_ct, errors
+    finished = Signal(int, int, dict)  # updated_ct, errors, stats_dict
     needsWord = Signal(str)         # error if Word/pywin32 missing
     enableUI = Signal(bool)
 
     def __init__(self, root: str, date_str: str, phase_text: str, recursive: bool, dry_run: bool,
                  backup_dir: str|None, include_doc: bool, replace_doc_inplace: bool,
-                 reprint_pdf: bool, exclude_folders: list[str]):
+                 reprint_pdf: bool, exclude_folders: list[str], subscription_mgr=None,
+                 default_backup_dir: str|None = None):
         super().__init__()
         self.root = Path(root)
         self.date_str = date_str
@@ -298,16 +417,33 @@ class UpdateWorker(QThread):
         self.recursive = recursive
         self.dry_run = dry_run
         self.backup_dir = Path(backup_dir) if backup_dir else None
+        self.default_backup_dir = Path(default_backup_dir) if default_backup_dir else None
         self.include_doc = include_doc
         self.replace_doc_inplace = replace_doc_inplace
         self.reprint_pdf = reprint_pdf
         self.exclude_folders = [x.lower() for x in exclude_folders]
+        self.subscription_mgr = subscription_mgr
         self._cancel = False
+        self.start_time = None
+        
+        # Processing statistics
+        self.stats = {
+            'files_scanned': 0,
+            'documents_updated': 0,
+            'documents_with_date_changes': 0,
+            'documents_with_phase_changes': 0,
+            'documents_with_both': 0,
+            'pdfs_created': 0,
+            'errors': 0,
+            'duration_seconds': 0.0
+        }
 
     def cancel(self):
         self._cancel = True
 
     def run(self):
+        import time
+        self.start_time = time.time()
         self.enableUI.emit(False)
         try:
             target_date = format_target_date(self.date_str)
@@ -360,6 +496,16 @@ class UpdateWorker(QThread):
                 self.enableUI.emit(True)
                 return
 
+        # Check document limit before processing (if licensing enabled)
+        if INCLUDE_LICENSING and self.subscription_mgr:
+            limit_check = self.subscription_mgr.check_document_limit(requested_count=len(files))
+            if not limit_check.get('allowed', True):
+                remaining = limit_check.get('remaining', 0)
+                limit = limit_check.get('limit', 0)
+                self.log.emit(f"[ERROR] Document limit exceeded. Limit: {limit}, Remaining: {remaining}, Requested: {len(files)}")
+                self.enableUI.emit(True)
+                return
+        
         updated_ct = 0
         errors = 0
 
@@ -367,6 +513,14 @@ class UpdateWorker(QThread):
             if self._cancel:
                 self.log.emit("[CANCELLED] Stopping at user request.")
                 break
+            
+            # Periodic limit check during processing (every 10 files)
+            if INCLUDE_LICENSING and self.subscription_mgr and idx % 10 == 0:
+                limit_check = self.subscription_mgr.check_document_limit(requested_count=1)
+                if not limit_check.get('allowed', True):
+                    remaining = limit_check.get('remaining', 0)
+                    self.log.emit(f"[WARNING] Document limit reached. Processed: {updated_ct}, Remaining: {remaining}")
+                    break
 
             try:
                 ext = f.suffix.lower()
@@ -413,9 +567,19 @@ class UpdateWorker(QThread):
                     original_doc = f
                     convert_doc_to_docx(word, f, work_docx)
 
-                changed = update_docx_dates(work_docx, target_date, self.phase_text)
-                if changed:
+                result = update_docx_dates(work_docx, target_date, self.phase_text)
+                if result['changed']:
                     updated_ct += 1
+                    self.stats['documents_updated'] += 1
+                    
+                    # Record changes
+                    if result['date_changed']:
+                        self.stats['documents_with_date_changes'] += 1
+                    if result['phase_changed']:
+                        self.stats['documents_with_phase_changes'] += 1
+                    if result['date_changed'] and result['phase_changed']:
+                        self.stats['documents_with_both'] += 1
+                    
                     self.log.emit(f"[UPDATED] {f}")
 
                     if original_doc and self.replace_doc_inplace:
@@ -435,19 +599,27 @@ class UpdateWorker(QThread):
                             except Exception:
                                 pass
                         export_pdf(word, work_docx, pdf_path)
+                        self.stats['pdfs_created'] += 1
                         self.log.emit(f"  -> [PDF REPRINTED] {pdf_path}")
                 else:
                     self.log.emit(f"[NO DATE FOUND] {f}")
 
             except Exception as e:
                 errors += 1
+                self.stats['errors'] += 1
                 self.log.emit(f"[ERROR] {f} -> {e}")
 
             self.progress.emit(idx, len(files))
+        
+        # Finalize statistics
+        self.stats['files_scanned'] = len(files)
+        self.stats['errors'] = errors
+        if self.start_time:
+            self.stats['duration_seconds'] = time.time() - self.start_time
 
         safe_close_word(word)
         # kill_orphaned_winword()  # keep disabled by default
-        self.finished.emit(updated_ct, errors)
+        self.finished.emit(updated_ct, errors, self.stats)
         self.enableUI.emit(True)
 
 
@@ -464,29 +636,8 @@ class SubscriptionDialog(QDialog):
         self.setModal(True)
         self.setMinimumWidth(550)
         
-        # Modern background
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {Colors.BACKGROUND};
-            }}
-            QLabel {{
-                color: {Colors.TEXT};
-            }}
-            QGroupBox {{
-                border: 2px solid {Colors.BORDER};
-                border-radius: 8px;
-                margin-top: 10px;
-                padding-top: 15px;
-                font-weight: bold;
-                background-color: {Colors.CARD};
-            }}
-            QGroupBox::title {{
-                color: {Colors.TEXT};
-                subcontrol-origin: margin;
-                left: 15px;
-                padding: 0 5px;
-            }}
-        """)
+        # Apply theme-aware styling
+        self._apply_theme()
         
         layout = QVBoxLayout(self)
         layout.setSpacing(15)
@@ -688,6 +839,42 @@ class SubscriptionDialog(QDialog):
         """Exit the application."""
         sys.exit(0)
     
+    def _apply_theme(self):
+        """Apply theme-aware styling to dialog."""
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {Colors.BACKGROUND};
+            }}
+            QLabel {{
+                color: {Colors.TEXT};
+            }}
+            QGroupBox {{
+                border: 2px solid {Colors.BORDER};
+                border-radius: 8px;
+                margin-top: 10px;
+                padding-top: 15px;
+                font-weight: bold;
+                background-color: {Colors.CARD};
+                color: {Colors.TEXT};
+            }}
+            QGroupBox::title {{
+                color: {Colors.TEXT};
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 5px;
+            }}
+            QLineEdit {{
+                background-color: {Colors.INPUT_BG};
+                color: {Colors.TEXT};
+                border: 2px solid {Colors.BORDER};
+                border-radius: 6px;
+                padding: 12px;
+            }}
+            QLineEdit:focus {{
+                border: 2px solid {Colors.PRIMARY};
+            }}
+        """)
+    
     def show_help(self):
         """Open purchase URL in default browser."""
         webbrowser.open("https://example.com/purchase-license")
@@ -733,7 +920,26 @@ class SubscriptionStatusWidget(QFrame):
         layout.addWidget(self.manage_btn)
         
         self.setLayout(layout)
+        self.update_style()
         self.update_status()
+    
+    def update_style(self):
+        """Update widget styling for current theme."""
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Colors.CARD};
+                border: 1px solid {Colors.BORDER};
+                border-radius: 5px;
+                padding: 6px 8px;
+            }}
+        """)
+        self.status_label.setStyleSheet(f"""
+            font-size: 11px;
+            color: {Colors.TEXT};
+            font-weight: 500;
+        """)
+        if hasattr(self, 'manage_btn'):
+            self.manage_btn.update_style()
     
     def update_status(self):
         """Update the status display."""
@@ -741,12 +947,27 @@ class SubscriptionStatusWidget(QFrame):
         
         if info['status'] == 'active':
             self.status_icon.setText("✅")
-            expiry = datetime.fromisoformat(info['expiry_date']).strftime("%Y-%m-%d")
+            expiry_str = info.get('expiry_date')
+            plan = info.get('plan', 'unknown')
+            
+            if expiry_str and expiry_str != 'None':
+                try:
+                    expiry = datetime.fromisoformat(expiry_str).strftime("%Y-%m-%d")
+                    expiry_text = f"Active until {expiry}"
+                except (ValueError, TypeError):
+                    expiry_text = "Active"
+            else:
+                # Free license or no expiration
+                if plan == 'free':
+                    expiry_text = "Free License (Unlimited)"
+                else:
+                    expiry_text = "Active (No expiration)"
+            
             if info['documents_remaining'] is None or info['documents_remaining'] < 0:
-                self.status_label.setText(f"Active until {expiry} (Unlimited)")
+                self.status_label.setText(f"{expiry_text} - Unlimited documents")
             else:
                 self.status_label.setText(
-                    f"Active until {expiry} ({info['documents_remaining']} docs remaining)"
+                    f"{expiry_text} - {info['documents_remaining']} docs remaining"
                 )
         else:
             self.status_icon.setText("⚠️")
@@ -763,7 +984,14 @@ class MainWindow(QWidget):
         self.setWindowTitle("📝 Spec Header Date & Phase Updater")
         self.resize(900, 500)
         
-        # Set modern background
+        # Load app configuration
+        self.app_config = self._load_app_config()
+        
+        # Load and apply theme FIRST before any styling
+        dark_mode = self.app_config.get('dark_mode', False)
+        Colors.set_theme(dark_mode)
+        
+        # Set modern background AFTER theme is applied
         self.setStyleSheet(f"""
             QWidget {{
                 background-color: {Colors.BACKGROUND};
@@ -776,9 +1004,6 @@ class MainWindow(QWidget):
                 font-size: 11px;
             }}
         """)
-        
-        # Load app configuration
-        self.app_config = self._load_app_config()
         
         # Initialize subscription manager (conditional)
         if INCLUDE_LICENSING:
@@ -878,7 +1103,7 @@ class MainWindow(QWidget):
                 border-radius: 4px;
                 text-align: center;
                 background-color: {Colors.CARD};
-                height: 16px;
+                height: 26px;
                 font-weight: 600;
                 font-size: 10px;
             }}
@@ -903,9 +1128,10 @@ class MainWindow(QWidget):
             }}
         """)
 
-        # Subscription status bar (conditional)
+        # Subscription status bar (conditional, hidden by default)
         if INCLUDE_LICENSING:
             self.subscription_status = SubscriptionStatusWidget(self.subscription_mgr)
+            self.subscription_status.setVisible(False)  # Hidden by default
         else:
             self.subscription_status = None  # No status widget when licensing disabled
         
@@ -914,9 +1140,34 @@ class MainWindow(QWidget):
         main_layout.setContentsMargins(8, 8, 8, 8)
         main_layout.setSpacing(5)
         
-        # Add subscription status bar at the top (conditional)
+        # Top bar with subscription status and dark mode toggle - aligned to the right
+        top_bar_widget = QWidget()
+        top_bar_widget.setFixedHeight(32)
+        top_bar_widget.setStyleSheet("background-color: transparent;")
+        top_bar = QHBoxLayout(top_bar_widget)
+        top_bar.setContentsMargins(0, 0, 0, 0)
+        top_bar.setSpacing(8)
+        
+        # Add subscription status bar at the top (hidden by default)
         if self.subscription_status:
-            main_layout.addWidget(self.subscription_status)
+            top_bar.addWidget(self.subscription_status, 1)
+        
+        # Add stretch to push dark mode button to the right
+        top_bar.addStretch()
+        
+        # Dark mode toggle button in top right
+        self.btnDarkMode = ModernButton("🌙" if not dark_mode else "☀️", "secondary")
+        self.btnDarkMode.setToolTip("Toggle dark mode" if not dark_mode else "Toggle light mode")
+        self.btnDarkMode.setFixedWidth(32)
+        self.btnDarkMode.setFixedHeight(26)
+        self.btnDarkMode.setCheckable(True)
+        self.btnDarkMode.setChecked(dark_mode)
+        self.btnDarkMode.clicked.connect(self.toggle_dark_mode)
+        # Force update style after theme is set to ensure correct colors
+        self.btnDarkMode.update_style()
+        top_bar.addWidget(self.btnDarkMode)
+        
+        main_layout.addWidget(top_bar_widget)
         
         # Main Settings Card
         settings_card = ModernCard("⚙️ Update Settings")
@@ -1058,23 +1309,28 @@ class MainWindow(QWidget):
                 font-size: 11px;
                 spacing: 4px;
                 padding: 2px;
+                background-color: transparent;
+                border: none;
             }}
             QCheckBox:hover {{
                 color: {Colors.PRIMARY};
+                background-color: transparent;
             }}
             QCheckBox::indicator {{
                 width: 14px;
                 height: 14px;
                 border: 1px solid {Colors.BORDER};
-                border-radius: 2px;
+                border-radius: 3px;
                 background-color: {Colors.CARD};
             }}
             QCheckBox::indicator:hover {{
                 border-color: {Colors.PRIMARY};
+                border-radius: 3px;
             }}
             QCheckBox::indicator:checked {{
                 background-color: {Colors.PRIMARY};
                 border-color: {Colors.PRIMARY};
+                border-radius: 3px;
                 image: none;
             }}
         """
@@ -1098,6 +1354,7 @@ class MainWindow(QWidget):
             "require_subscription": True,
             "app_name": "Spec Header Date Updater",
             "app_version": "1.0.0",
+            "dark_mode": False,
             "min_plan": "free"
         }
         
@@ -1110,6 +1367,160 @@ class MainWindow(QWidget):
         
         return default_config
     
+    def _save_app_config(self) -> None:
+        """Save application configuration."""
+        config_locations = [
+            Path(__file__).parent.parent / 'app_config.json',
+            Path(__file__).parent / 'app_config.json',
+            Path(__file__).parent.parent.parent / 'app_config.json',
+        ]
+        
+        config_file = None
+        for path in config_locations:
+            if path.exists():
+                config_file = path
+                break
+        
+        if not config_file:
+            config_file = Path(__file__).parent.parent / 'app_config.json'
+        
+        try:
+            with open(config_file, 'w') as f:
+                json.dump(self.app_config, f, indent=2)
+        except Exception as e:
+            print(f"Error saving config: {e}")
+    
+    def toggle_dark_mode(self):
+        """Toggle dark mode on/off."""
+        dark_mode = self.btnDarkMode.isChecked()
+        Colors.set_theme(dark_mode)
+        self.app_config['dark_mode'] = dark_mode
+        self._save_app_config()
+        self._refresh_all_styles()
+    
+    def _refresh_all_styles(self):
+        """Refresh all widget styles after theme change."""
+        # Update main window style
+        self.setStyleSheet(f"""
+            QWidget {{
+                background-color: {Colors.BACKGROUND};
+                color: {Colors.TEXT};
+                font-size: 12px;
+            }}
+            QLabel {{
+                color: {Colors.TEXT};
+                font-weight: 500;
+                font-size: 11px;
+            }}
+            QMessageBox {{
+                background-color: {Colors.BACKGROUND};
+                color: {Colors.TEXT};
+            }}
+            QMessageBox QLabel {{
+                color: {Colors.TEXT};
+            }}
+            QCalendarWidget {{
+                background-color: {Colors.CARD};
+                color: {Colors.TEXT};
+            }}
+            QCalendarWidget QTableView {{
+                selection-background-color: {Colors.PRIMARY};
+                selection-color: white;
+            }}
+        """)
+        
+        # Update all input fields
+        for widget in [self.txtRoot, self.txtPhase, self.txtBackup, self.dateEdit]:
+            widget.setStyleSheet(self._input_style())
+        
+        # Update all checkboxes
+        for checkbox in [self.chkRecursive, self.chkIncludeDoc, self.chkReplaceDoc, 
+                        self.chkReprintPDF, self.chkDryRun, self.chkUseBackup]:
+            checkbox.setStyleSheet(self._checkbox_style())
+        
+        # Update list widget
+        self.lstExclude.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {Colors.CARD};
+                border: 1px solid {Colors.BORDER};
+                border-radius: 4px;
+                padding: 4px;
+                font-size: 11px;
+                color: {Colors.TEXT};
+            }}
+            QListWidget::item {{
+                padding: 4px;
+                border-radius: 2px;
+                color: {Colors.TEXT};
+            }}
+            QListWidget::item:selected {{
+                background-color: {Colors.PRIMARY};
+                color: white;
+            }}
+            QListWidget::item:hover {{
+                background-color: {Colors.BORDER};
+            }}
+        """)
+        
+        # Update progress bar
+        self.progress.setStyleSheet(f"""
+            QProgressBar {{
+                border: 1px solid {Colors.BORDER};
+                border-radius: 4px;
+                text-align: center;
+                background-color: {Colors.CARD};
+                height: 26px;
+                font-weight: 600;
+                font-size: 10px;
+                color: {Colors.TEXT};
+            }}
+            QProgressBar::chunk {{
+                background-color: {Colors.SUCCESS};
+                border-radius: 2px;
+            }}
+        """)
+        
+        # Update log
+        self.log.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {Colors.CARD};
+                border: 1px solid {Colors.BORDER};
+                border-radius: 4px;
+                padding: 5px;
+                font-family: 'Consolas', 'Monaco', monospace;
+                font-size: 10px;
+                line-height: 1.35;
+                color: {Colors.TEXT};
+            }}
+        """)
+        
+        # Update log label
+        log_labels = self.findChildren(QLabel)
+        for label in log_labels:
+            if label.text() == "📋 Log":
+                label.setStyleSheet(f"font-weight: bold; font-size: 12px; color: {Colors.TEXT}; padding: 3px 0;")
+        
+        # Refresh all ModernCard widgets
+        for widget in self.findChildren(ModernCard):
+            widget.update_style()
+        
+        # Refresh all ModernButton widgets
+        for widget in self.findChildren(ModernButton):
+            widget.update_style()
+        
+        # Refresh subscription status widget
+        if hasattr(self, 'subscription_status') and self.subscription_status:
+            self.subscription_status.update_style()
+        
+        # Update button icon based on theme
+        dark_mode = self.btnDarkMode.isChecked()
+        if dark_mode:
+            self.btnDarkMode.setText("☀️")
+            self.btnDarkMode.setToolTip("Toggle light mode")
+        else:
+            self.btnDarkMode.setText("🌙")
+            self.btnDarkMode.setToolTip("Toggle dark mode")
+    
     def check_subscription(self):
         """Check subscription status and prompt for license if needed."""
         # Skip all subscription checks if licensing is disabled
@@ -1118,20 +1529,24 @@ class MainWindow(QWidget):
         
         require_sub = self.app_config.get('require_subscription', True)
         
+        # Always ensure license exists (auto-create free license if needed)
         if not self.subscription_mgr.is_subscribed():
-            # Show the improved subscription dialog
-            # It handles all validation internally - no more popup spam!
-            dialog = SubscriptionDialog(
-                parent=self,
-                subscription_mgr=self.subscription_mgr,
-                required=require_sub
-            )
-            
-            result = dialog.exec()
-            
-            # If required and user didn't activate, the dialog already handled exit
-            # If optional and user cancelled, that's fine
-            # If validation succeeded, dialog.validation_result will be "success"
+            # Try to auto-create free license first (silent)
+            if not self.subscription_mgr.ensure_license_exists():
+                # If auto-create failed and subscription is required, show dialog
+                if require_sub:
+                    dialog = SubscriptionDialog(
+                        parent=self,
+                        subscription_mgr=self.subscription_mgr,
+                        required=True
+                    )
+                    dialog.exec()
+        
+        # Sync activation status with license server
+        try:
+            self.subscription_mgr._sync_activation_status()
+        except Exception:
+            pass  # Silent fail
         
         # Update the UI
         self.update_subscription_ui()
@@ -1219,6 +1634,18 @@ class MainWindow(QWidget):
 
         phase_text = self.txtPhase.text().strip() or DEFAULT_PHASE_TEXT
         
+        # Check limits before starting worker (if licensing enabled)
+        subscription_mgr_for_worker = None
+        if INCLUDE_LICENSING and hasattr(self, 'subscription_mgr'):
+            subscription_mgr_for_worker = self.subscription_mgr
+            
+            # Ensure license exists (auto-create if needed)
+            if not self.subscription_mgr.is_subscribed():
+                self.subscription_mgr.ensure_license_exists()
+        
+        # Get default backup directory for comparison
+        default_backup_dir = self.txtBackup.text().strip() if hasattr(self, 'txtBackup') else None
+        
         self.worker = UpdateWorker(
             root=root,
             date_str=date_str,
@@ -1230,6 +1657,8 @@ class MainWindow(QWidget):
             replace_doc_inplace=replace_doc,
             reprint_pdf=reprint_pdf,
             exclude_folders=exclude,
+            subscription_mgr=subscription_mgr_for_worker,
+            default_backup_dir=default_backup_dir
         )
         self.worker.log.connect(self.appendLog)
         self.worker.progress.connect(self.onProgress)
@@ -1249,9 +1678,55 @@ class MainWindow(QWidget):
         self.progress.setMaximum(total)
         self.progress.setValue(current)
 
-    @Slot(int, int)
-    def onFinished(self, updated, errors):
+    @Slot(int, int, dict)
+    def onFinished(self, updated, errors, stats):
         self.appendLog(f"\nDone. Updated: {updated}, Errors: {errors}")
+        
+        # Update license usage count (if licensing enabled)
+        if INCLUDE_LICENSING and updated > 0 and hasattr(self, 'subscription_mgr') and self.subscription_mgr:
+            try:
+                self.subscription_mgr.record_document_processed(count=updated)
+                # Refresh subscription UI to show updated counts
+                self.update_subscription_ui()
+            except Exception:
+                pass  # Silent fail
+        
+        # Sync usage statistics with license server
+        if INCLUDE_LICENSING and hasattr(self, 'subscription_mgr') and self.subscription_mgr:
+            try:
+                # Get settings from worker
+                worker = self.worker
+                default_backup = worker.default_backup_dir
+                backup_path = str(worker.backup_dir) if worker.backup_dir else None
+                backup_enabled = worker.backup_dir is not None
+                backup_location_default = (default_backup and worker.backup_dir and 
+                                          str(Path(worker.backup_dir).resolve()) == str(Path(default_backup).resolve()))
+                
+                # Get exclude folders
+                exclude_final = worker.exclude_folders
+                
+                usage_data = {
+                    **stats,  # files_scanned, documents_updated, etc.
+                    'date_updated': bool(worker.date_str and worker.date_str.strip()),
+                    'phase_updated': bool(worker.phase_text and worker.phase_text.strip()),
+                    'target_date': worker.date_str,
+                    'phase_text': worker.phase_text,
+                    'recursive': worker.recursive,
+                    'dry_run': worker.dry_run,
+                    'include_legacy_doc': worker.include_doc,
+                    'replace_doc_inplace': worker.replace_doc_inplace,
+                    'reprint_pdf': worker.reprint_pdf,
+                    'backup_enabled': backup_enabled,
+                    'backup_location_default': backup_location_default,
+                    'backup_path': backup_path,
+                    'exclude_folders_final': exclude_final,
+                    'root_path': str(worker.root)
+                }
+                
+                self.subscription_mgr._update_license_usage(usage_data)
+            except Exception:
+                pass  # Silent fail
+        
         self.worker = None
 
     @Slot(str)
