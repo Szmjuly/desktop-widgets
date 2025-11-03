@@ -22,6 +22,27 @@ def show_licensing_status():
     print("LICENSING STATUS")
     print("="*60)
     
+    # Check build config first
+    build_config_file = Path(__file__).parent / 'build_config.json'
+    include_licensing = True
+    
+    if build_config_file.exists():
+        try:
+            with open(build_config_file, 'r') as f:
+                config = json.load(f)
+                include_licensing = config.get('include_licensing', True)
+        except (json.JSONDecodeError, IOError):
+            pass
+    
+    if not include_licensing:
+        print("\n📦 Licensing Status: ❌ REMOVED FROM BUILD")
+        print("\nLicensing code is not included in this build.")
+        print("The application will run without any license checks.")
+        print("\nTo re-enable licensing:")
+        print("  python admin/toggle_licensing_build.py include")
+        print("\n" + "="*60)
+        return
+    
     try:
         # Import SubscriptionManager
         sys.path.insert(0, str(Path(__file__).parent))
@@ -126,10 +147,11 @@ def show_menu():
     print("4. Run Security Tests")
     print("5. Check Firebase Import")
     print("6. Show Licensing Status (Dev)")
-    print("7. Exit")
+    print("7. Toggle Licensing Build (Remove/Include)")
+    print("8. Exit")
     print("\n" + "="*60)
     
-    choice = input("\nEnter your choice (1-7): ").strip()
+    choice = input("\nEnter your choice (1-8): ").strip()
     return choice
 
 
@@ -162,11 +184,18 @@ def main():
             show_licensing_status()
         
         elif choice == '7':
+            print("\n🔧 Toggling Licensing Build...")
+            subprocess.run([sys.executable, "admin/toggle_licensing_build.py", "status"])
+            print("\nTo change:")
+            print("  • Remove: python admin/toggle_licensing_build.py remove")
+            print("  • Include: python admin/toggle_licensing_build.py include")
+        
+        elif choice == '8':
             print("\n👋 Goodbye!")
             break
         
         else:
-            print("\n❌ Invalid choice. Please enter 1-7.")
+            print("\n❌ Invalid choice. Please enter 1-8.")
         
         input("\nPress Enter to continue...")
 

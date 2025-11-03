@@ -16,8 +16,26 @@ from PySide6.QtGui import QFont, QColor, QPalette
 from docx import Document
 import psutil
 
-# Local imports
-from src.subscription import SubscriptionManager
+# Local imports - Conditional licensing
+from src.build_config import INCLUDE_LICENSING
+
+if INCLUDE_LICENSING:
+    from src.subscription import SubscriptionManager
+else:
+    # Dummy class when licensing is disabled
+    class SubscriptionManager:
+        def __init__(self, *args, **kwargs):
+            pass
+        def is_subscribed(self):
+            return True  # Always return True when licensing disabled
+        def get_subscription_info(self):
+            return {'status': 'not_included', 'message': 'Licensing not included in this build'}
+        def validate_license_key(self, key):
+            return True
+        def check_document_limit(self):
+            return True
+        def record_document_processed(self, count=1):
+            return True
 
 # pywin32 (optional if .doc or pdf export needed)
 try:
@@ -666,7 +684,7 @@ class SubscriptionDialog(QDialog):
 
 class SubscriptionStatusWidget(QFrame):
     """Modern widget to display subscription status."""
-    def __init__(self, subscription_mgr: SubscriptionManager, parent=None):
+    def __init__(self, subscription_mgr, parent=None):
         super().__init__(parent)
         self.subscription_mgr = subscription_mgr
         
@@ -751,8 +769,12 @@ class MainWindow(QWidget):
         # Load app configuration
         self.app_config = self._load_app_config()
         
-        # Initialize subscription manager
-        self.subscription_mgr = SubscriptionManager()
+        # Initialize subscription manager (conditional)
+        if INCLUDE_LICENSING:
+            self.subscription_mgr = SubscriptionManager()
+        else:
+            # Dummy manager when licensing disabled
+            self.subscription_mgr = SubscriptionManager()
 
         # Apply modern input styling helper
         self._setup_modern_styles()
@@ -870,16 +892,20 @@ class MainWindow(QWidget):
             }}
         """)
 
-        # Subscription status bar
-        self.subscription_status = SubscriptionStatusWidget(self.subscription_mgr)
+        # Subscription status bar (conditional)
+        if INCLUDE_LICENSING:
+            self.subscription_status = SubscriptionStatusWidget(self.subscription_mgr)
+        else:
+            self.subscription_status = None  # No status widget when licensing disabled
         
         # Layout - Compact two-column design
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(8, 8, 8, 8)
         main_layout.setSpacing(5)
         
-        # Add subscription status bar at the top
-        main_layout.addWidget(self.subscription_status)
+        # Add subscription status bar at the top (conditional)
+        if self.subscription_status:
+            main_layout.addWidget(self.subscription_status)
         
         # Main Settings Card
         settings_card = ModernCard("⚙️ Update Settings")
@@ -966,13 +992,16 @@ class MainWindow(QWidget):
         
         self.worker: UpdateWorker | None = None
         
-        # Check subscription on startup (after UI is fully created)
-        self.check_subscription()
-        
-        # Set up a timer to periodically check subscription status
-        self.subscription_timer = QTimer(self)
-        self.subscription_timer.timeout.connect(self.check_subscription)
-        self.subscription_timer.start(5 * 60 * 1000)  # Check every 5 minutes
+        # Check subscription on startup (after UI is fully created) - conditional
+        if INCLUDE_LICENSING:
+            self.check_subscription()
+            
+            # Set up a timer to periodically check subscription status
+            self.subscription_timer = QTimer(self)
+            self.subscription_timer.timeout.connect(self.check_subscription)
+            self.subscription_timer.start(5 * 60 * 1000)  # Check every 5 minutes
+        else:
+            self.subscription_timer = None
     
     def _setup_modern_styles(self):
         """Initialize modern styling - placeholder for future enhancements."""
@@ -1072,6 +1101,10 @@ class MainWindow(QWidget):
     
     def check_subscription(self):
         """Check subscription status and prompt for license if needed."""
+        # Skip all subscription checks if licensing is disabled
+        if not INCLUDE_LICENSING:
+            return
+        
         require_sub = self.app_config.get('require_subscription', True)
         
         if not self.subscription_mgr.is_subscribed():
@@ -1093,12 +1126,18 @@ class MainWindow(QWidget):
         self.update_subscription_ui()
         
         # Disable features if subscription required but not active
-        if require_sub and not self.subscription_mgr.is_subscribed():
-            self.btnRun.setEnabled(False)
-            self.btnRun.setToolTip("Valid subscription required to process documents")
+        if INCLUDE_LICENSING:
+            require_sub = self.app_config.get('require_subscription', True)
+            if require_sub and not self.subscription_mgr.is_subscribed():
+                self.btnRun.setEnabled(False)
+                self.btnRun.setToolTip("Valid subscription required to process documents")
     
     def update_subscription_ui(self):
         """Update UI elements based on subscription status."""
+        # Skip if licensing disabled
+        if not INCLUDE_LICENSING or not self.subscription_status:
+            return
+        
         # Update the status widget
         self.subscription_status.update_status()
         

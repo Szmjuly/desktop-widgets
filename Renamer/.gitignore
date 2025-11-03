@@ -8,6 +8,9 @@ config/firebase-admin-key.json
 app_config.json
 config/app_config.json
 
+# Build configuration (controls licensing inclusion)
+build_config.json
+
 # Environment variables
 .env
 
