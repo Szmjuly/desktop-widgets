@@ -673,6 +673,17 @@ class SubscriptionDialog(QDialog):
         self.license_key_input.selectAll()
         self.progress_label.hide()
     
+    def closeEvent(self, event):
+        """Handle window close event (X button)."""
+        # If licensing is required and user hasn't successfully validated, exit the app
+        if self.required and self.validation_result != "success":
+            # Prevent dialog from closing, exit the application instead
+            event.ignore()
+            sys.exit(0)
+        else:
+            # Not required, or validation succeeded - allow normal close
+            event.accept()
+    
     def exit_app(self):
         """Exit the application."""
         sys.exit(0)

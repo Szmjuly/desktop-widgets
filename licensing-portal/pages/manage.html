@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Manage your license - View, renew, or update your subscription">
+    <title>Manage License - License Portal</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>🔐 License Portal</h1>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="pricing.html">Pricing</a></li>
+                <li><a href="manage.html" class="active">Manage License</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Manage Header -->
+    <section class="page-header">
+        <div class="container">
+            <h1>Manage Your License</h1>
+            <p>View details, renew, or update your subscription</p>
+        </div>
+    </section>
+
+    <!-- License Lookup -->
+    <section class="manage-section">
+        <div class="container">
+            <div class="manage-container">
+                <div class="license-lookup">
+                    <h2>Enter Your License Key</h2>
+                    <form id="lookupForm">
+                        <div class="form-group">
+                            <label for="licenseKey">License Key</label>
+                            <input type="text" id="licenseKey" name="licenseKey" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" required class="form-input">
+                            <span class="form-help">Enter your license key to access your account</span>
+                        </div>
+                        <div class="form-group">
+                            <label for="lookupEmail">Email Address</label>
+                            <input type="email" id="lookupEmail" name="lookupEmail" placeholder="your@email.com" required class="form-input">
+                            <span class="form-help">Email address associated with your license</span>
+                        </div>
+                        <button type="submit" class="btn btn-primary">View License</button>
+                    </form>
+                </div>
+
+                <!-- License Details (hidden until lookup) -->
+                <div class="license-details" id="licenseDetails" style="display: none;">
+                    <h2>License Information</h2>
+                    <div class="license-info-grid">
+                        <div class="info-card">
+                            <div class="info-label">License Key</div>
+                            <div class="info-value" id="displayLicenseKey">-</div>
+                            <button class="btn-copy" onclick="copyLicenseKey()">Copy</button>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">Status</div>
+                            <div class="info-value" id="displayStatus">-</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">Plan</div>
+                            <div class="info-value" id="displayPlan">-</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">Expiry Date</div>
+                            <div class="info-value" id="displayExpiry">-</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">Days Remaining</div>
+                            <div class="info-value" id="displayDaysRemaining">-</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">Devices Used</div>
+                            <div class="info-value" id="displayDevices">-</div>
+                        </div>
+                    </div>
+
+                    <div class="license-actions">
+                        <h3>Actions</h3>
+                        <div class="actions-grid">
+                            <button class="btn btn-primary" onclick="renewLicense()">Renew License</button>
+                            <button class="btn btn-secondary" onclick="upgradeLicense()">Upgrade Plan</button>
+                            <button class="btn btn-secondary" onclick="downloadLicense()">Download License File</button>
+                            <button class="btn btn-secondary" onclick="viewDevices()">Manage Devices</button>
+                        </div>
+                    </div>
+
+                    <div class="license-history">
+                        <h3>Billing History</h3>
+                        <div class="history-table-container">
+                            <table class="history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Description</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Invoice</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody">
+                                    <!-- History rows will be loaded dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-column">
+                    <h3>License Portal</h3>
+                    <p>Secure licensing solutions for desktop applications.</p>
+                </div>
+                <div class="footer-column">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="mailto:support@example.com">support@example.com</a></li>
+                        <li><a href="#contact">Contact Us</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 License Portal. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../js/main.js"></script>
+    <script src="../js/api.js"></script>
+</body>
+</html>
+

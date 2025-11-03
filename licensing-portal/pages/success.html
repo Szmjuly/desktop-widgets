@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Successful - License Portal</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>🔐 License Portal</h1>
+            </div>
+        </div>
+    </nav>
+
+    <section class="success-card">
+        <div class="success-icon">✅</div>
+        <h1>Payment Successful!</h1>
+        <p>Your license has been activated successfully.</p>
+        
+        <div class="license-details-card">
+            <h2>Your License Key</h2>
+            <div class="license-key-display" id="licenseKeyDisplay">
+                <code id="licenseKey">-</code>
+                <button class="btn-copy" onclick="copyLicenseKey()">Copy</button>
+            </div>
+            <p class="license-note">Your license key has been sent to <strong id="licenseEmail">-</strong></p>
+        </div>
+
+        <div class="success-actions">
+            <a href="manage.html" class="btn btn-primary">Manage License</a>
+            <a href="../index.html" class="btn btn-secondary">Return Home</a>
+        </div>
+    </section>
+
+    <script>
+        // Get license key from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const licenseKey = urlParams.get('license');
+        const email = urlParams.get('email');
+
+        if (licenseKey) {
+            document.getElementById('licenseKey').textContent = licenseKey;
+        }
+        if (email) {
+            document.getElementById('licenseEmail').textContent = decodeURIComponent(email);
+        }
+
+        function copyLicenseKey() {
+            const licenseKey = document.getElementById('licenseKey').textContent;
+            navigator.clipboard.writeText(licenseKey).then(() => {
+                alert('License key copied to clipboard!');
+            });
+        }
+    </script>
+</body>
+</html>
+

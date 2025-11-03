@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Compare pricing plans and choose the perfect license for your needs">
+    <title>Pricing Plans - License Portal</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>🔐 License Portal</h1>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="pricing.html" class="active">Pricing</a></li>
+                <li><a href="manage.html">Manage License</a></li>
+                <li><a href="../index.html#contact">Contact</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Pricing Header -->
+    <section class="page-header">
+        <div class="container">
+            <h1>Choose Your Plan</h1>
+            <p>Select the perfect license tier for your needs</p>
+        </div>
+    </section>
+
+    <!-- Pricing Options Tabs -->
+    <section class="pricing-options-section">
+        <div class="container">
+            <div class="pricing-tabs">
+                <button class="pricing-tab active" data-tab="spec-manager">Spec Document Manager</button>
+                <button class="pricing-tab" data-tab="bundle">Suite Bundle</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Spec Manager Pricing -->
+    <section class="pricing-section" id="spec-manager-pricing">
+        <div class="container">
+            <div class="pricing-grid">
+                <!-- Basic Plan -->
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <div class="pricing-name">Basic</div>
+                        <div class="pricing-price">$9.99</div>
+                        <div class="pricing-period">/month</div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>Up to 2 devices</li>
+                        <li>100 documents/month</li>
+                        <li>Basic batch processing</li>
+                        <li>.docx format support</li>
+                        <li>Email support</li>
+                        <li>Automatic updates</li>
+                    </ul>
+                    <div class="pricing-action">
+                        <a href="checkout.html?product=spec-updater&plan=basic" class="btn btn-primary btn-large">
+                            Choose Basic
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Premium Plan (Featured) -->
+                <div class="pricing-card featured">
+                    <div class="pricing-header">
+                        <div class="pricing-name">Premium</div>
+                        <div class="pricing-price">$19.99</div>
+                        <div class="pricing-period">/month</div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>Up to 5 devices</li>
+                        <li>Unlimited documents</li>
+                        <li>Advanced batch processing</li>
+                        <li>.docx and .doc support</li>
+                        <li>PDF regeneration</li>
+                        <li>Priority email support</li>
+                        <li>Backup & version control</li>
+                        <li>Automatic updates</li>
+                    </ul>
+                    <div class="pricing-action">
+                        <a href="checkout.html?product=spec-updater&plan=premium" class="btn btn-primary btn-large">
+                            Choose Premium
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Business Plan -->
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <div class="pricing-name">Business</div>
+                        <div class="pricing-price">$49.99</div>
+                        <div class="pricing-period">/month</div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>Unlimited devices</li>
+                        <li>Unlimited documents</li>
+                        <li>All Premium features</li>
+                        <li>Team license management</li>
+                        <li>Priority phone & email support</li>
+                        <li>Custom workflow templates</li>
+                        <li>Dedicated account manager</li>
+                        <li>SLA guarantee</li>
+                    </ul>
+                    <div class="pricing-action">
+                        <a href="checkout.html?product=spec-updater&plan=business" class="btn btn-primary btn-large">
+                            Choose Business
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Bundle Pricing (Hidden by default) -->
+    <section class="pricing-section" id="bundle-pricing" style="display: none;">
+        <div class="container">
+            <div class="bundle-description">
+                <h2>Access All Programs with One License</h2>
+                <p>Get unlimited access to all current and future programs. Save up to 40% compared to individual licenses.</p>
+            </div>
+            <div class="pricing-grid">
+                <!-- Basic Bundle -->
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <div class="pricing-name">Basic Bundle</div>
+                        <div class="pricing-price">$24.99</div>
+                        <div class="pricing-period">/month</div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>All programs included</li>
+                        <li>Up to 3 devices</li>
+                        <li>Basic features for all apps</li>
+                        <li>Email support</li>
+                        <li>Automatic updates</li>
+                        <li>Early access to new programs</li>
+                    </ul>
+                    <div class="pricing-action">
+                        <a href="checkout.html?product=bundle&plan=basic" class="btn btn-primary btn-large">
+                            Choose Basic Bundle
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Premium Bundle (Featured) -->
+                <div class="pricing-card featured">
+                    <div class="pricing-header">
+                        <div class="pricing-name">Premium Bundle</div>
+                        <div class="pricing-price">$39.99</div>
+                        <div class="pricing-period">/month</div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>All programs included</li>
+                        <li>Up to 5 devices</li>
+                        <li>Premium features for all apps</li>
+                        <li>Priority support</li>
+                        <li>Automatic updates</li>
+                        <li>Early access to new programs</li>
+                        <li>Beta testing opportunities</li>
+                    </ul>
+                    <div class="pricing-action">
+                        <a href="checkout.html?product=bundle&plan=premium" class="btn btn-primary btn-large">
+                            Choose Premium Bundle
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Business Bundle -->
+                <div class="pricing-card">
+                    <div class="pricing-header">
+                        <div class="pricing-name">Business Bundle</div>
+                        <div class="pricing-price">$79.99</div>
+                        <div class="pricing-period">/month</div>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>All programs included</li>
+                        <li>Unlimited devices</li>
+                        <li>Business features for all apps</li>
+                        <li>Dedicated support</li>
+                        <li>Team management</li>
+                        <li>Custom integrations</li>
+                        <li>Volume licensing</li>
+                        <li>SLA guarantee</li>
+                    </ul>
+                    <div class="pricing-action">
+                        <a href="checkout.html?product=bundle&plan=business" class="btn btn-primary btn-large">
+                            Choose Business Bundle
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Comparison Table -->
+    <section class="comparison-section">
+        <div class="container">
+            <h2 class="section-title">Feature Comparison</h2>
+            <div class="comparison-table-container">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th class="plan-basic">Basic</th>
+                            <th class="plan-premium">Premium</th>
+                            <th class="plan-business">Business</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Max Devices</td>
+                            <td>2</td>
+                            <td>5</td>
+                            <td>Unlimited</td>
+                        </tr>
+                        <tr>
+                            <td>Documents/Month</td>
+                            <td>100</td>
+                            <td>Unlimited</td>
+                            <td>Unlimited</td>
+                        </tr>
+                        <tr>
+                            <td>.docx Support</td>
+                            <td>✓</td>
+                            <td>✓</td>
+                            <td>✓</td>
+                        </tr>
+                        <tr>
+                            <td>.doc Support</td>
+                            <td>✗</td>
+                            <td>✓</td>
+                            <td>✓</td>
+                        </tr>
+                        <tr>
+                            <td>PDF Regeneration</td>
+                            <td>✗</td>
+                            <td>✓</td>
+                            <td>✓</td>
+                        </tr>
+                        <tr>
+                            <td>Backup & Version Control</td>
+                            <td>✗</td>
+                            <td>✓</td>
+                            <td>✓</td>
+                        </tr>
+                        <tr>
+                            <td>Email Support</td>
+                            <td>✓</td>
+                            <td>Priority</td>
+                            <td>Priority + Phone</td>
+                        </tr>
+                        <tr>
+                            <td>Custom Templates</td>
+                            <td>✗</td>
+                            <td>✗</td>
+                            <td>✓</td>
+                        </tr>
+                        <tr>
+                            <td>Team Management</td>
+                            <td>✗</td>
+                            <td>✗</td>
+                            <td>✓</td>
+                        </tr>
+                        <tr>
+                            <td>Dedicated Account Manager</td>
+                            <td>✗</td>
+                            <td>✗</td>
+                            <td>✓</td>
+                        </tr>
+                        <tr>
+                            <td>SLA Guarantee</td>
+                            <td>✗</td>
+                            <td>✗</td>
+                            <td>✓</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="faq-section">
+        <div class="container">
+            <h2 class="section-title">Frequently Asked Questions</h2>
+            <div class="faq-list">
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>What payment methods do you accept?</h3>
+                        <span class="faq-toggle">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>We accept all major credit cards (Visa, MasterCard, American Express), PayPal, and bank transfers for business plans.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>Can I upgrade or downgrade my plan later?</h3>
+                        <span class="faq-toggle">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes! You can upgrade or downgrade your plan at any time. Changes will be prorated based on your billing cycle.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>How many devices can I use my license on?</h3>
+                        <span class="faq-toggle">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>It depends on your plan. Basic allows 2 devices, Premium allows 5 devices, and Business allows unlimited devices.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>What's the difference between per-program and bundle licensing?</h3>
+                        <span class="faq-toggle">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Per-program licensing gives you access to a single application (like Spec Document Manager) at the listed price. Bundle licensing gives you access to ALL current and future programs for a discounted rate, saving up to 40%.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>What happens if I cancel my subscription?</h3>
+                        <span class="faq-toggle">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Your license will remain active until the end of your current billing period. After that, you'll lose access to premium features.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <h3>Do you offer refunds?</h3>
+                        <span class="faq-toggle">+</span>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes, we offer a 30-day money-back guarantee. If you're not satisfied, contact us for a full refund.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-column">
+                    <h3>License Portal</h3>
+                    <p>Secure licensing solutions for desktop applications.</p>
+                </div>
+                <div class="footer-column">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="pricing.html">Pricing</a></li>
+                        <li><a href="manage.html">Manage License</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="mailto:support@example.com">support@example.com</a></li>
+                        <li><a href="#terms">Terms of Service</a></li>
+                        <li><a href="#privacy">Privacy Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 License Portal. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../js/main.js"></script>
+    <script src="../js/payment.js"></script>
+    <script>
+        // Pricing page tab switching
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabs = document.querySelectorAll('.pricing-tab');
+            const specManagerSection = document.getElementById('spec-manager-pricing');
+            const bundleSection = document.getElementById('bundle-pricing');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Remove active class from all tabs
+                    tabs.forEach(t => t.classList.remove('active'));
+                    // Add active class to clicked tab
+                    this.classList.add('active');
+                    
+                    // Show/hide sections
+                    const tabType = this.getAttribute('data-tab');
+                    if (tabType === 'spec-manager') {
+                        specManagerSection.style.display = 'block';
+                        bundleSection.style.display = 'none';
+                    } else if (tabType === 'bundle') {
+                        specManagerSection.style.display = 'none';
+                        bundleSection.style.display = 'block';
+                    }
+                });
+            });
+            
+            // Check URL params for auto-selection
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('bundle') === 'true') {
+                document.querySelector('[data-tab="bundle"]').click();
+            } else if (urlParams.get('product')) {
+                document.querySelector('[data-tab="spec-manager"]').click();
+            }
+        });
+    </script>
+</body>
+</html>
+
