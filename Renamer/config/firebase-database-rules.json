@@ -2,16 +2,16 @@
   "rules": {
     "licenses": {
       "$licenseKey": {
-        ".read": "auth != null && $licenseKey == data.child('license_key').val()",
-        ".write": false,
-        ".indexOn": ["email", "status", "app_id"]
+        ".read": "auth != null && (data.child('license_key').val() == $licenseKey || root.child('device_activations').child(auth.uid).child('license_key').val() == $licenseKey)",
+        ".write": "auth != null && !data.exists() && newData.hasChildren(['license_key', 'app_id', 'plan', 'status', 'created_at']) && newData.child('plan').val() == 'free' && newData.child('license_key').isString() && newData.child('app_id').isString() && newData.child('plan').isString() && newData.child('status').isString()",
+        ".indexOn": ["email", "status", "app_id", "plan", "source"]
       }
     },
     "device_activations": {
       "$deviceId": {
         ".read": "auth != null && auth.uid == $deviceId",
         ".write": "auth != null && auth.uid == $deviceId && newData.hasChildren(['app_id', 'license_key', 'activated_at', 'last_validated']) && newData.child('app_id').isString() && newData.child('license_key').isString() && newData.child('activated_at').isString() && newData.child('last_validated').isString()",
-        ".indexOn": ["license_key", "app_id"]
+        ".indexOn": ["license_key", "app_id", "device_id"]
       }
     },
     "usage_logs": {
@@ -19,6 +19,27 @@
         ".read": false,
         ".write": "auth != null && newData.hasChildren(['app_id', 'device_id', 'license_key', 'documents_processed', 'timestamp']) && newData.child('app_id').isString() && newData.child('device_id').isString() && newData.child('license_key').isString() && newData.child('documents_processed').isNumber() && newData.child('timestamp').isString()",
         ".indexOn": ["device_id", "license_key", "timestamp", "app_id"]
+      }
+    },
+    "user_metrics": {
+      "$licenseKey": {
+        ".read": "auth != null && (data.child('license_key').val() == $licenseKey || root.child('device_activations').child(auth.uid).child('license_key').val() == $licenseKey)",
+        ".write": false,
+        ".indexOn": ["license_key", "app_id"]
+      }
+    },
+    "app_launches": {
+      "$launchId": {
+        ".read": false,
+        ".write": "auth != null && newData.hasChildren(['app_id', 'device_id', 'timestamp', 'event_type']) && newData.child('app_id').isString() && newData.child('device_id').isString() && newData.child('timestamp').isString() && newData.child('event_type').val() == 'app_launch'",
+        ".indexOn": ["device_id", "license_key", "timestamp", "app_id", "user_id"]
+      }
+    },
+    "processing_sessions": {
+      "$sessionId": {
+        ".read": false,
+        ".write": "auth != null && newData.hasChildren(['app_id', 'device_id', 'timestamp', 'event_type']) && newData.child('app_id').isString() && newData.child('device_id').isString() && newData.child('timestamp').isString() && newData.child('event_type').val() == 'processing_session'",
+        ".indexOn": ["device_id", "license_key", "timestamp", "app_id", "user_id"]
       }
     }
   }

@@ -4,10 +4,23 @@ import os
 import uuid
 import secrets
 import string
-from datetime import datetime, timedelta
+import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import hashlib
+
+# Device identification utilities
+try:
+    from src.metrics import get_device_fingerprint, get_user_identifier, MAC_ADDRESS
+    DEVICE_ID_AVAILABLE = True
+except ImportError:
+    DEVICE_ID_AVAILABLE = False
+    MAC_ADDRESS = None
+    def get_device_fingerprint():
+        return {}
+    def get_user_identifier(device_id, license_key=None):
+        return device_id[:16]
 
 # Firebase imports
 try:
@@ -61,6 +74,7 @@ class SubscriptionManager:
         self.subscription_file = app_data_dir / f'subscription_{app_id}.json'
         self.device_id = self._get_device_id()
         self._subscription_data: Optional[Dict[str, Any]] = None
+        self.device_fingerprint = get_device_fingerprint() if DEVICE_ID_AVAILABLE else {}
         
         # Create app data directory if it doesn't exist
         self.app_data_dir.mkdir(parents=True, exist_ok=True)
@@ -193,22 +207,147 @@ class SubscriptionManager:
         except IOError as e:
             print(f"Error saving subscription: {e}")
     
+    def ensure_license_exists(self) -> bool:
+        """Ensure user has a license (auto-create free license if needed)."""
+        sub = self._load_subscription()
+        if sub and sub.get('license_key'):
+            # License already exists
+            return True
+        
+        # No license - auto-create free license
+        return self._create_free_license()
+    
+    def _create_free_license(self) -> bool:
+        """Auto-create a free license for license management."""
+        try:
+            # Generate license key
+            license_key = self._generate_free_license_key()
+            
+            # Create license in Firebase
+            license_data = {
+                'license_key': license_key,
+                'app_id': self.app_id,
+                'plan': 'free',
+                'tier': 'free',
+                'status': 'active',
+                'source': 'auto-created',
+                'created_at': datetime.now(timezone.utc).isoformat(),
+                'expires_at': None,  # Free licenses never expire
+                'max_devices': -1,   # Unlimited for free
+                'documents_limit': 0,  # 0 = unlimited for free tier
+                'documents_used': 0,
+                'is_bundle': False,
+                'email': None  # Can be added later
+            }
+            
+            if self.use_admin_sdk:
+                self.db.child('licenses').child(license_key).set(license_data)
+            else:
+                self.db.child('licenses').child(license_key).set(
+                    license_data,
+                    token=self.auth_user['idToken']
+                )
+            
+            # Save locally
+            self._save_subscription({
+                'license_key': license_key,
+                'expiry_date': None,
+                'plan': 'free',
+                'documents_remaining': -1,  # Unlimited
+                'documents_limit': 0,
+                'last_validated': datetime.now(timezone.utc).isoformat(),
+                'source': 'auto-created'
+            })
+            
+            # Register device
+            self._register_device(license_key)
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error creating free license: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    def _generate_free_license_key(self) -> str:
+        """Generate license key for free license."""
+        # Use device ID as base for uniqueness
+        device_hash = hashlib.md5(self.device_id.encode()).hexdigest()[:8].upper()
+        chars = string.ascii_uppercase + string.digits
+        suffix = ''.join(secrets.choice(chars) for _ in range(8))
+        return f"FREE-{device_hash}-{suffix}"
+    
+    def _register_device(self, license_key: str) -> None:
+        """Register device activation."""
+        activation_data = {
+            'app_id': self.app_id,
+            'license_key': license_key,
+            'device_id': self.device_id,  # Store local device_id in data
+            'device_name': os.environ.get('COMPUTERNAME', os.environ.get('HOSTNAME', 'Unknown')),
+            'activated_at': datetime.now(timezone.utc).isoformat(),
+            'last_validated': datetime.now(timezone.utc).isoformat(),
+            'app_version': '1.0.0'
+        }
+        
+        if self.use_admin_sdk:
+            # Use local device_id as path with admin SDK
+            self.db.child('device_activations').child(self.device_id).set(activation_data)
+        else:
+            # Use Firebase auth UID as path (required by security rules)
+            # Store local device_id in the data for reference
+            # Pyrebase returns user info with 'localId' or we decode from idToken
+            auth_uid = self.auth_user.get('localId') or self.auth_user.get('userId')
+            
+            if not auth_uid:
+                # Decode JWT token to get user_id (fallback)
+                try:
+                    # idToken is a JWT, decode without verification to get user_id
+                    import base64
+                    parts = self.auth_user['idToken'].split('.')
+                    if len(parts) >= 2:
+                        payload = parts[1]
+                        # Add padding if needed
+                        padding = 4 - len(payload) % 4
+                        if padding != 4:
+                            payload += '=' * padding
+                        decoded = json.loads(base64.urlsafe_b64decode(payload))
+                        auth_uid = decoded.get('user_id') or decoded.get('sub')
+                except Exception as e:
+                    print(f"Warning: Could not decode auth token: {e}")
+            
+            if not auth_uid:
+                raise ValueError("Could not get auth UID from Firebase authentication")
+            
+            self.db.child('device_activations').child(auth_uid).set(
+                activation_data,
+                token=self.auth_user['idToken']
+            )
+    
     def is_subscribed(self) -> bool:
-        """Check if the user has an active subscription."""
+        """Check if the user has an active subscription (free or paid)."""
         sub = self._load_subscription()
         if not sub:
+            # Try to auto-create free license
+            if self.ensure_license_exists():
+                sub = self._load_subscription()
+            else:
+                return False
+        
+        if not sub or not sub.get('license_key'):
             return False
-            
-        # Check if subscription is expired
+        
+        # Check if subscription is expired (only for paid licenses)
         expiry_str = sub.get('expiry_date')
-        if not expiry_str:
-            return False
-            
-        try:
-            expiry = datetime.fromisoformat(expiry_str)
-            return datetime.utcnow() < expiry
-        except (ValueError, TypeError):
-            return False
+        if expiry_str:  # Only paid licenses have expiration
+            try:
+                expiry = datetime.fromisoformat(expiry_str)
+                return datetime.now(timezone.utc) < expiry
+            except (ValueError, TypeError):
+                return True  # If can't parse, assume valid
+        
+        # Free licenses or no expiration = always valid
+        return True
     
     def get_subscription_info(self) -> Dict[str, Any]:
         """Get subscription information."""
@@ -259,13 +398,42 @@ class SubscriptionManager:
                 return False
             
             if not license_data:
-                print(f"License key not found")
-                return False
+                # Try bundle license lookup - check for license_key-app_id format
+                if self.use_admin_sdk:
+                    all_licenses = self.db.child('licenses').get() or {}
+                    for key, data in all_licenses.items():
+                        # Check if this is a bundle license entry for this app
+                        if (data.get('license_key') == license_key or 
+                            data.get('bundle_parent') == license_key):
+                            if data.get('app_id') == self.app_id:
+                                license_data = data
+                                break
+                else:
+                    # Using Pyrebase - query by bundle_parent
+                    try:
+                        bundle_licenses = self.db.child('licenses').order_by_child('bundle_parent').equal_to(license_key).get(
+                            token=self.auth_user['idToken']
+                        ).val() or {}
+                        for key, data in bundle_licenses.items():
+                            if data.get('app_id') == self.app_id:
+                                license_data = data
+                                break
+                    except:
+                        pass
+                
+                if not license_data:
+                    print(f"License key not found")
+                    return False
             
-            # Validate app_id matches
-            if license_data.get('app_id') != self.app_id:
-                print(f"License is for different application: {license_data.get('app_id')}")
-                return False
+            # Validate app_id matches OR it's a bundle license
+            license_app_id = license_data.get('app_id')
+            is_bundle = license_data.get('is_bundle', False) or license_data.get('bundle_parent')
+            
+            if license_app_id != self.app_id and not is_bundle:
+                # If it's a bundle, check if this app is included
+                if not (is_bundle and license_app_id in [self.app_id, 'bundle']):
+                    print(f"License is for different application: {license_app_id}")
+                    return False
             
             # Validate license status
             if license_data.get('status') != 'active':
@@ -278,7 +446,7 @@ class SubscriptionManager:
                 # Firebase timestamp format
                 try:
                     expiry_date = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
-                    if datetime.utcnow() > expiry_date:
+                    if datetime.now(timezone.utc) > expiry_date:
                         print("License has expired")
                         return False
                 except (ValueError, AttributeError):
@@ -322,7 +490,7 @@ class SubscriptionManager:
                 'license_key': license_key,
                 'device_name': os.environ.get('COMPUTERNAME', os.environ.get('HOSTNAME', 'Unknown')),
                 'activated_at': datetime.utcnow().isoformat(),
-                'last_validated': datetime.utcnow().isoformat(),
+                'last_validated': datetime.now(timezone.utc).isoformat(),
                 'app_version': '1.0.0'
             }
             
@@ -352,61 +520,250 @@ class SubscriptionManager:
             traceback.print_exc()
             return False
     
-    def check_document_limit(self) -> bool:
-        """Check if the user can process more documents."""
+    def check_document_limit(self, requested_count: int = 1) -> Dict[str, Any]:
+        """
+        Check if the user can process more documents (server-side validation).
+        
+        Returns:
+            Dict with 'allowed', 'remaining', 'limit', 'reason'
+        """
         if not self.is_subscribed():
-            return False
-            
+            return {
+                'allowed': False,
+                'remaining': 0,
+                'limit': 0,
+                'reason': 'No active license'
+            }
+        
         sub = self._load_subscription()
-        if not sub:
-            return False
+        if not sub or not sub.get('license_key'):
+            return {
+                'allowed': False,
+                'remaining': 0,
+                'limit': 0,
+                'reason': 'License not found'
+            }
+        
+        license_key = sub['license_key']
+        
+        # Get current usage from Firebase (server-side check)
+        try:
+            if self.use_admin_sdk:
+                license_data = self.db.child('licenses').child(license_key).get()
+                if not license_data:
+                    # Try bundle lookup
+                    all_licenses = self.db.child('licenses').get() or {}
+                    for key, data in all_licenses.items():
+                        if (data.get('license_key') == license_key or 
+                            data.get('bundle_parent') == license_key):
+                            if data.get('app_id') == self.app_id:
+                                license_data = data
+                                break
+            else:
+                license_data = self.db.child('licenses').child(license_key).get(
+                    token=self.auth_user['idToken']
+                ).val()
             
-        # If documents_remaining is None or negative, assume unlimited
-        remaining = sub.get('documents_remaining')
-        if remaining is None or remaining < 0:
-            return True
+            if not license_data:
+                return {
+                    'allowed': False,
+                    'remaining': 0,
+                    'limit': 0,
+                    'reason': 'License not found in database'
+                }
             
-        return remaining > 0
+            # Get server-side usage count
+            documents_limit = license_data.get('documents_limit', -1)
+            documents_used = license_data.get('documents_used', 0)
+            
+            # If limit is 0 or -1, unlimited
+            if documents_limit <= 0:
+                return {
+                    'allowed': True,
+                    'remaining': -1,  # Unlimited
+                    'limit': documents_limit,
+                    'reason': 'Unlimited'
+                }
+            
+            # Calculate remaining
+            remaining = max(0, documents_limit - documents_used)
+            allowed = remaining >= requested_count
+            
+            return {
+                'allowed': allowed,
+                'remaining': remaining,
+                'limit': documents_limit,
+                'used': documents_used,
+                'reason': 'Limit exceeded' if not allowed else 'Within limit'
+            }
+            
+        except Exception as e:
+            print(f"Error checking document limit: {e}")
+            # On error, allow processing
+            return {
+                'allowed': True,
+                'remaining': -1,
+                'limit': -1,
+                'reason': 'Limit check unavailable'
+            }
+    
+    def check_document_limit_legacy(self) -> bool:
+        """Legacy method for backward compatibility."""
+        result = self.check_document_limit()
+        return result.get('allowed', False)
     
     def record_document_processed(self, count: int = 1) -> bool:
-        """Record that documents have been processed."""
+        """
+        Record that documents have been processed.
+        Updates both usage_logs and server-side documents_used count.
+        """
+        # Ensure license exists (auto-create if needed)
         if not self.is_subscribed():
-            return False
-            
+            if not self.ensure_license_exists():
+                return False
+        
         sub = self._load_subscription()
-        if not sub:
+        if not sub or not sub.get('license_key'):
             return False
-            
-        # Log usage to Firebase
+        
+        license_key = sub.get('license_key')
+        
+        # Sync usage count to server
         try:
-            log_data = {
+            sync_data = {
                 'app_id': self.app_id,
                 'device_id': self.device_id,
-                'license_key': sub.get('license_key'),
+                'license_key': license_key,
                 'documents_processed': count,
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'app_version': '1.0.0'
             }
             
             if self.use_admin_sdk:
-                self.db.child('usage_logs').push(log_data)
+                self.db.child('usage_logs').push(sync_data)
             else:
-                self.db.child('usage_logs').push(log_data, token=self.auth_user['idToken'])
+                self.db.child('usage_logs').push(sync_data, token=self.auth_user['idToken'])
+        except Exception:
+            pass  # Silent fail - don't interrupt user experience
+        
+        # Update server-side documents_used count atomically
+        try:
+            if self.use_admin_sdk:
+                # Get current count
+                license_ref = self.db.child('licenses').child(license_key)
+                license_data = license_ref.get()
+                
+                if license_data:
+                    current_used = license_data.get('documents_used', 0)
+                    documents_limit = license_data.get('documents_limit', -1)
+                    
+                    # Only update if not unlimited
+                    if documents_limit > 0:
+                        new_used = current_used + count
+                        license_ref.update({
+                            'documents_used': new_used,
+                            'last_active': datetime.now(timezone.utc).isoformat()
+                        })
+                    else:
+                        # Just update last_active for unlimited
+                        license_ref.update({
+                            'last_active': datetime.now(timezone.utc).isoformat()
+                        })
+            else:
+                # Using Pyrebase - similar logic
+                license_ref = self.db.child('licenses').child(license_key)
+                license_data = license_ref.get(token=self.auth_user['idToken']).val()
+                
+                if license_data:
+                    current_used = license_data.get('documents_used', 0)
+                    documents_limit = license_data.get('documents_limit', -1)
+                    
+                    if documents_limit > 0:
+                        new_used = current_used + count
+                        license_ref.update({
+                            'documents_used': new_used,
+                            'last_active': datetime.now(timezone.utc).isoformat()
+                        }, token=self.auth_user['idToken'])
+                    else:
+                        license_ref.update({
+                            'last_active': datetime.now(timezone.utc).isoformat()
+                        }, token=self.auth_user['idToken'])
         except Exception as e:
-            print(f"Error logging usage: {e}")
+            print(f"Error updating server-side usage count: {e}")
+            # Continue anyway - at least we logged it
         
-        # If documents_remaining is None or -1, assume unlimited
+        # Update local cache
         remaining = sub.get('documents_remaining')
-        if remaining is None or remaining < 0:
-            return True
-            
-        # Update remaining count locally
-        new_remaining = max(0, remaining - count)
-        sub['documents_remaining'] = new_remaining
+        if remaining is not None and remaining >= 0:
+            new_remaining = max(0, remaining - count)
+            sub['documents_remaining'] = new_remaining
+            self._save_subscription(sub)
         
-        # Save the updated subscription
-        self._save_subscription(sub)
         return True
+    
+    def _sync_activation_status(self) -> bool:
+        """Sync license activation status with server."""
+        try:
+            sub = self._load_subscription()
+            license_key = sub.get('license_key') if sub else None
+            
+            # Generate stable user identifier for license management
+            user_id = get_user_identifier(self.device_id, license_key) if DEVICE_ID_AVAILABLE else self.device_id
+            
+            sync_data = {
+                'app_id': self.app_id,
+                'device_id': self.device_id,
+                'user_id': user_id,
+                'license_key': license_key,
+                'mac_address': MAC_ADDRESS if DEVICE_ID_AVAILABLE else None,
+                'device_info': self.device_fingerprint,
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'app_version': '1.0.0',
+                'event_type': 'app_launch'
+            }
+            
+            if self.use_admin_sdk:
+                self.db.child('app_launches').push(sync_data)
+            else:
+                self.db.child('app_launches').push(sync_data, token=self.auth_user['idToken'])
+            
+            return True
+        except Exception:
+            return False  # Silent fail
+    
+    def _update_license_usage(self, usage_data: Dict[str, Any]) -> bool:
+        """
+        Update license usage statistics on server.
+        
+        Args:
+            usage_data: Dict containing usage statistics
+        """
+        try:
+            sub = self._load_subscription()
+            license_key = sub.get('license_key') if sub else None
+            user_id = get_user_identifier(self.device_id, license_key) if DEVICE_ID_AVAILABLE else self.device_id
+            
+            update_data = {
+                'app_id': self.app_id,
+                'device_id': self.device_id,
+                'user_id': user_id,
+                'license_key': license_key,
+                'mac_address': MAC_ADDRESS if DEVICE_ID_AVAILABLE else None,
+                'device_info': self.device_fingerprint,
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'app_version': '1.0.0',
+                'event_type': 'processing_session',
+                **usage_data
+            }
+            
+            if self.use_admin_sdk:
+                self.db.child('processing_sessions').push(update_data)
+            else:
+                self.db.child('processing_sessions').push(update_data, token=self.auth_user['idToken'])
+            
+            return True
+        except Exception:
+            return False  # Silent fail
     
     def refresh_subscription(self) -> bool:
         """Refresh subscription status from the server."""

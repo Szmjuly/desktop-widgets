@@ -1,0 +1,137 @@
+/* Responsive Design - License Portal */
+
+/* Tablet */
+@media (max-width: 768px) {
+    .nav-menu {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+    
+    .hero-title {
+        font-size: var(--font-size-xl);
+    }
+    
+    .hero-subtitle {
+        font-size: var(--font-size-base);
+    }
+    
+    .hero-buttons {
+        flex-direction: column;
+    }
+    
+    .checkout-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .checkout-summary {
+        position: relative;
+        top: 0;
+    }
+    
+    .pricing-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .pricing-card.featured {
+        transform: none;
+    }
+    
+    .comparison-table-container {
+        overflow-x: scroll;
+    }
+    
+    .programs-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .pricing-tiers-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .pricing-explanation {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+    }
+    
+    .pricing-option-divider {
+        display: none;
+    }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    .container {
+        padding: 0 var(--spacing-sm);
+    }
+    
+    .nav-brand h1 {
+        font-size: var(--font-size-base);
+    }
+    
+    .hero {
+        padding: var(--spacing-lg) 0;
+    }
+    
+    .hero-title {
+        font-size: var(--font-size-lg);
+    }
+    
+    section {
+        padding: var(--spacing-lg) 0;
+    }
+    
+    .products-grid,
+    .features-grid,
+    .pricing-grid,
+    .testimonials-grid,
+    .programs-grid,
+    .pricing-tiers-grid,
+    .pricing-explanation {
+        grid-template-columns: 1fr;
+    }
+    
+    .pricing-option-divider {
+        display: none;
+    }
+    
+    .program-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .payment-methods {
+        flex-direction: column;
+    }
+    
+    .license-info-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .actions-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .footer-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .navbar,
+    .footer,
+    .btn,
+    .hero-buttons {
+        display: none;
+    }
+    
+    body {
+        background: white;
+    }
+}
+

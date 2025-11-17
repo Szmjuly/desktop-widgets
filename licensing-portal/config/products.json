@@ -1,0 +1,132 @@
+{
+  "products": [
+    {
+      "id": "spec-updater",
+      "name": "Spec Header Date Updater",
+      "description": "Automate specification header date updates with ease",
+      "icon": "📝",
+      "plans": [
+        {
+          "id": "free",
+          "name": "Free",
+          "price": 0,
+          "period": "month",
+          "maxDevices": 1,
+          "documentsLimit": 10,
+          "emailSupport": true,
+          "prioritySupport": false,
+          "apiAccess": false,
+          "autoRenewal": false,
+          "features": [
+            "1 device",
+            "10 documents/month",
+            "Basic email support",
+            "Community access"
+          ]
+        },
+        {
+          "id": "basic",
+          "name": "Basic",
+          "price": 9.99,
+          "period": "month",
+          "maxDevices": 2,
+          "documentsLimit": 100,
+          "emailSupport": true,
+          "prioritySupport": false,
+          "apiAccess": false,
+          "autoRenewal": true,
+          "features": [
+            "2 devices",
+            "100 documents/month",
+            "Email support",
+            "Auto-renewal"
+          ]
+        },
+        {
+          "id": "premium",
+          "name": "Premium",
+          "price": 19.99,
+          "period": "month",
+          "maxDevices": 5,
+          "documentsLimit": -1,
+          "emailSupport": true,
+          "prioritySupport": true,
+          "apiAccess": true,
+          "autoRenewal": true,
+          "features": [
+            "5 devices",
+            "Unlimited documents",
+            "Priority support",
+            "API access",
+            "Auto-renewal"
+          ]
+        },
+        {
+          "id": "business",
+          "name": "Business",
+          "price": 49.99,
+          "period": "month",
+          "maxDevices": -1,
+          "documentsLimit": -1,
+          "emailSupport": true,
+          "prioritySupport": true,
+          "apiAccess": true,
+          "autoRenewal": true,
+          "features": [
+            "Unlimited devices",
+            "Unlimited documents",
+            "Priority support",
+            "API access",
+            "Custom integrations",
+            "Auto-renewal"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "coffee-stock-widget",
+      "name": "Coffee Stock Widget",
+      "description": "Track and manage your coffee inventory",
+      "icon": "☕",
+      "plans": [
+        {
+          "id": "free",
+          "name": "Free",
+          "price": 0,
+          "period": "month",
+          "maxDevices": 1,
+          "documentsLimit": 10,
+          "emailSupport": true,
+          "prioritySupport": false,
+          "apiAccess": false,
+          "autoRenewal": false,
+          "features": [
+            "1 device",
+            "Basic tracking",
+            "Community support"
+          ]
+        },
+        {
+          "id": "premium",
+          "name": "Premium",
+          "price": 14.99,
+          "period": "month",
+          "maxDevices": 3,
+          "documentsLimit": -1,
+          "emailSupport": true,
+          "prioritySupport": true,
+          "apiAccess": true,
+          "autoRenewal": true,
+          "features": [
+            "3 devices",
+            "Advanced tracking",
+            "Priority support",
+            "API access",
+            "Auto-renewal"
+          ]
+        }
+      ]
+    }
+  ]
+}
+

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Secure checkout - Purchase your license">
+    <title>Checkout - License Portal</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/responsive.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>🔐 License Portal</h1>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="pricing.html">Pricing</a></li>
+                <li><a href="manage.html">Manage License</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Checkout Header -->
+    <section class="page-header">
+        <div class="container">
+            <h1>Checkout</h1>
+            <p>Complete your purchase securely</p>
+        </div>
+    </section>
+
+    <!-- Checkout Form -->
+    <section class="checkout-section">
+        <div class="container">
+            <div class="checkout-grid">
+                <!-- Order Summary -->
+                <div class="checkout-summary">
+                    <h2>Order Summary</h2>
+                    <div class="summary-item" id="summaryProduct">
+                        <div class="summary-label">Product:</div>
+                        <div class="summary-value">-</div>
+                    </div>
+                    <div class="summary-item" id="summaryPlan">
+                        <div class="summary-label">Plan:</div>
+                        <div class="summary-value">-</div>
+                    </div>
+                    <div class="summary-item" id="summaryDuration">
+                        <div class="summary-label">Duration:</div>
+                        <div class="summary-value">-</div>
+                    </div>
+                    <div class="summary-item summary-total">
+                        <div class="summary-label">Total:</div>
+                        <div class="summary-value" id="summaryTotal">$0.00</div>
+                    </div>
+                </div>
+
+                <!-- Checkout Form -->
+                <div class="checkout-form">
+                    <h2>Billing Information</h2>
+                    <form id="checkoutForm">
+                        <div class="form-group">
+                            <label for="email">Email Address *</label>
+                            <input type="email" id="email" name="email" required class="form-input">
+                            <span class="form-help">Your license key will be sent to this email</span>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="firstName">First Name *</label>
+                                <input type="text" id="firstName" name="firstName" required class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="lastName">Last Name *</label>
+                                <input type="text" id="lastName" name="lastName" required class="form-input">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="company">Company (Optional)</label>
+                            <input type="text" id="company" name="company" class="form-input">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Payment Method *</label>
+                            <div class="payment-methods">
+                                <label class="payment-method">
+                                    <input type="radio" name="paymentMethod" value="card" checked>
+                                    <span>💳 Credit/Debit Card</span>
+                                </label>
+                                <label class="payment-method">
+                                    <input type="radio" name="paymentMethod" value="paypal">
+                                    <span>💰 PayPal</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Card Payment Section -->
+                        <div id="cardPaymentSection">
+                            <div class="form-group">
+                                <label for="cardNumber">Card Number *</label>
+                                <input type="text" id="cardNumber" name="cardNumber" placeholder="1234 5678 9012 3456" maxlength="19" class="form-input">
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="cardExpiry">Expiry Date *</label>
+                                    <input type="text" id="cardExpiry" name="cardExpiry" placeholder="MM/YY" maxlength="5" class="form-input">
+                                </div>
+                                <div class="form-group">
+                                    <label for="cardCVC">CVC *</label>
+                                    <input type="text" id="cardCVC" name="cardCVC" placeholder="123" maxlength="4" class="form-input">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="cardName">Cardholder Name *</label>
+                                <input type="text" id="cardName" name="cardName" class="form-input">
+                            </div>
+                        </div>
+
+                        <!-- PayPal Section (hidden by default) -->
+                        <div id="paypalPaymentSection" style="display: none;">
+                            <div class="paypal-info">
+                                <p>You will be redirected to PayPal to complete your payment.</p>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="terms" name="terms" required>
+                                <span>I agree to the <a href="#terms">Terms of Service</a> and <a href="#privacy">Privacy Policy</a> *</span>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="newsletter" name="newsletter">
+                                <span>Subscribe to newsletter for updates and special offers</span>
+                            </label>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary btn-large" id="submitButton">
+                                <span id="submitButtonText">Complete Purchase</span>
+                                <span id="submitButtonLoading" style="display: none;">Processing...</span>
+                            </button>
+                        </div>
+
+                        <div class="security-badge">
+                            <p>🔒 Secure checkout powered by industry-standard encryption</p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-column">
+                    <h3>License Portal</h3>
+                    <p>Secure licensing solutions for desktop applications.</p>
+                </div>
+                <div class="footer-column">
+                    <h4>Security</h4>
+                    <p>🔒 SSL Encrypted</p>
+                    <p>✅ PCI Compliant</p>
+                    <p>🛡️ Secure Payments</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 License Portal. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../js/main.js"></script>
+    <script src="../js/payment.js"></script>
+    <script src="../js/validation.js"></script>
+</body>
+</html>
+
