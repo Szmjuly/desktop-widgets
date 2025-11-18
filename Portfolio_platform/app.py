@@ -55,6 +55,32 @@ st.markdown("""
         border-radius: 0.5rem;
         margin: 0.5rem 0;
     }
+    /* Prevent horizontal overflow */
+    .main .block-container {
+        max-width: 95%;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    /* Compact inputs to prevent overflow */
+    .stNumberInput > div > div > input {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.85rem;
+        width: 100%;
+    }
+    .stSelectbox > div > div > select {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.85rem;
+    }
+    /* Scrollable portfolio container */
+    .portfolio-scroll {
+        max-height: 350px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        border: 1px solid rgba(250, 250, 250, 0.2);
+        border-radius: 5px;
+        padding: 8px;
+        margin: 5px 0;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -1145,12 +1171,11 @@ def main():
                 if not st.session_state.whatif_positions:
                     st.info("No positions")
                 else:
-                    # Ultra-compact single-row format with all controls inline
-                    # Header row
-                    header_cols = st.columns([1.2, 0.9, 0.9, 0.9, 0.7, 0.7, 0.7, 0.5, 0.3])
+                    # Header row - tighter column widths to prevent overflow
+                    header_cols = st.columns([0.75, 0.65, 0.65, 0.75, 0.55, 0.55, 0.45, 0.35, 0.3])
                     with header_cols[0]: st.caption("**Ticker**")
                     with header_cols[1]: st.caption("**Shares**")
-                    with header_cols[2]: st.caption("**Return%**")
+                    with header_cols[2]: st.caption("**Ret%**")
                     with header_cols[3]: st.caption("**Value**")
                     with header_cols[4]: st.caption("**DCA$**")
                     with header_cols[5]: st.caption("**Freq**")
@@ -1158,90 +1183,132 @@ def main():
                     with header_cols[7]: st.caption("**Edit**")
                     with header_cols[8]: st.caption("**Del**")
                     
-                    # Position rows - ultra compact
+                    # Position rows - ultra compact with tighter widths
+                    # Use a container that will be wrapped by JavaScript
+                    container_marker = st.empty()
+                    container_marker.markdown('<div id="portfolio-start-marker"></div>', unsafe_allow_html=True)
+                    
                     for idx, pos_dict in enumerate(st.session_state.whatif_positions):
-                        ticker = pos_dict['ticker']
-                        has_dca = ticker in st.session_state.whatif_dca_schedule
-                        
-                        row_cols = st.columns([1.2, 0.9, 0.9, 0.9, 0.7, 0.7, 0.7, 0.5, 0.3])
-                        
-                        with row_cols[0]:
-                            st.text(ticker)
-                            if has_dca:
-                                st.caption("💰")
-                        
-                        with row_cols[1]:
-                            new_shares = st.number_input(
-                                "",
-                                min_value=0.0,
-                                value=float(pos_dict['shares']),
-                                step=0.1,
-                                format="%.2f",
-                                label_visibility="collapsed",
-                                key=f"edit_shares_{idx}"
-                            )
-                        
-                        with row_cols[2]:
-                            new_return = st.number_input(
-                                "",
-                                value=float(pos_dict['return_pct']),
-                                step=0.1,
-                                format="%.1f",
-                                label_visibility="collapsed",
-                                key=f"edit_return_{idx}"
-                            )
-                        
-                        with row_cols[3]:
-                            st.caption(f"${pos_dict['value']:,.0f}")
-                        
-                        with row_cols[4]:
-                            dca_amount = st.number_input(
-                                "",
-                                min_value=0.0,
-                                value=st.session_state.whatif_dca_schedule[ticker]['amount'] if has_dca else 0.0,
-                                step=10.0,
-                                format="%.0f",
-                                key=f"whatif_dca_amount_{idx}_{ticker}",
-                                label_visibility="collapsed"
-                            )
-                        
-                        with row_cols[5]:
-                            dca_freq = st.selectbox(
-                                "",
-                                options=[7, 14, 21, 30, 60, 90],
-                                format_func=lambda x: f"{x}d",
-                                index=[7, 14, 21, 30, 60, 90].index(st.session_state.whatif_dca_schedule[ticker]['frequency_days']) if has_dca else 3,
-                                key=f"whatif_dca_freq_{idx}_{ticker}",
-                                label_visibility="collapsed"
-                            )
-                        
-                        with row_cols[6]:
-                            if has_dca:
-                                if st.button("❌", key=f"whatif_remove_dca_{idx}_{ticker}", help="Remove DCA"):
-                                    del st.session_state.whatif_dca_schedule[ticker]
-                                    st.rerun()
-                            else:
-                                if st.button("✅", key=f"whatif_add_dca_{idx}_{ticker}", help="Add DCA"):
-                                    if dca_amount > 0:
-                                        st.session_state.whatif_dca_schedule[ticker] = {
-                                            'amount': dca_amount,
-                                            'frequency_days': dca_freq
-                                        }
+                            ticker = pos_dict['ticker']
+                            has_dca = ticker in st.session_state.whatif_dca_schedule
+                            
+                            row_cols = st.columns([0.75, 0.65, 0.65, 0.75, 0.55, 0.55, 0.45, 0.35, 0.3])
+                            
+                            with row_cols[0]:
+                                st.text(ticker)
+                                if has_dca:
+                                    st.caption("💰")
+                            
+                            with row_cols[1]:
+                                new_shares = st.number_input(
+                                    "Shares",
+                                    min_value=0.0,
+                                    value=float(pos_dict['shares']),
+                                    step=0.1,
+                                    format="%.2f",
+                                    label_visibility="collapsed",
+                                    key=f"edit_shares_{idx}"
+                                )
+                            
+                            with row_cols[2]:
+                                new_return = st.number_input(
+                                    "Return %",
+                                    value=float(pos_dict['return_pct']),
+                                    step=0.1,
+                                    format="%.1f",
+                                    label_visibility="collapsed",
+                                    key=f"edit_return_{idx}"
+                                )
+                            
+                            with row_cols[3]:
+                                st.caption(f"${pos_dict['value']:,.0f}")
+                            
+                            with row_cols[4]:
+                                dca_amount = st.number_input(
+                                    "DCA Amount",
+                                    min_value=0.0,
+                                    value=st.session_state.whatif_dca_schedule[ticker]['amount'] if has_dca else 0.0,
+                                    step=10.0,
+                                    format="%.0f",
+                                    key=f"whatif_dca_amount_{idx}_{ticker}",
+                                    label_visibility="collapsed"
+                                )
+                            
+                            with row_cols[5]:
+                                dca_freq = st.selectbox(
+                                    "DCA Frequency",
+                                    options=[7, 14, 21, 30, 60, 90],
+                                    format_func=lambda x: f"{x}d",
+                                    index=[7, 14, 21, 30, 60, 90].index(st.session_state.whatif_dca_schedule[ticker]['frequency_days']) if has_dca else 3,
+                                    key=f"whatif_dca_freq_{idx}_{ticker}",
+                                    label_visibility="collapsed"
+                                )
+                            
+                            with row_cols[6]:
+                                if has_dca:
+                                    if st.button("❌", key=f"whatif_remove_dca_{idx}_{ticker}", help="Remove DCA"):
+                                        del st.session_state.whatif_dca_schedule[ticker]
                                         st.rerun()
-                        
-                        with row_cols[7]:
-                            if st.button("✏️", key=f"update_pos_{idx}", help="Update"):
-                                st.session_state.whatif_positions[idx]['shares'] = new_shares
-                                st.session_state.whatif_positions[idx]['value'] = new_shares * pos_dict['current_price']
-                                st.session_state.whatif_positions[idx]['return_pct'] = new_return
-                                st.rerun()
-                        
-                        with row_cols[8]:
-                            if st.button("🗑️", key=f"remove_pos_{idx}", help="Delete"):
-                                st.session_state.whatif_positions.pop(idx)
-                                if ticker in st.session_state.whatif_dca_schedule:
-                                    del st.session_state.whatif_dca_schedule[ticker]
-                                st.rerun()
+                                else:
+                                    if st.button("✅", key=f"whatif_add_dca_{idx}_{ticker}", help="Add DCA"):
+                                        if dca_amount > 0:
+                                            st.session_state.whatif_dca_schedule[ticker] = {
+                                                'amount': dca_amount,
+                                                'frequency_days': dca_freq
+                                            }
+                                            st.rerun()
+                            
+                            with row_cols[7]:
+                                if st.button("✏️", key=f"update_pos_{idx}", help="Update"):
+                                    st.session_state.whatif_positions[idx]['shares'] = new_shares
+                                    st.session_state.whatif_positions[idx]['value'] = new_shares * pos_dict['current_price']
+                                    st.session_state.whatif_positions[idx]['return_pct'] = new_return
+                                    st.rerun()
+                            
+                            with row_cols[8]:
+                                if st.button("🗑️", key=f"remove_pos_{idx}", help="Delete"):
+                                    st.session_state.whatif_positions.pop(idx)
+                                    if ticker in st.session_state.whatif_dca_schedule:
+                                        del st.session_state.whatif_dca_schedule[ticker]
+                                    st.rerun()
+                    
+                    # Add end marker and JavaScript to create scrollable container
+                    end_marker = st.empty()
+                    end_marker.markdown('<div id="portfolio-end-marker"></div>', unsafe_allow_html=True)
+                    
+                    # JavaScript to wrap portfolio rows in scrollable container
+                    st.markdown("""
+                    <script>
+                    setTimeout(function() {
+                        const startMarker = document.getElementById('portfolio-start-marker');
+                        const endMarker = document.getElementById('portfolio-end-marker');
+                        if (startMarker && endMarker) {
+                            const scrollDiv = document.createElement('div');
+                            scrollDiv.style.cssText = 'max-height: 400px; overflow-y: auto; overflow-x: hidden; border: 1px solid rgba(250,250,250,0.2); border-radius: 5px; padding: 8px;';
+                            
+                            let current = startMarker.nextElementSibling;
+                            const nodesToMove = [];
+                            
+                            while (current && current !== endMarker) {
+                                nodesToMove.push(current);
+                                current = current.nextElementSibling;
+                            }
+                            
+                            nodesToMove.forEach(node => {
+                                scrollDiv.appendChild(node);
+                            });
+                            
+                            startMarker.parentNode.insertBefore(scrollDiv, startMarker.nextSibling);
+                            startMarker.remove();
+                            endMarker.remove();
+                        }
+                    }, 100);
+                    </script>
+                    """, unsafe_allow_html=True)
+                    
+                    # Show position count
+                    total_count = len(st.session_state.whatif_positions)
+                    st.caption(f"Total positions: {total_count}")
             
             with col_right:
                 st.subheader("➕ Add Positions")

@@ -1,0 +1,2695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📈 Interactive Portfolio Analysis Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f8f9fa;
+            color: #262730;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+        }
+
+        .sidebar {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .sidebar h2 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .sidebar h3 {
+            font-size: 1rem;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        .sidebar label {
+            display: block;
+            margin-top: 10px;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .sidebar input[type="range"],
+        .sidebar input[type="number"],
+        .sidebar input[type="checkbox"] {
+            width: 100%;
+            margin-top: 5px;
+        }
+
+        .sidebar input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .sidebar button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .sidebar button:hover {
+            background: #5568d3;
+        }
+
+        .summary-stat {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .stat-value-small {
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        .settings-display {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            font-size: 0.85rem;
+        }
+
+        .setting-label {
+            color: #666;
+        }
+
+        .setting-value {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .main-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            color: #667eea;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .portfolio-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .portfolio-table th,
+        .portfolio-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .portfolio-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .portfolio-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .portfolio-scroll {
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .portfolio-row {
+            display: grid;
+            grid-template-columns: 0.75fr 0.65fr 0.65fr 0.75fr 0.55fr 0.55fr 0.45fr 0.35fr 0.3fr;
+            gap: 10px;
+            padding: 8px;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .portfolio-row:last-child {
+            border-bottom: none;
+        }
+
+        .portfolio-header {
+            display: grid;
+            grid-template-columns: 0.75fr 0.65fr 0.65fr 0.75fr 0.55fr 0.55fr 0.45fr 0.35fr 0.3fr;
+            gap: 10px;
+            padding: 10px 8px;
+            font-weight: 600;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            margin-bottom: 5px;
+        }
+        
+        /* Portfolio table without DCA - 7 columns */
+        #whatif-portfolio .portfolio-header,
+        #whatif-portfolio .portfolio-row {
+            grid-template-columns: 1.3fr 1.1fr 1fr 1.1fr 0.9fr 0.8fr 0.8fr;
+            gap: 15px;
+        }
+        
+        #whatif-portfolio .portfolio-header > div,
+        #whatif-portfolio .portfolio-row > div {
+            padding: 0 4px;
+        }
+        
+        /* DCA table - 9 columns */
+        #whatif-dca-portfolio .portfolio-header,
+        #whatif-dca-portfolio .portfolio-row {
+            grid-template-columns: 1.1fr 1fr 0.9fr 1.1fr 1fr 0.8fr 0.8fr 0.7fr 0.7fr;
+            gap: 15px;
+        }
+        
+        #whatif-dca-portfolio .portfolio-header > div,
+        #whatif-dca-portfolio .portfolio-row > div {
+            padding: 0 4px;
+        }
+
+        input[type="number"],
+        select {
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            width: 100%;
+        }
+
+        .btn-small {
+            padding: 4px 8px;
+            font-size: 0.85rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0 2px;
+        }
+
+        .btn-edit {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-delete {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-add-dca {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .btn-remove-dca {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-small:hover {
+            opacity: 0.8;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 10px 0;
+            text-align: center;
+        }
+
+        .metric-card h3 {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .metric-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .chart-container {
+            margin: 30px 0;
+        }
+
+        .form-group {
+            margin: 15px 0;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            margin-top: 10px;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+        
+        .two-column > div {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .two-column > div:first-child {
+            gap: 0;
+        }
+        
+        .whatif-left-column {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .whatif-right-column {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #whatif-add {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #2196f3;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            display: none; /* Hidden by default */
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+
+        .watchlist-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .watchlist-table th,
+        .watchlist-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .watchlist-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .positive {
+            color: #2ecc71;
+        }
+
+        .negative {
+            color: #e74c3c;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            overflow: auto;
+            backdrop-filter: blur(2px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 100%);
+            margin: auto;
+            padding: 0;
+            border-radius: 15px;
+            width: 95%;
+            max-width: 900px;
+            max-height: 90vh;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .close {
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 20px;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+        }
+
+        .close:hover {
+            opacity: 1;
+            background: rgba(255,255,255,0.3);
+        }
+
+        .modal-body {
+            padding: 30px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .param-section {
+            margin-bottom: 30px;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border: 1px solid #e0e0e0;
+        }
+
+        .param-section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .param-section-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: #667eea;
+            border-radius: 2px;
+        }
+
+        .param-row {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .param-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .param-label {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .param-label-text {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.95rem;
+        }
+
+        .param-label-help {
+            font-size: 0.8rem;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .param-control {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .param-value-display {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #667eea;
+            text-align: center;
+            padding: 8px;
+            background: #f0f4ff;
+            border-radius: 5px;
+            min-width: 80px;
+        }
+
+        .param-slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .param-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .param-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .param-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .param-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .param-select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 1rem;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        .param-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .param-checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .param-checkbox-wrapper:hover {
+            background: #f0f0f0;
+        }
+
+        .param-checkbox-wrapper input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .monte-carlo-info {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 5px solid #2196f3;
+        }
+
+        .monte-carlo-info h3 {
+            margin-top: 0;
+            color: #1976d2;
+            font-size: 1.2rem;
+        }
+
+        .monte-carlo-info ul {
+            margin: 10px 0;
+            padding-left: 25px;
+            line-height: 1.8;
+        }
+
+        .monte-carlo-info li {
+            margin-bottom: 8px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .modal-btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .modal-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .modal-btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .modal-btn-secondary:hover {
+            background: #7f8c8d;
+        }
+
+        .modal-btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .modal-btn-danger:hover {
+            background: #c0392b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📈 Interactive Portfolio Analysis Dashboard</h1>
+            <p>Analyze your portfolio with Geometric Brownian Motion predictions</p>
+        </header>
+
+        <div class="main-layout">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <h2>📊 Portfolio Summary</h2>
+                
+                <div id="portfolio-summary-stats">
+                    <div class="summary-stat">
+                        <div class="stat-label">Total Value</div>
+                        <div class="stat-value" id="summary-total-value">$0.00</div>
+                    </div>
+                    
+                    <div class="summary-stat">
+                        <div class="stat-label">Positions</div>
+                        <div class="stat-value" id="summary-positions-count">0</div>
+                    </div>
+                    
+                    <div class="summary-stat">
+                        <div class="stat-label">Weighted Return</div>
+                        <div class="stat-value" id="summary-weighted-return">0.00%</div>
+                    </div>
+                    
+                    <div class="summary-stat">
+                        <div class="stat-label">Top Performer</div>
+                        <div class="stat-value-small" id="summary-top-performer">-</div>
+                    </div>
+                </div>
+
+                <h3>⚙️ Quick Actions</h3>
+                <button onclick="openSimulationEditor()" style="width:100%;margin-bottom:10px;">⚙️ Edit Simulation Parameters</button>
+                <button onclick="refreshData()" style="width:100%;margin-bottom:10px;">🔄 Refresh Data</button>
+                
+                <h3>💾 Data Management</h3>
+                <input type="file" id="json-file-input" accept=".json" style="width:100%;margin-top:10px;" onchange="loadJSONFile(event)">
+                <button onclick="exportData()" style="width:100%;margin-top:10px;">💾 Export Portfolio</button>
+                
+                <h3>📈 Current Settings</h3>
+                <div class="settings-display">
+                    <div class="setting-item">
+                        <span class="setting-label">Volatility:</span>
+                        <span class="setting-value" id="sidebar-sigma-display">0.15</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Horizon:</span>
+                        <span class="setting-value" id="sidebar-days-display">252 days</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="setting-label">Simulations:</span>
+                        <span class="setting-value" id="sidebar-sims-display">100</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="main-content">
+                <!-- Tabs -->
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('growth')">Growth Over Time</button>
+                    <button class="tab" onclick="switchTab('scenarios')">Compare Scenarios</button>
+                    <button class="tab" onclick="switchTab('whatif')">What-If Analysis</button>
+                    <button class="tab" onclick="switchTab('positions')">Position Details</button>
+                    <button class="tab" onclick="switchTab('watchlist')">Watchlist</button>
+                </div>
+
+                <!-- Growth Over Time Tab -->
+                <div id="growth-tab" class="tab-content active">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 style="margin: 0;">📊 Portfolio Growth Predictions Over Time</h2>
+                        <button class="btn-primary" onclick="openSimulationEditor()" style="padding: 8px 16px; font-size: 0.9rem;">⚙️ Edit Simulation Parameters</button>
+                    </div>
+                    
+                    <div class="info-box" style="margin-bottom: 20px;">
+                        <details style="cursor: pointer;">
+                            <summary style="font-weight: bold; font-size: 1.1rem; margin-bottom: 10px;">📖 How to Read This Chart & Understanding Your Portfolio</summary>
+                            <div style="margin-top: 15px; padding-left: 10px;">
+                                <h4 style="margin-top: 15px; color: #667eea;">Understanding Your Current Portfolio:</h4>
+                                <ul style="margin-left: 20px; line-height: 1.8;">
+                                    <li><strong>Portfolio Value</strong>: The total dollar amount you currently have invested across all positions</li>
+                                    <li><strong>Individual Positions</strong>: Each stock/ETF in your portfolio with its current value, shares held, and historical return percentage</li>
+                                    <li><strong>Return %</strong>: The historical performance of each position (positive = gains, negative = losses)</li>
+                                    <li><strong>Weighted Return</strong>: Your portfolio's overall performance, weighted by the value of each position</li>
+                                </ul>
+                                
+                                <h4 style="margin-top: 20px; color: #667eea;">Understanding the Growth Chart:</h4>
+                                <ul style="margin-left: 20px; line-height: 1.8;">
+                                    <li><strong>🟢 Green Circle</strong>: Your starting portfolio value at day 0</li>
+                                    <li><strong>📈 Bold Colored Line</strong>: The most likely (expected) growth path - this is the median outcome from thousands of simulations</li>
+                                    <li><strong>🔵 Light Blue Shaded Area (90% Range)</strong>: Shows where 90% of all possible outcomes fall. The wider this area, the more uncertainty in predictions</li>
+                                    <li><strong>🔷 Medium Blue Shaded Area (50% Range)</strong>: Shows where 50% of outcomes fall - this is the more likely range of results</li>
+                                    <li><strong>📊 Final Value Annotation</strong>: The expected portfolio value at the end of the time horizon</li>
+                                </ul>
+                                
+                                <h4 style="margin-top: 20px; color: #667eea;">How Predictions Work:</h4>
+                                <p style="line-height: 1.8; margin-left: 20px;">
+                                    The predictions use <strong>Geometric Brownian Motion (GBM)</strong>, a mathematical model that simulates stock price movements:
+                                </p>
+                                <ul style="margin-left: 40px; line-height: 1.8;">
+                                    <li><strong>Drift (μ)</strong>: Based on each position's historical return percentage - assumes past performance continues</li>
+                                    <li><strong>Volatility (σ)</strong>: The uncertainty/risk level - adjustable in simulation parameters. Higher volatility = wider confidence bands</li>
+                                    <li><strong>Monte Carlo Simulation</strong>: Runs hundreds or thousands of random scenarios to show possible outcomes</li>
+                                    <li><strong>Time Horizon</strong>: The number of trading days (typically 252 = 1 year) to project forward</li>
+                                </ul>
+                                
+                                <h4 style="margin-top: 20px; color: #e74c3c;">⚠️ Important Disclaimers:</h4>
+                                <ul style="margin-left: 20px; line-height: 1.8;">
+                                    <li>Predictions assume historical returns continue - real markets are unpredictable</li>
+                                    <li>Past performance does NOT guarantee future results</li>
+                                    <li>This tool is for educational purposes only - not financial advice</li>
+                                    <li>Real markets are affected by economic cycles, company events, and many other factors not included in this model</li>
+                                    <li>The confidence bands show statistical probabilities, not certainties</li>
+                                </ul>
+                            </div>
+                        </details>
+                    </div>
+
+                    <div id="growth-chart" class="chart-container"></div>
+                </div>
+
+                <!-- Compare Scenarios Tab -->
+                <div id="scenarios-tab" class="tab-content">
+                    <h2>Compare Different Prediction Scenarios</h2>
+                    <div id="scenarios-chart" class="chart-container"></div>
+                </div>
+
+                <!-- What-If Analysis Tab -->
+                <div id="whatif-tab" class="tab-content">
+                    <h2>What-If Portfolio Analysis</h2>
+                    <p>Modify your portfolio and see how changes would impact growth projections.</p>
+                    
+                    <div class="two-column" id="whatif-columns">
+                        <div class="whatif-left-column">
+                            <h3>📊 Portfolio</h3>
+                            <div id="whatif-portfolio"></div>
+                            
+                            <h3 style="margin-top: 30px;">💰 Dollar Cost Averaging (DCA)</h3>
+                            <div id="whatif-dca-portfolio"></div>
+                        </div>
+                        <div class="whatif-right-column">
+                            <h3>➕ Add Positions</h3>
+                            <div id="whatif-add"></div>
+                        </div>
+                    </div>
+
+                    <div id="whatif-chart" class="chart-container"></div>
+                </div>
+
+                <!-- Position Details Tab -->
+                <div id="positions-tab" class="tab-content">
+                    <h2>📊 Portfolio Positions</h2>
+                    
+                    <div style="margin: 20px 0;">
+                        <h3>Add New Position</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
+                            <div class="form-group">
+                                <label>Ticker</label>
+                                <input type="text" id="new-ticker" placeholder="AAPL">
+                            </div>
+                            <div class="form-group">
+                                <label>Value ($)</label>
+                                <input type="number" id="new-value" value="1000" step="100" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Return %</label>
+                                <input type="number" id="new-return" value="10" step="0.1">
+                            </div>
+                            <div class="form-group">
+                                <label>Current Price ($)</label>
+                                <input type="number" id="new-price" value="100" step="0.01" min="0.01">
+                            </div>
+                            <button class="btn-primary" onclick="addPosition()">Add</button>
+                        </div>
+                    </div>
+
+                    <div id="positions-content"></div>
+                </div>
+
+                <!-- Watchlist Tab -->
+                <div id="watchlist-tab" class="tab-content">
+                    <h2>👀 Watchlist</h2>
+                    <div id="watchlist-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Simulation Editor Modal -->
+    <div id="simulation-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚙️ Simulation Parameters & Monte Carlo Settings</h2>
+                <span class="close" onclick="closeSimulationEditor()">&times;</span>
+            </div>
+            
+            <div class="modal-body">
+                <!-- Monte Carlo Explanation -->
+                <div class="monte-carlo-info">
+                    <h3>🎲 Understanding Monte Carlo Simulation</h3>
+                    <p style="margin-bottom: 10px; line-height: 1.6;">
+                        <strong>Monte Carlo Simulation</strong> is a computational technique that uses random sampling to model and analyze complex systems. In portfolio analysis, it helps predict future outcomes by running thousands of random scenarios.
+                    </p>
+                    <ul>
+                        <li><strong>Random Scenarios</strong>: Each simulation generates a different random path based on probability distributions</li>
+                        <li><strong>Statistical Analysis</strong>: By running hundreds or thousands of simulations, we can calculate percentiles (5th, 25th, 50th, 75th, 95th) to show likely outcomes</li>
+                        <li><strong>Confidence Bands</strong>: The shaded areas on the chart represent ranges where different percentages of outcomes fall (e.g., 90% of simulations fall within the outer band)</li>
+                        <li><strong>More Simulations = Better Accuracy</strong>: Higher simulation counts provide smoother, more reliable confidence bands but take longer to compute</li>
+                    </ul>
+                </div>
+
+                <!-- Simulation Method -->
+                <div class="param-section">
+                    <div class="param-section-title">Simulation Model</div>
+                    <div class="param-row">
+                        <div class="param-label">
+                            <span class="param-label-text">Model Type</span>
+                            <span class="param-label-help">Choose the mathematical model used to simulate stock price movements</span>
+                        </div>
+                        <div class="param-control">
+                            <select id="sim-method" class="param-select">
+                                <option value="gbm" selected>Geometric Brownian Motion (GBM)</option>
+                                <option value="gbm-mean-reverting">GBM with Mean Reversion</option>
+                                <option value="historical-bootstrap">Historical Bootstrap</option>
+                            </select>
+                            <small style="color: #666; margin-top: 5px; display: block;">
+                                <strong>GBM</strong>: Standard model assuming continuous random walk<br>
+                                <strong>Mean Reversion</strong>: Assumes prices tend to return to historical average<br>
+                                <strong>Bootstrap</strong>: Uses actual historical price patterns
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Volatility -->
+                <div class="param-section">
+                    <div class="param-section-title">Risk & Volatility</div>
+                    <div class="param-row">
+                        <div class="param-label">
+                            <span class="param-label-text">Volatility (σ)</span>
+                            <span class="param-label-help">Annualized standard deviation of returns. Measures price fluctuation uncertainty.</span>
+                        </div>
+                        <div class="param-control">
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <input type="range" id="modal-sigma" class="param-slider" min="0.05" max="0.50" step="0.01" value="0.15">
+                                <div class="param-value-display" id="modal-sigma-value">0.15</div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #999; margin-top: 5px;">
+                                <span>Low (0.10)</span>
+                                <span>Medium (0.20)</span>
+                                <span>High (0.30+)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Time Horizon -->
+                <div class="param-section">
+                    <div class="param-section-title">Time Horizon</div>
+                    <div class="param-row">
+                        <div class="param-label">
+                            <span class="param-label-text">Projection Period</span>
+                            <span class="param-label-help">Number of trading days to simulate forward</span>
+                        </div>
+                        <div class="param-control">
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <input type="range" id="modal-days" class="param-slider" min="30" max="1000" step="30" value="252">
+                                <div class="param-value-display" id="modal-days-value">252</div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #999; margin-top: 5px;">
+                                <span>1 Month (30)</span>
+                                <span>1 Year (252)</span>
+                                <span>4 Years (1000)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Number of Simulations -->
+                <div class="param-section">
+                    <div class="param-section-title">Monte Carlo Settings</div>
+                    <div class="param-row">
+                        <div class="param-label">
+                            <span class="param-label-text">Number of Simulations</span>
+                            <span class="param-label-help">How many random scenarios to generate. More = smoother confidence bands but slower computation.</span>
+                        </div>
+                        <div class="param-control">
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <input type="range" id="modal-sims" class="param-slider" min="50" max="1000" step="50" value="100">
+                                <div class="param-value-display" id="modal-sims-value">100</div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #999; margin-top: 5px;">
+                                <span>Fast (50-100)</span>
+                                <span>Balanced (200-500)</span>
+                                <span>Accurate (500-1000)</span>
+                            </div>
+                            <div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 5px; border-left: 3px solid #ffc107;">
+                                <small style="color: #856404;">
+                                    <strong>💡 Tip:</strong> Start with 100 for quick results. Increase to 500+ for publication-quality charts with smoother confidence bands.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Random Seed -->
+                <div class="param-section">
+                    <div class="param-section-title">Reproducibility</div>
+                    <div class="param-row">
+                        <div class="param-label">
+                            <span class="param-label-text">Random Seed</span>
+                            <span class="param-label-help">Controls the random number generator. Same seed + same parameters = identical results.</span>
+                        </div>
+                        <div class="param-control">
+                            <input type="number" id="modal-seed" class="param-input" value="42" min="0">
+                            <small style="color: #666; margin-top: 5px; display: block;">
+                                Use for reproducibility in reports. Change to see different random scenarios. Leave as 42 for consistent results.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Source -->
+                <div class="param-section">
+                    <div class="param-section-title">Data Source</div>
+                    <div class="param-row">
+                        <div class="param-label">
+                            <span class="param-label-text">Real-time Data</span>
+                            <span class="param-label-help">Fetch current prices and returns from Yahoo Finance API</span>
+                        </div>
+                        <div class="param-control">
+                            <label class="param-checkbox-wrapper">
+                                <input type="checkbox" id="modal-realtime" checked>
+                                <span>Use Real-time Data (Yahoo Finance)</span>
+                            </label>
+                            <small style="color: #666; margin-top: 5px; display: block;">
+                                When enabled, automatically updates prices and returns. Disable to use only manually entered data.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-primary" onclick="applySimulationParams()">
+                    ✅ Apply & Run Simulation
+                </button>
+                <button class="modal-btn modal-btn-secondary" onclick="resetSimulationParams()">
+                    🔄 Reset to Defaults
+                </button>
+                <button class="modal-btn modal-btn-danger" onclick="closeSimulationEditor()">
+                    ❌ Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== DATA STRUCTURES ====================
+        let portfolio = [];
+        let watchlist = [];
+        let whatifPositions = [];
+        let whatifDCASchedule = {};
+        let dcaSchedule = {};
+        let useRealtime = true;
+
+        // ==================== INITIALIZATION ====================
+        async function init() {
+            // Load initial data
+            await loadPortfolioData();
+            
+            // Setup hidden inputs for simulation parameters (used by functions)
+            if (!document.getElementById('sigma')) {
+                const sigmaInput = document.createElement('input');
+                sigmaInput.type = 'hidden';
+                sigmaInput.id = 'sigma';
+                sigmaInput.value = '0.15';
+                document.body.appendChild(sigmaInput);
+            }
+            if (!document.getElementById('days')) {
+                const daysInput = document.createElement('input');
+                daysInput.type = 'hidden';
+                daysInput.id = 'days';
+                daysInput.value = '252';
+                document.body.appendChild(daysInput);
+            }
+            if (!document.getElementById('sims')) {
+                const simsInput = document.createElement('input');
+                simsInput.type = 'hidden';
+                simsInput.id = 'sims';
+                simsInput.value = '100';
+                document.body.appendChild(simsInput);
+            }
+            if (!document.getElementById('seed')) {
+                const seedInput = document.createElement('input');
+                seedInput.type = 'hidden';
+                seedInput.id = 'seed';
+                seedInput.value = '42';
+                document.body.appendChild(seedInput);
+            }
+            if (!document.getElementById('use-realtime')) {
+                const realtimeInput = document.createElement('input');
+                realtimeInput.type = 'checkbox';
+                realtimeInput.id = 'use-realtime';
+                realtimeInput.checked = true;
+                document.body.appendChild(realtimeInput);
+            }
+
+            // Initialize what-if positions
+            whatifPositions = JSON.parse(JSON.stringify(portfolio));
+
+            // Render initial views
+            renderPortfolio();
+            renderWatchlist();
+            renderWhatIf();
+            updatePortfolioSummary();
+            updateGrowthView();
+        }
+
+        function updatePortfolioSummary() {
+            const totalValue = portfolio.reduce((sum, pos) => sum + pos.value, 0);
+            const positionsCount = portfolio.length;
+            
+            // Calculate weighted return
+            let weightedReturn = 0;
+            if (totalValue > 0) {
+                const totalReturnValue = portfolio.reduce((sum, pos) => sum + (pos.value * pos.return_pct / 100), 0);
+                weightedReturn = (totalReturnValue / totalValue) * 100;
+            }
+            
+            // Find top performer
+            let topPerformer = '-';
+            if (portfolio.length > 0) {
+                const sorted = [...portfolio].sort((a, b) => b.return_pct - a.return_pct);
+                topPerformer = `${sorted[0].ticker} (${sorted[0].return_pct >= 0 ? '+' : ''}${sorted[0].return_pct.toFixed(2)}%)`;
+            }
+            
+            // Update display
+            document.getElementById('summary-total-value').textContent = `$${totalValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('summary-positions-count').textContent = positionsCount;
+            document.getElementById('summary-weighted-return').textContent = `${weightedReturn >= 0 ? '+' : ''}${weightedReturn.toFixed(2)}%`;
+            document.getElementById('summary-weighted-return').style.color = weightedReturn >= 0 ? '#2ecc71' : '#e74c3c';
+            document.getElementById('summary-top-performer').textContent = topPerformer;
+            
+            // Update settings display
+            document.getElementById('sidebar-sigma-display').textContent = document.getElementById('sigma').value;
+            document.getElementById('sidebar-days-display').textContent = `${document.getElementById('days').value} days`;
+            document.getElementById('sidebar-sims-display').textContent = document.getElementById('sims').value;
+        }
+
+        // ==================== DATA LOADING ====================
+        async function loadPortfolioData() {
+            // Try to load from localStorage first
+            const savedPortfolio = localStorage.getItem('portfolio_data');
+            if (savedPortfolio) {
+                try {
+                    const data = JSON.parse(savedPortfolio);
+                    portfolio = data.portfolio || [];
+                    watchlist = data.watchlist || [];
+                    if (portfolio.length > 0 || watchlist.length > 0) {
+                        console.log('Loaded data from localStorage');
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('Failed to load from localStorage:', e);
+                }
+            }
+
+            // Default portfolio data (from portfolio_data.json)
+            const defaultData = {
+                portfolio: [
+                    { ticker: "IBM", value: 28.35, return_pct: 18.92, current_price: 302.50 },
+                    { ticker: "AVAV", value: 37.06, return_pct: 23.54, current_price: 287.82 },
+                    { ticker: "ORA", value: 109.40, return_pct: 23.54, current_price: 109.21 },
+                    { ticker: "FLNC", value: 92.69, return_pct: 25.10, current_price: 17.48 },
+                    { ticker: "CMBM", value: 12.70, return_pct: 27.03, current_price: 2.99 },
+                    { ticker: "TEVA", value: 227.97, return_pct: 35.76, current_price: 25.30 },
+                    { ticker: "OXY", value: 42.33, return_pct: 1.43, current_price: 42.32 },
+                    { ticker: "NEE", value: 109.12, return_pct: 1.55, current_price: 84.99 },
+                    { ticker: "UUUU", value: 54.83, return_pct: 4.81, current_price: 15.35 },
+                    { ticker: "SOFI", value: 50.17, return_pct: 6.56, current_price: 27.21 },
+                    { ticker: "BRKB", value: 16.00, return_pct: 6.66, current_price: 510.20 },
+                    { ticker: "GOOG", value: 107.75, return_pct: 7.74, current_price: 290.10 },
+                    { ticker: "AMD", value: 108.15, return_pct: 8.15, current_price: 245.30 },
+                    { ticker: "F", value: 75.40, return_pct: 8.25, current_price: 13.10 },
+                    { ticker: "ASML", value: 116.37, return_pct: 10.68, current_price: 1019.70 }
+                ],
+                watchlist: [
+                    { ticker: "MRK", name: "Merck & Co", current_price: 94.18, today_return_pct: 1.79 },
+                    { ticker: "GEV", name: "GE Vernova Inc", current_price: 585.82, today_return_pct: 1.94 },
+                    { ticker: "MOD", name: "Modine Manufacturing", current_price: 134.22, today_return_pct: 1.97 },
+                    { ticker: "COHR", name: "Coherent Corp", current_price: 143.45, today_return_pct: 2.55 },
+                    { ticker: "IREN", name: "IREN Limited", current_price: 48.60, today_return_pct: 4.31 }
+                ]
+            };
+
+            portfolio = defaultData.portfolio;
+            watchlist = defaultData.watchlist;
+
+            // Save to localStorage
+            saveDataToLocalStorage();
+
+            if (useRealtime) {
+                await updatePortfolioWithRealtime();
+                await updateWatchlistWithRealtime();
+                saveDataToLocalStorage();
+            }
+        }
+
+        async function updatePortfolioWithRealtime() {
+            // Fetch real-time data for portfolio tickers
+            const tickers = portfolio.map(p => normalizeTicker(p.ticker));
+            const data = await fetchMultipleStocks(tickers);
+            
+            portfolio = portfolio.map(pos => {
+                const ticker = normalizeTicker(pos.ticker);
+                if (data[ticker]) {
+                    const shares = pos.value / pos.current_price;
+                    return {
+                        ...pos,
+                        current_price: data[ticker].current_price,
+                        return_pct: data[ticker].ytd_return_pct || pos.return_pct,
+                        value: shares * data[ticker].current_price
+                    };
+                }
+                return pos;
+            });
+        }
+
+        async function updateWatchlistWithRealtime() {
+            const tickers = watchlist.map(w => normalizeTicker(w.ticker));
+            const data = await fetchMultipleStocks(tickers);
+            
+            watchlist = watchlist.map(item => {
+                const ticker = normalizeTicker(item.ticker);
+                if (data[ticker]) {
+                    return {
+                        ...item,
+                        current_price: data[ticker].current_price,
+                        today_return_pct: data[ticker].today_return_pct || item.today_return_pct,
+                        name: data[ticker].name || item.name
+                    };
+                }
+                return item;
+            });
+        }
+
+        function normalizeTicker(ticker) {
+            const tickerMap = {
+                "BRKB": "BRK-B",
+                "BRKA": "BRK-A",
+                "BRK.B": "BRK-B",
+                "BRK.A": "BRK-A"
+            };
+            return tickerMap[ticker.toUpperCase()] || ticker.toUpperCase();
+        }
+
+        async function fetchStockData(ticker) {
+            try {
+                // Using Yahoo Finance API via CORS proxy
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}`)}`;
+                const response = await fetch(proxyUrl);
+                const data = await response.json();
+                const chartData = JSON.parse(data.contents);
+                
+                if (chartData.chart && chartData.chart.result && chartData.chart.result[0]) {
+                    const result = chartData.chart.result[0];
+                    const meta = result.meta;
+                    const currentPrice = meta.regularMarketPrice || meta.previousClose;
+                    const previousClose = meta.previousClose;
+                    const todayReturn = previousClose ? ((currentPrice - previousClose) / previousClose) * 100 : 0;
+                    
+                    return {
+                        current_price: currentPrice,
+                        today_return_pct: todayReturn,
+                        ytd_return_pct: todayReturn, // Simplified
+                        name: meta.longName || ticker
+                    };
+                }
+            } catch (error) {
+                console.error(`Error fetching ${ticker}:`, error);
+            }
+            return null;
+        }
+
+        async function fetchMultipleStocks(tickers) {
+            const results = {};
+            // Fetch in batches to avoid rate limiting
+            for (let i = 0; i < tickers.length; i += 5) {
+                const batch = tickers.slice(i, i + 5);
+                const promises = batch.map(ticker => fetchStockData(ticker).then(data => ({ ticker, data })));
+                const batchResults = await Promise.all(promises);
+                batchResults.forEach(({ ticker, data }) => {
+                    if (data) results[ticker] = data;
+                });
+                // Small delay between batches
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            return results;
+        }
+
+        async function refreshData() {
+            if (useRealtime) {
+                await updatePortfolioWithRealtime();
+                await updateWatchlistWithRealtime();
+                saveDataToLocalStorage();
+                updatePortfolioSummary();
+                renderPortfolio();
+                renderWatchlist();
+                renderWhatIf();
+                updateAllCharts();
+            }
+        }
+
+        function loadJSONFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.portfolio) portfolio = data.portfolio;
+                    if (data.watchlist) watchlist = data.watchlist;
+                    
+                    saveDataToLocalStorage();
+                    whatifPositions = JSON.parse(JSON.stringify(portfolio));
+                    
+                    updatePortfolioSummary();
+                    renderPortfolio();
+                    renderWatchlist();
+                    renderWhatIf();
+                    updateAllCharts();
+                    
+                    alert('Portfolio data loaded successfully!');
+                } catch (error) {
+                    alert('Error loading JSON file: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function saveDataToLocalStorage() {
+            const data = {
+                portfolio: portfolio,
+                watchlist: watchlist
+            };
+            localStorage.setItem('portfolio_data', JSON.stringify(data));
+        }
+
+        function exportData() {
+            const data = {
+                portfolio: portfolio,
+                watchlist: watchlist
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'portfolio_data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ==================== SIMULATION EDITOR ====================
+        function openSimulationEditor() {
+            const modal = document.getElementById('simulation-modal');
+            modal.classList.add('show');
+            // Sync current values
+            document.getElementById('modal-sigma').value = document.getElementById('sigma').value;
+            document.getElementById('modal-sigma-value').textContent = document.getElementById('sigma').value;
+            document.getElementById('modal-days').value = document.getElementById('days').value;
+            document.getElementById('modal-days-value').textContent = document.getElementById('days').value;
+            document.getElementById('modal-sims').value = document.getElementById('sims').value;
+            document.getElementById('modal-sims-value').textContent = document.getElementById('sims').value;
+            document.getElementById('modal-seed').value = document.getElementById('seed').value;
+            document.getElementById('modal-realtime').checked = document.getElementById('use-realtime').checked;
+            
+            // Prevent body scroll when modal is open
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSimulationEditor() {
+            const modal = document.getElementById('simulation-modal');
+            modal.classList.remove('show');
+            // Restore body scroll
+            document.body.style.overflow = 'auto';
+        }
+
+        function applySimulationParams() {
+            // Update hidden inputs
+            document.getElementById('sigma').value = document.getElementById('modal-sigma').value;
+            document.getElementById('days').value = document.getElementById('modal-days').value;
+            document.getElementById('sims').value = document.getElementById('modal-sims').value;
+            document.getElementById('seed').value = document.getElementById('modal-seed').value;
+            document.getElementById('use-realtime').checked = document.getElementById('modal-realtime').checked;
+            useRealtime = document.getElementById('modal-realtime').checked;
+
+            // Update sidebar display
+            updatePortfolioSummary();
+
+            // TODO: Implement different simulation methods
+            const simMethod = document.getElementById('sim-method').value;
+            console.log('Simulation method:', simMethod);
+
+            closeSimulationEditor();
+            updateAllCharts();
+        }
+
+        function resetSimulationParams() {
+            document.getElementById('modal-sigma').value = 0.15;
+            document.getElementById('modal-sigma-value').textContent = '0.15';
+            document.getElementById('modal-days').value = 252;
+            document.getElementById('modal-days-value').textContent = '252';
+            document.getElementById('modal-sims').value = 100;
+            document.getElementById('modal-sims-value').textContent = '100';
+            document.getElementById('modal-seed').value = 42;
+            document.getElementById('modal-realtime').checked = true;
+            document.getElementById('sim-method').value = 'gbm';
+            
+            // Also update hidden inputs
+            document.getElementById('sigma').value = '0.15';
+            document.getElementById('days').value = '252';
+            document.getElementById('sims').value = '100';
+            document.getElementById('seed').value = '42';
+            document.getElementById('use-realtime').checked = true;
+            useRealtime = true;
+        }
+
+        // Modal event listeners
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('simulation-modal');
+            if (event.target === modal) {
+                closeSimulationEditor();
+            }
+        });
+        
+        // Close modal on Escape key
+        window.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const modal = document.getElementById('simulation-modal');
+                if (modal.classList.contains('show')) {
+                    closeSimulationEditor();
+                }
+            }
+        });
+
+        // Update modal value displays
+        document.addEventListener('DOMContentLoaded', function() {
+            const modalSigma = document.getElementById('modal-sigma');
+            const modalDays = document.getElementById('modal-days');
+            const modalSims = document.getElementById('modal-sims');
+            
+            if (modalSigma) {
+                modalSigma.addEventListener('input', (e) => {
+                    document.getElementById('modal-sigma-value').textContent = e.target.value;
+                });
+            }
+            if (modalDays) {
+                modalDays.addEventListener('input', (e) => {
+                    document.getElementById('modal-days-value').textContent = e.target.value;
+                });
+            }
+            if (modalSims) {
+                modalSims.addEventListener('input', (e) => {
+                    document.getElementById('modal-sims-value').textContent = e.target.value;
+                });
+            }
+        });
+
+        // ==================== GBM SIMULATION ====================
+        // Seeded random number generator
+        class SeededRandom {
+            constructor(seed) {
+                this.seed = seed % 2147483647;
+                if (this.seed <= 0) this.seed += 2147483646;
+            }
+            
+            next() {
+                this.seed = (this.seed * 16807) % 2147483647;
+                return (this.seed - 1) / 2147483646;
+            }
+        }
+
+        function simulateGBMPrice(currentPrice, mu, sigma, days = 252, nSims = 1000, randomSeed = null) {
+            const dt = 1.0 / 252.0;
+            const drift = (mu - 0.5 * sigma * sigma) * dt;
+            const diffusionStd = sigma * Math.sqrt(dt);
+            
+            const pricesEnd = [];
+            const rng = randomSeed !== null ? new SeededRandom(randomSeed) : null;
+            
+            for (let i = 0; i < nSims; i++) {
+                let logReturn = 0;
+                for (let day = 0; day < days; day++) {
+                    const increment = normalRandom(rng);
+                    logReturn += drift + diffusionStd * increment;
+                }
+                pricesEnd.push(currentPrice * Math.exp(logReturn));
+            }
+            
+            return pricesEnd;
+        }
+
+        function normalRandom(rng) {
+            // Box-Muller transform with safety checks
+            let u1, u2;
+            if (rng) {
+                u1 = rng.next();
+                u2 = rng.next();
+            } else {
+                u1 = Math.random();
+                u2 = Math.random();
+            }
+            // Avoid log(0) or very small values
+            u1 = Math.max(0.0000001, Math.min(0.9999999, u1));
+            u2 = Math.max(0.0000001, Math.min(0.9999999, u2));
+            return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+        }
+
+        function simulatePortfolioGrowthOverTime(positions, sigma = 0.15, days = 252, nSims = 100, randomSeed = null, dcaSchedule = {}) {
+            if (positions.length === 0) {
+                return { paths: [], timePoints: [] };
+            }
+            const dt = 1.0 / 252.0;
+            const sampleInterval = Math.max(1, Math.floor(days / 50));
+            const timePoints = [];
+            for (let t = 0; t <= days; t += sampleInterval) {
+                timePoints.push(t);
+            }
+            if (timePoints[timePoints.length - 1] !== days) {
+                timePoints.push(days);
+            }
+
+            const portfolioPaths = [];
+            const positionShares = {};
+            positions.forEach(pos => {
+                positionShares[pos.ticker] = pos.value / pos.current_price;
+            });
+
+            // Pre-compute drift and diffusion constants for each position
+            const positionConstants = {};
+            positions.forEach(pos => {
+                const mu = pos.return_pct / 100.0;
+                positionConstants[pos.ticker] = {
+                    drift: (mu - 0.5 * sigma * sigma) * dt,
+                    diffusionStd: sigma * Math.sqrt(dt)
+                };
+            });
+
+            for (let simIdx = 0; simIdx < nSims; simIdx++) {
+                const portfolioValueOverTime = [];
+                let currentTotal = positions.reduce((sum, pos) => sum + pos.value, 0);
+                portfolioValueOverTime.push(currentTotal);
+
+                const cumulativeLogReturns = {};
+                const currentShares = { ...positionShares };
+                positions.forEach(pos => {
+                    cumulativeLogReturns[pos.ticker] = 0;
+                });
+
+                // Create RNG for this simulation
+                const simSeed = randomSeed !== null ? randomSeed + simIdx * 100000 : null;
+
+                for (let day = 1; day <= days; day++) {
+                    // Process DCA contributions
+                    Object.keys(dcaSchedule).forEach(ticker => {
+                        const dcaConfig = dcaSchedule[ticker];
+                        if (day % dcaConfig.frequency_days === 0) {
+                            const pos = positions.find(p => p.ticker === ticker);
+                            if (pos) {
+                                const currentPrice = pos.current_price * Math.exp(cumulativeLogReturns[ticker]);
+                                const sharesToAdd = dcaConfig.amount / currentPrice;
+                                currentShares[ticker] += sharesToAdd;
+                            }
+                        }
+                    });
+
+                    // Calculate portfolio value
+                    let totalValue = 0;
+                    
+                    positions.forEach((pos, posIdx) => {
+                        const constants = positionConstants[pos.ticker];
+                        // Generate random increment for this position/day
+                        const posDaySeed = simSeed !== null ? simSeed + posIdx * 10000 + day * 100 : null;
+                        const posRng = posDaySeed !== null ? new SeededRandom(posDaySeed) : null;
+                        const increment = normalRandom(posRng);
+                        
+                        const dailyLogReturn = constants.drift + constants.diffusionStd * increment;
+                        cumulativeLogReturns[pos.ticker] += dailyLogReturn;
+                        
+                        const price = pos.current_price * Math.exp(cumulativeLogReturns[pos.ticker]);
+                        totalValue += currentShares[pos.ticker] * price;
+                    });
+
+                    if (timePoints.includes(day)) {
+                        portfolioValueOverTime.push(totalValue);
+                    }
+                }
+
+                portfolioPaths.push(portfolioValueOverTime);
+            }
+
+            return { paths: portfolioPaths, timePoints };
+        }
+
+        function calculatePercentiles(arr, percentile) {
+            const sorted = [...arr].sort((a, b) => a - b);
+            const index = (percentile / 100) * (sorted.length - 1);
+            const lower = Math.floor(index);
+            const upper = Math.ceil(index);
+            const weight = index - lower;
+            return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+        }
+
+        // ==================== CHART CREATION ====================
+        function createPortfolioGrowthChart(portfolioPaths, timePoints, currentValue, scenarioName = "Current Portfolio", color = "#1f77b4") {
+            if (!portfolioPaths || portfolioPaths.length === 0 || !timePoints || timePoints.length === 0) {
+                console.error('Invalid data for chart:', { portfolioPaths, timePoints });
+                return { data: [], layout: {} };
+            }
+
+            const nSims = portfolioPaths.length;
+            const nPoints = timePoints.length;
+            
+            // Validate all paths have the same length
+            const pathLength = portfolioPaths[0] ? portfolioPaths[0].length : 0;
+            if (pathLength !== nPoints) {
+                console.warn(`Path length mismatch: paths have ${pathLength} points, timePoints has ${nPoints}`);
+            }
+            
+            const p5Values = [];
+            const p25Values = [];
+            const p75Values = [];
+            const p95Values = [];
+            const medianValues = [];
+
+            for (let i = 0; i < nPoints; i++) {
+                const values = portfolioPaths.map(path => path[i]).filter(v => !isNaN(v) && isFinite(v));
+                if (values.length === 0) {
+                    // Fallback to current value if no valid values
+                    p5Values.push(currentValue);
+                    p25Values.push(currentValue);
+                    p75Values.push(currentValue);
+                    p95Values.push(currentValue);
+                    medianValues.push(currentValue);
+                } else {
+                    p5Values.push(calculatePercentiles(values, 5));
+                    p25Values.push(calculatePercentiles(values, 25));
+                    p75Values.push(calculatePercentiles(values, 75));
+                    p95Values.push(calculatePercentiles(values, 95));
+                    medianValues.push(calculatePercentiles(values, 50));
+                }
+            }
+
+            const r = parseInt(color.slice(1, 3), 16);
+            const g = parseInt(color.slice(3, 5), 16);
+            const b = parseInt(color.slice(5, 7), 16);
+
+            const traces = [
+                // 90% confidence band
+                {
+                    x: [...timePoints, ...timePoints.slice().reverse()],
+                    y: [...p95Values, ...p5Values.slice().reverse()],
+                    fill: 'toself',
+                    fillcolor: `rgba(${r}, ${g}, ${b}, 0.15)`,
+                    line: { color: 'rgba(255,255,255,0)' },
+                    name: '90% Range',
+                    showlegend: true,
+                    hoverinfo: 'skip',
+                    legendgroup: scenarioName
+                },
+                // 50% confidence band
+                {
+                    x: [...timePoints, ...timePoints.slice().reverse()],
+                    y: [...p75Values, ...p25Values.slice().reverse()],
+                    fill: 'toself',
+                    fillcolor: `rgba(${r}, ${g}, ${b}, 0.3)`,
+                    line: { color: 'rgba(255,255,255,0)' },
+                    name: '50% Range',
+                    showlegend: true,
+                    hoverinfo: 'skip',
+                    legendgroup: scenarioName
+                },
+                // Median line
+                {
+                    x: timePoints,
+                    y: medianValues,
+                    mode: 'lines',
+                    name: scenarioName,
+                    line: { color: `rgb(${Math.max(0, r-30)}, ${Math.max(0, g-30)}, ${Math.max(0, b-30)})`, width: 4 },
+                    hovertemplate: `<b>${scenarioName}</b><br>Days: %{x}<br>Value: $%{y:,.2f}<extra></extra>`,
+                    legendgroup: scenarioName
+                },
+                // Starting value marker
+                {
+                    x: [0],
+                    y: [currentValue],
+                    mode: 'markers+text',
+                    name: 'Starting Value',
+                    marker: { size: 12, color: '#2ecc71', symbol: 'circle', line: { width: 2, color: 'white' } },
+                    text: [`$${currentValue.toLocaleString()}`],
+                    textposition: 'top center',
+                    textfont: { size: 12, color: '#2ecc71', family: 'Arial Black' },
+                    showlegend: false,
+                    hovertemplate: '<b>Starting Value</b><br>$%{y:,.2f}<extra></extra>'
+                }
+            ];
+
+            const finalMedian = medianValues[medianValues.length - 1];
+            const darkerColor = `rgb(${Math.max(0, r-30)}, ${Math.max(0, g-30)}, ${Math.max(0, b-30)})`;
+
+            const layout = {
+                title: {
+                    text: `<b>Portfolio Growth Projections</b><br><sub>${scenarioName}</sub>`,
+                    x: 0.5,
+                    xanchor: 'center',
+                    font: { size: 20, color: '#2c3e50' }
+                },
+                xaxis: {
+                    title: { text: 'Time (Trading Days)', font: { size: 14, color: '#34495e' } },
+                    showgrid: true,
+                    gridcolor: 'rgba(0,0,0,0.1)'
+                },
+                yaxis: {
+                    title: { text: 'Portfolio Value ($)', font: { size: 14, color: '#34495e' } },
+                    tickformat: '$,.0f',
+                    showgrid: true,
+                    gridcolor: 'rgba(0,0,0,0.1)'
+                },
+                hovermode: 'x unified',
+                height: 600,
+                template: 'plotly_white',
+                plot_bgcolor: 'white',
+                paper_bgcolor: 'white',
+                legend: {
+                    orientation: "v",
+                    yanchor: "top",
+                    y: 1,
+                    xanchor: "left",
+                    x: 1.02,
+                    font: { size: 11, color: '#2c3e50', family: 'Arial' },
+                    bgcolor: 'rgba(255,255,255,0.9)',
+                    bordercolor: '#34495e',
+                    borderwidth: 1,
+                    itemwidth: 30,
+                    tracegroupgap: 10
+                },
+                margin: { r: 150 },
+                annotations: [{
+                    x: timePoints[timePoints.length - 1],
+                    y: finalMedian,
+                    xref: "x",
+                    yref: "y",
+                    text: `Expected: $${finalMedian.toLocaleString()}`,
+                    showarrow: true,
+                    arrowhead: 2,
+                    arrowcolor: darkerColor,
+                    ax: 0,
+                    ay: -40,
+                    font: { size: 12, color: darkerColor, family: 'Arial' }
+                }]
+            };
+
+            return { data: traces, layout };
+        }
+
+        function createMultiScenarioChart(scenarios, baseCurrentValue) {
+            const traces = [];
+            const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6'];
+            let colorIdx = 0;
+
+            Object.keys(scenarios).forEach(scenarioName => {
+                const { paths, timePoints, currentValue, color } = scenarios[scenarioName];
+                const chartColor = color || colors[colorIdx % colors.length];
+                colorIdx++;
+
+                const chart = createPortfolioGrowthChart(paths, timePoints, currentValue, scenarioName, chartColor);
+                // Only show the main line in legend for multi-scenario charts, hide confidence bands
+                chart.data.forEach((trace, idx) => {
+                    if (trace.name && (trace.name.includes('Range') || trace.name === 'Starting Value')) {
+                        trace.showlegend = false;
+                    }
+                    traces.push(trace);
+                });
+            });
+
+            const layout = {
+                title: {
+                    text: '<b>Portfolio Growth Comparison</b>',
+                    x: 0.5,
+                    xanchor: 'center',
+                    font: { size: 20, color: '#2c3e50' }
+                },
+                xaxis: {
+                    title: { text: 'Time (Trading Days)', font: { size: 14, color: '#34495e' } },
+                    showgrid: true,
+                    gridcolor: 'rgba(0,0,0,0.1)'
+                },
+                yaxis: {
+                    title: { text: 'Portfolio Value ($)', font: { size: 14, color: '#34495e' } },
+                    tickformat: '$,.0f',
+                    showgrid: true,
+                    gridcolor: 'rgba(0,0,0,0.1)',
+                    type: 'linear',
+                    autorange: true
+                },
+                hovermode: 'x unified',
+                height: 600,
+                template: 'plotly_white',
+                plot_bgcolor: 'white',
+                paper_bgcolor: 'white',
+                legend: {
+                    orientation: "v",
+                    yanchor: "top",
+                    y: 1,
+                    xanchor: "left",
+                    x: 1.02,
+                    font: { size: 11, color: '#2c3e50', family: 'Arial' },
+                    bgcolor: 'rgba(255,255,255,0.9)',
+                    bordercolor: '#34495e',
+                    borderwidth: 1,
+                    itemwidth: 30,
+                    tracegroupgap: 10
+                },
+                margin: { r: 150 }
+            };
+
+            return { data: traces, layout };
+        }
+
+        // ==================== UI RENDERING ====================
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Find and activate the correct tab button
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach((tab, idx) => {
+                const tabNames = ['growth', 'scenarios', 'whatif', 'positions', 'watchlist'];
+                if (tabNames[idx] === tabName) {
+                    tab.classList.add('active');
+                }
+            });
+            
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            if (tabName === 'growth') {
+                updateGrowthView();
+            } else if (tabName === 'positions') {
+                renderPositions();
+            } else if (tabName === 'watchlist') {
+                renderWatchlist();
+            } else if (tabName === 'whatif') {
+                renderWhatIf();
+            } else if (tabName === 'scenarios') {
+                renderScenarios();
+            }
+        }
+
+        function updateGrowthView() {
+            const sigma = parseFloat(document.getElementById('sigma').value);
+            const days = parseInt(document.getElementById('days').value);
+            const nSims = parseInt(document.getElementById('sims').value);
+            const seed = parseInt(document.getElementById('seed').value);
+
+            const currentValue = portfolio.reduce((sum, pos) => sum + pos.value, 0);
+            if (currentValue <= 0 || portfolio.length === 0) {
+                document.getElementById('growth-chart').innerHTML = '<div class="info-box">No portfolio data available. Please add positions.</div>';
+                return;
+            }
+            
+            // Show loading indicator
+            const chartContainer = document.getElementById('growth-chart');
+            chartContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>Running simulation...</p></div>';
+            
+            // Run simulation asynchronously to avoid blocking UI
+            // Use requestAnimationFrame to ensure UI updates before heavy computation
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    try {
+                        const simResult = simulatePortfolioGrowthOverTime(portfolio, sigma, days, nSims, seed, dcaSchedule);
+                        if (simResult.paths.length === 0) {
+                            chartContainer.innerHTML = '<div class="info-box">Simulation failed. Please check your portfolio data.</div>';
+                            return;
+                        }
+                        const chart = createPortfolioGrowthChart(simResult.paths, simResult.timePoints, currentValue, "Current Portfolio", "#3498db");
+                        if (chart.data && chart.data.length > 0) {
+                            // Clear loading indicator before plotting
+                            chartContainer.innerHTML = '';
+                            // Plotly.newPlot replaces the innerHTML, so loading will be gone
+                            Plotly.newPlot('growth-chart', chart.data, chart.layout, {responsive: true, displayModeBar: true})
+                                .catch((error) => {
+                                    console.error('Plotly error:', error);
+                                    chartContainer.innerHTML = `<div class="info-box">Error rendering chart: ${error.message}</div>`;
+                                });
+                        } else {
+                            chartContainer.innerHTML = '<div class="info-box">Error: Invalid chart data generated.</div>';
+                        }
+                    } catch (error) {
+                        console.error('Chart error:', error);
+                        chartContainer.innerHTML = `<div class="info-box">Error creating chart: ${error.message}</div>`;
+                    }
+                }, 50);
+            });
+        }
+
+        function renderScenarios() {
+            const chartContainer = document.getElementById('scenarios-chart');
+            if (!chartContainer) return;
+            
+            // Show loading indicator
+            chartContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>Running simulations...</p></div>';
+            
+            const sigma = parseFloat(document.getElementById('sigma').value);
+            const days = parseInt(document.getElementById('days').value);
+            const nSims = parseInt(document.getElementById('sims').value);
+            const seed = parseInt(document.getElementById('seed').value);
+
+            const currentValue = portfolio.reduce((sum, pos) => sum + pos.value, 0);
+            
+            // Run simulations asynchronously
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    try {
+                        // Base portfolio
+                        const baseSim = simulatePortfolioGrowthOverTime(portfolio, sigma, days, nSims, seed, dcaSchedule);
+                        
+                        // Conservative (lower volatility)
+                        const conservativeSim = simulatePortfolioGrowthOverTime(portfolio, sigma * 0.7, days, nSims, seed, dcaSchedule);
+                        
+                        // Aggressive (higher volatility)
+                        const aggressiveSim = simulatePortfolioGrowthOverTime(portfolio, sigma * 1.3, days, nSims, seed, dcaSchedule);
+
+                        const scenarios = {
+                            "Base Portfolio": { ...baseSim, currentValue, color: "#3498db" },
+                            "Conservative (σ×0.7)": { ...conservativeSim, currentValue, color: "#2ecc71" },
+                            "Aggressive (σ×1.3)": { ...aggressiveSim, currentValue, color: "#e74c3c" }
+                        };
+
+                        const chart = createMultiScenarioChart(scenarios, currentValue);
+                        // Clear loading before plotting
+                        chartContainer.innerHTML = '';
+                        Plotly.newPlot('scenarios-chart', chart.data, chart.layout, {responsive: true})
+                            .catch((error) => {
+                                console.error('Plotly error:', error);
+                                chartContainer.innerHTML = `<div class="info-box">Error rendering chart: ${error.message}</div>`;
+                            });
+                    } catch (error) {
+                        console.error('Scenarios error:', error);
+                        chartContainer.innerHTML = `<div class="info-box">Error creating scenarios: ${error.message}</div>`;
+                    }
+                }, 50);
+            });
+        }
+
+        function renderPortfolio() {
+            // This will be used by other views
+        }
+
+        function renderWatchlist() {
+            const container = document.getElementById('watchlist-content');
+            if (!container) return;
+
+            let html = '<table class="watchlist-table"><thead><tr><th>Ticker</th><th>Name</th><th>Price</th><th>Return %</th><th>Action</th></tr></thead><tbody>';
+            
+            watchlist.forEach(item => {
+                const returnClass = item.today_return_pct >= 0 ? 'positive' : 'negative';
+                html += `
+                    <tr>
+                        <td><strong>${item.ticker}</strong></td>
+                        <td>${item.name || item.ticker}</td>
+                        <td>$${item.current_price.toFixed(2)}</td>
+                        <td class="${returnClass}">${item.today_return_pct >= 0 ? '+' : ''}${item.today_return_pct.toFixed(2)}%</td>
+                        <td><button class="btn-primary" onclick="addToPortfolio('${item.ticker}')">Add to Portfolio</button></td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function renderWhatIf() {
+            const portfolioContainer = document.getElementById('whatif-portfolio');
+            const dcaContainer = document.getElementById('whatif-dca-portfolio');
+            const addContainer = document.getElementById('whatif-add');
+            
+            if (!portfolioContainer || !dcaContainer || !addContainer) return;
+
+            // Separate positions with and without DCA
+            const positionsWithoutDCA = [];
+            const positionsWithDCA = [];
+            
+            whatifPositions.forEach((pos, idx) => {
+                const hasDCA = pos.ticker in whatifDCASchedule;
+                if (hasDCA) {
+                    positionsWithDCA.push({ pos, idx });
+                } else {
+                    positionsWithoutDCA.push({ pos, idx });
+                }
+            });
+
+            // Portfolio display (positions WITHOUT DCA)
+            let portfolioHtml = '<div class="portfolio-scroll"><div class="portfolio-header">';
+            portfolioHtml += '<div><strong>Ticker</strong></div>';
+            portfolioHtml += '<div><strong>Shares</strong></div>';
+            portfolioHtml += '<div><strong>Ret%</strong></div>';
+            portfolioHtml += '<div><strong>Value</strong></div>';
+            portfolioHtml += '<div><strong>DCA</strong></div>';
+            portfolioHtml += '<div><strong>Edit</strong></div>';
+            portfolioHtml += '<div><strong>Del</strong></div>';
+            portfolioHtml += '</div>';
+
+            positionsWithoutDCA.forEach(({ pos, idx }) => {
+                const shares = pos.value / pos.current_price;
+                portfolioHtml += `<div class="portfolio-row" id="whatif-row-${idx}">`;
+                portfolioHtml += `<div>${pos.ticker}</div>`;
+                portfolioHtml += `<div><input type="number" id="shares-${idx}" value="${shares.toFixed(4)}" step="0.0001" onchange="updateWhatIfPosition(${idx})"></div>`;
+                portfolioHtml += `<div><input type="number" id="return-${idx}" value="${pos.return_pct.toFixed(2)}" step="0.1" onchange="updateWhatIfPosition(${idx})"></div>`;
+                portfolioHtml += `<div>$${pos.value.toFixed(2)}</div>`;
+                portfolioHtml += `<div><button class="btn-small btn-add-dca" onclick="showDCAForm(${idx})" title="Enable DCA">💰</button></div>`;
+                portfolioHtml += `<div><button class="btn-small btn-edit" onclick="updateWhatIfPosition(${idx})">✏️</button></div>`;
+                portfolioHtml += `<div><button class="btn-small btn-delete" onclick="removeWhatIfPosition(${idx})">🗑️</button></div>`;
+                portfolioHtml += '</div>';
+            });
+
+            if (positionsWithoutDCA.length === 0) {
+                portfolioHtml += '<div style="padding: 20px; text-align: center; color: #999;">No positions without DCA</div>';
+            }
+
+            portfolioHtml += '</div>';
+            portfolioContainer.innerHTML = portfolioHtml;
+
+            // DCA Portfolio display (positions WITH DCA)
+            let dcaHtml = '<div class="portfolio-scroll" style="border: 2px solid #667eea; background: #f0f4ff;"><div class="portfolio-header" style="background: #667eea; color: white;">';
+            dcaHtml += '<div><strong>Ticker</strong></div>';
+            dcaHtml += '<div><strong>Shares</strong></div>';
+            dcaHtml += '<div><strong>Ret%</strong></div>';
+            dcaHtml += '<div><strong>Value</strong></div>';
+            dcaHtml += '<div><strong>DCA$</strong></div>';
+            dcaHtml += '<div><strong>Freq</strong></div>';
+            dcaHtml += '<div><strong>Remove</strong></div>';
+            dcaHtml += '<div><strong>Edit</strong></div>';
+            dcaHtml += '<div><strong>Del</strong></div>';
+            dcaHtml += '</div>';
+
+            positionsWithDCA.forEach(({ pos, idx }) => {
+                const hasDCA = pos.ticker in whatifDCASchedule;
+                const shares = pos.value / pos.current_price;
+                const dcaConfig = whatifDCASchedule[pos.ticker];
+                
+                dcaHtml += `<div class="portfolio-row" id="whatif-dca-row-${idx}" style="background: #f8f9ff;">`;
+                dcaHtml += `<div><strong>${pos.ticker}</strong> 💰</div>`;
+                dcaHtml += `<div><input type="number" id="dca-shares-${idx}" value="${shares.toFixed(4)}" step="0.0001" onchange="updateWhatIfPosition(${idx})"></div>`;
+                dcaHtml += `<div><input type="number" id="dca-return-${idx}" value="${pos.return_pct.toFixed(2)}" step="0.1" onchange="updateWhatIfPosition(${idx})"></div>`;
+                dcaHtml += `<div>$${pos.value.toFixed(2)}</div>`;
+                dcaHtml += `<div><input type="number" id="dca-amount-${idx}" value="${dcaConfig.amount}" step="10" min="0" onchange="updateDCAConfig('${pos.ticker}', ${idx})"></div>`;
+                
+                // DCA frequency dropdown
+                const freqOptions = [7, 14, 21, 30, 60, 90];
+                const currentFreq = dcaConfig.frequency_days;
+                dcaHtml += `<div><select id="dca-freq-${idx}" onchange="updateDCAConfig('${pos.ticker}', ${idx})">`;
+                freqOptions.forEach(freq => {
+                    dcaHtml += `<option value="${freq}" ${freq === currentFreq ? 'selected' : ''}>${freq}d</option>`;
+                });
+                dcaHtml += '</select></div>';
+                
+                dcaHtml += `<div><button class="btn-small btn-remove-dca" onclick="removeDCA('${pos.ticker}')" title="Disable DCA">❌</button></div>`;
+                dcaHtml += `<div><button class="btn-small btn-edit" onclick="updateWhatIfPosition(${idx})">✏️</button></div>`;
+                dcaHtml += `<div><button class="btn-small btn-delete" onclick="removeWhatIfPosition(${idx})">🗑️</button></div>`;
+                dcaHtml += '</div>';
+            });
+
+            if (positionsWithDCA.length === 0) {
+                dcaHtml += '<div style="padding: 20px; text-align: center; color: #999; font-style: italic;">Enable DCA for positions in the Portfolio section above</div>';
+            }
+
+            dcaHtml += '</div>';
+            dcaContainer.innerHTML = dcaHtml;
+
+            // Add positions section - improved UI with matching height
+            // Left column: Portfolio (max-height 400px) + DCA (max-height 400px) + headers + gap = ~910px total
+            // Right column needs to match this height
+            // Watchlist: show exactly 4 items (4 * 50px = 200px visible) before scrolling
+            // Allocation section: ~180px fixed
+            // Button: ~60px fixed
+            // Watchlist container needs to fill remaining space
+            
+            let addHtml = '<div style="display: flex; flex-direction: column; height: 100%; gap: 15px;">';
+            
+            // Watchlist section - show exactly 4 items before scrolling
+            addHtml += '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; flex: 1; display: flex; flex-direction: column; min-height: 0;">';
+            addHtml += '<label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Select Stocks from Watchlist:</label>';
+            // Each item is approximately 50px tall, so 4 items = 200px visible height
+            addHtml += '<div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 5px; background: white;">';
+            
+            // Group watchlist items with checkboxes
+            watchlist.forEach(item => {
+                const returnClass = item.today_return_pct >= 0 ? 'positive' : 'negative';
+                addHtml += `<div style="display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #f0f0f0; cursor: pointer; min-height: 50px;" onclick="toggleWatchlistItem('${item.ticker}')">`;
+                addHtml += `<input type="checkbox" id="watchlist-check-${item.ticker}" value="${item.ticker}" style="margin-right: 10px; cursor: pointer;">`;
+                addHtml += `<div style="flex: 1;">`;
+                addHtml += `<div style="font-weight: 600; color: #333;">${item.ticker}</div>`;
+                addHtml += `<div style="font-size: 0.85rem; color: #666;">${item.name || item.ticker}</div>`;
+                addHtml += `</div>`;
+                addHtml += `<div style="text-align: right;">`;
+                addHtml += `<div style="font-weight: 600;">$${item.current_price.toFixed(2)}</div>`;
+                addHtml += `<div style="font-size: 0.85rem; color: ${returnClass === 'positive' ? '#2ecc71' : '#e74c3c'};">${item.today_return_pct >= 0 ? '+' : ''}${item.today_return_pct.toFixed(2)}%</div>`;
+                addHtml += `</div>`;
+                addHtml += `</div>`;
+            });
+            addHtml += '</div></div>';
+            
+            // Allocation method and amount
+            addHtml += '<div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0; flex-shrink: 0;">';
+            addHtml += '<label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">Allocation Method:</label>';
+            addHtml += '<select id="allocation-method" style="width:100%;padding:10px;border:2px solid #e0e0e0;border-radius:5px;margin-bottom:15px;font-size:1rem;" onchange="updateAllocationMethod()">';
+            addHtml += '<option value="amount">💰 Dollar Amount ($)</option>';
+            addHtml += '<option value="shares">📊 Number of Shares</option>';
+            addHtml += '</select>';
+            
+            addHtml += '<label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Amount:</label>';
+            addHtml += '<input type="number" id="allocation-value" value="1000" step="100" min="0" style="width:100%;padding:10px;border:2px solid #e0e0e0;border-radius:5px;font-size:1rem;" placeholder="Enter amount">';
+            addHtml += '<div id="allocation-preview" style="margin-top:8px;font-size:0.85rem;color:#666;font-style:italic;"></div>';
+            addHtml += '</div>';
+            
+            // Add button
+            addHtml += '<button class="btn-primary" onclick="addWhatIfPositions()" style="width:100%;padding:12px;font-size:1rem;font-weight:600;flex-shrink: 0;">➕ Add Selected Positions</button>';
+            addHtml += '<div id="add-positions-status" style="margin-top:10px;font-size:0.85rem;flex-shrink: 0;"></div>';
+            addHtml += '</div>'; // Close main flex container
+            
+            addContainer.innerHTML = addHtml;
+            
+            // Match heights after rendering
+            setTimeout(() => {
+                matchColumnHeights();
+            }, 100);
+            
+            // Setup event listeners for allocation preview
+            const allocationValue = document.getElementById('allocation-value');
+            const allocationMethod = document.getElementById('allocation-method');
+            if (allocationValue && allocationMethod) {
+                allocationValue.addEventListener('input', updateAllocationPreview);
+                allocationMethod.addEventListener('change', updateAllocationPreview);
+                updateAllocationPreview();
+            }
+
+            renderWhatIfChart();
+        }
+        
+        function matchColumnHeights() {
+            const leftColumn = document.querySelector('.whatif-left-column');
+            const rightColumn = document.querySelector('.whatif-right-column');
+            const addContainer = document.getElementById('whatif-add');
+            
+            if (leftColumn && rightColumn && addContainer) {
+                const leftHeight = leftColumn.offsetHeight;
+                rightColumn.style.height = leftHeight + 'px';
+                addContainer.style.height = '100%';
+            }
+        }
+
+        function renderWhatIfChart() {
+            const chartContainer = document.getElementById('whatif-chart');
+            if (!chartContainer) return;
+            
+            // Show loading indicator
+            chartContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>Running what-if simulation...</p></div>';
+            
+            const sigma = parseFloat(document.getElementById('sigma').value);
+            const days = parseInt(document.getElementById('days').value);
+            const nSims = parseInt(document.getElementById('sims').value);
+            const seed = parseInt(document.getElementById('seed').value);
+
+            const currentValue = portfolio.reduce((sum, pos) => sum + pos.value, 0);
+            const whatifValue = whatifPositions.reduce((sum, pos) => sum + pos.value, 0);
+
+            // Run simulations asynchronously
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    try {
+                        const baseSim = simulatePortfolioGrowthOverTime(portfolio, sigma, days, nSims, seed, dcaSchedule);
+                        const whatifSim = simulatePortfolioGrowthOverTime(whatifPositions, sigma, days, nSims, seed, whatifDCASchedule);
+
+                        const scenarios = {
+                            "Original Portfolio": { ...baseSim, currentValue, color: "#3498db" },
+                            "What-If Portfolio": { ...whatifSim, currentValue: whatifValue, color: "#e74c3c" }
+                        };
+
+                        const chart = createMultiScenarioChart(scenarios, currentValue);
+                        // Clear loading before plotting
+                        chartContainer.innerHTML = '';
+                        Plotly.newPlot('whatif-chart', chart.data, chart.layout, {responsive: true})
+                            .catch((error) => {
+                                console.error('Plotly error:', error);
+                                chartContainer.innerHTML = `<div class="info-box">Error rendering chart: ${error.message}</div>`;
+                            });
+                    } catch (error) {
+                        console.error('What-if error:', error);
+                        chartContainer.innerHTML = `<div class="info-box">Error creating what-if chart: ${error.message}</div>`;
+                    }
+                }, 50);
+            });
+        }
+
+        function renderPositions() {
+            const container = document.getElementById('positions-content');
+            if (!container) return;
+
+            let html = '<table class="portfolio-table"><thead><tr><th>Ticker</th><th>Shares</th><th>Price</th><th>Value</th><th>Return %</th><th>Predicted Price</th><th>Predicted Return %</th></tr></thead><tbody>';
+            
+            const sigma = parseFloat(document.getElementById('sigma').value);
+            const days = parseInt(document.getElementById('days').value);
+            const nSims = parseInt(document.getElementById('sims').value);
+            const seed = parseInt(document.getElementById('seed').value);
+
+            portfolio.forEach((pos, idx) => {
+                const shares = pos.value / pos.current_price;
+                const mu = pos.return_pct / 100.0;
+                const posSeed = seed !== null ? seed + idx * 1000 : null;
+                const prices = simulateGBMPrice(pos.current_price, mu, sigma, days, nSims, posSeed);
+                const expectedPrice = prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : pos.current_price;
+                const expectedReturn = ((expectedPrice / pos.current_price) - 1) * 100;
+
+                html += `
+                    <tr>
+                        <td><strong>${pos.ticker}</strong></td>
+                        <td>${shares.toFixed(4)}</td>
+                        <td>$${pos.current_price.toFixed(2)}</td>
+                        <td>$${pos.value.toFixed(2)}</td>
+                        <td class="${pos.return_pct >= 0 ? 'positive' : 'negative'}">${pos.return_pct >= 0 ? '+' : ''}${pos.return_pct.toFixed(2)}%</td>
+                        <td>$${expectedPrice.toFixed(2)}</td>
+                        <td class="${expectedReturn >= 0 ? 'positive' : 'negative'}">${expectedReturn >= 0 ? '+' : ''}${expectedReturn.toFixed(2)}%</td>
+                        <td>
+                            <button class="btn-small btn-edit" onclick="editPosition(${idx})">✏️</button>
+                            <button class="btn-small btn-delete" onclick="deletePosition(${idx})">🗑️</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function addPosition() {
+            const ticker = document.getElementById('new-ticker').value.toUpperCase();
+            const value = parseFloat(document.getElementById('new-value').value);
+            const returnPct = parseFloat(document.getElementById('new-return').value);
+            const price = parseFloat(document.getElementById('new-price').value);
+
+            if (ticker && value > 0 && price > 0) {
+                portfolio.push({
+                    ticker,
+                    value,
+                    return_pct: returnPct,
+                    current_price: price
+                });
+                
+                // Clear form
+                document.getElementById('new-ticker').value = '';
+                document.getElementById('new-value').value = 1000;
+                document.getElementById('new-return').value = 10;
+                document.getElementById('new-price').value = 100;
+                
+                renderPositions();
+                updateAllCharts();
+            }
+        }
+
+        function editPosition(idx) {
+            const pos = portfolio[idx];
+            const newValue = prompt(`Edit value for ${pos.ticker}:`, pos.value);
+            const newReturn = prompt(`Edit return % for ${pos.ticker}:`, pos.return_pct);
+            const newPrice = prompt(`Edit price for ${pos.ticker}:`, pos.current_price);
+
+            if (newValue !== null && newReturn !== null && newPrice !== null) {
+                portfolio[idx].value = parseFloat(newValue);
+                portfolio[idx].return_pct = parseFloat(newReturn);
+                portfolio[idx].current_price = parseFloat(newPrice);
+                renderPositions();
+                updateAllCharts();
+            }
+        }
+
+        function deletePosition(idx) {
+            if (confirm(`Delete ${portfolio[idx].ticker} from portfolio?`)) {
+                portfolio.splice(idx, 1);
+                renderPositions();
+                updateAllCharts();
+            }
+        }
+
+        // ==================== WHAT-IF FUNCTIONS ====================
+        function updateWhatIfPosition(idx) {
+            const pos = whatifPositions[idx];
+            // Check if this is a DCA position (has different input IDs)
+            const sharesInput = document.getElementById(`dca-shares-${idx}`);
+            const returnInput = document.getElementById(`dca-return-${idx}`);
+            
+            let shares, returnPct;
+            if (sharesInput && returnInput) {
+                // DCA position
+                shares = parseFloat(sharesInput.value);
+                returnPct = parseFloat(returnInput.value);
+            } else {
+                // Regular position
+                shares = parseFloat(document.getElementById(`shares-${idx}`).value);
+                returnPct = parseFloat(document.getElementById(`return-${idx}`).value);
+            }
+            
+            pos.value = shares * pos.current_price;
+            pos.return_pct = returnPct;
+            
+            renderWhatIf();
+            renderWhatIfChart();
+        }
+
+        function removeWhatIfPosition(idx) {
+            const ticker = whatifPositions[idx].ticker;
+            whatifPositions.splice(idx, 1);
+            if (ticker in whatifDCASchedule) {
+                delete whatifDCASchedule[ticker];
+            }
+            renderWhatIf();
+        }
+
+        function showDCAForm(idx) {
+            const pos = whatifPositions[idx];
+            const existingDCA = whatifDCASchedule[pos.ticker];
+            
+            // Create modal overlay
+            const modal = document.createElement('div');
+            modal.id = 'dca-modal';
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+            
+            modal.innerHTML = `
+                <div style="background: white; padding: 25px; border-radius: 10px; max-width: 400px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                    <h3 style="margin-top: 0; color: #333;">Enable DCA for ${pos.ticker}</h3>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #555;">DCA Amount ($):</label>
+                        <input type="number" id="dca-modal-amount" value="${existingDCA ? existingDCA.amount : '100'}" step="10" min="0" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px; font-size: 1rem;">
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #555;">Frequency (days):</label>
+                        <select id="dca-modal-freq" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px; font-size: 1rem;">
+                            <option value="7" ${existingDCA && existingDCA.frequency_days === 7 ? 'selected' : ''}>7 days</option>
+                            <option value="14" ${existingDCA && existingDCA.frequency_days === 14 ? 'selected' : ''}>14 days</option>
+                            <option value="21" ${existingDCA && existingDCA.frequency_days === 21 ? 'selected' : ''}>21 days</option>
+                            <option value="30" ${!existingDCA || existingDCA.frequency_days === 30 ? 'selected' : ''}>30 days</option>
+                            <option value="60" ${existingDCA && existingDCA.frequency_days === 60 ? 'selected' : ''}>60 days</option>
+                            <option value="90" ${existingDCA && existingDCA.frequency_days === 90 ? 'selected' : ''}>90 days</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button onclick="closeDCAForm()" style="padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 5px; cursor: pointer; font-size: 1rem;">Cancel</button>
+                        <button onclick="confirmDCA(${idx})" style="padding: 10px 20px; border: none; background: #667eea; color: white; border-radius: 5px; cursor: pointer; font-size: 1rem; font-weight: 600;">Enable DCA</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Close on background click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeDCAForm();
+                }
+            });
+            
+            // Focus on amount input
+            setTimeout(() => {
+                document.getElementById('dca-modal-amount').focus();
+            }, 100);
+        }
+
+        function closeDCAForm() {
+            const modal = document.getElementById('dca-modal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        function confirmDCA(idx) {
+            const pos = whatifPositions[idx];
+            const amount = parseFloat(document.getElementById('dca-modal-amount').value);
+            const freq = parseInt(document.getElementById('dca-modal-freq').value);
+            
+            if (amount > 0 && [7, 14, 21, 30, 60, 90].includes(freq)) {
+                whatifDCASchedule[pos.ticker] = { amount, frequency_days: freq };
+                closeDCAForm();
+                renderWhatIf();
+                renderWhatIfChart();
+            } else {
+                alert('Please enter a valid amount (greater than 0) and select a valid frequency.');
+            }
+        }
+
+        function addDCA(idx) {
+            // Legacy function - redirects to new form
+            showDCAForm(idx);
+        }
+
+        function removeDCA(ticker) {
+            if (confirm(`Disable DCA for ${ticker}?`)) {
+                delete whatifDCASchedule[ticker];
+                renderWhatIf();
+                renderWhatIfChart();
+            }
+        }
+
+        function updateDCAConfig(ticker, idx) {
+            const amount = parseFloat(document.getElementById(`dca-amount-${idx}`).value);
+            const freq = parseInt(document.getElementById(`dca-freq-${idx}`).value);
+            
+            if (amount > 0 && [7, 14, 21, 30, 60, 90].includes(freq)) {
+                whatifDCASchedule[ticker] = { amount, frequency_days: freq };
+                renderWhatIfChart();
+            }
+        }
+
+        function toggleWatchlistItem(ticker) {
+            const checkbox = document.getElementById(`watchlist-check-${ticker}`);
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+            }
+        }
+
+        function updateAllocationMethod() {
+            const method = document.getElementById('allocation-method').value;
+            const valueInput = document.getElementById('allocation-value');
+            if (valueInput) {
+                if (method === 'shares') {
+                    valueInput.step = '0.01';
+                    valueInput.placeholder = 'Enter number of shares';
+                    valueInput.value = valueInput.value || '1';
+                } else {
+                    valueInput.step = '100';
+                    valueInput.placeholder = 'Enter dollar amount';
+                    valueInput.value = valueInput.value || '1000';
+                }
+                updateAllocationPreview();
+            }
+        }
+
+        function updateAllocationPreview() {
+            const method = document.getElementById('allocation-method')?.value;
+            const value = parseFloat(document.getElementById('allocation-value')?.value || 0);
+            const preview = document.getElementById('allocation-preview');
+            
+            if (!preview || !method || value <= 0) {
+                if (preview) preview.textContent = '';
+                return;
+            }
+            
+            const checkedBoxes = document.querySelectorAll('input[id^="watchlist-check-"]:checked');
+            if (checkedBoxes.length === 0) {
+                preview.textContent = 'Select at least one stock from the watchlist';
+                preview.style.color = '#e74c3c';
+                return;
+            }
+            
+            let previewText = '';
+            if (method === 'amount') {
+                previewText = `Each selected stock will receive $${value.toLocaleString()}`;
+            } else {
+                previewText = `Each selected stock will receive ${value} share${value !== 1 ? 's' : ''}`;
+                // Show estimated cost
+                const totalCost = Array.from(checkedBoxes).reduce((sum, cb) => {
+                    const item = watchlist.find(w => w.ticker === cb.value);
+                    return sum + (item ? item.current_price * value : 0);
+                }, 0);
+                previewText += ` (Est. cost: $${totalCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})})`;
+            }
+            
+            preview.textContent = previewText;
+            preview.style.color = '#667eea';
+        }
+
+        function addWhatIfPositions() {
+            const checkedBoxes = document.querySelectorAll('input[id^="watchlist-check-"]:checked');
+            const selectedTickers = Array.from(checkedBoxes).map(cb => cb.value);
+            const method = document.getElementById('allocation-method').value;
+            const value = parseFloat(document.getElementById('allocation-value').value);
+            const statusDiv = document.getElementById('add-positions-status');
+
+            if (selectedTickers.length === 0) {
+                if (statusDiv) {
+                    statusDiv.textContent = '⚠️ Please select at least one stock from the watchlist';
+                    statusDiv.style.color = '#e74c3c';
+                }
+                return;
+            }
+
+            if (value <= 0 || isNaN(value)) {
+                if (statusDiv) {
+                    statusDiv.textContent = '⚠️ Please enter a valid amount';
+                    statusDiv.style.color = '#e74c3c';
+                }
+                return;
+            }
+
+            let addedCount = 0;
+            selectedTickers.forEach(ticker => {
+                const item = watchlist.find(w => w.ticker === ticker);
+                if (item) {
+                    // Check if already in what-if portfolio
+                    const exists = whatifPositions.find(p => p.ticker === ticker);
+                    if (exists) {
+                        // Update existing position
+                        exists.value = method === 'amount' ? value : exists.value + (value * item.current_price);
+                        exists.current_price = item.current_price;
+                        exists.return_pct = item.today_return_pct || exists.return_pct;
+                    } else {
+                        // Add new position
+                        const newPos = {
+                            ticker: item.ticker,
+                            current_price: item.current_price,
+                            return_pct: item.today_return_pct || 0,
+                            value: method === 'amount' ? value : value * item.current_price
+                        };
+                        whatifPositions.push(newPos);
+                    }
+                    addedCount++;
+                }
+            });
+
+            // Clear selections and reset form
+            checkedBoxes.forEach(cb => cb.checked = false);
+            document.getElementById('allocation-value').value = method === 'amount' ? '1000' : '1';
+            if (statusDiv) {
+                statusDiv.textContent = `✅ Successfully added ${addedCount} position${addedCount !== 1 ? 's' : ''} to what-if portfolio`;
+                statusDiv.style.color = '#2ecc71';
+                setTimeout(() => {
+                    statusDiv.textContent = '';
+                }, 3000);
+            }
+
+            renderWhatIf();
+        }
+
+        function addToPortfolio(ticker) {
+            const item = watchlist.find(w => w.ticker === ticker);
+            if (item) {
+                const newPos = {
+                    ticker: item.ticker,
+                    current_price: item.current_price,
+                    return_pct: item.today_return_pct || 0,
+                    value: 1000 // Default allocation
+                };
+                portfolio.push(newPos);
+                saveDataToLocalStorage();
+                updatePortfolioSummary();
+                renderPortfolio();
+                updateAllCharts();
+            }
+        }
+
+        function editPosition(idx) {
+            const pos = portfolio[idx];
+            const newValue = prompt(`Edit value for ${pos.ticker}:`, pos.value);
+            const newReturn = prompt(`Edit return % for ${pos.ticker}:`, pos.return_pct);
+            const newPrice = prompt(`Edit price for ${pos.ticker}:`, pos.current_price);
+
+            if (newValue !== null && newReturn !== null && newPrice !== null) {
+                portfolio[idx].value = parseFloat(newValue);
+                portfolio[idx].return_pct = parseFloat(newReturn);
+                portfolio[idx].current_price = parseFloat(newPrice);
+                saveDataToLocalStorage();
+                updatePortfolioSummary();
+                renderPositions();
+                updateAllCharts();
+            }
+        }
+
+        function deletePosition(idx) {
+            if (confirm(`Delete ${portfolio[idx].ticker} from portfolio?`)) {
+                portfolio.splice(idx, 1);
+                saveDataToLocalStorage();
+                updatePortfolioSummary();
+                renderPositions();
+                updateAllCharts();
+            }
+        }
+
+        function updateAllCharts() {
+            updateGrowthView();
+            if (document.getElementById('scenarios-tab').classList.contains('active')) {
+                renderScenarios();
+            }
+            if (document.getElementById('whatif-tab').classList.contains('active')) {
+                renderWhatIfChart();
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
+
