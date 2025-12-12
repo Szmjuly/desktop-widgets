@@ -148,10 +148,11 @@ def show_menu():
     print("5. Check Firebase Import")
     print("6. Show Licensing Status (Dev)")
     print("7. Toggle Licensing Build (Remove/Include)")
-    print("8. Exit")
+    print("8. Build Application (PyInstaller)")
+    print("9. Exit")
     print("\n" + "="*60)
     
-    choice = input("\nEnter your choice (1-8): ").strip()
+    choice = input("\nEnter your choice (1-9): ").strip()
     return choice
 
 
@@ -191,6 +192,10 @@ def main():
             print("  • Include: python admin/toggle_licensing_build.py include")
         
         elif choice == '8':
+            print("\n📦 Building application executable...")
+            subprocess.run([sys.executable, "run_app.py", "--build"])
+        
+        elif choice == '9':
             print("\n👋 Goodbye!")
             break
         

@@ -10,11 +10,12 @@ from PySide6.QtWidgets import (
     QApplication, QWidget, QGridLayout, QLabel, QLineEdit, QPushButton, QFileDialog,
     QCheckBox, QDateEdit, QTextEdit, QHBoxLayout, QVBoxLayout, QProgressBar,
     QListWidget, QListWidgetItem, QMessageBox, QGroupBox, QDialog, QDialogButtonBox,
-    QFormLayout, QFrame, QScrollArea, QSizePolicy
+    QFormLayout, QFrame, QScrollArea, QSizePolicy, QSpinBox
 )
 from PySide6.QtGui import QFont, QColor, QPalette
 
 from docx import Document
+from docx.shared import Pt
 import psutil
 
 # Local imports - Conditional licensing
@@ -243,6 +244,8 @@ DATE_RX = re.compile(
 # Match things like "50% Construction Documents", "90%   Construction    Documents", any percent 0-100, any case
 PHASE_RX = re.compile(r"\b(\d{1,3})%\s*Construction\s+Documents\b", re.IGNORECASE)
 DEFAULT_PHASE_TEXT = "100% Construction Documents"
+DEFAULT_FONT_NAME = "Arial"  # Standard font for normalization
+DEFAULT_FONT_SIZE = 10  # Default font size in points
 
 def format_target_date(date_str: str) -> str:
     cleaned = date_str.replace(",", " ").strip()
@@ -275,7 +278,7 @@ def replace_in_paragraph(paragraph, repl_fn):
         return True
     return False
 
-def replace_in_headerlike(part, target_date, target_phase):
+def replace_in_headerlike(part, target_date, target_phase=None):
     """
     Replace (1) date strings like 'November 10, 2025' and
             (2) phase strings like '50% Construction Documents' -> target_phase
@@ -290,7 +293,6 @@ def replace_in_headerlike(part, target_date, target_phase):
         return new_text != text, new_text
     
     def repl_fn_phase(text):
-        # Normalize any "...% Construction Documents" to target_phase
         new_text = PHASE_RX.sub(target_phase, text)
         return new_text != text, new_text
 
@@ -302,7 +304,7 @@ def replace_in_headerlike(part, target_date, target_phase):
                 for run in p.runs if hasattr(p, 'runs') else []:
                     run.text = DATE_RX.sub(target_date, run.text)
                 date_changed = True
-        if PHASE_RX.search(txt):
+        if target_phase is not None and PHASE_RX.search(txt):
             phase_upd, new_text_phase = repl_fn_phase(txt)
             if phase_upd:
                 for run in p.runs if hasattr(p, 'runs') else []:
@@ -311,14 +313,113 @@ def replace_in_headerlike(part, target_date, target_phase):
     
     return (date_changed, phase_changed)
 
-def update_docx_dates(path: Path, target_date: str, target_phase: str) -> Dict[str, bool]:
+def normalize_whitespace_in_header_footer(container) -> bool:
+    """
+    Trim only TRAILING whitespace from the LAST run in each paragraph.
+    This prevents line wrapping when font size increases, while preserving
+    intentional spacing between elements (like title and page numbers).
+    Returns True if any changes were made.
+    """
+    changed = False
+    
+    for p in getattr(container, 'paragraphs', []):
+        # Only trim trailing whitespace from the LAST run with content
+        # Work backwards through runs
+        for i in range(len(p.runs) - 1, -1, -1):
+            run = p.runs[i]
+            if run.text:
+                if run.text.strip() == '':
+                    # This run is all whitespace at the end - clear it
+                    run.text = ''
+                    changed = True
+                elif run.text.endswith(' ') or run.text.endswith('\t'):
+                    # Has trailing whitespace - trim it
+                    run.text = run.text.rstrip()
+                    changed = True
+                    break  # Stop after trimming the last content run
+                else:
+                    break  # Last run has no trailing whitespace, we're done
+    
+    # Handle tables in header/footer
+    for tbl in getattr(container, 'tables', []):
+        for row in tbl.rows:
+            for cell in row.cells:
+                if normalize_whitespace_in_header_footer(cell):
+                    changed = True
+    
+    return changed
+
+
+def normalize_fonts_in_document(doc, target_font: str, target_size: int = None, 
+                                 trim_header_footer_whitespace: bool = True) -> bool:
+    """
+    Normalize all fonts in a document to the target font.
+    Optionally also sets all fonts to target_size (in points).
+    When changing font size, also trims excess whitespace from headers/footers to prevent wrapping.
+    Returns True if any changes were made.
+    """
+    changed = False
+    target_size_pt = Pt(target_size) if target_size else None
+    
+    def normalize_runs(container, is_header_footer=False):
+        """Normalize fonts in runs within a container (paragraph, table, etc.)"""
+        nonlocal changed
+        for p in getattr(container, 'paragraphs', []):
+            for run in p.runs:
+                # Skip empty runs
+                if not run.text:
+                    continue
+                # Check font name - None means inherited from style, so we should set it explicitly
+                current_font = run.font.name
+                if current_font is None or current_font != target_font:
+                    run.font.name = target_font
+                    changed = True
+                # Check font size if target specified
+                if target_size_pt:
+                    current_size = run.font.size
+                    if current_size is None or current_size != target_size_pt:
+                        run.font.size = target_size_pt
+                        changed = True
+        for tbl in getattr(container, 'tables', []):
+            for row in tbl.rows:
+                for cell in row.cells:
+                    normalize_runs(cell, is_header_footer)
+    
+    # Normalize body content
+    normalize_runs(doc)
+    
+    # Normalize headers and footers
+    for section in doc.sections:
+        for hdr in (section.header, section.first_page_header, section.even_page_header):
+            if hdr:
+                normalize_runs(hdr, is_header_footer=True)
+                # Trim whitespace in headers when changing font size
+                if target_size_pt and trim_header_footer_whitespace:
+                    if normalize_whitespace_in_header_footer(hdr):
+                        changed = True
+        for ftr in (section.footer, section.first_page_footer, section.even_page_footer):
+            if ftr:
+                normalize_runs(ftr, is_header_footer=True)
+                # Trim whitespace in footers when changing font size
+                if target_size_pt and trim_header_footer_whitespace:
+                    if normalize_whitespace_in_header_footer(ftr):
+                        changed = True
+    
+    return changed
+
+
+def update_docx_dates(path: Path, target_date: str, target_phase=None, 
+                      normalize_fonts: bool = False, target_font: str = DEFAULT_FONT_NAME,
+                      target_font_size: int = None) -> Dict[str, bool]:
     """
     Update dates and phase text in document.
-    Returns dict with 'changed', 'date_changed', 'phase_changed'
+    Optionally normalize all fonts to target_font and/or target_font_size.
+    Returns dict with 'changed', 'date_changed', 'phase_changed', 'fonts_changed'
     """
     doc = Document(str(path))
     date_changed = False
     phase_changed = False
+    fonts_changed = False
     changed = False
     
     for section in doc.sections:
@@ -335,13 +436,20 @@ def update_docx_dates(path: Path, target_date: str, target_phase: str) -> Dict[s
                 if phase_upd: phase_changed = True
                 if date_upd or phase_upd: changed = True
     
+    # Font normalization (if enabled)
+    if normalize_fonts:
+        fonts_changed = normalize_fonts_in_document(doc, target_font, target_font_size)
+        if fonts_changed:
+            changed = True
+    
     if changed:
         doc.save(str(path))
     
     return {
         'changed': changed,
         'date_changed': date_changed,
-        'phase_changed': phase_changed
+        'phase_changed': phase_changed,
+        'fonts_changed': fonts_changed
     }
 
 def ensure_word():
@@ -373,6 +481,15 @@ def export_pdf(word, docx_path: Path, pdf_path: Path):
     finally:
         doc.Close(False)
         gc.collect()
+
+def export_pdf_fast(word, docx_path: Path, pdf_path: Path):
+    """Fast PDF export without gc.collect() - use for batch operations"""
+    pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    doc = word.Documents.Open(str(docx_path), ReadOnly=True)
+    try:
+        doc.SaveAs2(str(pdf_path), FileFormat=17)  # 17 = wdFormatPDF
+    finally:
+        doc.Close(False)
 
 def safe_close_word(word):
     try:
@@ -406,10 +523,13 @@ class UpdateWorker(QThread):
     needsWord = Signal(str)         # error if Word/pywin32 missing
     enableUI = Signal(bool)
 
-    def __init__(self, root: str, date_str: str, phase_text: str, recursive: bool, dry_run: bool,
+    def __init__(self, root: str, date_str: str, phase_text: str|None, recursive: bool, dry_run: bool,
                  backup_dir: str|None, include_doc: bool, replace_doc_inplace: bool,
                  reprint_pdf: bool, exclude_folders: list[str], subscription_mgr=None,
-                 default_backup_dir: str|None = None):
+                 default_backup_dir: str|None = None,
+                 normalize_fonts: bool = False, target_font: str = DEFAULT_FONT_NAME,
+                 target_font_size: int = None, skip_toc: bool = True,
+                 reprint_only: bool = False):
         super().__init__()
         self.root = Path(root)
         self.date_str = date_str
@@ -421,8 +541,13 @@ class UpdateWorker(QThread):
         self.include_doc = include_doc
         self.replace_doc_inplace = replace_doc_inplace
         self.reprint_pdf = reprint_pdf
+        self.reprint_only = reprint_only
         self.exclude_folders = [x.lower() for x in exclude_folders]
         self.subscription_mgr = subscription_mgr
+        self.normalize_fonts = normalize_fonts
+        self.target_font = target_font
+        self.target_font_size = target_font_size
+        self.skip_toc = skip_toc
         self._cancel = False
         self.start_time = None
         
@@ -432,6 +557,7 @@ class UpdateWorker(QThread):
             'documents_updated': 0,
             'documents_with_date_changes': 0,
             'documents_with_phase_changes': 0,
+            'documents_with_font_changes': 0,
             'documents_with_both': 0,
             'pdfs_created': 0,
             'errors': 0,
@@ -475,6 +601,9 @@ class UpdateWorker(QThread):
                 # skip excluded folders anywhere in path
                 if any(part.lower() in self.exclude_folders for part in f.parts):
                     continue
+                # skip Table of Contents files if option enabled
+                if self.skip_toc and "table of contents" in f.stem.lower():
+                    continue
                 files.append(f)
         files.sort()
 
@@ -484,9 +613,14 @@ class UpdateWorker(QThread):
             return
 
         self.log.emit(f"Target date: {target_date}")
+        if self.reprint_only:
+            self.log.emit("Mode: REPRINT PDFs ONLY (no document changes)")
+        elif self.normalize_fonts:
+            size_info = f", size: {self.target_font_size}pt" if self.target_font_size else ""
+            self.log.emit(f"Font normalization: ON (font: {self.target_font}{size_info})")
         self.log.emit(f"Scanning {len(files)} file(s)…")
 
-        need_word = self.include_doc or self.reprint_pdf
+        need_word = self.include_doc or self.reprint_pdf or self.reprint_only
         word = None
         if need_word:
             try:
@@ -508,6 +642,72 @@ class UpdateWorker(QThread):
         
         updated_ct = 0
         errors = 0
+
+        # FAST PATH: Reprint-only mode - batch delete then batch export
+        if self.reprint_only:
+            self.log.emit("Phase 1: Deleting existing PDFs...")
+            deleted_count = 0
+            docx_files = []
+            
+            # Batch delete all PDFs first (very fast)
+            for f in files:
+                if self._cancel:
+                    break
+                if f.suffix.lower() == ".docx":
+                    pdf_path = f.with_suffix(".pdf")
+                    if pdf_path.exists():
+                        try:
+                            pdf_path.unlink()
+                            deleted_count += 1
+                        except Exception:
+                            try:
+                                pdf_path.rename(pdf_path.with_suffix(".pdf.bak"))
+                                deleted_count += 1
+                            except Exception:
+                                pass
+                    docx_files.append(f)
+            
+            self.log.emit(f"Deleted {deleted_count} existing PDFs")
+            
+            if self._cancel:
+                self.log.emit("[CANCELLED] Stopping at user request.")
+                self.enableUI.emit(True)
+                return
+            
+            self.log.emit(f"Phase 2: Exporting {len(docx_files)} PDFs...")
+            
+            # Batch export all PDFs (optimized)
+            for idx, f in enumerate(docx_files, start=1):
+                if self._cancel:
+                    self.log.emit("[CANCELLED] Stopping at user request.")
+                    break
+                try:
+                    pdf_path = f.with_suffix(".pdf")
+                    export_pdf_fast(word, f, pdf_path)
+                    self.stats['pdfs_created'] += 1
+                    self.log.emit(f"[{idx}/{len(docx_files)}] {f.name}")
+                    self.progress.emit(idx, len(docx_files))
+                    
+                    # Periodic garbage collection every 10 files
+                    if idx % 10 == 0:
+                        gc.collect()
+                except Exception as e:
+                    errors += 1
+                    self.log.emit(f"[ERROR] {f.name}: {e}")
+            
+            # Final cleanup
+            gc.collect()
+            
+            import time
+            duration = time.time() - self.start_time
+            self.stats['duration_seconds'] = duration
+            self.stats['files_scanned'] = len(files)
+            self.stats['errors'] = errors
+            
+            self.log.emit(f"\nCompleted in {duration:.1f}s - {self.stats['pdfs_created']} PDFs created")
+            self.finished.emit(self.stats['pdfs_created'], errors, self.stats)
+            self.enableUI.emit(True)
+            return
 
         for idx, f in enumerate(files, start=1):
             if self._cancel:
@@ -567,7 +767,10 @@ class UpdateWorker(QThread):
                     original_doc = f
                     convert_doc_to_docx(word, f, work_docx)
 
-                result = update_docx_dates(work_docx, target_date, self.phase_text)
+                result = update_docx_dates(work_docx, target_date, self.phase_text,
+                                               normalize_fonts=self.normalize_fonts, 
+                                               target_font=self.target_font,
+                                               target_font_size=self.target_font_size)
                 if result['changed']:
                     updated_ct += 1
                     self.stats['documents_updated'] += 1
@@ -577,10 +780,18 @@ class UpdateWorker(QThread):
                         self.stats['documents_with_date_changes'] += 1
                     if result['phase_changed']:
                         self.stats['documents_with_phase_changes'] += 1
+                    if result.get('fonts_changed'):
+                        self.stats['documents_with_font_changes'] += 1
                     if result['date_changed'] and result['phase_changed']:
                         self.stats['documents_with_both'] += 1
                     
-                    self.log.emit(f"[UPDATED] {f}")
+                    # Build update message with details
+                    changes = []
+                    if result['date_changed']: changes.append('date')
+                    if result['phase_changed']: changes.append('phase')
+                    if result.get('fonts_changed'): changes.append('fonts')
+                    change_str = ', '.join(changes) if changes else 'content'
+                    self.log.emit(f"[UPDATED: {change_str}] {f}")
 
                     if original_doc and self.replace_doc_inplace:
                         try:
@@ -602,7 +813,11 @@ class UpdateWorker(QThread):
                         self.stats['pdfs_created'] += 1
                         self.log.emit(f"  -> [PDF REPRINTED] {pdf_path}")
                 else:
-                    self.log.emit(f"[NO DATE FOUND] {f}")
+                    # Only log "no changes" if we weren't just doing font normalization
+                    if not self.normalize_fonts:
+                        self.log.emit(f"[NO CHANGES] {f}")
+                    else:
+                        self.log.emit(f"[NO CHANGES] {f}")
 
             except Exception as e:
                 errors += 1
@@ -1045,9 +1260,56 @@ class MainWindow(QWidget):
         self.chkIncludeDoc = QCheckBox("Include legacy .doc (requires Word)")
         self.chkReplaceDoc = QCheckBox("Replace .doc with updated .docx (delete original)")
         self.chkReprintPDF = QCheckBox("Reprint same-name PDFs (requires Word)")
+        
+        self.chkReprintOnly = QCheckBox("Reprint PDFs only (no doc changes)")
+        self.chkReprintOnly.setChecked(False)
+        self.chkReprintOnly.setToolTip("Only regenerate PDFs from Word documents, no edits applied")
 
         self.chkDryRun = QCheckBox("Dry-run (no edits)")
         self.chkDryRun.setChecked(False)
+        
+        self.chkSkipTOC = QCheckBox("Skip 'Table of Contents'")
+        self.chkSkipTOC.setChecked(True)
+        self.chkSkipTOC.setToolTip("Skip files with 'Table of Contents' in the filename")
+        
+        # Font normalization
+        self.chkNormalizeFonts = QCheckBox("Normalize fonts")
+        self.chkNormalizeFonts.setChecked(False)
+        self.chkNormalizeFonts.setToolTip("Standardize all fonts to a single font")
+        
+        self.txtTargetFont = QLineEdit()
+        self.txtTargetFont.setText(DEFAULT_FONT_NAME)
+        self.txtTargetFont.setPlaceholderText("e.g., Arial, Times New Roman")
+        self.txtTargetFont.setStyleSheet(self._input_style())
+        self.txtTargetFont.setMinimumHeight(28)
+        self.txtTargetFont.setMaximumWidth(120)
+        self.txtTargetFont.setEnabled(False)  # Disabled until checkbox is checked
+        
+        # Font size normalization
+        self.chkNormalizeFontSize = QCheckBox("Set uniform size")
+        self.chkNormalizeFontSize.setChecked(False)
+        self.chkNormalizeFontSize.setToolTip("Also set all text to the same font size")
+        self.chkNormalizeFontSize.setEnabled(False)
+        
+        self.spnFontSize = QSpinBox()
+        self.spnFontSize.setRange(6, 72)
+        self.spnFontSize.setValue(DEFAULT_FONT_SIZE)
+        self.spnFontSize.setSuffix(" pt")
+        self.spnFontSize.setMinimumHeight(28)
+        self.spnFontSize.setMaximumWidth(70)
+        self.spnFontSize.setEnabled(False)
+        self.spnFontSize.setStyleSheet(self._input_style())
+        
+        # Connect font normalization checkbox to enable/disable related controls
+        def on_normalize_fonts_toggled(checked):
+            self.txtTargetFont.setEnabled(checked)
+            self.chkNormalizeFontSize.setEnabled(checked)
+            if not checked:
+                self.chkNormalizeFontSize.setChecked(False)
+                self.spnFontSize.setEnabled(False)
+        
+        self.chkNormalizeFonts.toggled.connect(on_normalize_fonts_toggled)
+        self.chkNormalizeFontSize.toggled.connect(self.spnFontSize.setEnabled)
 
         # Backup
         self.txtBackup = QLineEdit()
@@ -1194,10 +1456,30 @@ class MainWindow(QWidget):
         options_card = ModernCard("🔧 Options")
         options_grid = QGridLayout()
         options_grid.setSpacing(3)
-        options_grid.setVerticalSpacing(0)
-        for i, chk in enumerate([self.chkIncludeDoc, self.chkReplaceDoc, self.chkReprintPDF, self.chkDryRun]):
+        options_grid.setVerticalSpacing(4)
+        for i, chk in enumerate([self.chkIncludeDoc, self.chkReplaceDoc, self.chkReprintPDF, self.chkReprintOnly, self.chkSkipTOC]):
             chk.setStyleSheet(self._checkbox_style())
             options_grid.addWidget(chk, 0, i)
+        
+        # Second row: dry run and font normalization
+        self.chkDryRun.setStyleSheet(self._checkbox_style())
+        self.chkNormalizeFonts.setStyleSheet(self._checkbox_style())
+        self.chkNormalizeFontSize.setStyleSheet(self._checkbox_style())
+        options_grid.addWidget(self.chkDryRun, 1, 0)
+        options_grid.addWidget(self.chkNormalizeFonts, 1, 1)
+        
+        font_row = QHBoxLayout()
+        font_row.setSpacing(6)
+        font_label = QLabel("Font:")
+        font_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-size: 10px;")
+        font_row.addWidget(font_label)
+        font_row.addWidget(self.txtTargetFont)
+        font_row.addSpacing(10)
+        font_row.addWidget(self.chkNormalizeFontSize)
+        font_row.addWidget(self.spnFontSize)
+        font_row.addStretch()
+        options_grid.addLayout(font_row, 1, 2, 1, 3)
+        
         options_card.content_layout.addLayout(options_grid)
         main_layout.addWidget(options_card)
         
@@ -1611,7 +1893,8 @@ class MainWindow(QWidget):
 
     def appendLog(self, msg: str):
         self.log.append(msg)
-        self.log.moveCursor(self.log.textCursor().End)
+        from PySide6.QtGui import QTextCursor
+        self.log.moveCursor(QTextCursor.MoveOperation.End)
 
     @Slot()
     def startRun(self):
@@ -1646,6 +1929,13 @@ class MainWindow(QWidget):
         # Get default backup directory for comparison
         default_backup_dir = self.txtBackup.text().strip() if hasattr(self, 'txtBackup') else None
         
+        # Font normalization options
+        normalize_fonts = self.chkNormalizeFonts.isChecked()
+        target_font = self.txtTargetFont.text().strip() or DEFAULT_FONT_NAME
+        target_font_size = self.spnFontSize.value() if self.chkNormalizeFontSize.isChecked() else None
+        skip_toc = self.chkSkipTOC.isChecked()
+        reprint_only = self.chkReprintOnly.isChecked()
+        
         self.worker = UpdateWorker(
             root=root,
             date_str=date_str,
@@ -1658,7 +1948,12 @@ class MainWindow(QWidget):
             reprint_pdf=reprint_pdf,
             exclude_folders=exclude,
             subscription_mgr=subscription_mgr_for_worker,
-            default_backup_dir=default_backup_dir
+            default_backup_dir=default_backup_dir,
+            normalize_fonts=normalize_fonts,
+            target_font=target_font,
+            target_font_size=target_font_size,
+            skip_toc=skip_toc,
+            reprint_only=reprint_only
         )
         self.worker.log.connect(self.appendLog)
         self.worker.progress.connect(self.onProgress)

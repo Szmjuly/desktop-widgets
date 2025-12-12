@@ -106,15 +106,31 @@ class SubscriptionManager:
     def _init_firebase(self, config_path: Path) -> None:
         """Initialize Firebase connection."""
         try:
-            # Load Firebase config
-            if not config_path.exists():
+            # Load Firebase config - try JSON file first, fall back to embedded config
+            config = None
+            
+            if config_path and config_path.exists():
+                # Load from JSON file
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+            else:
+                # Fall back to embedded config (for bundled EXE)
+                try:
+                    from src.firebase_config_embedded import get_firebase_config
+                    config = get_firebase_config()
+                except ImportError:
+                    try:
+                        # Try relative import (when running as module)
+                        from firebase_config_embedded import get_firebase_config
+                        config = get_firebase_config()
+                    except ImportError:
+                        pass
+            
+            if not config:
                 raise FileNotFoundError(
-                    f"Firebase config not found at {config_path}. "
+                    f"Firebase config not found at {config_path} and no embedded config available. "
                     "Please create firebase_config.json - see FIREBASE_SETUP.md"
                 )
-            
-            with open(config_path, 'r') as f:
-                config = json.load(f)
             
             # Check if we should use pyrebase or firebase-admin
             if PYREBASE_AVAILABLE:
