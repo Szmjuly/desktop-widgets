@@ -1,11 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📈 Interactive Portfolio Analysis Dashboard</title>
     <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
     <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            --secondary-color: #64748b;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,155 +33,221 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background-color: #f8f9fa;
-            color: #262730;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
             line-height: 1.6;
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
             padding: 20px;
         }
 
+        /* Dashboard Grid Layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        /* Header */
         header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background: var(--card-bg);
+            padding: 20px 30px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
         }
 
         header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
         }
 
-        .main-layout {
-            display: grid;
-            grid-template-columns: 250px 1fr;
-            gap: 20px;
+        header p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin: 0;
         }
 
+        /* Sidebar */
         .sidebar {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
             height: fit-content;
             position: sticky;
             top: 20px;
+            border: 1px solid var(--border-color);
         }
 
-        .sidebar h2 {
-            font-size: 1.2rem;
-            margin-bottom: 15px;
-            color: #667eea;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 10px;
+        .sidebar-section {
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
         }
 
         .sidebar h3 {
-            font-size: 1rem;
-            margin-top: 20px;
-            margin-bottom: 10px;
-            color: #555;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            font-weight: 600;
         }
 
-        .sidebar label {
-            display: block;
-            margin-top: 10px;
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 16px;
+            border-radius: var(--radius-md);
             font-weight: 500;
             font-size: 0.9rem;
-        }
-
-        .sidebar input[type="range"],
-        .sidebar input[type="number"],
-        .sidebar input[type="checkbox"] {
-            width: 100%;
-            margin-top: 5px;
-        }
-
-        .sidebar input[type="number"] {
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-
-        .sidebar button {
-            width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            margin-bottom: 5px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 5px;
             cursor: pointer;
-            font-weight: 500;
-            transition: background 0.3s;
-            font-size: 0.9rem;
+            transition: all 0.2s;
+            border: none;
+            gap: 8px;
+            width: 100%;
         }
 
-        .sidebar button:hover {
-            background: #5568d3;
-        }
-
-        .summary-stat {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .btn-primary {
+            background: var(--primary-gradient);
             color: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            text-align: center;
+            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 8px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn-secondary {
+            background: white;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        .btn-secondary:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .btn-outline:hover {
+            background: #eff6ff;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
         }
 
         .stat-label {
             font-size: 0.85rem;
-            opacity: 0.9;
-            margin-bottom: 5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-weight: 500;
         }
 
         .stat-value {
             font-size: 1.5rem;
-            font-weight: bold;
+            font-weight: 700;
+            color: var(--text-main);
         }
 
-        .stat-value-small {
-            font-size: 1rem;
-            font-weight: bold;
+        .stat-trend {
+            font-size: 0.85rem;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
 
+        .trend-up {
+            color: var(--success-color);
+        }
+
+        .trend-down {
+            color: var(--danger-color);
+        }
+
+        /* Settings Display */
         .settings-display {
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 10px;
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: var(--radius-md);
+            margin-top: 16px;
+            border: 1px solid var(--border-color);
         }
 
         .setting-item {
             display: flex;
             justify-content: space-between;
-            padding: 5px 0;
-            font-size: 0.85rem;
+            align-items: center;
+            padding: 8px 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
         }
 
         .setting-label {
-            color: #666;
+            color: var(--text-muted);
         }
 
         .setting-value {
             font-weight: 600;
-            color: #667eea;
+            color: var(--primary-color);
         }
 
         .main-content {
             background: white;
             padding: 30px;
             border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .tabs {
@@ -227,7 +313,7 @@
             max-height: 400px;
             overflow-y: auto;
             overflow-x: hidden;
-            border: 1px solid rgba(0,0,0,0.1);
+            border: 1px solid rgba(0, 0, 0, 0.1);
             border-radius: 5px;
             padding: 10px;
             margin: 10px 0;
@@ -258,28 +344,28 @@
             border-radius: 5px;
             margin-bottom: 5px;
         }
-        
+
         /* Portfolio table without DCA - 7 columns */
         #whatif-portfolio .portfolio-header,
         #whatif-portfolio .portfolio-row {
             grid-template-columns: 1.3fr 1.1fr 1fr 1.1fr 0.9fr 0.8fr 0.8fr;
             gap: 15px;
         }
-        
-        #whatif-portfolio .portfolio-header > div,
-        #whatif-portfolio .portfolio-row > div {
+
+        #whatif-portfolio .portfolio-header>div,
+        #whatif-portfolio .portfolio-row>div {
             padding: 0 4px;
         }
-        
+
         /* DCA table - 9 columns */
         #whatif-dca-portfolio .portfolio-header,
         #whatif-dca-portfolio .portfolio-row {
             grid-template-columns: 1.1fr 1fr 0.9fr 1.1fr 1fr 0.8fr 0.8fr 0.7fr 0.7fr;
             gap: 15px;
         }
-        
-        #whatif-dca-portfolio .portfolio-header > div,
-        #whatif-dca-portfolio .portfolio-row > div {
+
+        #whatif-dca-portfolio .portfolio-header>div,
+        #whatif-dca-portfolio .portfolio-row>div {
             padding: 0 4px;
         }
 
@@ -389,26 +475,26 @@
             gap: 20px;
             align-items: start;
         }
-        
-        .two-column > div {
+
+        .two-column>div {
             display: flex;
             flex-direction: column;
         }
-        
-        .two-column > div:first-child {
+
+        .two-column>div:first-child {
             gap: 0;
         }
-        
+
         .whatif-left-column {
             display: flex;
             flex-direction: column;
         }
-        
+
         .whatif-right-column {
             display: flex;
             flex-direction: column;
         }
-        
+
         #whatif-add {
             display: flex;
             flex-direction: column;
@@ -428,7 +514,8 @@
             text-align: center;
             padding: 40px;
             color: #666;
-            display: none; /* Hidden by default */
+            display: none;
+            /* Hidden by default */
         }
 
         .loading.show {
@@ -446,8 +533,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
 
@@ -486,7 +578,7 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.6);
+            background-color: rgba(0, 0, 0, 0.6);
             overflow: auto;
             backdrop-filter: blur(2px);
             align-items: center;
@@ -505,7 +597,7 @@
             width: 95%;
             max-width: 900px;
             max-height: 90vh;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -541,12 +633,12 @@
             align-items: center;
             justify-content: center;
             border-radius: 50%;
-            background: rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.2);
         }
 
         .close:hover {
             opacity: 1;
-            background: rgba(255,255,255,0.3);
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .modal-body {
@@ -562,7 +654,7 @@
             background: white;
             border-radius: 10px;
             padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             border: 1px solid #e0e0e0;
         }
 
@@ -652,7 +744,7 @@
             border-radius: 50%;
             background: #667eea;
             cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
         .param-slider::-moz-range-thumb {
@@ -662,7 +754,7 @@
             background: #667eea;
             cursor: pointer;
             border: none;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
         .param-input {
@@ -788,62 +880,95 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <header>
-            <h1>📈 Interactive Portfolio Analysis Dashboard</h1>
-            <p>Analyze your portfolio with Geometric Brownian Motion predictions</p>
+            <div>
+                <h1>📈 Portfolio Analytics</h1>
+                <p>Advanced Geometric Brownian Motion & Monte Carlo Analysis</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" onclick="refreshData()">🔄 Refresh Data</button>
+                <button class="btn btn-primary" onclick="openSimulationEditor()">⚙️ Simulation Settings</button>
+            </div>
         </header>
 
-        <div class="main-layout">
+        <!-- Top Stats Row -->
+        <div class="stats-grid" style="margin-top: 24px;">
+            <div class="stat-card">
+                <div class="stat-label">Total Portfolio Value</div>
+                <div class="stat-value" id="summary-total-value">$0.00</div>
+                <div class="stat-trend" id="summary-total-trend">
+                    <span>--</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Weighted Return</div>
+                <div class="stat-value" id="summary-weighted-return">0.00%</div>
+                <div class="stat-trend">
+                    <span style="color: var(--text-muted); font-size: 0.8rem;">Historical Avg</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Top Performer</div>
+                <div class="stat-value" id="summary-top-performer" style="font-size: 1.2rem;">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Risk (VaR 95%)</div>
+                <div class="stat-value" id="summary-var" style="font-size: 1.2rem; color: var(--danger-color);">--</div>
+                <div class="stat-trend">
+                    <span style="color: var(--text-muted); font-size: 0.8rem;">Estimated Daily Loss</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
             <!-- Sidebar -->
             <div class="sidebar">
-                <h2>📊 Portfolio Summary</h2>
-                
-                <div id="portfolio-summary-stats">
-                    <div class="summary-stat">
-                        <div class="stat-label">Total Value</div>
-                        <div class="stat-value" id="summary-total-value">$0.00</div>
-                    </div>
-                    
-                    <div class="summary-stat">
-                        <div class="stat-label">Positions</div>
-                        <div class="stat-value" id="summary-positions-count">0</div>
-                    </div>
-                    
-                    <div class="summary-stat">
-                        <div class="stat-label">Weighted Return</div>
-                        <div class="stat-value" id="summary-weighted-return">0.00%</div>
-                    </div>
-                    
-                    <div class="summary-stat">
-                        <div class="stat-label">Top Performer</div>
-                        <div class="stat-value-small" id="summary-top-performer">-</div>
+                <div class="sidebar-section">
+                    <h3>📊 Quick Stats</h3>
+                    <div class="settings-display">
+                        <div class="setting-item">
+                            <span class="setting-label">Positions</span>
+                            <span class="setting-value" id="summary-positions-count">0</span>
+                        </div>
+                        <div class="setting-item">
+                            <span class="setting-label">Sharpe Ratio</span>
+                            <span class="setting-value" id="summary-sharpe">--</span>
+                        </div>
                     </div>
                 </div>
 
-                <h3>⚙️ Quick Actions</h3>
-                <button onclick="openSimulationEditor()" style="width:100%;margin-bottom:10px;">⚙️ Edit Simulation Parameters</button>
-                <button onclick="refreshData()" style="width:100%;margin-bottom:10px;">🔄 Refresh Data</button>
-                
-                <h3>💾 Data Management</h3>
-                <input type="file" id="json-file-input" accept=".json" style="width:100%;margin-top:10px;" onchange="loadJSONFile(event)">
-                <button onclick="exportData()" style="width:100%;margin-top:10px;">💾 Export Portfolio</button>
-                
-                <h3>📈 Current Settings</h3>
-                <div class="settings-display">
-                    <div class="setting-item">
-                        <span class="setting-label">Volatility:</span>
-                        <span class="setting-value" id="sidebar-sigma-display">0.15</span>
+                <div class="sidebar-section">
+                    <h3>⚙️ Active Parameters</h3>
+                    <div class="settings-display">
+                        <div class="setting-item">
+                            <span class="setting-label">Model</span>
+                            <span class="setting-value" id="sidebar-model-display">GBM</span>
+                        </div>
+                        <div class="setting-item">
+                            <span class="setting-label">Volatility</span>
+                            <span class="setting-value" id="sidebar-sigma-display">15%</span>
+                        </div>
+                        <div class="setting-item">
+                            <span class="setting-label">Horizon</span>
+                            <span class="setting-value" id="sidebar-days-display">252d</span>
+                        </div>
+                        <div class="setting-item">
+                            <span class="setting-label">Sims</span>
+                            <span class="setting-value" id="sidebar-sims-display">100</span>
+                        </div>
                     </div>
-                    <div class="setting-item">
-                        <span class="setting-label">Horizon:</span>
-                        <span class="setting-value" id="sidebar-days-display">252 days</span>
-                    </div>
-                    <div class="setting-item">
-                        <span class="setting-label">Simulations:</span>
-                        <span class="setting-value" id="sidebar-sims-display">100</span>
-                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>💾 Data Actions</h3>
+                    <input type="file" id="json-file-input" accept=".json" style="display: none;"
+                        onchange="loadJSONFile(event)">
+                    <button class="btn btn-secondary" onclick="document.getElementById('json-file-input').click()"
+                        style="margin-bottom: 8px;">📂 Import JSON</button>
+                    <button class="btn btn-secondary" onclick="exportData()">💾 Export JSON</button>
                 </div>
             </div>
 
@@ -860,49 +985,68 @@
 
                 <!-- Growth Over Time Tab -->
                 <div id="growth-tab" class="tab-content active">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <h2 style="margin: 0;">📊 Portfolio Growth Predictions Over Time</h2>
-                        <button class="btn-primary" onclick="openSimulationEditor()" style="padding: 8px 16px; font-size: 0.9rem;">⚙️ Edit Simulation Parameters</button>
+                        <button class="btn-primary" onclick="openSimulationEditor()"
+                            style="padding: 8px 16px; font-size: 0.9rem;">⚙️ Edit Simulation Parameters</button>
                     </div>
-                    
+
                     <div class="info-box" style="margin-bottom: 20px;">
                         <details style="cursor: pointer;">
-                            <summary style="font-weight: bold; font-size: 1.1rem; margin-bottom: 10px;">📖 How to Read This Chart & Understanding Your Portfolio</summary>
+                            <summary style="font-weight: bold; font-size: 1.1rem; margin-bottom: 10px;">📖 How to Read
+                                This Chart & Understanding Your Portfolio</summary>
                             <div style="margin-top: 15px; padding-left: 10px;">
                                 <h4 style="margin-top: 15px; color: #667eea;">Understanding Your Current Portfolio:</h4>
                                 <ul style="margin-left: 20px; line-height: 1.8;">
-                                    <li><strong>Portfolio Value</strong>: The total dollar amount you currently have invested across all positions</li>
-                                    <li><strong>Individual Positions</strong>: Each stock/ETF in your portfolio with its current value, shares held, and historical return percentage</li>
-                                    <li><strong>Return %</strong>: The historical performance of each position (positive = gains, negative = losses)</li>
-                                    <li><strong>Weighted Return</strong>: Your portfolio's overall performance, weighted by the value of each position</li>
+                                    <li><strong>Portfolio Value</strong>: The total dollar amount you currently have
+                                        invested across all positions</li>
+                                    <li><strong>Individual Positions</strong>: Each stock/ETF in your portfolio with its
+                                        current value, shares held, and historical return percentage</li>
+                                    <li><strong>Return %</strong>: The historical performance of each position (positive
+                                        = gains, negative = losses)</li>
+                                    <li><strong>Weighted Return</strong>: Your portfolio's overall performance, weighted
+                                        by the value of each position</li>
                                 </ul>
-                                
+
                                 <h4 style="margin-top: 20px; color: #667eea;">Understanding the Growth Chart:</h4>
                                 <ul style="margin-left: 20px; line-height: 1.8;">
                                     <li><strong>🟢 Green Circle</strong>: Your starting portfolio value at day 0</li>
-                                    <li><strong>📈 Bold Colored Line</strong>: The most likely (expected) growth path - this is the median outcome from thousands of simulations</li>
-                                    <li><strong>🔵 Light Blue Shaded Area (90% Range)</strong>: Shows where 90% of all possible outcomes fall. The wider this area, the more uncertainty in predictions</li>
-                                    <li><strong>🔷 Medium Blue Shaded Area (50% Range)</strong>: Shows where 50% of outcomes fall - this is the more likely range of results</li>
-                                    <li><strong>📊 Final Value Annotation</strong>: The expected portfolio value at the end of the time horizon</li>
+                                    <li><strong>📈 Bold Colored Line</strong>: The most likely (expected) growth path -
+                                        this is the median outcome from thousands of simulations</li>
+                                    <li><strong>🔵 Light Blue Shaded Area (90% Range)</strong>: Shows where 90% of all
+                                        possible outcomes fall. The wider this area, the more uncertainty in predictions
+                                    </li>
+                                    <li><strong>🔷 Medium Blue Shaded Area (50% Range)</strong>: Shows where 50% of
+                                        outcomes fall - this is the more likely range of results</li>
+                                    <li><strong>📊 Final Value Annotation</strong>: The expected portfolio value at the
+                                        end of the time horizon</li>
                                 </ul>
-                                
+
                                 <h4 style="margin-top: 20px; color: #667eea;">How Predictions Work:</h4>
                                 <p style="line-height: 1.8; margin-left: 20px;">
-                                    The predictions use <strong>Geometric Brownian Motion (GBM)</strong>, a mathematical model that simulates stock price movements:
+                                    The predictions use <strong>Geometric Brownian Motion (GBM)</strong>, a mathematical
+                                    model that simulates stock price movements:
                                 </p>
                                 <ul style="margin-left: 40px; line-height: 1.8;">
-                                    <li><strong>Drift (μ)</strong>: Based on each position's historical return percentage - assumes past performance continues</li>
-                                    <li><strong>Volatility (σ)</strong>: The uncertainty/risk level - adjustable in simulation parameters. Higher volatility = wider confidence bands</li>
-                                    <li><strong>Monte Carlo Simulation</strong>: Runs hundreds or thousands of random scenarios to show possible outcomes</li>
-                                    <li><strong>Time Horizon</strong>: The number of trading days (typically 252 = 1 year) to project forward</li>
+                                    <li><strong>Drift (μ)</strong>: Based on each position's historical return
+                                        percentage - assumes past performance continues</li>
+                                    <li><strong>Volatility (σ)</strong>: The uncertainty/risk level - adjustable in
+                                        simulation parameters. Higher volatility = wider confidence bands</li>
+                                    <li><strong>Monte Carlo Simulation</strong>: Runs hundreds or thousands of random
+                                        scenarios to show possible outcomes</li>
+                                    <li><strong>Time Horizon</strong>: The number of trading days (typically 252 = 1
+                                        year) to project forward</li>
                                 </ul>
-                                
+
                                 <h4 style="margin-top: 20px; color: #e74c3c;">⚠️ Important Disclaimers:</h4>
                                 <ul style="margin-left: 20px; line-height: 1.8;">
-                                    <li>Predictions assume historical returns continue - real markets are unpredictable</li>
+                                    <li>Predictions assume historical returns continue - real markets are unpredictable
+                                    </li>
                                     <li>Past performance does NOT guarantee future results</li>
                                     <li>This tool is for educational purposes only - not financial advice</li>
-                                    <li>Real markets are affected by economic cycles, company events, and many other factors not included in this model</li>
+                                    <li>Real markets are affected by economic cycles, company events, and many other
+                                        factors not included in this model</li>
                                     <li>The confidence bands show statistical probabilities, not certainties</li>
                                 </ul>
                             </div>
@@ -922,12 +1066,12 @@
                 <div id="whatif-tab" class="tab-content">
                     <h2>What-If Portfolio Analysis</h2>
                     <p>Modify your portfolio and see how changes would impact growth projections.</p>
-                    
+
                     <div class="two-column" id="whatif-columns">
                         <div class="whatif-left-column">
                             <h3>📊 Portfolio</h3>
                             <div id="whatif-portfolio"></div>
-                            
+
                             <h3 style="margin-top: 30px;">💰 Dollar Cost Averaging (DCA)</h3>
                             <div id="whatif-dca-portfolio"></div>
                         </div>
@@ -943,10 +1087,11 @@
                 <!-- Position Details Tab -->
                 <div id="positions-tab" class="tab-content">
                     <h2>📊 Portfolio Positions</h2>
-                    
+
                     <div style="margin: 20px 0;">
                         <h3>Add New Position</h3>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
+                        <div
+                            style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
                             <div class="form-group">
                                 <label>Ticker</label>
                                 <input type="text" id="new-ticker" placeholder="AAPL">
@@ -986,19 +1131,26 @@
                 <h2>⚙️ Simulation Parameters & Monte Carlo Settings</h2>
                 <span class="close" onclick="closeSimulationEditor()">&times;</span>
             </div>
-            
+
             <div class="modal-body">
                 <!-- Monte Carlo Explanation -->
                 <div class="monte-carlo-info">
                     <h3>🎲 Understanding Monte Carlo Simulation</h3>
                     <p style="margin-bottom: 10px; line-height: 1.6;">
-                        <strong>Monte Carlo Simulation</strong> is a computational technique that uses random sampling to model and analyze complex systems. In portfolio analysis, it helps predict future outcomes by running thousands of random scenarios.
+                        <strong>Monte Carlo Simulation</strong> is a computational technique that uses random sampling
+                        to model and analyze complex systems. In portfolio analysis, it helps predict future outcomes by
+                        running thousands of random scenarios.
                     </p>
                     <ul>
-                        <li><strong>Random Scenarios</strong>: Each simulation generates a different random path based on probability distributions</li>
-                        <li><strong>Statistical Analysis</strong>: By running hundreds or thousands of simulations, we can calculate percentiles (5th, 25th, 50th, 75th, 95th) to show likely outcomes</li>
-                        <li><strong>Confidence Bands</strong>: The shaded areas on the chart represent ranges where different percentages of outcomes fall (e.g., 90% of simulations fall within the outer band)</li>
-                        <li><strong>More Simulations = Better Accuracy</strong>: Higher simulation counts provide smoother, more reliable confidence bands but take longer to compute</li>
+                        <li><strong>Random Scenarios</strong>: Each simulation generates a different random path based
+                            on probability distributions</li>
+                        <li><strong>Statistical Analysis</strong>: By running hundreds or thousands of simulations, we
+                            can calculate percentiles (5th, 25th, 50th, 75th, 95th) to show likely outcomes</li>
+                        <li><strong>Confidence Bands</strong>: The shaded areas on the chart represent ranges where
+                            different percentages of outcomes fall (e.g., 90% of simulations fall within the outer band)
+                        </li>
+                        <li><strong>More Simulations = Better Accuracy</strong>: Higher simulation counts provide
+                            smoother, more reliable confidence bands but take longer to compute</li>
                     </ul>
                 </div>
 
@@ -1008,7 +1160,8 @@
                     <div class="param-row">
                         <div class="param-label">
                             <span class="param-label-text">Model Type</span>
-                            <span class="param-label-help">Choose the mathematical model used to simulate stock price movements</span>
+                            <span class="param-label-help">Choose the mathematical model used to simulate stock price
+                                movements</span>
                         </div>
                         <div class="param-control">
                             <select id="sim-method" class="param-select">
@@ -1031,14 +1184,17 @@
                     <div class="param-row">
                         <div class="param-label">
                             <span class="param-label-text">Volatility (σ)</span>
-                            <span class="param-label-help">Annualized standard deviation of returns. Measures price fluctuation uncertainty.</span>
+                            <span class="param-label-help">Annualized standard deviation of returns. Measures price
+                                fluctuation uncertainty.</span>
                         </div>
                         <div class="param-control">
                             <div style="display: flex; align-items: center; gap: 15px;">
-                                <input type="range" id="modal-sigma" class="param-slider" min="0.05" max="0.50" step="0.01" value="0.15">
+                                <input type="range" id="modal-sigma" class="param-slider" min="0.05" max="0.50"
+                                    step="0.01" value="0.15">
                                 <div class="param-value-display" id="modal-sigma-value">0.15</div>
                             </div>
-                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #999; margin-top: 5px;">
+                            <div
+                                style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #999; margin-top: 5px;">
                                 <span>Low (0.10)</span>
                                 <span>Medium (0.20)</span>
                                 <span>High (0.30+)</span>
@@ -1057,10 +1213,12 @@
                         </div>
                         <div class="param-control">
                             <div style="display: flex; align-items: center; gap: 15px;">
-                                <input type="range" id="modal-days" class="param-slider" min="30" max="1000" step="30" value="252">
+                                <input type="range" id="modal-days" class="param-slider" min="30" max="1000" step="30"
+                                    value="252">
                                 <div class="param-value-display" id="modal-days-value">252</div>
                             </div>
-                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #999; margin-top: 5px;">
+                            <div
+                                style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #999; margin-top: 5px;">
                                 <span>1 Month (30)</span>
                                 <span>1 Year (252)</span>
                                 <span>4 Years (1000)</span>
@@ -1075,77 +1233,138 @@
                     <div class="param-row">
                         <div class="param-label">
                             <span class="param-label-text">Number of Simulations</span>
-                            <span class="param-label-help">How many random scenarios to generate. More = smoother confidence bands but slower computation.</span>
+                            <span class="param-label-help">How many random scenarios to generate. More = smoother
+                                confidence bands but slower computation.</span>
                         </div>
                         <div class="param-control">
                             <div style="display: flex; align-items: center; gap: 15px;">
-                                <input type="range" id="modal-sims" class="param-slider" min="50" max="1000" step="50" value="100">
+                                <input type="range" id="modal-sims" class="param-slider" min="50" max="1000" step="50"
+                                    value="100">
                                 <div class="param-value-display" id="modal-sims-value">100</div>
                             </div>
-                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #999; margin-top: 5px;">
+                            <div
+                                style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #999; margin-top: 5px;">
                                 <span>Fast (50-100)</span>
                                 <span>Balanced (200-500)</span>
                                 <span>Accurate (500-1000)</span>
                             </div>
-                            <div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 5px; border-left: 3px solid #ffc107;">
+                            <div
+                                style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 5px; border-left: 3px solid #ffc107;">
                                 <small style="color: #856404;">
-                                    <strong>💡 Tip:</strong> Start with 100 for quick results. Increase to 500+ for publication-quality charts with smoother confidence bands.
+                                    <strong>💡 Tip:</strong> Start with 100 for quick results. Increase to 500+ for
+                                    publication-quality charts with smoother confidence bands.
                                 </small>
                             </div>
                         </div>
                     </div>
                 </div>
-
-                <!-- Random Seed -->
-                <div class="param-section">
-                    <div class="param-section-title">Reproducibility</div>
-                    <div class="param-row">
-                        <div class="param-label">
-                            <span class="param-label-text">Random Seed</span>
-                            <span class="param-label-help">Controls the random number generator. Same seed + same parameters = identical results.</span>
-                        </div>
-                        <div class="param-control">
-                            <input type="number" id="modal-seed" class="param-input" value="42" min="0">
-                            <small style="color: #666; margin-top: 5px; display: block;">
-                                Use for reproducibility in reports. Change to see different random scenarios. Leave as 42 for consistent results.
-                            </small>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Data Source -->
-                <div class="param-section">
-                    <div class="param-section-title">Data Source</div>
-                    <div class="param-row">
-                        <div class="param-label">
-                            <span class="param-label-text">Real-time Data</span>
-                            <span class="param-label-help">Fetch current prices and returns from Yahoo Finance API</span>
-                        </div>
-                        <div class="param-control">
-                            <label class="param-checkbox-wrapper">
-                                <input type="checkbox" id="modal-realtime" checked>
-                                <span>Use Real-time Data (Yahoo Finance)</span>
-                            </label>
-                            <small style="color: #666; margin-top: 5px; display: block;">
-                                When enabled, automatically updates prices and returns. Disable to use only manually entered data.
-                            </small>
-                        </div>
-                    </div>
-                </div>
             </div>
 
-            <div class="modal-actions">
-                <button class="modal-btn modal-btn-primary" onclick="applySimulationParams()">
-                    ✅ Apply & Run Simulation
-                </button>
-                <button class="modal-btn modal-btn-secondary" onclick="resetSimulationParams()">
-                    🔄 Reset to Defaults
-                </button>
-                <button class="modal-btn modal-btn-danger" onclick="closeSimulationEditor()">
-                    ❌ Cancel
-                </button>
+            <!-- Advanced Parameters -->
+            <div class="param-section">
+                <div class="param-section-title">Advanced Parameters</div>
+
+                <!-- Drift Adjustment -->
+                <div class="param-row">
+                    <div class="param-label">
+                        <span class="param-label-text">Drift Adjustment</span>
+                        <span class="param-label-help">Adjust expected return (e.g., for market sentiment).</span>
+                    </div>
+                    <div class="param-control">
+                        <div class="range-wrapper">
+                            <input type="range" id="modal-drift" min="-0.05" max="0.05" step="0.005" value="0">
+                            <span class="range-value" id="modal-drift-value">0.0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Inflation -->
+                <div class="param-row">
+                    <div class="param-label">
+                        <span class="param-label-text">Inflation Rate</span>
+                        <span class="param-label-help">Adjust for purchasing power loss.</span>
+                    </div>
+                    <div class="param-control">
+                        <div class="range-wrapper">
+                            <input type="range" id="modal-inflation" min="0" max="0.10" step="0.005" value="0">
+                            <span class="range-value" id="modal-inflation-value">0.0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rebalancing -->
+                <div class="param-row">
+                    <div class="param-label">
+                        <span class="param-label-text">Rebalancing</span>
+                        <span class="param-label-help">Frequency of portfolio rebalancing.</span>
+                    </div>
+                    <div class="param-control">
+                        <select id="modal-rebalance" class="param-select"
+                            style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
+                            <option value="none">None (Drift)</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                            <option value="yearly">Yearly</option>
+                        </select>
+                    </div>
+                </div>
             </div>
         </div>
+
+        <!-- Random Seed -->
+        <div class="param-section">
+            <div class="param-section-title">Reproducibility</div>
+            <div class="param-row">
+                <div class="param-label">
+                    <span class="param-label-text">Random Seed</span>
+                    <span class="param-label-help">Controls the random number generator. Same seed + same
+                        parameters = identical results.</span>
+                </div>
+                <div class="param-control">
+                    <input type="number" id="modal-seed" class="param-input" value="42" min="0">
+                    <small style="color: #666; margin-top: 5px; display: block;">
+                        Use for reproducibility in reports. Change to see different random scenarios. Leave as
+                        42 for consistent results.
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Source -->
+        <div class="param-section">
+            <div class="param-section-title">Data Source</div>
+            <div class="param-row">
+                <div class="param-label">
+                    <span class="param-label-text">Real-time Data</span>
+                    <span class="param-label-help">Fetch current prices and returns from Yahoo Finance
+                        API</span>
+                </div>
+                <div class="param-control">
+                    <label class="param-checkbox-wrapper">
+                        <input type="checkbox" id="modal-realtime" checked>
+                        <span>Use Real-time Data (Yahoo Finance)</span>
+                    </label>
+                    <small style="color: #666; margin-top: 5px; display: block;">
+                        When enabled, automatically updates prices and returns. Disable to use only manually
+                        entered data.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-actions">
+        <button class="modal-btn modal-btn-primary" onclick="applySimulationParams()">
+            ✅ Apply & Run Simulation
+        </button>
+        <button class="modal-btn modal-btn-secondary" onclick="resetSimulationParams()">
+            🔄 Reset to Defaults
+        </button>
+        <button class="modal-btn modal-btn-danger" onclick="closeSimulationEditor()">
+            ❌ Cancel
+        </button>
+    </div>
+    </div>
     </div>
 
     <script>
@@ -1161,7 +1380,7 @@
         async function init() {
             // Load initial data
             await loadPortfolioData();
-            
+
             // Setup hidden inputs for simulation parameters (used by functions)
             if (!document.getElementById('sigma')) {
                 const sigmaInput = document.createElement('input');
@@ -1198,6 +1417,28 @@
                 realtimeInput.checked = true;
                 document.body.appendChild(realtimeInput);
             }
+            // New Parameters
+            if (!document.getElementById('drift')) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.id = 'drift';
+                input.value = '0';
+                document.body.appendChild(input);
+            }
+            if (!document.getElementById('inflation')) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.id = 'inflation';
+                input.value = '0';
+                document.body.appendChild(input);
+            }
+            if (!document.getElementById('rebalance')) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.id = 'rebalance';
+                input.value = 'none';
+                document.body.appendChild(input);
+            }
 
             // Initialize what-if positions
             whatifPositions = JSON.parse(JSON.stringify(portfolio));
@@ -1213,32 +1454,92 @@
         function updatePortfolioSummary() {
             const totalValue = portfolio.reduce((sum, pos) => sum + pos.value, 0);
             const positionsCount = portfolio.length;
-            
-            // Calculate weighted return
+
+            // Calculate weighted return (Annualized / YTD)
             let weightedReturn = 0;
+            let weightedDailyReturn = 0;
             if (totalValue > 0) {
-                const totalReturnValue = portfolio.reduce((sum, pos) => sum + (pos.value * pos.return_pct / 100), 0);
-                weightedReturn = (totalReturnValue / totalValue) * 100;
+                weightedReturn = portfolio.reduce((sum, pos) => sum + (pos.value * pos.return_pct / 100), 0) / totalValue * 100;
+
+                // Calculate weighted daily return (if available)
+                weightedDailyReturn = portfolio.reduce((sum, pos) => {
+                    const daily = pos.today_return_pct !== undefined ? pos.today_return_pct : 0;
+                    return sum + (pos.value * daily / 100);
+                }, 0) / totalValue * 100;
             }
-            
+
             // Find top performer
             let topPerformer = '-';
             if (portfolio.length > 0) {
                 const sorted = [...portfolio].sort((a, b) => b.return_pct - a.return_pct);
                 topPerformer = `${sorted[0].ticker} (${sorted[0].return_pct >= 0 ? '+' : ''}${sorted[0].return_pct.toFixed(2)}%)`;
             }
-            
+
+            // --- New Metrics Calculations ---
+
+            // 1. Trend (Daily Change)
+            const trendElement = document.getElementById('summary-total-trend');
+            if (trendElement) {
+                const dailyChangeValue = totalValue * (weightedDailyReturn / 100);
+                const sign = weightedDailyReturn >= 0 ? '+' : '';
+                const trendClass = weightedDailyReturn >= 0 ? 'trend-up' : 'trend-down';
+                const arrow = weightedDailyReturn >= 0 ? '▲' : '▼';
+
+                trendElement.innerHTML = `
+                    <span class="${trendClass}">${arrow} $${Math.abs(dailyChangeValue).toLocaleString(undefined, { maximumFractionDigits: 0 })} (${sign}${weightedDailyReturn.toFixed(2)}%)</span>
+                    <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 4px;">Today</span>
+                `;
+            }
+
+            // 2. Sharpe Ratio (Simplified)
+            // Assuming Risk Free Rate = 4%
+            const riskFreeRate = 4.0;
+            const sigma = parseFloat(document.getElementById('sigma').value) * 100; // Annualized Volatility %
+            let sharpeRatio = 0;
+            if (sigma > 0) {
+                sharpeRatio = (weightedReturn - riskFreeRate) / sigma;
+            }
+            const sharpeElement = document.getElementById('summary-sharpe');
+            if (sharpeElement) {
+                sharpeElement.textContent = sharpeRatio.toFixed(2);
+                // Color code: > 1 good (green), < 0 bad (red), else neutral
+                sharpeElement.style.color = sharpeRatio > 1 ? 'var(--success-color)' : (sharpeRatio < 0 ? 'var(--danger-color)' : 'var(--warning-color)');
+            }
+
+            // 3. Value at Risk (VaR) - 95% Confidence, 1 Day
+            // Parametric VaR = Portfolio Value * (Z-score * Daily Volatility - Daily Mean Return)
+            // Z-score for 95% = 1.645
+            const dailySigma = (sigma / 100) / Math.sqrt(252);
+            const dailyMean = (weightedReturn / 100) / 252;
+            const zScore = 1.645;
+
+            // VaR is typically expressed as a positive number representing potential loss
+            const varPct = (zScore * dailySigma) - dailyMean;
+            const varValue = totalValue * varPct;
+
+            const varElement = document.getElementById('summary-var');
+            if (varElement) {
+                varElement.textContent = `-$${Math.abs(varValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+            }
+
             // Update display
-            document.getElementById('summary-total-value').textContent = `$${totalValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('summary-total-value').textContent = `$${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             document.getElementById('summary-positions-count').textContent = positionsCount;
             document.getElementById('summary-weighted-return').textContent = `${weightedReturn >= 0 ? '+' : ''}${weightedReturn.toFixed(2)}%`;
-            document.getElementById('summary-weighted-return').style.color = weightedReturn >= 0 ? '#2ecc71' : '#e74c3c';
+            document.getElementById('summary-weighted-return').style.color = weightedReturn >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
             document.getElementById('summary-top-performer').textContent = topPerformer;
-            
+
             // Update settings display
-            document.getElementById('sidebar-sigma-display').textContent = document.getElementById('sigma').value;
-            document.getElementById('sidebar-days-display').textContent = `${document.getElementById('days').value} days`;
+            document.getElementById('sidebar-sigma-display').textContent = `${(parseFloat(document.getElementById('sigma').value) * 100).toFixed(0)}%`;
+            document.getElementById('sidebar-days-display').textContent = `${document.getElementById('days').value}d`;
             document.getElementById('sidebar-sims-display').textContent = document.getElementById('sims').value;
+
+            // Update model display if element exists (added in new HTML)
+            const modelDisplay = document.getElementById('sidebar-model-display');
+            if (modelDisplay) {
+                const method = document.getElementById('sim-method') ? document.getElementById('sim-method').value : 'gbm';
+                modelDisplay.textContent = method.toUpperCase();
+            }
         }
 
         // ==================== DATA LOADING ====================
@@ -1304,7 +1605,7 @@
             // Fetch real-time data for portfolio tickers
             const tickers = portfolio.map(p => normalizeTicker(p.ticker));
             const data = await fetchMultipleStocks(tickers);
-            
+
             portfolio = portfolio.map(pos => {
                 const ticker = normalizeTicker(pos.ticker);
                 if (data[ticker]) {
@@ -1313,6 +1614,8 @@
                         ...pos,
                         current_price: data[ticker].current_price,
                         return_pct: data[ticker].ytd_return_pct || pos.return_pct,
+                        today_return_pct: data[ticker].today_return_pct || 0,
+                        history: data[ticker].history || [], // Store historical data
                         value: shares * data[ticker].current_price
                     };
                 }
@@ -1323,7 +1626,7 @@
         async function updateWatchlistWithRealtime() {
             const tickers = watchlist.map(w => normalizeTicker(w.ticker));
             const data = await fetchMultipleStocks(tickers);
-            
+
             watchlist = watchlist.map(item => {
                 const ticker = normalizeTicker(item.ticker);
                 if (data[ticker]) {
@@ -1351,23 +1654,37 @@
         async function fetchStockData(ticker) {
             try {
                 // Using Yahoo Finance API via CORS proxy
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}`)}`;
+                // Request 5 years of daily data for historical bootstrap
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=5y&interval=1d`)}`;
                 const response = await fetch(proxyUrl);
                 const data = await response.json();
                 const chartData = JSON.parse(data.contents);
-                
+
                 if (chartData.chart && chartData.chart.result && chartData.chart.result[0]) {
                     const result = chartData.chart.result[0];
                     const meta = result.meta;
+                    const quotes = result.indicators.quote[0];
+                    const closes = quotes.close || [];
+
                     const currentPrice = meta.regularMarketPrice || meta.previousClose;
                     const previousClose = meta.previousClose;
                     const todayReturn = previousClose ? ((currentPrice - previousClose) / previousClose) * 100 : 0;
-                    
+
+                    // Calculate historical daily returns
+                    const history = [];
+                    for (let i = 1; i < closes.length; i++) {
+                        if (closes[i] && closes[i - 1]) {
+                            const ret = Math.log(closes[i] / closes[i - 1]); // Log returns
+                            history.push(ret);
+                        }
+                    }
+
                     return {
                         current_price: currentPrice,
                         today_return_pct: todayReturn,
-                        ytd_return_pct: todayReturn, // Simplified
-                        name: meta.longName || ticker
+                        ytd_return_pct: todayReturn, // Still using today's return as proxy for "return_pct" display if YTD not available
+                        name: meta.longName || ticker,
+                        history: history
                     };
                 }
             } catch (error) {
@@ -1410,21 +1727,21 @@
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 try {
                     const data = JSON.parse(e.target.result);
                     if (data.portfolio) portfolio = data.portfolio;
                     if (data.watchlist) watchlist = data.watchlist;
-                    
+
                     saveDataToLocalStorage();
                     whatifPositions = JSON.parse(JSON.stringify(portfolio));
-                    
+
                     updatePortfolioSummary();
                     renderPortfolio();
                     renderWatchlist();
                     renderWhatIf();
                     updateAllCharts();
-                    
+
                     alert('Portfolio data loaded successfully!');
                 } catch (error) {
                     alert('Error loading JSON file: ' + error.message);
@@ -1468,7 +1785,16 @@
             document.getElementById('modal-sims-value').textContent = document.getElementById('sims').value;
             document.getElementById('modal-seed').value = document.getElementById('seed').value;
             document.getElementById('modal-realtime').checked = document.getElementById('use-realtime').checked;
-            
+
+            // New Params
+            document.getElementById('modal-drift').value = document.getElementById('drift').value;
+            document.getElementById('modal-drift-value').textContent = (parseFloat(document.getElementById('drift').value) * 100).toFixed(1) + '%';
+
+            document.getElementById('modal-inflation').value = document.getElementById('inflation').value;
+            document.getElementById('modal-inflation-value').textContent = (parseFloat(document.getElementById('inflation').value) * 100).toFixed(1) + '%';
+
+            document.getElementById('modal-rebalance').value = document.getElementById('rebalance').value;
+
             // Prevent body scroll when modal is open
             document.body.style.overflow = 'hidden';
         }
@@ -1488,6 +1814,11 @@
             document.getElementById('seed').value = document.getElementById('modal-seed').value;
             document.getElementById('use-realtime').checked = document.getElementById('modal-realtime').checked;
             useRealtime = document.getElementById('modal-realtime').checked;
+
+            // New Params
+            document.getElementById('drift').value = document.getElementById('modal-drift').value;
+            document.getElementById('inflation').value = document.getElementById('modal-inflation').value;
+            document.getElementById('rebalance').value = document.getElementById('modal-rebalance').value;
 
             // Update sidebar display
             updatePortfolioSummary();
@@ -1510,7 +1841,13 @@
             document.getElementById('modal-seed').value = 42;
             document.getElementById('modal-realtime').checked = true;
             document.getElementById('sim-method').value = 'gbm';
-            
+
+            document.getElementById('modal-drift').value = 0;
+            document.getElementById('modal-drift-value').textContent = '0%';
+            document.getElementById('modal-inflation').value = 0;
+            document.getElementById('modal-inflation-value').textContent = '0%';
+            document.getElementById('modal-rebalance').value = 'none';
+
             // Also update hidden inputs
             document.getElementById('sigma').value = '0.15';
             document.getElementById('days').value = '252';
@@ -1518,18 +1855,22 @@
             document.getElementById('seed').value = '42';
             document.getElementById('use-realtime').checked = true;
             useRealtime = true;
+
+            document.getElementById('drift').value = '0';
+            document.getElementById('inflation').value = '0';
+            document.getElementById('rebalance').value = 'none';
         }
 
         // Modal event listeners
-        window.addEventListener('click', function(event) {
+        window.addEventListener('click', function (event) {
             const modal = document.getElementById('simulation-modal');
             if (event.target === modal) {
                 closeSimulationEditor();
             }
         });
-        
+
         // Close modal on Escape key
-        window.addEventListener('keydown', function(event) {
+        window.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') {
                 const modal = document.getElementById('simulation-modal');
                 if (modal.classList.contains('show')) {
@@ -1539,11 +1880,11 @@
         });
 
         // Update modal value displays
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const modalSigma = document.getElementById('modal-sigma');
             const modalDays = document.getElementById('modal-days');
             const modalSims = document.getElementById('modal-sims');
-            
+
             if (modalSigma) {
                 modalSigma.addEventListener('input', (e) => {
                     document.getElementById('modal-sigma-value').textContent = e.target.value;
@@ -1559,6 +1900,20 @@
                     document.getElementById('modal-sims-value').textContent = e.target.value;
                 });
             }
+
+            const modalDrift = document.getElementById('modal-drift');
+            if (modalDrift) {
+                modalDrift.addEventListener('input', (e) => {
+                    document.getElementById('modal-drift-value').textContent = (parseFloat(e.target.value) * 100).toFixed(1) + '%';
+                });
+            }
+
+            const modalInflation = document.getElementById('modal-inflation');
+            if (modalInflation) {
+                modalInflation.addEventListener('input', (e) => {
+                    document.getElementById('modal-inflation-value').textContent = (parseFloat(e.target.value) * 100).toFixed(1) + '%';
+                });
+            }
         });
 
         // ==================== GBM SIMULATION ====================
@@ -1568,7 +1923,7 @@
                 this.seed = seed % 2147483647;
                 if (this.seed <= 0) this.seed += 2147483646;
             }
-            
+
             next() {
                 this.seed = (this.seed * 16807) % 2147483647;
                 return (this.seed - 1) / 2147483646;
@@ -1579,10 +1934,10 @@
             const dt = 1.0 / 252.0;
             const drift = (mu - 0.5 * sigma * sigma) * dt;
             const diffusionStd = sigma * Math.sqrt(dt);
-            
+
             const pricesEnd = [];
             const rng = randomSeed !== null ? new SeededRandom(randomSeed) : null;
-            
+
             for (let i = 0; i < nSims; i++) {
                 let logReturn = 0;
                 for (let day = 0; day < days; day++) {
@@ -1591,7 +1946,7 @@
                 }
                 pricesEnd.push(currentPrice * Math.exp(logReturn));
             }
-            
+
             return pricesEnd;
         }
 
@@ -1612,6 +1967,12 @@
         }
 
         function simulatePortfolioGrowthOverTime(positions, sigma = 0.15, days = 252, nSims = 100, randomSeed = null, dcaSchedule = {}) {
+            // Get advanced params
+            const driftAdj = parseFloat(document.getElementById('drift').value) || 0;
+            const inflation = parseFloat(document.getElementById('inflation').value) || 0;
+            const rebalanceFreq = document.getElementById('rebalance').value || 'none';
+            const simMethod = document.getElementById('sim-method') ? document.getElementById('sim-method').value : 'gbm';
+
             if (positions.length === 0) {
                 return { paths: [], timePoints: [] };
             }
@@ -1634,7 +1995,8 @@
             // Pre-compute drift and diffusion constants for each position
             const positionConstants = {};
             positions.forEach(pos => {
-                const mu = pos.return_pct / 100.0;
+                // Apply drift adjustment to expected return
+                const mu = (pos.return_pct / 100.0) + driftAdj - inflation;
                 positionConstants[pos.ticker] = {
                     drift: (mu - 0.5 * sigma * sigma) * dt,
                     diffusionStd: sigma * Math.sqrt(dt)
@@ -1671,23 +2033,81 @@
 
                     // Calculate portfolio value
                     let totalValue = 0;
-                    
+
                     positions.forEach((pos, posIdx) => {
                         const constants = positionConstants[pos.ticker];
                         // Generate random increment for this position/day
                         const posDaySeed = simSeed !== null ? simSeed + posIdx * 10000 + day * 100 : null;
                         const posRng = posDaySeed !== null ? new SeededRandom(posDaySeed) : null;
                         const increment = normalRandom(posRng);
-                        
-                        const dailyLogReturn = constants.drift + constants.diffusionStd * increment;
+
+                        let dailyLogReturn = 0;
+
+                        if (simMethod === 'mean_reversion') {
+                            // Ornstein-Uhlenbeck Process for Log Price
+                            // d(ln S) = kappa * (theta - ln S) * dt + sigma * dW
+                            // We approximate theta as the log of the expected price path: ln(S0 * e^(mu*t))
+                            // kappa (speed of reversion) = 5.0 (arbitrary for demo)
+
+                            const kappa = 5.0;
+                            const currentLogPrice = Math.log(pos.current_price * Math.exp(cumulativeLogReturns[pos.ticker]));
+                            const expectedLogPrice = Math.log(pos.current_price) + (constants.drift / dt) * (day * dt); // drift is already mu - 0.5*sigma^2
+
+                            // Discrete approximation
+                            const meanReversion = kappa * (expectedLogPrice - currentLogPrice) * dt;
+                            dailyLogReturn = meanReversion + constants.diffusionStd * increment;
+
+                        } else if (simMethod === 'historical' && pos.history && pos.history.length > 0) {
+                            // Historical Bootstrap
+                            // Randomly sample from historical log returns
+                            // Use the RNG to pick an index
+                            // Note: rng.next() returns [0, 1). Scale to [0, history.length)
+                            const historyIdx = Math.floor(posRng.next() * pos.history.length);
+                            dailyLogReturn = pos.history[historyIdx];
+
+                            // Apply drift adjustment if specified (optional, but consistent with UI)
+                            dailyLogReturn += driftAdj * dt;
+
+                        } else {
+                            // Standard GBM
+                            dailyLogReturn = constants.drift + constants.diffusionStd * increment;
+                        }
+
                         cumulativeLogReturns[pos.ticker] += dailyLogReturn;
-                        
+
                         const price = pos.current_price * Math.exp(cumulativeLogReturns[pos.ticker]);
                         totalValue += currentShares[pos.ticker] * price;
                     });
 
                     if (timePoints.includes(day)) {
                         portfolioValueOverTime.push(totalValue);
+                    }
+
+                    // Rebalancing Logic
+                    if (rebalanceFreq !== 'none') {
+                        let shouldRebalance = false;
+                        if (rebalanceFreq === 'monthly' && day % 21 === 0) shouldRebalance = true;
+                        if (rebalanceFreq === 'quarterly' && day % 63 === 0) shouldRebalance = true;
+                        if (rebalanceFreq === 'yearly' && day % 252 === 0) shouldRebalance = true;
+
+                        if (shouldRebalance) {
+                            // Rebalance to original weights
+                            // Calculate current total value
+                            let currentTotalVal = 0;
+                            positions.forEach(pos => {
+                                const price = pos.current_price * Math.exp(cumulativeLogReturns[pos.ticker]);
+                                currentTotalVal += currentShares[pos.ticker] * price;
+                            });
+
+                            // Reset shares based on original target weights (assumed from initial value)
+                            const initialTotal = positions.reduce((sum, p) => sum + p.value, 0);
+                            positions.forEach(pos => {
+                                const targetWeight = pos.value / initialTotal;
+                                const targetValue = currentTotalVal * targetWeight;
+                                const price = pos.current_price * Math.exp(cumulativeLogReturns[pos.ticker]);
+                                currentShares[pos.ticker] = targetValue / price;
+                            });
+                        }
                     }
                 }
 
@@ -1715,13 +2135,13 @@
 
             const nSims = portfolioPaths.length;
             const nPoints = timePoints.length;
-            
+
             // Validate all paths have the same length
             const pathLength = portfolioPaths[0] ? portfolioPaths[0].length : 0;
             if (pathLength !== nPoints) {
                 console.warn(`Path length mismatch: paths have ${pathLength} points, timePoints has ${nPoints}`);
             }
-            
+
             const p5Values = [];
             const p25Values = [];
             const p75Values = [];
@@ -1781,7 +2201,7 @@
                     y: medianValues,
                     mode: 'lines',
                     name: scenarioName,
-                    line: { color: `rgb(${Math.max(0, r-30)}, ${Math.max(0, g-30)}, ${Math.max(0, b-30)})`, width: 4 },
+                    line: { color: `rgb(${Math.max(0, r - 30)}, ${Math.max(0, g - 30)}, ${Math.max(0, b - 30)})`, width: 4 },
                     hovertemplate: `<b>${scenarioName}</b><br>Days: %{x}<br>Value: $%{y:,.2f}<extra></extra>`,
                     legendgroup: scenarioName
                 },
@@ -1801,7 +2221,7 @@
             ];
 
             const finalMedian = medianValues[medianValues.length - 1];
-            const darkerColor = `rgb(${Math.max(0, r-30)}, ${Math.max(0, g-30)}, ${Math.max(0, b-30)})`;
+            const darkerColor = `rgb(${Math.max(0, r - 30)}, ${Math.max(0, g - 30)}, ${Math.max(0, b - 30)})`;
 
             const layout = {
                 title: {
@@ -1926,7 +2346,7 @@
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
+
             // Find and activate the correct tab button
             const tabs = document.querySelectorAll('.tab');
             tabs.forEach((tab, idx) => {
@@ -1935,9 +2355,9 @@
                     tab.classList.add('active');
                 }
             });
-            
+
             document.getElementById(`${tabName}-tab`).classList.add('active');
-            
+
             if (tabName === 'growth') {
                 updateGrowthView();
             } else if (tabName === 'positions') {
@@ -1962,11 +2382,11 @@
                 document.getElementById('growth-chart').innerHTML = '<div class="info-box">No portfolio data available. Please add positions.</div>';
                 return;
             }
-            
+
             // Show loading indicator
             const chartContainer = document.getElementById('growth-chart');
             chartContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>Running simulation...</p></div>';
-            
+
             // Run simulation asynchronously to avoid blocking UI
             // Use requestAnimationFrame to ensure UI updates before heavy computation
             requestAnimationFrame(() => {
@@ -1982,7 +2402,7 @@
                             // Clear loading indicator before plotting
                             chartContainer.innerHTML = '';
                             // Plotly.newPlot replaces the innerHTML, so loading will be gone
-                            Plotly.newPlot('growth-chart', chart.data, chart.layout, {responsive: true, displayModeBar: true})
+                            Plotly.newPlot('growth-chart', chart.data, chart.layout, { responsive: true, displayModeBar: true })
                                 .catch((error) => {
                                     console.error('Plotly error:', error);
                                     chartContainer.innerHTML = `<div class="info-box">Error rendering chart: ${error.message}</div>`;
@@ -2001,27 +2421,27 @@
         function renderScenarios() {
             const chartContainer = document.getElementById('scenarios-chart');
             if (!chartContainer) return;
-            
+
             // Show loading indicator
             chartContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>Running simulations...</p></div>';
-            
+
             const sigma = parseFloat(document.getElementById('sigma').value);
             const days = parseInt(document.getElementById('days').value);
             const nSims = parseInt(document.getElementById('sims').value);
             const seed = parseInt(document.getElementById('seed').value);
 
             const currentValue = portfolio.reduce((sum, pos) => sum + pos.value, 0);
-            
+
             // Run simulations asynchronously
             requestAnimationFrame(() => {
                 setTimeout(() => {
                     try {
                         // Base portfolio
                         const baseSim = simulatePortfolioGrowthOverTime(portfolio, sigma, days, nSims, seed, dcaSchedule);
-                        
+
                         // Conservative (lower volatility)
                         const conservativeSim = simulatePortfolioGrowthOverTime(portfolio, sigma * 0.7, days, nSims, seed, dcaSchedule);
-                        
+
                         // Aggressive (higher volatility)
                         const aggressiveSim = simulatePortfolioGrowthOverTime(portfolio, sigma * 1.3, days, nSims, seed, dcaSchedule);
 
@@ -2034,7 +2454,7 @@
                         const chart = createMultiScenarioChart(scenarios, currentValue);
                         // Clear loading before plotting
                         chartContainer.innerHTML = '';
-                        Plotly.newPlot('scenarios-chart', chart.data, chart.layout, {responsive: true})
+                        Plotly.newPlot('scenarios-chart', chart.data, chart.layout, { responsive: true })
                             .catch((error) => {
                                 console.error('Plotly error:', error);
                                 chartContainer.innerHTML = `<div class="info-box">Error rendering chart: ${error.message}</div>`;
@@ -2056,7 +2476,7 @@
             if (!container) return;
 
             let html = '<table class="watchlist-table"><thead><tr><th>Ticker</th><th>Name</th><th>Price</th><th>Return %</th><th>Action</th></tr></thead><tbody>';
-            
+
             watchlist.forEach(item => {
                 const returnClass = item.today_return_pct >= 0 ? 'positive' : 'negative';
                 html += `
@@ -2069,7 +2489,7 @@
                     </tr>
                 `;
             });
-            
+
             html += '</tbody></table>';
             container.innerHTML = html;
         }
@@ -2078,13 +2498,13 @@
             const portfolioContainer = document.getElementById('whatif-portfolio');
             const dcaContainer = document.getElementById('whatif-dca-portfolio');
             const addContainer = document.getElementById('whatif-add');
-            
+
             if (!portfolioContainer || !dcaContainer || !addContainer) return;
 
             // Separate positions with and without DCA
             const positionsWithoutDCA = [];
             const positionsWithDCA = [];
-            
+
             whatifPositions.forEach((pos, idx) => {
                 const hasDCA = pos.ticker in whatifDCASchedule;
                 if (hasDCA) {
@@ -2142,14 +2562,14 @@
                 const hasDCA = pos.ticker in whatifDCASchedule;
                 const shares = pos.value / pos.current_price;
                 const dcaConfig = whatifDCASchedule[pos.ticker];
-                
+
                 dcaHtml += `<div class="portfolio-row" id="whatif-dca-row-${idx}" style="background: #f8f9ff;">`;
                 dcaHtml += `<div><strong>${pos.ticker}</strong> 💰</div>`;
                 dcaHtml += `<div><input type="number" id="dca-shares-${idx}" value="${shares.toFixed(4)}" step="0.0001" onchange="updateWhatIfPosition(${idx})"></div>`;
                 dcaHtml += `<div><input type="number" id="dca-return-${idx}" value="${pos.return_pct.toFixed(2)}" step="0.1" onchange="updateWhatIfPosition(${idx})"></div>`;
                 dcaHtml += `<div>$${pos.value.toFixed(2)}</div>`;
                 dcaHtml += `<div><input type="number" id="dca-amount-${idx}" value="${dcaConfig.amount}" step="10" min="0" onchange="updateDCAConfig('${pos.ticker}', ${idx})"></div>`;
-                
+
                 // DCA frequency dropdown
                 const freqOptions = [7, 14, 21, 30, 60, 90];
                 const currentFreq = dcaConfig.frequency_days;
@@ -2158,7 +2578,7 @@
                     dcaHtml += `<option value="${freq}" ${freq === currentFreq ? 'selected' : ''}>${freq}d</option>`;
                 });
                 dcaHtml += '</select></div>';
-                
+
                 dcaHtml += `<div><button class="btn-small btn-remove-dca" onclick="removeDCA('${pos.ticker}')" title="Disable DCA">❌</button></div>`;
                 dcaHtml += `<div><button class="btn-small btn-edit" onclick="updateWhatIfPosition(${idx})">✏️</button></div>`;
                 dcaHtml += `<div><button class="btn-small btn-delete" onclick="removeWhatIfPosition(${idx})">🗑️</button></div>`;
@@ -2179,15 +2599,15 @@
             // Allocation section: ~180px fixed
             // Button: ~60px fixed
             // Watchlist container needs to fill remaining space
-            
+
             let addHtml = '<div style="display: flex; flex-direction: column; height: 100%; gap: 15px;">';
-            
+
             // Watchlist section - show exactly 4 items before scrolling
             addHtml += '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; flex: 1; display: flex; flex-direction: column; min-height: 0;">';
             addHtml += '<label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Select Stocks from Watchlist:</label>';
             // Each item is approximately 50px tall, so 4 items = 200px visible height
             addHtml += '<div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 5px; background: white;">';
-            
+
             // Group watchlist items with checkboxes
             watchlist.forEach(item => {
                 const returnClass = item.today_return_pct >= 0 ? 'positive' : 'negative';
@@ -2204,7 +2624,7 @@
                 addHtml += `</div>`;
             });
             addHtml += '</div></div>';
-            
+
             // Allocation method and amount
             addHtml += '<div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0; flex-shrink: 0;">';
             addHtml += '<label style="display: block; font-weight: 600; margin-bottom: 10px; color: #333;">Allocation Method:</label>';
@@ -2212,24 +2632,24 @@
             addHtml += '<option value="amount">💰 Dollar Amount ($)</option>';
             addHtml += '<option value="shares">📊 Number of Shares</option>';
             addHtml += '</select>';
-            
+
             addHtml += '<label style="display: block; font-weight: 600; margin-bottom: 8px; color: #333;">Amount:</label>';
             addHtml += '<input type="number" id="allocation-value" value="1000" step="100" min="0" style="width:100%;padding:10px;border:2px solid #e0e0e0;border-radius:5px;font-size:1rem;" placeholder="Enter amount">';
             addHtml += '<div id="allocation-preview" style="margin-top:8px;font-size:0.85rem;color:#666;font-style:italic;"></div>';
             addHtml += '</div>';
-            
+
             // Add button
             addHtml += '<button class="btn-primary" onclick="addWhatIfPositions()" style="width:100%;padding:12px;font-size:1rem;font-weight:600;flex-shrink: 0;">➕ Add Selected Positions</button>';
             addHtml += '<div id="add-positions-status" style="margin-top:10px;font-size:0.85rem;flex-shrink: 0;"></div>';
             addHtml += '</div>'; // Close main flex container
-            
+
             addContainer.innerHTML = addHtml;
-            
+
             // Match heights after rendering
             setTimeout(() => {
                 matchColumnHeights();
             }, 100);
-            
+
             // Setup event listeners for allocation preview
             const allocationValue = document.getElementById('allocation-value');
             const allocationMethod = document.getElementById('allocation-method');
@@ -2241,12 +2661,12 @@
 
             renderWhatIfChart();
         }
-        
+
         function matchColumnHeights() {
             const leftColumn = document.querySelector('.whatif-left-column');
             const rightColumn = document.querySelector('.whatif-right-column');
             const addContainer = document.getElementById('whatif-add');
-            
+
             if (leftColumn && rightColumn && addContainer) {
                 const leftHeight = leftColumn.offsetHeight;
                 rightColumn.style.height = leftHeight + 'px';
@@ -2257,10 +2677,10 @@
         function renderWhatIfChart() {
             const chartContainer = document.getElementById('whatif-chart');
             if (!chartContainer) return;
-            
+
             // Show loading indicator
             chartContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>Running what-if simulation...</p></div>';
-            
+
             const sigma = parseFloat(document.getElementById('sigma').value);
             const days = parseInt(document.getElementById('days').value);
             const nSims = parseInt(document.getElementById('sims').value);
@@ -2284,7 +2704,7 @@
                         const chart = createMultiScenarioChart(scenarios, currentValue);
                         // Clear loading before plotting
                         chartContainer.innerHTML = '';
-                        Plotly.newPlot('whatif-chart', chart.data, chart.layout, {responsive: true})
+                        Plotly.newPlot('whatif-chart', chart.data, chart.layout, { responsive: true })
                             .catch((error) => {
                                 console.error('Plotly error:', error);
                                 chartContainer.innerHTML = `<div class="info-box">Error rendering chart: ${error.message}</div>`;
@@ -2302,7 +2722,7 @@
             if (!container) return;
 
             let html = '<table class="portfolio-table"><thead><tr><th>Ticker</th><th>Shares</th><th>Price</th><th>Value</th><th>Return %</th><th>Predicted Price</th><th>Predicted Return %</th></tr></thead><tbody>';
-            
+
             const sigma = parseFloat(document.getElementById('sigma').value);
             const days = parseInt(document.getElementById('days').value);
             const nSims = parseInt(document.getElementById('sims').value);
@@ -2332,7 +2752,7 @@
                     </tr>
                 `;
             });
-            
+
             html += '</tbody></table>';
             container.innerHTML = html;
         }
@@ -2350,13 +2770,13 @@
                     return_pct: returnPct,
                     current_price: price
                 });
-                
+
                 // Clear form
                 document.getElementById('new-ticker').value = '';
                 document.getElementById('new-value').value = 1000;
                 document.getElementById('new-return').value = 10;
                 document.getElementById('new-price').value = 100;
-                
+
                 renderPositions();
                 updateAllCharts();
             }
@@ -2391,7 +2811,7 @@
             // Check if this is a DCA position (has different input IDs)
             const sharesInput = document.getElementById(`dca-shares-${idx}`);
             const returnInput = document.getElementById(`dca-return-${idx}`);
-            
+
             let shares, returnPct;
             if (sharesInput && returnInput) {
                 // DCA position
@@ -2402,10 +2822,10 @@
                 shares = parseFloat(document.getElementById(`shares-${idx}`).value);
                 returnPct = parseFloat(document.getElementById(`return-${idx}`).value);
             }
-            
+
             pos.value = shares * pos.current_price;
             pos.return_pct = returnPct;
-            
+
             renderWhatIf();
             renderWhatIfChart();
         }
@@ -2422,12 +2842,12 @@
         function showDCAForm(idx) {
             const pos = whatifPositions[idx];
             const existingDCA = whatifDCASchedule[pos.ticker];
-            
+
             // Create modal overlay
             const modal = document.createElement('div');
             modal.id = 'dca-modal';
             modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center;';
-            
+
             modal.innerHTML = `
                 <div style="background: white; padding: 25px; border-radius: 10px; max-width: 400px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
                     <h3 style="margin-top: 0; color: #333;">Enable DCA for ${pos.ticker}</h3>
@@ -2452,16 +2872,16 @@
                     </div>
                 </div>
             `;
-            
+
             document.body.appendChild(modal);
-            
+
             // Close on background click
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) {
                     closeDCAForm();
                 }
             });
-            
+
             // Focus on amount input
             setTimeout(() => {
                 document.getElementById('dca-modal-amount').focus();
@@ -2479,7 +2899,7 @@
             const pos = whatifPositions[idx];
             const amount = parseFloat(document.getElementById('dca-modal-amount').value);
             const freq = parseInt(document.getElementById('dca-modal-freq').value);
-            
+
             if (amount > 0 && [7, 14, 21, 30, 60, 90].includes(freq)) {
                 whatifDCASchedule[pos.ticker] = { amount, frequency_days: freq };
                 closeDCAForm();
@@ -2506,7 +2926,7 @@
         function updateDCAConfig(ticker, idx) {
             const amount = parseFloat(document.getElementById(`dca-amount-${idx}`).value);
             const freq = parseInt(document.getElementById(`dca-freq-${idx}`).value);
-            
+
             if (amount > 0 && [7, 14, 21, 30, 60, 90].includes(freq)) {
                 whatifDCASchedule[ticker] = { amount, frequency_days: freq };
                 renderWhatIfChart();
@@ -2541,19 +2961,19 @@
             const method = document.getElementById('allocation-method')?.value;
             const value = parseFloat(document.getElementById('allocation-value')?.value || 0);
             const preview = document.getElementById('allocation-preview');
-            
+
             if (!preview || !method || value <= 0) {
                 if (preview) preview.textContent = '';
                 return;
             }
-            
+
             const checkedBoxes = document.querySelectorAll('input[id^="watchlist-check-"]:checked');
             if (checkedBoxes.length === 0) {
                 preview.textContent = 'Select at least one stock from the watchlist';
                 preview.style.color = '#e74c3c';
                 return;
             }
-            
+
             let previewText = '';
             if (method === 'amount') {
                 previewText = `Each selected stock will receive $${value.toLocaleString()}`;
@@ -2564,9 +2984,9 @@
                     const item = watchlist.find(w => w.ticker === cb.value);
                     return sum + (item ? item.current_price * value : 0);
                 }, 0);
-                previewText += ` (Est. cost: $${totalCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})})`;
+                previewText += ` (Est. cost: $${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
             }
-            
+
             preview.textContent = previewText;
             preview.style.color = '#667eea';
         }
@@ -2691,5 +3111,5 @@
         window.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
-</html>
 
+</html>

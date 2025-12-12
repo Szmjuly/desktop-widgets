@@ -218,6 +218,58 @@ class LicenseManager:
         print(f"   New expiration: {new_expiry.strftime('%Y-%m-%d')}")
         return True
     
+    def activate_license(self, license_key: str):
+        """Reactivate a suspended license."""
+        license_data = self.licenses_ref.child(license_key).get()
+        
+        if not license_data:
+            print(f"❌ License not found: {license_key}")
+            return False
+        
+        self.licenses_ref.child(license_key).update({
+            'status': 'active',
+            'reactivated_at': datetime.utcnow().isoformat()
+        })
+        
+        print(f"✅ License reactivated: {license_key}")
+        return True
+    
+    def toggle_license(self, license_key: str) -> bool:
+        """Toggle license status between active and suspended."""
+        license_data = self.licenses_ref.child(license_key).get()
+        
+        if not license_data:
+            print(f"❌ License not found: {license_key}")
+            return False
+        
+        current_status = license_data.get('status', 'active')
+        new_status = 'suspended' if current_status == 'active' else 'active'
+        
+        self.licenses_ref.child(license_key).update({
+            'status': new_status,
+            'status_changed_at': datetime.utcnow().isoformat()
+        })
+        
+        print(f"✅ License status changed: {license_key}")
+        print(f"   {current_status} → {new_status}")
+        return new_status == 'active'
+    
+    def set_license_status(self, license_key: str, status: str) -> bool:
+        """Set license status directly."""
+        license_data = self.licenses_ref.child(license_key).get()
+        
+        if not license_data:
+            return False
+        
+        if status not in ['active', 'suspended', 'expired']:
+            return False
+        
+        self.licenses_ref.child(license_key).update({
+            'status': status,
+            'status_changed_at': datetime.utcnow().isoformat()
+        })
+        return True
+    
     def get_license_info(self, license_key: str):
         """Get detailed information about a license."""
         license_data = self.licenses_ref.child(license_key).get()
