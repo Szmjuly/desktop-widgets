@@ -452,6 +452,23 @@ def update_docx_dates(path: Path, target_date: str, target_phase=None,
         'fonts_changed': fonts_changed
     }
 
+def check_word_available() -> tuple[bool, str]:
+    """Check if Microsoft Word is available. Returns (is_available, reason)."""
+    if win32 is None:
+        return False, "pywin32 not installed"
+    
+    try:
+        # Just check if Word COM class exists without starting it
+        import winreg
+        try:
+            key = winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, r"Word.Application\CLSID")
+            winreg.CloseKey(key)
+            return True, ""
+        except WindowsError:
+            return False, "Microsoft Word not installed"
+    except Exception as e:
+        return False, f"Unable to detect Word: {str(e)}"
+
 def ensure_word():
     if win32 is None:
         raise RuntimeError("pywin32 not installed; cannot handle .doc or PDF export.")
@@ -1617,6 +1634,15 @@ class MainWindow(QWidget):
             }}
         """
 
+    def _center_dialog(self, dialog):
+        """Center a dialog on the main window."""
+        if dialog and self.isVisible():
+            parent_geo = self.geometry()
+            dialog_size = dialog.sizeHint()
+            x = parent_geo.x() + (parent_geo.width() - dialog_size.width()) // 2
+            y = parent_geo.y() + (parent_geo.height() - dialog_size.height()) // 2
+            dialog.move(x, y)
+    
     def _load_app_config(self) -> dict:
         """Load application configuration."""
         # Check multiple locations for app_config.json
@@ -1896,6 +1922,20 @@ class MainWindow(QWidget):
         from PySide6.QtGui import QTextCursor
         self.log.moveCursor(QTextCursor.MoveOperation.End)
 
+    def _scan_for_legacy_doc_files(self, root: Path, recursive: bool, exclude_folders: list[str], skip_toc: bool) -> int:
+        """Quick scan to count legacy .doc files in the target directory."""
+        count = 0
+        iterator = root.rglob("*.doc") if recursive else root.glob("*.doc")
+        for f in iterator:
+            if f.name.startswith("~$"):
+                continue
+            if any(part.lower() in exclude_folders for part in f.parts):
+                continue
+            if skip_toc and "table of contents" in f.stem.lower():
+                continue
+            count += 1
+        return count
+
     @Slot()
     def startRun(self):
         root = self.txtRoot.text().strip()
@@ -1935,6 +1975,78 @@ class MainWindow(QWidget):
         target_font_size = self.spnFontSize.value() if self.chkNormalizeFontSize.isChecked() else None
         skip_toc = self.chkSkipTOC.isChecked()
         reprint_only = self.chkReprintOnly.isChecked()
+        
+        # Pre-scan for legacy .doc files if not included
+        if not include_doc:
+            root_path = Path(root)
+            exclude_lower = [x.lower() for x in exclude]
+            doc_count = self._scan_for_legacy_doc_files(root_path, recursive, exclude_lower, skip_toc)
+            
+            if doc_count > 0:
+                # Check if Word is available (unless admin disabled the check)
+                require_word_check = self.app_config.get('require_word_check', True)
+                word_available, word_reason = check_word_available()
+                
+                if require_word_check and not word_available:
+                    # Word not available - inform user
+                    mb = QMessageBox(self)
+                    mb.setIcon(QMessageBox.Icon.Warning)
+                    mb.setWindowTitle("Legacy Files Detected - Word Required")
+                    mb.setText(f"Found {doc_count} legacy .doc file(s) in the target directory.")
+                    mb.setInformativeText(
+                        f"Legacy .doc files require Microsoft Word to process.\n\n"
+                        f"Issue: {word_reason}\n\n"
+                        f"Options:\n"
+                        f"• Install Microsoft Word to process .doc files\n"
+                        f"• Convert .doc files to .docx manually\n"
+                        f"• Skip the {doc_count} .doc file(s) and process only .docx files"
+                    )
+                    btn_skip = mb.addButton(f"Skip .doc Files", QMessageBox.ButtonRole.AcceptRole)
+                    btn_cancel = mb.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+                    mb.setDefaultButton(btn_skip)
+                    
+                    self._center_dialog(mb)
+                    result = mb.exec()
+                    clicked = mb.clickedButton()
+                    
+                    if clicked == btn_cancel or clicked is None:
+                        return
+                else:
+                    # Word available or check disabled - show normal options
+                    mb = QMessageBox(self)
+                    mb.setIcon(QMessageBox.Icon.Warning)
+                    mb.setWindowTitle("Legacy Files Detected")
+                    mb.setText(f"Found {doc_count} legacy .doc file(s) in the target directory.")
+                    mb.setInformativeText(
+                        "Legacy .doc files require Microsoft Word to process.\n\n"
+                        "Choose how to handle these files:"
+                    )
+                    
+                    btn_replace = mb.addButton("Convert to .docx (Delete .doc)", QMessageBox.ButtonRole.AcceptRole)
+                    btn_keep = mb.addButton("Convert to .docx (Keep .doc)", QMessageBox.ButtonRole.AcceptRole)
+                    btn_skip = mb.addButton(f"Skip All .doc Files", QMessageBox.ButtonRole.DestructiveRole)
+                    btn_cancel = mb.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+                    mb.setDefaultButton(btn_replace)
+                    
+                    self._center_dialog(mb)
+                    result = mb.exec()
+                    clicked = mb.clickedButton()
+                    
+                    # Handle X button or Cancel button as cancel
+                    if clicked == btn_cancel or clicked is None:
+                        return
+                    elif clicked == btn_skip:
+                        pass
+                    elif clicked == btn_replace:
+                        include_doc = True
+                        replace_doc = True
+                        self.chkIncludeDoc.setChecked(True)
+                        self.chkReplaceDoc.setChecked(True)
+                    elif clicked == btn_keep:
+                        include_doc = True
+                        replace_doc = False
+                        self.chkIncludeDoc.setChecked(True)
+                        self.chkReplaceDoc.setChecked(False)
         
         self.worker = UpdateWorker(
             root=root,
