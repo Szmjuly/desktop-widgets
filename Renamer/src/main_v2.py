@@ -43,7 +43,7 @@ from src.main import (
     # Constants
     DEFAULT_FONT_NAME, DEFAULT_FONT_SIZE, DATE_RX, PHASE_RX,
     # Functions
-    ensure_word, convert_doc_to_docx, export_pdf, export_pdf_fast, safe_close_word,
+    ensure_word, check_word_available, convert_doc_to_docx, export_pdf, export_pdf_fast, safe_close_word,
     replace_in_headerlike, normalize_whitespace_in_header_footer,
     normalize_fonts_in_document, update_docx_dates,
     # Worker class
@@ -681,6 +681,9 @@ class MainWindowV2(QWidget):
         self.setWindowTitle("Spec Header Date & Phase Updater")
         self.setMinimumSize(self.BASE_WIDTH, self.MIN_HEIGHT)
         self.resize(self.BASE_WIDTH, self.BASE_HEIGHT)
+        
+        # Load app configuration
+        self.app_config = self._load_app_config()
         
         # Log panel state
         self._log_visible = False
@@ -2064,6 +2067,62 @@ class MainWindowV2(QWidget):
         QMessageBox.warning(self, "Word Required", msg)
         self.setUIEnabled(True)
     
+    def _center_dialog(self, dialog):
+        """Center a dialog on the main window."""
+        if dialog and self.isVisible():
+            parent_geo = self.geometry()
+            dialog_size = dialog.sizeHint()
+            x = parent_geo.x() + (parent_geo.width() - dialog_size.width()) // 2
+            y = parent_geo.y() + (parent_geo.height() - dialog_size.height()) // 2
+            dialog.move(x, y)
+    
+    def _load_app_config(self) -> dict:
+        """Load application configuration."""
+        # Check multiple locations for app_config.json
+        config_locations = [
+            Path(__file__).parent.parent / 'app_config.json',  # Renamer root folder
+            Path(__file__).parent / 'app_config.json',  # src folder (fallback)
+            Path(__file__).parent.parent.parent / 'app_config.json',  # desktop-widgets folder
+        ]
+        
+        config_file = None
+        for path in config_locations:
+            if path.exists():
+                config_file = path
+                break
+        
+        default_config = {
+            "require_subscription": True,
+            "require_word_check": True,
+            "app_name": "Spec Header Date Updater",
+            "app_version": "1.0.0",
+            "dark_mode": False,
+            "min_plan": "free"
+        }
+        
+        try:
+            if config_file and config_file.exists():
+                with open(config_file, 'r') as f:
+                    return json.load(f)
+        except Exception as e:
+            print(f"Error loading config: {e}")
+        
+        return default_config
+    
+    def _scan_for_legacy_doc_files(self, root: Path, recursive: bool, exclude_folders: list[str], skip_toc: bool) -> int:
+        """Quick scan to count legacy .doc files in the target directory."""
+        count = 0
+        iterator = root.rglob("*.doc") if recursive else root.glob("*.doc")
+        for f in iterator:
+            if f.name.startswith("~$"):
+                continue
+            if any(part.lower() in exclude_folders for part in f.parts):
+                continue
+            if skip_toc and "table of contents" in f.stem.lower():
+                continue
+            count += 1
+        return count
+    
     def startRun(self):
         root = self.txtFolder.text().strip()
         if not root or not Path(root).is_dir():
@@ -2090,6 +2149,7 @@ class MainWindowV2(QWidget):
             btn_remove = mb.addButton("Remove Phase Text", QMessageBox.ButtonRole.DestructiveRole)
             btn_cancel = mb.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
             mb.setDefaultButton(btn_leave)
+            self._center_dialog(mb)
             mb.exec()
             clicked = mb.clickedButton()
             if clicked == btn_cancel:
@@ -2112,6 +2172,7 @@ class MainWindowV2(QWidget):
                 btn_proceed = mb.addButton("Proceed Anyway", QMessageBox.ButtonRole.DestructiveRole)
                 btn_cancel = mb.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
                 mb.setDefaultButton(btn_date_only)
+                self._center_dialog(mb)
                 mb.exec()
                 clicked = mb.clickedButton()
                 if clicked == btn_cancel:
@@ -2135,6 +2196,78 @@ class MainWindowV2(QWidget):
         backup_dir = self.txtBackup.text().strip() if self.chkBackup.isChecked() else None
         
         exclude = [self.lstExclude.item(i).text() for i in range(self.lstExclude.count())]
+        
+        # Pre-scan for legacy .doc files if not included
+        if not include_doc:
+            root_path = Path(root)
+            exclude_lower = [x.lower() for x in exclude]
+            doc_count = self._scan_for_legacy_doc_files(root_path, recursive, exclude_lower, skip_toc)
+            
+            if doc_count > 0:
+                # Check if Word is available (unless admin disabled the check)
+                require_word_check = self.app_config.get('require_word_check', True)
+                word_available, word_reason = check_word_available()
+                
+                if require_word_check and not word_available:
+                    # Word not available - inform user
+                    mb = QMessageBox(self)
+                    mb.setIcon(QMessageBox.Icon.Warning)
+                    mb.setWindowTitle("Legacy Files Detected - Word Required")
+                    mb.setText(f"Found {doc_count} legacy .doc file(s) in the target directory.")
+                    mb.setInformativeText(
+                        f"Legacy .doc files require Microsoft Word to process.\n\n"
+                        f"Issue: {word_reason}\n\n"
+                        f"Options:\n"
+                        f"• Install Microsoft Word to process .doc files\n"
+                        f"• Convert .doc files to .docx manually\n"
+                        f"• Skip the {doc_count} .doc file(s) and process only .docx files"
+                    )
+                    btn_skip = mb.addButton(f"Skip .doc Files", QMessageBox.ButtonRole.AcceptRole)
+                    btn_cancel = mb.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+                    mb.setDefaultButton(btn_skip)
+                    
+                    self._center_dialog(mb)
+                    result = mb.exec()
+                    clicked = mb.clickedButton()
+                    
+                    if clicked == btn_cancel or clicked is None:
+                        return
+                else:
+                    # Word available or check disabled - show normal options
+                    mb = QMessageBox(self)
+                    mb.setIcon(QMessageBox.Icon.Warning)
+                    mb.setWindowTitle("Legacy Files Detected")
+                    mb.setText(f"Found {doc_count} legacy .doc file(s) in the target directory.")
+                    mb.setInformativeText(
+                        "Legacy .doc files require Microsoft Word to process.\n\n"
+                        "Choose how to handle these files:"
+                    )
+                    
+                    btn_replace = mb.addButton("Convert to .docx (Delete .doc)", QMessageBox.ButtonRole.AcceptRole)
+                    btn_keep = mb.addButton("Convert to .docx (Keep .doc)", QMessageBox.ButtonRole.AcceptRole)
+                    btn_skip = mb.addButton(f"Skip All .doc Files", QMessageBox.ButtonRole.DestructiveRole)
+                    btn_cancel = mb.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+                    mb.setDefaultButton(btn_replace)
+                    
+                    self._center_dialog(mb)
+                    result = mb.exec()
+                    clicked = mb.clickedButton()
+                    
+                    # Handle X button or Cancel button as cancel
+                    if clicked == btn_cancel or clicked is None:
+                        return
+                    elif clicked == btn_skip:
+                        pass
+                    elif clicked == btn_replace:
+                        include_doc = True
+                        replace_doc = True
+                        self.chkIncludeDoc.setChecked(True)
+                        self.chkReplaceDoc.setChecked(True)
+                    elif clicked == btn_keep:
+                        include_doc = True
+                        replace_doc = False
+                        self.chkIncludeDoc.setChecked(True)
+                        self.chkReplaceDoc.setChecked(False)
         
         # Clear log and reset progress
         self._run_start_time = time.monotonic()
