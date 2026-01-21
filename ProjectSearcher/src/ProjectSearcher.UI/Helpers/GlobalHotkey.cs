@@ -27,8 +27,10 @@ public class GlobalHotkey : IDisposable
     private LowLevelKeyboardProc? _hookProc;
     private bool _hotkeyPressed;
     private bool _disposed;
+    private bool _suppressingHotkeyEvents;
 
     public event EventHandler? HotkeyPressed;
+    public Func<bool>? ShouldSuppressHotkey;
 
     // Win32 API imports
     [DllImport("user32.dll", SetLastError = true)]
@@ -94,12 +96,23 @@ public class GlobalHotkey : IDisposable
         {
             int message = wParam.ToInt32();
             var data = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
+            
             if (message == WM_KEYDOWN || message == WM_SYSKEYDOWN)
             {
                 if (!_hotkeyPressed && IsHotkeyMatch(data.vkCode))
                 {
-                    _hotkeyPressed = true;
-                    HotkeyPressed?.Invoke(this, EventArgs.Empty);
+                    // Check if hotkey should be suppressed
+                    var shouldSuppress = ShouldSuppressHotkey?.Invoke() ?? false;
+                    
+                    if (!shouldSuppress)
+                    {
+                        _hotkeyPressed = true;
+                        _suppressingHotkeyEvents = true;
+                        HotkeyPressed?.Invoke(this, EventArgs.Empty);
+                        
+                        // Block the keyboard event to prevent character passthrough
+                        return (IntPtr)1;
+                    }
                 }
             }
             else if (message == WM_KEYUP || message == WM_SYSKEYUP)
@@ -107,6 +120,13 @@ public class GlobalHotkey : IDisposable
                 if (data.vkCode == _key)
                 {
                     _hotkeyPressed = false;
+                    
+                    // Also block the key-up event if we blocked the key-down
+                    if (_suppressingHotkeyEvents)
+                    {
+                        _suppressingHotkeyEvents = false;
+                        return (IntPtr)1;
+                    }
                 }
             }
         }
