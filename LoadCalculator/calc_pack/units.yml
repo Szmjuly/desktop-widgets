@@ -1,0 +1,12 @@
+# calc_pack/units.yml
+units:
+  V:  { kind: "voltage" }
+  A:  { kind: "current" }
+  kVA:{ kind: "power_apparent" }
+  W:  { kind: "power_real" }
+  VA: { kind: "power_apparent" }
+rules:
+  - id: "kVA_to_VA"
+    from: "kVA"
+    to: "VA"
+    factor: 1000

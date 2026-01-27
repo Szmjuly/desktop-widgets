@@ -1,0 +1,13 @@
+# calc_pack/manifest.yml
+pack_id: "ces_loadcalc"
+version: "1.0.0"
+engine_compat: ">=0.1.0"
+entrypoints:
+  - domains/electrical.yml
+tables:
+  - tables/demand_factors.yml
+  - tables/motor_tables.yml
+units: "units.yml"
+metadata:
+  author: "CES Engineering"
+  last_updated: "2026-01-21"

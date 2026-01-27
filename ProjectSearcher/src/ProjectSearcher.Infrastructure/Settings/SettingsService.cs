@@ -54,6 +54,9 @@ public class SettingsService : ISettingsService
     public bool GetTransparencyLinked() => _settings.TransparencyLinked;
     public void SetTransparencyLinked(bool linked) => _settings.TransparencyLinked = linked;
 
+    public int GetNotificationDurationMs() => _settings.NotificationDurationMs;
+    public void SetNotificationDurationMs(int durationMs) => _settings.NotificationDurationMs = durationMs;
+
     public async Task SaveAsync()
     {
         var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions
@@ -95,5 +98,6 @@ public class SettingsService : ISettingsService
         public double SettingsTransparency { get; set; } = 0.78;
         public double OverlayTransparency { get; set; } = 0.78;
         public bool TransparencyLinked { get; set; } = true;
+        public int NotificationDurationMs { get; set; } = 3000; // 3 seconds
     }
 }

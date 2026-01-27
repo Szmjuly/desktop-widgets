@@ -1,5 +1,10 @@
 # Project Searcher
 
+> **⚠️ DEPRECATED - January 27, 2026**  
+> This project has been migrated to **DesktopHub** - a modular widget host platform.  
+> ProjectSearcher functionality is now available as a widget within DesktopHub.  
+> **Please use [DesktopHub](../DesktopHub/README.md) for all new development.**
+
 A lightweight Windows desktop application that provides **Spotlight-style instant search** for project folders on the Q: drive network share. Press `Ctrl+Alt+Space` from anywhere to instantly search and open projects.
 
 ## Key Features

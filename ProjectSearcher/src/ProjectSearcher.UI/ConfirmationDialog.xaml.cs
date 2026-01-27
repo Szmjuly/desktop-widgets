@@ -25,6 +25,12 @@ public partial class ConfirmationDialog : Window
         {
             UpdateRootClip(12);
         };
+
+        // Auto-focus the Exit button when dialog loads
+        Loaded += (s, e) =>
+        {
+            ExitButton.Focus();
+        };
     }
 
     private void ConfirmButton_Click(object sender, RoutedEventArgs e)

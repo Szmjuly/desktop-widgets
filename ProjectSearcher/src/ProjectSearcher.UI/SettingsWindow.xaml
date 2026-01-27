@@ -512,6 +512,57 @@
                             </Grid>
                         </StackPanel>
                     </Border>
+                    
+                    <!-- Notification Duration Section -->
+                    <Border Background="{StaticResource SurfaceBrush}" 
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="16"
+                            Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Notification Duration" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextBrush}"
+                                       Margin="0,0,0,8"/>
+                            
+                            <TextBlock Text="How long balloon notifications stay visible" 
+                                       FontSize="12" 
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Margin="0,0,0,12"/>
+                            
+                            <!-- Radio buttons for preset durations -->
+                            <StackPanel x:Name="NotificationDurationStack" Margin="0,0,0,8">
+                                <RadioButton x:Name="NotificationShortRadio"
+                                             Content="Short (2 seconds)"
+                                             FontSize="13"
+                                             Foreground="{StaticResource TextBrush}"
+                                             Margin="0,0,0,4"
+                                             Checked="NotificationDurationRadio_Checked"/>
+                                
+                                <RadioButton x:Name="NotificationMediumRadio"
+                                             Content="Medium (3 seconds)"
+                                             FontSize="13"
+                                             Foreground="{StaticResource TextBrush}"
+                                             Margin="0,0,0,4"
+                                             Checked="NotificationDurationRadio_Checked"/>
+                                
+                                <RadioButton x:Name="NotificationLongRadio"
+                                             Content="Long (5 seconds)"
+                                             FontSize="13"
+                                             Foreground="{StaticResource TextBrush}"
+                                             Margin="0,0,0,4"
+                                             Checked="NotificationDurationRadio_Checked"/>
+                                
+                                <RadioButton x:Name="NotificationDisabledRadio"
+                                             Content="Disabled (no notifications)"
+                                             FontSize="13"
+                                             Foreground="{StaticResource TextBrush}"
+                                             Checked="NotificationDurationRadio_Checked"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
             </Grid>

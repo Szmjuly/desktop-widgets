@@ -1,0 +1,22 @@
+# calc_pack/tables/demand_factors.yml
+table_id: "demand_factors"
+description: "Demand factors by category and connected kVA"
+key_fields: ["category"]
+x_field: "connected_kva"
+y_field: "factor"
+method: "piecewise_linear"
+rows:
+  - category: "general"
+    points:
+      - { connected_kva: 0,    factor: 1.00 }
+      - { connected_kva: 50,   factor: 0.85 }
+      - { connected_kva: 200,  factor: 0.70 }
+      - { connected_kva: 500,  factor: 0.60 }
+
+  - category: "kitchen"
+    points:
+      - { connected_kva: 0,    factor: 1.00 }
+      - { connected_kva: 50,   factor: 0.90 }
+      - { connected_kva: 200,  factor: 0.80 }
+      - { connected_kva: 500,  factor: 0.75 }
+comment: "Matches internal Excel logic, verify against latest spec basis"

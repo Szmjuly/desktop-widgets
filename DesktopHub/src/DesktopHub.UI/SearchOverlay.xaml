@@ -1,0 +1,494 @@
+<Window x:Class="DesktopHub.UI.SearchOverlay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Project Searcher"
+        WindowStyle="None"
+        AllowsTransparency="False"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        WindowStartupLocation="Manual"
+        Width="980"
+        Height="500"
+        SizeToContent="Manual"
+        ResizeMode="NoResize"
+        Loaded="Window_Loaded"
+        Deactivated="Window_Deactivated"
+        KeyDown="Window_KeyDown">
+    
+    <Window.Resources>
+        <!-- Result item template -->
+        <DataTemplate x:Key="ResultItemTemplate">
+            <Grid Margin="0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- Favorite indicator -->
+                <TextBlock Grid.Column="0" 
+                           Text="★" 
+                           FontSize="16"
+                           Foreground="#FFD700"
+                           Margin="0,0,8,0"
+                           Visibility="{Binding IsFavorite, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                
+                <StackPanel Grid.Column="1">
+                    <!-- Project number and name -->
+                    <TextBlock FontSize="14" FontWeight="SemiBold">
+                        <Run Text="{Binding FullNumber, Mode=OneWay}" Foreground="#007ACC"/>
+                        <Run Text=" - "/>
+                        <Run Text="{Binding Name, Mode=OneWay}"/>
+                    </TextBlock>
+                    
+                    <!-- Location and status -->
+                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                        <TextBlock Text="{Binding Location, Mode=OneWay}" 
+                                   FontSize="11" 
+                                   Foreground="#AAAAAA"
+                                   Margin="0,0,12,0"
+                                   Visibility="{Binding Location, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"/>
+                        <TextBlock Text="{Binding Status, Mode=OneWay}" 
+                                   FontSize="11" 
+                                   Foreground="#AAAAAA"
+                                   Visibility="{Binding Status, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"/>
+                    </StackPanel>
+                    
+                    <!-- Path (shown on hover) -->
+                    <TextBlock Text="{Binding Path, Mode=OneWay}" 
+                               FontSize="10" 
+                               Foreground="#777777"
+                               Margin="0,2,0,0"
+                               TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+    </Window.Resources>
+    
+    <Grid>
+        <!-- Hidden focus trap to clear focus before hiding window -->
+        <!-- Must be Visible (not Collapsed) to receive focus, but invisible via Opacity=0 -->
+        <Border x:Name="FocusTrap" 
+                Width="1" 
+                Height="1" 
+                Focusable="True" 
+                Opacity="0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                IsHitTestVisible="False"/>
+        
+        <!-- Semi-transparent overlay background with glass edge -->
+        <Border x:Name="RootBorder"
+                Background="#A8121212"
+                CornerRadius="12"
+                BorderBrush="#3A2A2A2A"
+                BorderThickness="1"
+                Margin="0"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch">
+            <Grid>
+            <Border x:Name="GlassOverlay"
+                    Margin="2"
+                    CornerRadius="10"
+                    BorderThickness="1"
+                    BorderBrush="#33FFFFFF"
+                    Background="#14000000"
+                    IsHitTestVisible="False"/>
+            <Border x:Name="ContentBorder" Background="Transparent" Padding="19">
+                <Grid Margin="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- Main content area -->
+                    <Grid Grid.Column="0" Margin="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            
+            <!-- Search box and year filter -->
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- Search box -->
+                <Border Grid.Column="0"
+                        Background="#D0121212"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="4"
+                        Margin="0,0,8,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <!-- Search icon -->
+                        <TextBlock x:Name="SearchIcon"
+                                   Grid.Column="0"
+                                   Text="&#xE721;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="18"
+                                   Foreground="#F5F7FA"
+                                   VerticalAlignment="Center"
+                                   Margin="8,0"/>
+                        
+                        <!-- Search input -->
+                        <TextBox x:Name="SearchBox"
+                                 Grid.Column="1"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 FontSize="18"
+                                 VerticalAlignment="Center"
+                                 CaretBrush="#F5F7FA"
+                                 Foreground="#F5F7FA"
+                                 TextChanged="SearchBox_TextChanged"
+                                 GotFocus="SearchBox_GotFocus"
+                                 LostFocus="SearchBox_LostFocus"
+                                 PreviewKeyDown="SearchBox_PreviewKeyDown"/>
+                        
+                        <!-- Loading indicator -->
+                        <TextBlock x:Name="LoadingIndicator"
+                                   Grid.Column="2"
+                                   Text="⟳"
+                                   FontSize="16"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   VerticalAlignment="Center"
+                                   Margin="8,0"
+                                   Visibility="Collapsed"/>
+                    </Grid>
+                </Border>
+                
+                <!-- Year filter -->
+                <Border Grid.Column="1"
+                        Background="#D0121212"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="8,4">
+                    <ComboBox x:Name="YearFilter"
+                              MinWidth="100"
+                              Background="Transparent"
+                              Foreground="#F5F7FA"
+                              BorderThickness="0"
+                              SelectionChanged="YearFilter_SelectionChanged">
+                        <ComboBox.Resources>
+                            <Style TargetType="ComboBox">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ComboBox">
+                                            <Grid>
+                                                <ToggleButton x:Name="ToggleButton"
+                                                              Grid.Column="2"
+                                                              Focusable="false"
+                                                              IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                                              ClickMode="Press"
+                                                              HorizontalAlignment="Stretch"
+                                                              VerticalAlignment="Stretch">
+                                                    <ToggleButton.Template>
+                                                        <ControlTemplate TargetType="ToggleButton">
+                                                            <Border x:Name="HoverBorder"
+                                                                    Background="Transparent"
+                                                                    BorderThickness="0"
+                                                                    CornerRadius="8"
+                                                                    HorizontalAlignment="Stretch"
+                                                                    VerticalAlignment="Stretch">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="20"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <ContentPresenter Grid.Column="0"
+                                                                                      Name="ContentSite"
+                                                                                      IsHitTestVisible="False"
+                                                                                      Content="{Binding Path=SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                                                      ContentTemplate="{Binding Path=SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                                                      ContentTemplateSelector="{Binding Path=ItemTemplateSelector, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                                                      Margin="8,3,0,3"
+                                                                                      VerticalAlignment="Center"
+                                                                                      HorizontalAlignment="Left"
+                                                                                      TextElement.Foreground="#F5F7FA"/>
+                                                                    <Path Grid.Column="1"
+                                                                          x:Name="Arrow"
+                                                                          Fill="#F5F7FA"
+                                                                          HorizontalAlignment="Center"
+                                                                          VerticalAlignment="Center"
+                                                                          Data="M 0 0 L 4 4 L 8 0 Z"/>
+                                                                </Grid>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="HoverBorder" Property="Background" Value="#15F5F7FA"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsChecked" Value="True">
+                                                                    <Setter TargetName="HoverBorder" Property="Background" Value="#20F5F7FA"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </ToggleButton.Template>
+                                                </ToggleButton>
+                                                <Popup Name="Popup"
+                                                       Placement="Bottom"
+                                                       IsOpen="{TemplateBinding IsDropDownOpen}"
+                                                       AllowsTransparency="True"
+                                                       Focusable="False"
+                                                       PopupAnimation="Slide">
+                                                    <Border Name="DropDownBorder"
+                                                            Background="#1E1E1E"
+                                                            BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="8"
+                                                            MinWidth="{TemplateBinding ActualWidth}"
+                                                            MaxHeight="300">
+                                                        <ScrollViewer Margin="4,6,4,6" SnapsToDevicePixels="True" VerticalScrollBarVisibility="Hidden">
+                                                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                                        </ScrollViewer>
+                                                    </Border>
+                                                </Popup>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ComboBox.Resources>
+                        <ComboBox.ItemContainerStyle>
+                            <Style TargetType="ComboBoxItem">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="#F5F7FA"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="2,1"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ComboBoxItem">
+                                            <Border Name="Border"
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderThickness="0"
+                                                    CornerRadius="6"
+                                                    Padding="10,6"
+                                                    Margin="0">
+                                                <ContentPresenter/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsHighlighted" Value="True">
+                                                    <Setter TargetName="Border" Property="Background" Value="#20F5F7FA"/>
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Border" Property="Background" Value="#30F5F7FA"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ComboBox.ItemContainerStyle>
+                    </ComboBox>
+                </Border>
+            </Grid>
+            
+            <!-- Horizontal search history pills with collapse/expand button -->
+            <Grid Grid.Row="1"
+                  Margin="0,8,0,0"
+                  x:Name="HistoryAndCollapseContainer"
+                  Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <ScrollViewer Grid.Column="0"
+                             HorizontalScrollBarVisibility="Auto"
+                             VerticalScrollBarVisibility="Disabled"
+                             x:Name="HistoryScrollViewer">
+                    <ItemsControl x:Name="HorizontalHistoryList">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#20F5F7FA"
+                                        BorderBrush="#30F5F7FA"
+                                        BorderThickness="1"
+                                        CornerRadius="12"
+                                        Padding="12,6"
+                                        Margin="0,0,6,0"
+                                        Cursor="Hand"
+                                        MouseLeftButtonDown="HistoryItem_Click">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#30F5F7FA"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <TextBlock Text="{Binding}"
+                                              FontSize="12"
+                                              Foreground="#F5F7FA"/>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+                
+                <!-- Collapse/Expand button on the right -->
+                <Border Grid.Column="1"
+                        Background="Transparent"
+                        Cursor="Hand"
+                        MouseLeftButtonDown="ToggleResults_Click"
+                        Padding="8,0,0,0"
+                        VerticalAlignment="Center">
+                    <TextBlock x:Name="CollapseIcon"
+                              Text="▼"
+                              FontSize="14"
+                              Foreground="#808080"
+                              VerticalAlignment="Center"
+                              RenderTransformOrigin="0.5,0.5">
+                        <TextBlock.RenderTransform>
+                            <RotateTransform x:Name="CollapseIconRotation" Angle="0"/>
+                        </TextBlock.RenderTransform>
+                    </TextBlock>
+                </Border>
+            </Grid>
+            
+            <!-- Results list -->
+            <Grid Grid.Row="2" Margin="0,8,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                
+                <!-- Projects header -->
+                <Border Grid.Row="0"
+                        Padding="0,4">
+                    <TextBlock x:Name="ResultsHeaderText"
+                              Text="Projects"
+                              FontSize="11"
+                              Foreground="#808080"
+                              VerticalAlignment="Center"/>
+                </Border>
+                
+                <!-- Results list and history panel -->
+            <Border Grid.Row="1" x:Name="ResultsContainer" 
+                    Margin="0,12,0,0"
+                    Background="#D0121212"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <!-- Results list -->
+                    <ListBox x:Name="ResultsList"
+                             ItemTemplate="{StaticResource ResultItemTemplate}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             SelectionChanged="ResultsList_SelectionChanged"
+                             MouseDoubleClick="ResultsList_MouseDoubleClick"/>
+            </Border>
+            
+            </Grid>
+            
+            <!-- Status bar -->
+            <Grid Grid.Row="3" Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <TextBlock x:Name="StatusText"
+                           Grid.Column="0"
+                           FontSize="11"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           Text="Type to search projects..."/>
+                
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,12,0">
+                        <Run Text="↑↓"/>
+                        <Run Text="Navigate"/>
+                    </TextBlock>
+                    <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,12,0">
+                        <Run Text="Enter"/>
+                        <Run Text="Open"/>
+                    </TextBlock>
+                    <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}">
+                        <Run Text="Esc"/>
+                        <Run Text="Close"/>
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+        </Grid>
+                    </Grid>
+                    
+                    <!-- Side menu panel -->
+                    <Border Grid.Column="1"
+                            x:Name="SideMenuPanel"
+                            Background="#D0121212"
+                            BorderBrush="#2A2A2A"
+                            BorderThickness="1,0,0,0"
+                            Width="250"
+                            Padding="12"
+                            Margin="12,0,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            
+                            <!-- Side menu header -->
+                            <TextBlock Grid.Row="0"
+                                      Text="Widgets"
+                                      FontSize="14"
+                                      FontWeight="SemiBold"
+                                      Foreground="#F5F7FA"
+                                      Margin="0,0,0,12"/>
+                            
+                            <!-- Widget selector buttons -->
+                            <StackPanel Grid.Row="1" Margin="0,0,0,12">
+                                <Border x:Name="TimerWidgetButton"
+                                        Background="#20007ACC"
+                                        BorderBrush="#30007ACC"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="10,8"
+                                        Margin="0,0,0,6"
+                                        Cursor="Hand"
+                                        MouseLeftButtonDown="TimerWidgetButton_Click">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#30007ACC"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <TextBlock Text="⏱️ Timer"
+                                              FontSize="12"
+                                              Foreground="#F5F7FA"
+                                              HorizontalAlignment="Left"/>
+                                </Border>
+                            </StackPanel>
+                            
+                            <!-- Widget content area -->
+                            <ScrollViewer Grid.Row="2"
+                                         VerticalScrollBarVisibility="Auto"
+                                         HorizontalScrollBarVisibility="Disabled">
+                                <ContentControl x:Name="WidgetContentArea"/>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+                </Grid>
+    </Border>
+    </Grid>
+    </Border>
+    </Grid>
+</Window>

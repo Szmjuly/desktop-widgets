@@ -1,0 +1,581 @@
+<Window x:Class="DesktopHub.UI.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Project Searcher Settings"
+        WindowStyle="None"
+        AllowsTransparency="False"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        Width="500"
+        Height="500"
+        Topmost="True"
+        ShowInTaskbar="False"
+        KeyDown="Window_KeyDown">
+    
+    <Window.Resources>
+        <!-- Custom thin rounded scrollbar style -->
+        <Style x:Key="ThinScrollBar" TargetType="{x:Type ScrollBar}">
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="MinWidth" Value="8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ScrollBar}">
+                        <Grid Background="Transparent">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True" Width="8">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0"/>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate>
+                                                <Border Background="#60F5F7FA" 
+                                                        CornerRadius="4"
+                                                        Width="8"/>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0"/>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <Style x:Key="ThinScrollViewer" TargetType="{x:Type ScrollViewer}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ScrollViewer}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ScrollContentPresenter Grid.Column="0"/>
+                            <ScrollBar x:Name="PART_VerticalScrollBar"
+                                     Grid.Column="1"
+                                     Value="{TemplateBinding VerticalOffset}"
+                                     Maximum="{TemplateBinding ScrollableHeight}"
+                                     ViewportSize="{TemplateBinding ViewportHeight}"
+                                     Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"
+                                     Style="{StaticResource ThinScrollBar}"
+                                     Margin="4,0,0,0"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    
+    <!-- Glass effect container -->
+    <Border x:Name="RootBorder" 
+            Background="#C8181818" 
+            CornerRadius="12" 
+            BorderBrush="#442A2A2A" 
+            BorderThickness="1">
+        <Grid>
+            <!-- Inner glass overlay for depth -->
+            <Border x:Name="GlassOverlay"
+                    Margin="2"
+                    CornerRadius="10"
+                    BorderThickness="1"
+                    BorderBrush="#33FFFFFF"
+                    Background="#14000000"
+                    IsHitTestVisible="False"/>
+            
+            <!-- Content -->
+            <Grid Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            
+            <!-- Header -->
+            <Grid Grid.Row="0" Margin="0,0,0,20">
+                <TextBlock Text="Settings" 
+                           FontSize="24" 
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource TextBrush}"/>
+                <Button x:Name="CloseButton"
+                        Content="✕"
+                        Width="32"
+                        Height="32"
+                        HorizontalAlignment="Right"
+                        Background="#22FFFFFF"
+                        Foreground="{StaticResource TextBrush}"
+                        BorderBrush="#22FFFFFF"
+                        Click="CloseButton_Click"
+                        Cursor="Hand">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" 
+                                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                                BorderThickness="1"
+                                                CornerRadius="6">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+            
+            <!-- Settings content with custom scroll -->
+            <Grid Grid.Row="1">
+            <ScrollViewer x:Name="SettingsScroll"
+                         VerticalScrollBarVisibility="Auto"
+                         ScrollChanged="SettingsScroll_ScrollChanged"
+                         Style="{StaticResource ThinScrollViewer}">
+                <StackPanel>
+                    <!-- Hotkey Section -->
+                    <Border Background="{StaticResource SurfaceBrush}" 
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="16"
+                            Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Global Hotkey" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextBrush}"
+                                       Margin="0,0,0,8"/>
+                            
+                            <TextBlock Text="Press a new key combination to change the hotkey" 
+                                       FontSize="12" 
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Margin="0,0,0,12"/>
+                            
+                            <!-- Hotkey Display -->
+                            <Border x:Name="HotkeyBox"
+                                    Background="#22FFFFFF"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="12"
+                                    Margin="0,0,0,12"
+                                    Cursor="Hand"
+                                    MouseDown="HotkeyBox_MouseDown">
+                                <Grid>
+                                    <TextBlock x:Name="HotkeyText"
+                                               Text="Ctrl+Alt+Space"
+                                               FontSize="14"
+                                               FontWeight="Medium"
+                                               Foreground="{StaticResource TextBrush}"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="RecordingText"
+                                               Text="Press a key combination..."
+                                               FontSize="14"
+                                               FontStyle="Italic"
+                                               Foreground="{StaticResource PrimaryBrush}"
+                                               HorizontalAlignment="Center"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+                            </Border>
+                            
+                            <Button x:Name="ResetHotkeyButton"
+                                    Content="Reset to Default (Ctrl+Alt+Space)"
+                                    Padding="12,8"
+                                    Background="#22FFFFFF"
+                                    Foreground="{StaticResource TextSecondaryBrush}"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    Click="ResetHotkeyButton_Click"
+                                    Cursor="Hand">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}" 
+                                                            BorderBrush="{TemplateBinding BorderBrush}" 
+                                                            BorderThickness="1"
+                                                            CornerRadius="6">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+
+                            <Border x:Name="HotkeyTypingWarning"
+                                    Background="#332B1B00"
+                                    BorderBrush="#665A3A00"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="10"
+                                    Margin="0,12,0,0"
+                                    Visibility="Collapsed">
+                                <TextBlock x:Name="HotkeyTypingWarningText"
+                                           TextWrapping="Wrap"
+                                           FontSize="12"
+                                           Foreground="#F3D6A2"/>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- Auto-start Section -->
+                    <Border Background="{StaticResource SurfaceBrush}" 
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="16"
+                            Margin="0,0,0,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Run at Startup" 
+                                           FontSize="16" 
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextBrush}"
+                                           Margin="0,0,0,4"/>
+                                <TextBlock Text="Launch Project Searcher automatically when Windows starts" 
+                                           FontSize="12" 
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                            
+                            <ToggleButton x:Name="AutoStartToggle"
+                                          Grid.Column="1"
+                                          Width="50"
+                                          Height="28"
+                                          VerticalAlignment="Center"
+                                          Checked="AutoStartToggle_Checked"
+                                          Unchecked="AutoStartToggle_Unchecked"
+                                          Cursor="Hand">
+                                <ToggleButton.Style>
+                                    <Style TargetType="ToggleButton">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ToggleButton">
+                                                    <Border x:Name="Border"
+                                                            Background="#333333"
+                                                            CornerRadius="14"
+                                                            Width="50"
+                                                            Height="28">
+                                                        <Ellipse x:Name="Thumb"
+                                                                 Width="20"
+                                                                 Height="20"
+                                                                 Fill="White"
+                                                                 HorizontalAlignment="Left"
+                                                                 Margin="4,0,0,0"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsChecked" Value="True">
+                                                            <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                            <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ToggleButton.Style>
+                            </ToggleButton>
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Q Drive Path Section -->
+                    <Border Background="{StaticResource SurfaceBrush}" 
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="16"
+                            Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Q: Drive Path" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextBrush}"
+                                       Margin="0,0,0,8"/>
+                            
+                            <TextBox x:Name="QDrivePathBox"
+                                     Text="Q:\"
+                                     FontSize="14"
+                                     Padding="8"
+                                     Background="#22FFFFFF"
+                                     Foreground="{StaticResource TextBrush}"
+                                     BorderBrush="{StaticResource BorderBrush}"
+                                     TextChanged="QDrivePathBox_TextChanged">
+                                <TextBox.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </TextBox.Resources>
+                            </TextBox>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- Window Transparency Section -->
+                    <Border Background="{StaticResource SurfaceBrush}" 
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="16">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,12">
+                                <TextBlock Text="Window Transparency" 
+                                           FontSize="16" 
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextBrush}"
+                                           VerticalAlignment="Center"/>
+                                
+                                <Button x:Name="LinkTransparencyButton"
+                                        HorizontalAlignment="Right"
+                                        Width="28"
+                                        Height="28"
+                                        Background="#22FFFFFF"
+                                        BorderBrush="{StaticResource BorderBrush}"
+                                        Click="LinkTransparencyButton_Click"
+                                        Cursor="Hand"
+                                        ToolTip="Link/Unlink transparency">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" 
+                                                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                                                BorderThickness="1"
+                                                                CornerRadius="6">
+                                                            <TextBlock x:Name="LinkIcon"
+                                                                      Text="🔗"
+                                                                      FontSize="14"
+                                                                      HorizontalAlignment="Center"
+                                                                      VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </Grid>
+                            
+                            <!-- Settings Window Transparency -->
+                            <TextBlock Text="Settings Window" 
+                                       FontSize="13" 
+                                       FontWeight="Medium"
+                                       Foreground="{StaticResource TextBrush}"
+                                       Margin="0,0,0,8"/>
+                            
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <TextBlock Grid.Column="0"
+                                          Text="Transparent"
+                                          FontSize="10"
+                                          Foreground="{StaticResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,8,0"/>
+                                
+                                <Slider x:Name="SettingsTransparencySlider"
+                                       Grid.Column="1"
+                                       Minimum="0.4"
+                                       Maximum="0.95"
+                                       Value="0.78"
+                                       TickFrequency="0.05"
+                                       IsSnapToTickEnabled="True"
+                                       ValueChanged="SettingsTransparencySlider_ValueChanged"
+                                       VerticalAlignment="Center">
+                                    <Slider.Template>
+                                        <ControlTemplate TargetType="Slider">
+                                            <Grid>
+                                                <Border Background="#40FFFFFF" 
+                                                        Height="4" 
+                                                        CornerRadius="2"
+                                                        VerticalAlignment="Center"/>
+                                                <Track x:Name="PART_Track">
+                                                    <Track.DecreaseRepeatButton>
+                                                        <RepeatButton Command="Slider.DecreaseLarge" Background="Transparent" BorderThickness="0"/>
+                                                    </Track.DecreaseRepeatButton>
+                                                    <Track.IncreaseRepeatButton>
+                                                        <RepeatButton Command="Slider.IncreaseLarge" Background="Transparent" BorderThickness="0"/>
+                                                    </Track.IncreaseRepeatButton>
+                                                    <Track.Thumb>
+                                                        <Thumb>
+                                                            <Thumb.Template>
+                                                                <ControlTemplate>
+                                                                    <Ellipse Fill="{StaticResource PrimaryBrush}"
+                                                                            Width="16"
+                                                                            Height="16"
+                                                                            Stroke="White"
+                                                                            StrokeThickness="2"/>
+                                                                </ControlTemplate>
+                                                            </Thumb.Template>
+                                                        </Thumb>
+                                                    </Track.Thumb>
+                                                </Track>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Slider.Template>
+                                </Slider>
+                                
+                                <TextBlock Grid.Column="2"
+                                          Text="Opaque"
+                                          FontSize="10"
+                                          Foreground="{StaticResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center"
+                                          Margin="8,0,0,0"/>
+                            </Grid>
+                            
+                            <!-- Search Overlay Transparency -->
+                            <TextBlock Text="Search Overlay" 
+                                       FontSize="13" 
+                                       FontWeight="Medium"
+                                       Foreground="{StaticResource TextBrush}"
+                                       Margin="0,0,0,8"/>
+                            
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <TextBlock Grid.Column="0"
+                                          Text="Transparent"
+                                          FontSize="10"
+                                          Foreground="{StaticResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,8,0"/>
+                                
+                                <Slider x:Name="OverlayTransparencySlider"
+                                       Grid.Column="1"
+                                       Minimum="0.4"
+                                       Maximum="0.95"
+                                       Value="0.78"
+                                       TickFrequency="0.05"
+                                       IsSnapToTickEnabled="True"
+                                       ValueChanged="OverlayTransparencySlider_ValueChanged"
+                                       VerticalAlignment="Center">
+                                    <Slider.Template>
+                                        <ControlTemplate TargetType="Slider">
+                                            <Grid>
+                                                <Border Background="#40FFFFFF" 
+                                                        Height="4" 
+                                                        CornerRadius="2"
+                                                        VerticalAlignment="Center"/>
+                                                <Track x:Name="PART_Track">
+                                                    <Track.DecreaseRepeatButton>
+                                                        <RepeatButton Command="Slider.DecreaseLarge" Background="Transparent" BorderThickness="0"/>
+                                                    </Track.DecreaseRepeatButton>
+                                                    <Track.IncreaseRepeatButton>
+                                                        <RepeatButton Command="Slider.IncreaseLarge" Background="Transparent" BorderThickness="0"/>
+                                                    </Track.IncreaseRepeatButton>
+                                                    <Track.Thumb>
+                                                        <Thumb>
+                                                            <Thumb.Template>
+                                                                <ControlTemplate>
+                                                                    <Ellipse Fill="{StaticResource PrimaryBrush}"
+                                                                            Width="16"
+                                                                            Height="16"
+                                                                            Stroke="White"
+                                                                            StrokeThickness="2"/>
+                                                                </ControlTemplate>
+                                                            </Thumb.Template>
+                                                        </Thumb>
+                                                    </Track.Thumb>
+                                                </Track>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Slider.Template>
+                                </Slider>
+                                
+                                <TextBlock Grid.Column="2"
+                                          Text="Opaque"
+                                          FontSize="10"
+                                          Foreground="{StaticResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center"
+                                          Margin="8,0,0,0"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- Notification Duration Section -->
+                    <Border Background="{StaticResource SurfaceBrush}" 
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="16"
+                            Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Notification Duration" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextBrush}"
+                                       Margin="0,0,0,8"/>
+                            
+                            <TextBlock Text="How long balloon notifications stay visible" 
+                                       FontSize="12" 
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Margin="0,0,0,12"/>
+                            
+                            <!-- Radio buttons for preset durations -->
+                            <StackPanel x:Name="NotificationDurationStack" Margin="0,0,0,8">
+                                <RadioButton x:Name="NotificationShortRadio"
+                                             Content="Short (2 seconds)"
+                                             FontSize="13"
+                                             Foreground="{StaticResource TextBrush}"
+                                             Margin="0,0,0,4"
+                                             Checked="NotificationDurationRadio_Checked"/>
+                                
+                                <RadioButton x:Name="NotificationMediumRadio"
+                                             Content="Medium (3 seconds)"
+                                             FontSize="13"
+                                             Foreground="{StaticResource TextBrush}"
+                                             Margin="0,0,0,4"
+                                             Checked="NotificationDurationRadio_Checked"/>
+                                
+                                <RadioButton x:Name="NotificationLongRadio"
+                                             Content="Long (5 seconds)"
+                                             FontSize="13"
+                                             Foreground="{StaticResource TextBrush}"
+                                             Margin="0,0,0,4"
+                                             Checked="NotificationDurationRadio_Checked"/>
+                                
+                                <RadioButton x:Name="NotificationDisabledRadio"
+                                             Content="Disabled (no notifications)"
+                                             FontSize="13"
+                                             Foreground="{StaticResource TextBrush}"
+                                             Checked="NotificationDurationRadio_Checked"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+            </Grid>
+            
+            <!-- Footer -->
+            <Grid Grid.Row="2" Margin="0,20,0,0">
+                <TextBlock x:Name="StatusText"
+                           Text="Settings are saved automatically"
+                           FontSize="12"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </Grid>
+        </Grid>
+    </Border>
+</Window>
