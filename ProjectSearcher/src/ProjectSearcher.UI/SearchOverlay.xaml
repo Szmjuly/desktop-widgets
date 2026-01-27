@@ -65,16 +65,28 @@
         </DataTemplate>
     </Window.Resources>
     
-    <!-- Semi-transparent overlay background with glass edge -->
-    <Border x:Name="RootBorder"
-            Background="#A8121212"
-            CornerRadius="12"
-            BorderBrush="#3A2A2A2A"
-            BorderThickness="1"
-            Margin="0"
-            HorizontalAlignment="Stretch"
-            VerticalAlignment="Stretch">
-        <Grid>
+    <Grid>
+        <!-- Hidden focus trap to clear focus before hiding window -->
+        <!-- Must be Visible (not Collapsed) to receive focus, but invisible via Opacity=0 -->
+        <Border x:Name="FocusTrap" 
+                Width="1" 
+                Height="1" 
+                Focusable="True" 
+                Opacity="0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                IsHitTestVisible="False"/>
+        
+        <!-- Semi-transparent overlay background with glass edge -->
+        <Border x:Name="RootBorder"
+                Background="#A8121212"
+                CornerRadius="12"
+                BorderBrush="#3A2A2A2A"
+                BorderThickness="1"
+                Margin="0"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch">
+            <Grid>
             <Border x:Name="GlassOverlay"
                     Margin="2"
                     CornerRadius="10"
@@ -132,7 +144,10 @@
                                  VerticalAlignment="Center"
                                  CaretBrush="#F5F7FA"
                                  Foreground="#F5F7FA"
-                                 TextChanged="SearchBox_TextChanged"/>
+                                 TextChanged="SearchBox_TextChanged"
+                                 GotFocus="SearchBox_GotFocus"
+                                 LostFocus="SearchBox_LostFocus"
+                                 PreviewKeyDown="SearchBox_PreviewKeyDown"/>
                         
                         <!-- Loading indicator -->
                         <TextBlock x:Name="LoadingIndicator"
@@ -406,4 +421,5 @@
     </Border>
     </Grid>
     </Border>
+    </Grid>
 </Window>

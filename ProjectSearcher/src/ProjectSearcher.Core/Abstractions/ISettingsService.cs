@@ -86,6 +86,16 @@ public interface ISettingsService
     void SetTransparencyLinked(bool linked);
 
     /// <summary>
+    /// Get notification duration in milliseconds
+    /// </summary>
+    int GetNotificationDurationMs();
+
+    /// <summary>
+    /// Set notification duration in milliseconds
+    /// </summary>
+    void SetNotificationDurationMs(int durationMs);
+
+    /// <summary>
     /// Save all settings to disk
     /// </summary>
     Task SaveAsync();

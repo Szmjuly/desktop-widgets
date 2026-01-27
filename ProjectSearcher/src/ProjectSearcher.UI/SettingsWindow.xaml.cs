@@ -141,6 +141,9 @@ public partial class SettingsWindow : Window
             OverlayTransparencySlider.Value = _settings.GetOverlayTransparency();
             _isUpdatingSliders = false;
             
+            // Load notification duration setting
+            LoadNotificationDurationSetting();
+            
             UpdateLinkButtonIcon();
         }
         catch (Exception ex)
@@ -460,6 +463,73 @@ public partial class SettingsWindow : Window
         var linkedOpacity = isLinked ? 0.6 : 1.0;
         SettingsTransparencySlider.Opacity = linkedOpacity;
         OverlayTransparencySlider.Opacity = linkedOpacity;
+    }
+
+    private void LoadNotificationDurationSetting()
+    {
+        var durationMs = _settings.GetNotificationDurationMs();
+        
+        // Select the appropriate radio button based on duration
+        if (durationMs <= 0)
+        {
+            NotificationDisabledRadio.IsChecked = true;
+        }
+        else if (durationMs <= 2500)
+        {
+            NotificationShortRadio.IsChecked = true;
+        }
+        else if (durationMs <= 3500)
+        {
+            NotificationMediumRadio.IsChecked = true;
+        }
+        else
+        {
+            NotificationLongRadio.IsChecked = true;
+        }
+    }
+
+    private void NotificationDurationRadio_Checked(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.RadioButton radioButton && radioButton.IsChecked == true)
+        {
+            int newDurationMs;
+            
+            if (radioButton == NotificationShortRadio)
+            {
+                newDurationMs = 2000; // 2 seconds
+            }
+            else if (radioButton == NotificationMediumRadio)
+            {
+                newDurationMs = 3000; // 3 seconds
+            }
+            else if (radioButton == NotificationLongRadio)
+            {
+                newDurationMs = 5000; // 5 seconds
+            }
+            else if (radioButton == NotificationDisabledRadio)
+            {
+                newDurationMs = 0; // Disabled
+            }
+            else
+            {
+                return; // Unknown radio button
+            }
+
+            _settings.SetNotificationDurationMs(newDurationMs);
+            _ = _settings.SaveAsync();
+            
+            // Update status text
+            var statusText = newDurationMs switch
+            {
+                0 => "Notifications disabled",
+                2000 => "Notification duration: Short (2 seconds)",
+                3000 => "Notification duration: Medium (3 seconds)",
+                5000 => "Notification duration: Long (5 seconds)",
+                _ => "Notification duration updated"
+            };
+            
+            StatusText.Text = statusText;
+        }
     }
 
 }

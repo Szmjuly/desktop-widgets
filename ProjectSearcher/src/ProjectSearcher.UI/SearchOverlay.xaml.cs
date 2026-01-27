@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.IO;
+using System.IO.Pipes;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -32,6 +34,7 @@ public partial class SearchOverlay : Window
     private bool _isTogglingViaHotkey = false;
     private DateTime _lastHotkeyPress = DateTime.MinValue;
     private System.Windows.Threading.DispatcherTimer? _deactivateTimer;
+    private CancellationTokenSource? _ipcCts;
 
     public SearchOverlay()
     {
@@ -179,6 +182,9 @@ public partial class SearchOverlay : Window
 
             // Start background scan if needed
             _ = Task.Run(async () => await BackgroundScanAsync());
+
+            // Start IPC listener for commands from second instances
+            _ = Task.Run(() => StartIpcListener());
         }
         catch (Exception ex)
         {
@@ -193,134 +199,213 @@ public partial class SearchOverlay : Window
 
     private void OnHotkeyPressed(object? sender, EventArgs e)
     {
-        DebugLogger.Log("OnHotkeyPressed: Hotkey triggered");
+        DebugLogger.LogSeparator("HOTKEY PRESSED");
+        DebugLogger.LogHeader("Hotkey Press - Initial State");
         
         // Debounce rapid hotkey presses (prevent double-triggering)
         var now = DateTime.Now;
-        if ((now - _lastHotkeyPress).TotalMilliseconds < 200)
+        var timeSinceLastPress = (now - _lastHotkeyPress).TotalMilliseconds;
+        DebugLogger.LogVariable("Time since last press (ms)", timeSinceLastPress);
+        
+        if (timeSinceLastPress < 200)
         {
-            DebugLogger.Log("OnHotkeyPressed: Debounced (too soon after last press)");
+            DebugLogger.Log("OnHotkeyPressed: DEBOUNCED (too soon after last press)");
             return;
         }
         _lastHotkeyPress = now;
         
         var (modifiers, key) = _settings.GetHotkey();
+        DebugLogger.LogVariable("Hotkey Modifiers", modifiers);
+        DebugLogger.LogVariable("Hotkey Key", key);
+        DebugLogger.LogVariable("Hotkey Formatted", FormatHotkey(modifiers, key));
         
         // Check if we should suppress based on current visibility
         bool isCurrentlyVisible = false;
         Dispatcher.Invoke(() => { isCurrentlyVisible = this.Visibility == Visibility.Visible; });
+        DebugLogger.LogVariable("Window Currently Visible", isCurrentlyVisible);
         
         // Note: Suppression is now handled in GlobalHotkey.ShouldSuppressHotkey callback
         // This code path only executes if the hotkey was NOT suppressed
+        DebugLogger.Log("OnHotkeyPressed: Hotkey was NOT suppressed, proceeding with toggle");
         
         Dispatcher.Invoke(() =>
         {
+            DebugLogger.LogHeader("Dispatcher.Invoke - Beginning Toggle");
+            DebugLogger.LogVariable("Window.Visibility (before toggle)", this.Visibility);
+            DebugLogger.LogVariable("Window.IsActive (before toggle)", this.IsActive);
+            DebugLogger.LogVariable("Window.IsFocused (before toggle)", this.IsFocused);
+            
             _isTogglingViaHotkey = true;
+            DebugLogger.LogVariable("_isTogglingViaHotkey", _isTogglingViaHotkey);
             
             // Cancel any pending deactivate timer
-            _deactivateTimer?.Stop();
+            if (_deactivateTimer != null)
+            {
+                DebugLogger.Log("OnHotkeyPressed: Stopping deactivate timer");
+                _deactivateTimer.Stop();
+            }
             
             if (this.Visibility == Visibility.Visible)
             {
-                DebugLogger.Log("OnHotkeyPressed: Hiding overlay");
+                DebugLogger.Log("OnHotkeyPressed: Window visible -> HIDING overlay");
                 HideOverlay();
             }
             else
             {
-                DebugLogger.Log("OnHotkeyPressed: Showing overlay");
+                DebugLogger.Log("OnHotkeyPressed: Window hidden -> SHOWING overlay");
                 ShowOverlay();
             }
             
             // Reset toggle flag after a short delay
-            Task.Delay(300).ContinueWith(_ => Dispatcher.Invoke(() => _isTogglingViaHotkey = false));
+            DebugLogger.Log("OnHotkeyPressed: Scheduling _isTogglingViaHotkey reset (300ms delay)");
+            Task.Delay(300).ContinueWith(_ => Dispatcher.Invoke(() => 
+            {
+                _isTogglingViaHotkey = false;
+                DebugLogger.Log("OnHotkeyPressed: Reset _isTogglingViaHotkey to false");
+            }));
         });
     }
 
     private bool ShouldSuppressHotkey(int modifiers, int key)
     {
-        // ALWAYS suppress if our own SearchBox is focused - allow user to type in overlay
-        if (this.Visibility == Visibility.Visible && SearchBox.IsFocused)
-        {
-            DebugLogger.Log("ShouldSuppressHotkey: Suppressing - overlay's SearchBox is focused");
-            return true;
-        }
+        DebugLogger.LogHeader("ShouldSuppressHotkey Called");
+        DebugLogger.LogVariable("Modifiers", modifiers);
+        DebugLogger.LogVariable("Key", key);
+        DebugLogger.LogVariable("Hotkey", FormatHotkey(modifiers, key));
+        DebugLogger.LogVariable("Window.Visibility", this.Visibility);
         
         bool isCurrentlyVisible = this.Visibility == Visibility.Visible;
-        return ShouldSuppressHotkeyForTyping(modifiers, key, isCurrentlyVisible);
+        
+        // If overlay is visible, DON'T suppress - let the hotkey close it
+        if (isCurrentlyVisible)
+        {
+            DebugLogger.Log("ShouldSuppressHotkey: NOT suppressing - overlay is visible, allow toggle to close");
+            return false;
+        }
+        
+        // If overlay is not visible, check if we should suppress due to text field focus
+        var result = ShouldSuppressHotkeyForTyping(modifiers, key, isCurrentlyVisible);
+        DebugLogger.LogVariable("ShouldSuppressHotkeyForTyping returned", result);
+        return result;
     }
     
     private static bool ShouldSuppressHotkeyForTyping(int modifiers, int key, bool isCurrentlyVisible)
     {
+        DebugLogger.LogHeader("ShouldSuppressHotkeyForTyping Called");
+        DebugLogger.LogVariable("modifiers", modifiers);
+        DebugLogger.LogVariable("key", key);
+        DebugLogger.LogVariable("isCurrentlyVisible", isCurrentlyVisible);
+        
         // When opening the overlay (not currently visible), be permissive - only suppress for clear text input scenarios
         // When closing the overlay (currently visible), allow it - user intentionally pressed hotkey
         
         // Only check text field focus when opening the overlay
         if (!isCurrentlyVisible)
         {
+            DebugLogger.Log("ShouldSuppressHotkeyForTyping: Overlay NOT visible, checking for text field focus...");
             try
             {
                 var focused = AutomationElement.FocusedElement;
+                DebugLogger.LogVariable("AutomationElement.FocusedElement", focused != null ? "NOT NULL" : "NULL");
+                
                 if (focused == null)
                 {
+                    DebugLogger.Log("ShouldSuppressHotkeyForTyping: No focused element, NOT suppressing");
                     return false;
                 }
 
                 var controlType = focused.Current.ControlType;
+                DebugLogger.LogVariable("Focused ControlType", controlType.ProgrammaticName);
+                DebugLogger.LogVariable("Focused Name", focused.Current.Name);
+                DebugLogger.LogVariable("Focused ClassName", focused.Current.ClassName);
                 
                 // Suppress only for clear text editing controls
                 if (controlType == ControlType.Edit || controlType == ControlType.Document)
                 {
-                    DebugLogger.Log($"ShouldSuppressHotkeyForTyping: Suppressing - text control detected: {controlType.ProgrammaticName}");
+                    DebugLogger.Log($"ShouldSuppressHotkeyForTyping: SUPPRESSING - text control detected: {controlType.ProgrammaticName}");
                     return true;
                 }
 
                 // Check for editable combo boxes
                 if (controlType == ControlType.ComboBox)
                 {
+                    DebugLogger.Log("ShouldSuppressHotkeyForTyping: ComboBox detected, checking if editable...");
                     if (focused.TryGetCurrentPattern(ValuePattern.Pattern, out var valuePatternObj))
                     {
                         var valuePattern = (ValuePattern)valuePatternObj;
-                        if (!valuePattern.Current.IsReadOnly)
+                        var isReadOnly = valuePattern.Current.IsReadOnly;
+                        DebugLogger.LogVariable("ComboBox.IsReadOnly", isReadOnly);
+                        
+                        if (!isReadOnly)
                         {
-                            DebugLogger.Log("ShouldSuppressHotkeyForTyping: Suppressing - editable ComboBox detected");
+                            DebugLogger.Log("ShouldSuppressHotkeyForTyping: SUPPRESSING - editable ComboBox detected");
                             return true;
                         }
                     }
                 }
 
                 // Check for other editable text patterns
+                DebugLogger.Log("ShouldSuppressHotkeyForTyping: Checking for ValuePattern...");
                 if (focused.TryGetCurrentPattern(ValuePattern.Pattern, out var valueObj))
                 {
                     var value = (ValuePattern)valueObj;
-                    if (!value.Current.IsReadOnly)
+                    var isReadOnly = value.Current.IsReadOnly;
+                    DebugLogger.LogVariable("ValuePattern.IsReadOnly", isReadOnly);
+                    
+                    if (!isReadOnly)
                     {
                         // Also check if it's a text-capable control
-                        if (focused.TryGetCurrentPattern(TextPattern.Pattern, out _))
+                        var hasTextPattern = focused.TryGetCurrentPattern(TextPattern.Pattern, out _);
+                        DebugLogger.LogVariable("Has TextPattern", hasTextPattern);
+                        
+                        if (hasTextPattern)
                         {
-                            DebugLogger.Log("ShouldSuppressHotkeyForTyping: Suppressing - editable text pattern detected");
+                            DebugLogger.Log("ShouldSuppressHotkeyForTyping: SUPPRESSING - editable text pattern detected");
                             return true;
                         }
                     }
                 }
+                
+                DebugLogger.Log("ShouldSuppressHotkeyForTyping: No text input detected, NOT suppressing");
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"ShouldSuppressHotkeyForTyping: UIAutomation error: {ex.Message}");
+                DebugLogger.Log($"ShouldSuppressHotkeyForTyping: UIAutomation EXCEPTION: {ex.GetType().Name}");
+                DebugLogger.Log($"ShouldSuppressHotkeyForTyping: Exception Message: {ex.Message}");
                 // If UIAutomation fails (especially RPC_E_CANTCALLOUT_ININPUTSYNCCALL), 
-                // default to SUPPRESSING to be safe - assume user is typing in a text field
-                // This is especially important for apps like Windsurf/Cascade where UIAutomation 
-                // cannot be called from input-synchronous context
-                DebugLogger.Log("ShouldSuppressHotkeyForTyping: Defaulting to SUPPRESS (safe assumption)");
-                return true;
+                // we can't determine focus state. Since hotkey is input-synchronous and we're 
+                // being called FROM the hotkey handler, we should be PERMISSIVE and allow it.
+                // The exception means we're in a timing-sensitive input context, which suggests
+                // the user is actively trying to trigger the hotkey, not typing in a text field.
+                // If they were typing, the hotkey would be suppressed by the first check 
+                // (overlay's own SearchBox) or wouldn't fire at all (normal text input absorbs keys).
+                DebugLogger.Log("ShouldSuppressHotkeyForTyping: UIAutomation unavailable, defaulting to ALLOW (permissive)");
+                return false;
             }
         }
+        else
+        {
+            DebugLogger.Log("ShouldSuppressHotkeyForTyping: Overlay IS visible, NOT checking text fields (user wants to close)");
+        }
 
+        DebugLogger.Log("ShouldSuppressHotkeyForTyping: Returning FALSE (not suppressing)");
         return false;
     }
 
     private void ShowOverlay()
     {
-        DebugLogger.Log("ShowOverlay: Starting");
+        DebugLogger.LogSeparator("SHOW OVERLAY CALLED");
+        DebugLogger.LogHeader("Initial State");
+        DebugLogger.LogVariable("Window.Visibility", this.Visibility);
+        DebugLogger.LogVariable("Window.IsVisible", this.IsVisible);
+        DebugLogger.LogVariable("Window.IsActive", this.IsActive);
+        DebugLogger.LogVariable("Window.IsFocused", this.IsFocused);
+        DebugLogger.LogVariable("Window.Opacity", this.Opacity);
+        DebugLogger.LogVariable("SearchBox.IsFocused", SearchBox.IsFocused);
+        DebugLogger.LogVariable("SearchBox.IsKeyboardFocused", SearchBox.IsKeyboardFocused);
+        DebugLogger.LogVariable("SearchBox.IsKeyboardFocusWithin", SearchBox.IsKeyboardFocusWithin);
+        DebugLogger.LogVariable("_isTogglingViaHotkey", _isTogglingViaHotkey);
+        
         ApplyDynamicTinting();
         
         // Reset manual toggle flag on new open
@@ -332,19 +417,42 @@ public partial class SearchOverlay : Window
         CollapseIconRotation.Angle = -90;
         this.Height = 140; // Collapsed height
         
+        DebugLogger.LogHeader("Positioning Window");
         PositionOnMouseScreen();
+        DebugLogger.LogVariable("Window.Left", this.Left);
+        DebugLogger.LogVariable("Window.Top", this.Top);
+        
+        DebugLogger.LogHeader("Making Window Visible");
         this.Visibility = Visibility.Visible;
         this.Opacity = 1;
-        this.Activate();
+        
+        DebugLogger.LogHeader("Calling Window.Activate()");
+        var activateResult = this.Activate();
+        DebugLogger.LogVariable("Activate() returned", activateResult);
+        DebugLogger.LogVariable("Window.IsActive after Activate()", this.IsActive);
+        DebugLogger.LogVariable("Window.IsFocused after Activate()", this.IsFocused);
         
         // Clear SearchBox first to prevent any keyboard events from adding characters
+        DebugLogger.LogHeader("Clearing SearchBox");
         SearchBox.Clear();
+        DebugLogger.LogVariable("SearchBox.Text after Clear()", SearchBox.Text);
         
         // Delay focus to ensure hotkey keyboard events are fully processed/blocked
         // Use DispatcherPriority.Input to run after all input events are processed
+        DebugLogger.LogHeader("Scheduling Focus to SearchBox (DispatcherPriority.Input)");
         Dispatcher.BeginInvoke(new Action(() =>
         {
-            SearchBox.Focus();
+            DebugLogger.LogHeader("Focus Callback Executing");
+            DebugLogger.LogVariable("Window.IsActive (in callback)", this.IsActive);
+            DebugLogger.LogVariable("Window.IsFocused (in callback)", this.IsFocused);
+            DebugLogger.LogVariable("SearchBox.IsFocused (before Focus())", SearchBox.IsFocused);
+            
+            var focusResult = SearchBox.Focus();
+            DebugLogger.LogVariable("SearchBox.Focus() returned", focusResult);
+            DebugLogger.LogVariable("SearchBox.IsFocused (after Focus())", SearchBox.IsFocused);
+            DebugLogger.LogVariable("SearchBox.IsKeyboardFocused (after Focus())", SearchBox.IsKeyboardFocused);
+            DebugLogger.LogVariable("SearchBox.IsKeyboardFocusWithin (after Focus())", SearchBox.IsKeyboardFocusWithin);
+            
             SearchBox.SelectAll();
             
             // Double-check and clear any text that appeared (safety measure)
@@ -355,6 +463,14 @@ public partial class SearchOverlay : Window
                     DebugLogger.Log($"ShowOverlay: Clearing unexpected text in SearchBox: '{SearchBox.Text}'");
                     SearchBox.Clear();
                 }
+                
+                DebugLogger.LogHeader("Final Focus State (after 50ms delay)");
+                DebugLogger.LogVariable("Window.IsActive", this.IsActive);
+                DebugLogger.LogVariable("Window.IsFocused", this.IsFocused);
+                DebugLogger.LogVariable("SearchBox.IsFocused", SearchBox.IsFocused);
+                DebugLogger.LogVariable("SearchBox.IsKeyboardFocused", SearchBox.IsKeyboardFocused);
+                DebugLogger.LogVariable("SearchBox.IsKeyboardFocusWithin", SearchBox.IsKeyboardFocusWithin);
+                DebugLogger.LogVariable("SearchBox.Text", SearchBox.Text);
             }));
         }), System.Windows.Threading.DispatcherPriority.Input);
         
@@ -363,7 +479,7 @@ public partial class SearchOverlay : Window
         
         // Show history if search is blank
         UpdateHistoryVisibility();
-        DebugLogger.Log("ShowOverlay: Complete");
+        DebugLogger.Log("ShowOverlay: Returning from method");
     }
 
     private void PositionOnMouseScreen()
@@ -542,15 +658,45 @@ public partial class SearchOverlay : Window
 
     private void HideOverlay()
     {
-        DebugLogger.Log("HideOverlay: Hiding overlay");
+        DebugLogger.LogSeparator("HIDE OVERLAY CALLED");
+        DebugLogger.LogHeader("Initial State");
+        DebugLogger.LogVariable("Window.Visibility", this.Visibility);
+        DebugLogger.LogVariable("Window.IsVisible", this.IsVisible);
+        DebugLogger.LogVariable("Window.IsActive", this.IsActive);
+        DebugLogger.LogVariable("Window.IsFocused", this.IsFocused);
+        DebugLogger.LogVariable("SearchBox.IsFocused", SearchBox.IsFocused);
+        DebugLogger.LogVariable("SearchBox.IsKeyboardFocused", SearchBox.IsKeyboardFocused);
+        DebugLogger.LogVariable("_isTogglingViaHotkey", _isTogglingViaHotkey);
+        
+        DebugLogger.LogHeader("Clearing Focus from SearchBox");
+        // CRITICAL: Move focus away from SearchBox to prevent stale focus state
+        // When window is hidden, SearchBox retains logical focus but loses keyboard routing
+        // This causes focus to break on next show - SearchBox.IsFocused=true but keyboard doesn't work
+        // Keyboard.ClearFocus() only clears keyboard routing, not logical focus
+        // Must explicitly move focus to another element (FocusTrap) to clear IsFocused
+        FocusTrap.Focus();
+        DebugLogger.LogVariable("After FocusTrap.Focus() - SearchBox.IsFocused", SearchBox.IsFocused);
+        DebugLogger.LogVariable("After FocusTrap.Focus() - SearchBox.IsKeyboardFocused", SearchBox.IsKeyboardFocused);
+        DebugLogger.LogVariable("After FocusTrap.Focus() - FocusTrap.IsFocused", FocusTrap.IsFocused);
+        
+        DebugLogger.LogHeader("Hiding Window");
         this.Visibility = Visibility.Hidden;
         this.Opacity = 0;
+        
+        DebugLogger.LogHeader("Clearing SearchBox and UI");
         SearchBox.Clear();
         ResultsList.ItemsSource = null;
         
         // Clear history pills to prevent them from reappearing
         HorizontalHistoryList.ItemsSource = null;
         HistoryAndCollapseContainer.Visibility = Visibility.Collapsed;
+        
+        DebugLogger.LogHeader("Final State");
+        DebugLogger.LogVariable("Window.Visibility", this.Visibility);
+        DebugLogger.LogVariable("Window.IsVisible", this.IsVisible);
+        DebugLogger.LogVariable("SearchBox.IsFocused (final)", SearchBox.IsFocused);
+        DebugLogger.LogVariable("SearchBox.IsKeyboardFocused (final)", SearchBox.IsKeyboardFocused);
+        DebugLogger.Log("HideOverlay: Returning from method");
     }
 
     private static string FormatHotkey(int modifiers, int key)
@@ -788,16 +934,57 @@ public partial class SearchOverlay : Window
         }
     }
 
+    private void SearchBox_GotFocus(object sender, RoutedEventArgs e)
+    {
+        DebugLogger.LogHeader("SearchBox GotFocus");
+        DebugLogger.LogVariable("Window.IsActive", this.IsActive);
+        DebugLogger.LogVariable("Window.IsFocused", this.IsFocused);
+        DebugLogger.LogVariable("SearchBox.IsFocused", SearchBox.IsFocused);
+        DebugLogger.LogVariable("SearchBox.IsKeyboardFocused", SearchBox.IsKeyboardFocused);
+        DebugLogger.LogVariable("SearchBox.IsKeyboardFocusWithin", SearchBox.IsKeyboardFocusWithin);
+    }
+
+    private void SearchBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        DebugLogger.LogHeader("SearchBox LostFocus");
+        DebugLogger.LogVariable("Window.IsActive", this.IsActive);
+        DebugLogger.LogVariable("Window.IsFocused", this.IsFocused);
+        DebugLogger.LogVariable("SearchBox.IsFocused", SearchBox.IsFocused);
+        DebugLogger.LogVariable("SearchBox.IsKeyboardFocused", SearchBox.IsKeyboardFocused);
+    }
+
+    private void SearchBox_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        DebugLogger.LogHeader("SearchBox PreviewKeyDown");
+        DebugLogger.LogVariable("Key", e.Key);
+        DebugLogger.LogVariable("SystemKey", e.SystemKey);
+        DebugLogger.LogVariable("KeyStates", e.KeyStates);
+        DebugLogger.LogVariable("IsDown", e.IsDown);
+        DebugLogger.LogVariable("IsUp", e.IsUp);
+        DebugLogger.LogVariable("IsRepeat", e.IsRepeat);
+        DebugLogger.LogVariable("Keyboard.Modifiers", System.Windows.Input.Keyboard.Modifiers);
+        DebugLogger.LogVariable("SearchBox.Text (before)", SearchBox.Text);
+        DebugLogger.LogVariable("SearchBox.IsFocused", SearchBox.IsFocused);
+        DebugLogger.LogVariable("SearchBox.IsKeyboardFocused", SearchBox.IsKeyboardFocused);
+    }
+
     private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
+        DebugLogger.LogHeader("Window KeyDown");
+        DebugLogger.LogVariable("Key", e.Key);
+        DebugLogger.LogVariable("Handled", e.Handled);
+        DebugLogger.LogVariable("Source", e.Source?.GetType().Name ?? "<null>");
+        
         switch (e.Key)
         {
             case System.Windows.Input.Key.Escape:
+                DebugLogger.Log("Window_KeyDown: Escape pressed -> Hiding overlay");
                 HideOverlay();
                 e.Handled = true;
                 break;
 
             case System.Windows.Input.Key.Enter:
+                DebugLogger.Log("Window_KeyDown: Enter pressed -> Opening selected project");
                 OpenSelectedProject();
                 e.Handled = true;
                 break;
@@ -806,6 +993,7 @@ public partial class SearchOverlay : Window
                 if (ResultsList.Items.Count > 0)
                 {
                     var newIndex = Math.Min(ResultsList.SelectedIndex + 1, ResultsList.Items.Count - 1);
+                    DebugLogger.Log($"Window_KeyDown: Down pressed -> Selecting item {newIndex}");
                     ResultsList.SelectedIndex = newIndex;
                     ResultsList.ScrollIntoView(ResultsList.SelectedItem);
                 }
@@ -816,6 +1004,7 @@ public partial class SearchOverlay : Window
                 if (ResultsList.Items.Count > 0)
                 {
                     var newIndex = Math.Max(ResultsList.SelectedIndex - 1, 0);
+                    DebugLogger.Log($"Window_KeyDown: Up pressed -> Selecting item {newIndex}");
                     ResultsList.SelectedIndex = newIndex;
                     ResultsList.ScrollIntoView(ResultsList.SelectedItem);
                 }
@@ -823,6 +1012,7 @@ public partial class SearchOverlay : Window
                 break;
 
             case System.Windows.Input.Key.C when System.Windows.Input.Keyboard.Modifiers == System.Windows.Input.ModifierKeys.Control:
+                DebugLogger.Log("Window_KeyDown: Ctrl+C pressed -> Copying path");
                 CopySelectedProjectPath();
                 e.Handled = true;
                 break;
@@ -885,37 +1075,57 @@ public partial class SearchOverlay : Window
 
     private void Window_Deactivated(object sender, EventArgs e)
     {
-        DebugLogger.Log($"Window_Deactivated: Focus lost, _isTogglingViaHotkey={_isTogglingViaHotkey}");
+        DebugLogger.LogSeparator("WINDOW DEACTIVATED");
+        DebugLogger.LogHeader("Window Lost Focus");
+        DebugLogger.LogVariable("Window.IsActive", this.IsActive);
+        DebugLogger.LogVariable("Window.IsFocused", this.IsFocused);
+        DebugLogger.LogVariable("Window.Visibility", this.Visibility);
+        DebugLogger.LogVariable("_isTogglingViaHotkey", _isTogglingViaHotkey);
+        DebugLogger.LogVariable("SearchBox.IsFocused", SearchBox.IsFocused);
+        DebugLogger.LogVariable("SearchBox.IsKeyboardFocused", SearchBox.IsKeyboardFocused);
         
         // Don't auto-hide if we're in the middle of a hotkey toggle
         if (_isTogglingViaHotkey)
         {
-            DebugLogger.Log("Window_Deactivated: Ignoring - hotkey toggle in progress");
+            DebugLogger.Log("Window_Deactivated: IGNORING - hotkey toggle in progress");
             return;
         }
         
         // Use a delayed auto-hide to avoid race conditions with hotkey toggles
         // Cancel any existing timer
-        _deactivateTimer?.Stop();
+        if (_deactivateTimer != null)
+        {
+            DebugLogger.Log("Window_Deactivated: Stopping existing deactivate timer");
+            _deactivateTimer.Stop();
+        }
         
         // Create new timer with 150ms delay
+        DebugLogger.Log("Window_Deactivated: Starting 150ms delay timer before auto-hide");
         _deactivateTimer = new System.Windows.Threading.DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(150)
         };
         _deactivateTimer.Tick += (s, args) =>
         {
+            DebugLogger.LogHeader("Deactivate Timer Tick (after 150ms)");
             _deactivateTimer?.Stop();
+            
+            DebugLogger.LogVariable("Window.IsActive (now)", this.IsActive);
+            DebugLogger.LogVariable("_isTogglingViaHotkey (now)", _isTogglingViaHotkey);
+            DebugLogger.LogVariable("Window.Visibility (now)", this.Visibility);
             
             // Double-check we're still deactivated and not toggling
             if (!this.IsActive && !_isTogglingViaHotkey && this.Visibility == Visibility.Visible)
             {
-                DebugLogger.Log("Window_Deactivated: Auto-hiding after delay");
+                DebugLogger.Log("Window_Deactivated: Conditions met -> AUTO-HIDING overlay");
                 HideOverlay();
             }
             else
             {
-                DebugLogger.Log($"Window_Deactivated: Skipping auto-hide - IsActive={this.IsActive}, _isTogglingViaHotkey={_isTogglingViaHotkey}");
+                DebugLogger.Log($"Window_Deactivated: SKIPPING auto-hide:");
+                DebugLogger.LogVariable("  Reason: IsActive", this.IsActive);
+                DebugLogger.LogVariable("  Reason: _isTogglingViaHotkey", _isTogglingViaHotkey);
+                DebugLogger.LogVariable("  Reason: Visibility", this.Visibility);
             }
         };
         _deactivateTimer.Start();
@@ -963,8 +1173,86 @@ public partial class SearchOverlay : Window
         });
     }
 
+    private void StartIpcListener()
+    {
+        _ipcCts = new CancellationTokenSource();
+        var token = _ipcCts.Token;
+
+        Task.Run(async () =>
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    using var server = new NamedPipeServerStream("ProjectSearcher_IPC", PipeDirection.In, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+                    DebugLogger.Log("IPC: Waiting for connection...");
+                    
+                    await server.WaitForConnectionAsync(token);
+                    DebugLogger.Log("IPC: Client connected");
+
+                    using var reader = new StreamReader(server);
+                    var command = await reader.ReadLineAsync();
+                    
+                    if (!string.IsNullOrEmpty(command))
+                    {
+                        DebugLogger.Log($"IPC: Received command: {command}");
+                        await Dispatcher.InvokeAsync(() => HandleIpcCommand(command));
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    DebugLogger.Log("IPC: Listener cancelled");
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"IPC: Error: {ex.Message}");
+                    await Task.Delay(1000, token);
+                }
+            }
+        }, token);
+    }
+
+    private void HandleIpcCommand(string command)
+    {
+        DebugLogger.Log($"IPC: Handling command: {command}");
+        
+        switch (command)
+        {
+            case "SHOW_OVERLAY":
+                if (this.Visibility != Visibility.Visible)
+                {
+                    ShowOverlay();
+                }
+                else
+                {
+                    this.Activate();
+                    SearchBox.Focus();
+                }
+                break;
+
+            case "SHOW_SETTINGS":
+                _trayIcon?.ShowSettings();
+                break;
+
+            case "CLOSE_APP":
+                var confirmed = ConfirmationDialog.Show("Are you sure you want to exit Project Searcher?", this);
+                if (confirmed)
+                {
+                    System.Windows.Application.Current.Shutdown();
+                }
+                break;
+
+            default:
+                DebugLogger.Log($"IPC: Unknown command: {command}");
+                break;
+        }
+    }
+
     protected override void OnClosed(EventArgs e)
     {
+        _ipcCts?.Cancel();
+        _ipcCts?.Dispose();
         _hotkey?.Dispose();
         _trayIcon?.Dispose();
         base.OnClosed(e);

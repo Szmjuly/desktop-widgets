@@ -1,0 +1,3 @@
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\scripts\dev-env.ps1   
+dotnet run --project .\src\DesktopHub.UI -c Debug

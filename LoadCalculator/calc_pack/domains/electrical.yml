@@ -1,0 +1,56 @@
+# calc_pack/domains/electrical.yml
+domain: "electrical"
+description: "Building electrical load calculations"
+
+inputs:
+  - id: "service_voltage"
+    label: "Service Voltage"
+    type: "number"
+    unit: "V"
+    default: 480
+    constraints: { min: 120, max: 600 }
+
+  - id: "phase"
+    label: "Phase"
+    type: "enum"
+    default: "3"
+    values: ["1", "3"]
+
+  - id: "connected_kva"
+    label: "Total Connected Load"
+    type: "number"
+    unit: "kVA"
+    constraints: { min: 0 }
+
+  - id: "demand_category"
+    label: "Demand Category"
+    type: "enum"
+    default: "general"
+    values: ["general", "kitchen", "hvac"]
+
+constants:
+  - id: "sqrt3"
+    type: "number"
+    value: 1.7320508075688772
+    comment: "Used for 3-phase conversions"
+
+lookups:
+  - id: "demand_factor"
+    table: "demand_factors"
+    inputs: ["demand_category", "connected_kva"]
+    output: "factor"
+    comment: "Interpolates demand factor by category and kVA breakpoints"
+
+computed:
+  - id: "demand_kva"
+    unit: "kVA"
+    expr: "connected_kva * demand_factor"
+    comment: "Demand load = connected load times applicable demand factor"
+
+  - id: "service_amps"
+    unit: "A"
+    expr: "IF(phase == '3', (demand_kva*1000)/(sqrt3*service_voltage), (demand_kva*1000)/service_voltage)"
+    comment: "I = P/(sqrt(3)V) for 3-phase, I = P/V for 1-phase"
+    display:
+      decimals: 1
+      highlight_if: "service_amps > 800"

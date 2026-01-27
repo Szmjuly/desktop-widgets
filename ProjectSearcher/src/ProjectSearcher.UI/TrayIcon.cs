@@ -38,12 +38,16 @@ public class TrayIcon : IDisposable
         _notifyIcon.DoubleClick += (s, e) => ShowSearch();
 
         // Show balloon tip on first run
-        _notifyIcon.ShowBalloonTip(
-            1500,
-            "Project Searcher",
-            $"Press {_hotkeyLabel} to search projects",
-            System.Windows.Forms.ToolTipIcon.Info
-        );
+        ShowBalloonTip("Project Searcher", $"Press {_hotkeyLabel} to search projects", System.Windows.Forms.ToolTipIcon.Info);
+    }
+
+    private void ShowBalloonTip(string title, string text, System.Windows.Forms.ToolTipIcon icon)
+    {
+        var duration = _settings.GetNotificationDurationMs();
+        if (duration > 0)
+        {
+            _notifyIcon.ShowBalloonTip(duration, title, text, icon);
+        }
     }
 
     private void ShowCustomMenu()
@@ -70,12 +74,7 @@ public class TrayIcon : IDisposable
 
     private void RescanProjects()
     {
-        _notifyIcon.ShowBalloonTip(
-            1500,
-            "Project Searcher",
-            "Rescanning Q: drive...",
-            System.Windows.Forms.ToolTipIcon.Info
-        );
+        ShowBalloonTip("Project Searcher", "Rescanning Q: drive...", System.Windows.Forms.ToolTipIcon.Info);
 
         // Trigger rescan
         Task.Run(async () =>
@@ -89,26 +88,16 @@ public class TrayIcon : IDisposable
                     // Trigger background scan
                 });
 
-                _notifyIcon.ShowBalloonTip(
-                    1500,
-                    "Project Searcher",
-                    "Rescan complete",
-                    System.Windows.Forms.ToolTipIcon.Info
-                );
+                ShowBalloonTip("Project Searcher", "Rescan complete", System.Windows.Forms.ToolTipIcon.Info);
             }
             catch (Exception ex)
             {
-                _notifyIcon.ShowBalloonTip(
-                    2000,
-                    "Project Searcher",
-                    $"Rescan failed: {ex.Message}",
-                    System.Windows.Forms.ToolTipIcon.Error
-                );
+                ShowBalloonTip("Project Searcher", $"Rescan failed: {ex.Message}", System.Windows.Forms.ToolTipIcon.Error);
             }
         });
     }
 
-    private void ShowSettings()
+    public void ShowSettings()
     {
         System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
         {
