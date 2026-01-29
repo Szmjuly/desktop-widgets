@@ -16,8 +16,23 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
-    <AssemblyTitle>Project Searcher</AssemblyTitle>
-    <Product>Project Searcher</Product>
+    <AssemblyTitle>DesktopHub</AssemblyTitle>
+    <Product>DesktopHub</Product>
+    <AssemblyDescription>DesktopHub - Project Search and Widget Launcher</AssemblyDescription>
+    <AssemblyCompany>DesktopHub</AssemblyCompany>
+    <Copyright>Copyright © 2025 DesktopHub</Copyright>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <!-- Publishing configuration for single-file executable -->
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <PublishTrimmed>false</PublishTrimmed>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
 </Project>
