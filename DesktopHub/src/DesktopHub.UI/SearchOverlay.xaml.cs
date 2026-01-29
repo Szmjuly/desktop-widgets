@@ -28,6 +28,8 @@ public partial class SearchOverlay : Window
     private readonly TimerService _timerService;
     private GlobalHotkey? _hotkey;
     private TrayIcon? _trayIcon;
+    private TimerOverlay? _timerOverlay;
+    private WidgetLauncher? _widgetLauncher;
     private List<Project> _allProjects = new();
     private List<Project> _filteredProjects = new();
     private CancellationTokenSource? _searchCts;
@@ -161,6 +163,10 @@ public partial class SearchOverlay : Window
             // Initialize system tray icon
             _trayIcon = new TrayIcon(this, hotkeyLabel, _settings);
 
+            // Initialize widget launcher
+            _widgetLauncher = new WidgetLauncher();
+            _widgetLauncher.TimerWidgetRequested += OnTimerWidgetRequested;
+
             // Register global hotkey (Ctrl+Alt+Space by default)
             try
             {
@@ -172,7 +178,7 @@ public partial class SearchOverlay : Window
             {
                 System.Windows.MessageBox.Show(
                     $"Failed to register hotkey ({hotkeyLabel}). You can still open the search from the tray icon.\n\n{ex.Message}",
-                    "Project Searcher",
+                    "DesktopHub",
                     System.Windows.MessageBoxButton.OK,
                     System.Windows.MessageBoxImage.Warning
                 );
@@ -194,7 +200,7 @@ public partial class SearchOverlay : Window
         {
             System.Windows.MessageBox.Show(
                 $"Failed to initialize: {ex.Message}",
-                "Project Searcher",
+                "DesktopHub",
                 System.Windows.MessageBoxButton.OK,
                 System.Windows.MessageBoxImage.Error
             );
@@ -429,6 +435,20 @@ public partial class SearchOverlay : Window
         DebugLogger.LogHeader("Making Window Visible");
         this.Visibility = Visibility.Visible;
         this.Opacity = 1;
+        
+        // Show widget launcher next to search overlay
+        if (_widgetLauncher != null)
+        {
+            _widgetLauncher.Left = this.Left + this.Width + 12;
+            _widgetLauncher.Top = this.Top;
+            _widgetLauncher.Visibility = Visibility.Visible;
+        }
+        
+        // Show timer overlay if it was visible before
+        if (_timerOverlay != null && _timerOverlay.Tag as string == "WasVisible")
+        {
+            _timerOverlay.Visibility = Visibility.Visible;
+        }
         
         DebugLogger.LogHeader("Calling Window.Activate()");
         var activateResult = this.Activate();
@@ -686,6 +706,26 @@ public partial class SearchOverlay : Window
         DebugLogger.LogHeader("Hiding Window");
         this.Visibility = Visibility.Hidden;
         this.Opacity = 0;
+        
+        // Hide widget launcher
+        if (_widgetLauncher != null)
+        {
+            _widgetLauncher.Visibility = Visibility.Hidden;
+        }
+        
+        // Remember timer overlay state and hide it
+        if (_timerOverlay != null)
+        {
+            if (_timerOverlay.Visibility == Visibility.Visible)
+            {
+                _timerOverlay.Tag = "WasVisible";
+                _timerOverlay.Visibility = Visibility.Hidden;
+            }
+            else
+            {
+                _timerOverlay.Tag = null;
+            }
+        }
         
         DebugLogger.LogHeader("Clearing SearchBox and UI");
         SearchBox.Clear();
@@ -1118,8 +1158,17 @@ public partial class SearchOverlay : Window
             DebugLogger.LogVariable("_isTogglingViaHotkey (now)", _isTogglingViaHotkey);
             DebugLogger.LogVariable("Window.Visibility (now)", this.Visibility);
             
+            // Check if widget launcher or timer overlay is active
+            var isWidgetLauncherActive = _widgetLauncher != null && _widgetLauncher.IsActive;
+            var isTimerOverlayActive = _timerOverlay != null && _timerOverlay.IsActive;
+            
+            DebugLogger.LogVariable("WidgetLauncher.IsActive", isWidgetLauncherActive);
+            DebugLogger.LogVariable("TimerOverlay.IsActive", isTimerOverlayActive);
+            
             // Double-check we're still deactivated and not toggling
-            if (!this.IsActive && !_isTogglingViaHotkey && this.Visibility == Visibility.Visible)
+            // Don't auto-hide if widget launcher or timer overlay is active
+            if (!this.IsActive && !_isTogglingViaHotkey && this.Visibility == Visibility.Visible 
+                && !isWidgetLauncherActive && !isTimerOverlayActive)
             {
                 DebugLogger.Log("Window_Deactivated: Conditions met -> AUTO-HIDING overlay");
                 HideOverlay();
@@ -1240,7 +1289,7 @@ public partial class SearchOverlay : Window
                 break;
 
             case "CLOSE_APP":
-                var confirmed = ConfirmationDialog.Show("Are you sure you want to exit Project Searcher?", this);
+                var confirmed = ConfirmationDialog.Show("Are you sure you want to exit DesktopHub?", this);
                 if (confirmed)
                 {
                     System.Windows.Application.Current.Shutdown();
@@ -1315,9 +1364,68 @@ public partial class SearchOverlay : Window
         }
     }
     
-    private void TimerWidgetButton_Click(object sender, MouseButtonEventArgs e)
+    private void OnTimerWidgetRequested(object? sender, EventArgs e)
     {
-        var timerWidget = new TimerWidget(_timerService);
-        WidgetContentArea.Content = timerWidget;
+        try
+        {
+            if (_timerOverlay == null)
+            {
+                _timerOverlay = new TimerOverlay(_timerService);
+                
+                // Position timer overlay on same screen as search overlay
+                PositionTimerOverlayOnSameScreen();
+                
+                _timerOverlay.Show();
+                _timerOverlay.Tag = "WasVisible";
+                DebugLogger.Log("OnTimerWidgetRequested: Timer overlay created and shown");
+            }
+            else
+            {
+                if (_timerOverlay.Visibility == Visibility.Visible)
+                {
+                    _timerOverlay.Visibility = Visibility.Hidden;
+                    _timerOverlay.Tag = null;
+                    DebugLogger.Log("OnTimerWidgetRequested: Timer overlay hidden");
+                }
+                else
+                {
+                    _timerOverlay.Visibility = Visibility.Visible;
+                    _timerOverlay.Tag = "WasVisible";
+                    DebugLogger.Log("OnTimerWidgetRequested: Timer overlay shown");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"OnTimerWidgetRequested: Error with timer overlay: {ex}");
+            System.Windows.MessageBox.Show($"Error with timer overlay: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+    
+    private void PositionTimerOverlayOnSameScreen()
+    {
+        if (_timerOverlay == null)
+            return;
+            
+        try
+        {
+            // Get the screen containing the search overlay
+            var searchOverlayCenter = new System.Drawing.Point(
+                (int)(this.Left + this.Width / 2),
+                (int)(this.Top + this.Height / 2)
+            );
+            var screen = Screen.FromPoint(searchOverlayCenter);
+            var workArea = screen.WorkingArea;
+            
+            // Position timer in bottom-right corner of the same screen
+            _timerOverlay.Left = workArea.Right - _timerOverlay.Width - 20;
+            _timerOverlay.Top = workArea.Bottom - _timerOverlay.Height - 20;
+            
+            DebugLogger.Log($"PositionTimerOverlayOnSameScreen: Timer positioned at ({_timerOverlay.Left}, {_timerOverlay.Top}) on screen {screen.DeviceName}");
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"PositionTimerOverlayOnSameScreen: Error positioning timer: {ex.Message}");
+        }
     }
 }

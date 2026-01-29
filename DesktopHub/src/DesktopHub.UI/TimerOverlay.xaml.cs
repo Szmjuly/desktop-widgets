@@ -1,17 +1,17 @@
 using System;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Controls;
 using DesktopHub.UI.Services;
 
-namespace DesktopHub.UI.Widgets;
+namespace DesktopHub.UI;
 
-public partial class TimerWidget : System.Windows.Controls.UserControl
+public partial class TimerOverlay : Window
 {
     private readonly TimerService _timerService;
     private bool _isInitialized = false;
     
-    public TimerWidget(TimerService timerService)
+    public TimerOverlay(TimerService timerService)
     {
         try
         {
@@ -26,22 +26,37 @@ public partial class TimerWidget : System.Windows.Controls.UserControl
             
             Loaded += (s, e) =>
             {
-                try
-                {
-                    _isInitialized = true;
-                    UpdateModeUI();
-                }
-                catch (Exception ex)
-                {
-                    System.Windows.MessageBox.Show($"Error in UpdateModeUI: {ex.Message}\n\nStack: {ex.StackTrace}", "Timer Widget Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                _isInitialized = true;
+                UpdateModeUI();
+                PositionWindow();
             };
         }
         catch (Exception ex)
         {
-            System.Windows.MessageBox.Show($"Error initializing TimerWidget: {ex.Message}\n\nStack: {ex.StackTrace}", "Timer Widget Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            System.Windows.MessageBox.Show($"Error initializing TimerOverlay: {ex.Message}", "Timer Error", MessageBoxButton.OK, MessageBoxImage.Error);
             throw;
         }
+    }
+    
+    private void PositionWindow()
+    {
+        var workArea = SystemParameters.WorkArea;
+        Left = workArea.Right - Width - 20;
+        Top = workArea.Bottom - Height - 20;
+    }
+    
+    private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Left)
+        {
+            DragMove();
+        }
+    }
+    
+    private void CloseButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        Hide();
     }
     
     private void OnTimeUpdated(object? sender, TimeSpan time)
@@ -151,5 +166,11 @@ public partial class TimerWidget : System.Windows.Controls.UserControl
                 _timerService.SetTimerDuration(duration);
             }
         }
+    }
+    
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        e.Cancel = true;
+        Hide();
     }
 }

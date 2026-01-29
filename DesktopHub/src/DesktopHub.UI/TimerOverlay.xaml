@@ -1,0 +1,305 @@
+<Window x:Class="DesktopHub.UI.TimerOverlay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Timer"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        Width="300"
+        Height="340">
+    
+    <Border Background="#A8121212"
+            CornerRadius="12"
+            BorderBrush="#3A2A2A2A"
+            BorderThickness="1"
+            MouseLeftButtonDown="Window_MouseLeftButtonDown">
+        <Grid>
+            <!-- Glass overlay effect -->
+            <Border Margin="2"
+                    CornerRadius="10"
+                    BorderThickness="1"
+                    BorderBrush="#33FFFFFF"
+                    Background="#14000000"
+                    IsHitTestVisible="False"/>
+            
+            <!-- Content -->
+            <Border Background="Transparent" Padding="18">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+            
+            <!-- Title Bar with Close Button -->
+            <Grid Grid.Row="0" Margin="0,0,0,16">
+                <TextBlock Text="⏱️ Timer"
+                          FontSize="14"
+                          FontWeight="SemiBold"
+                          Foreground="#F5F7FA"
+                          VerticalAlignment="Center"/>
+                <Border HorizontalAlignment="Right"
+                        Background="#10F5F7FA"
+                        BorderBrush="#30F5F7FA"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Cursor="Hand"
+                        Padding="6,4"
+                        MouseLeftButtonDown="CloseButton_Click">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#25F5F7FA"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="✕"
+                              FontSize="14"
+                              Foreground="#F5F7FA"
+                              FontWeight="SemiBold"/>
+                </Border>
+            </Grid>
+            
+            <!-- Mode Toggle -->
+            <Grid Grid.Row="1" Margin="0,0,0,18">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                
+                <Border x:Name="StopwatchButton"
+                        Grid.Column="0"
+                        Background="#20007ACC"
+                        BorderBrush="#30007ACC"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="10,8"
+                        Margin="0,0,4,0"
+                        Cursor="Hand"
+                        MouseLeftButtonDown="StopwatchButton_Click">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#30007ACC"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="Stopwatch"
+                              FontSize="12"
+                              FontWeight="Medium"
+                              Foreground="#F5F7FA"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                </Border>
+                
+                <Border x:Name="TimerButton"
+                        Grid.Column="1"
+                        Background="Transparent"
+                        BorderBrush="#30F5F7FA"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="10,8"
+                        Margin="4,0,0,0"
+                        Cursor="Hand"
+                        MouseLeftButtonDown="TimerButton_Click">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#20F5F7FA"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="Timer"
+                              FontSize="12"
+                              FontWeight="Medium"
+                              Foreground="#F5F7FA"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                </Border>
+            </Grid>
+            
+            <!-- Time Display -->
+            <Border Grid.Row="2"
+                    Background="#10007ACC"
+                    BorderBrush="#20007ACC"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="20,16"
+                    Margin="0,0,0,20">
+                <TextBlock x:Name="TimeDisplay"
+                          Text="00:00:00"
+                          FontSize="36"
+                          FontWeight="Bold"
+                          Foreground="#F5F7FA"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"/>
+            </Border>
+            
+            <!-- Timer Input (only visible in Timer mode) -->
+            <Grid x:Name="TimerInputPanel"
+                  Grid.Row="3"
+                  Margin="0,0,0,16"
+                  Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                
+                <TextBox x:Name="HoursInput"
+                        Grid.Column="0"
+                        Text="0"
+                        FontSize="18"
+                        FontWeight="SemiBold"
+                        Background="#15F5F7FA"
+                        Foreground="#F5F7FA"
+                        BorderBrush="#30F5F7FA"
+                        BorderThickness="1"
+                        Padding="10,8"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        TextChanged="TimerInput_TextChanged">
+                    <TextBox.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="6"/>
+                        </Style>
+                    </TextBox.Resources>
+                </TextBox>
+                
+                <TextBlock Grid.Column="1"
+                          Text=":"
+                          FontSize="18"
+                          FontWeight="Bold"
+                          Foreground="#888888"
+                          Margin="6,0"
+                          VerticalAlignment="Center"/>
+                
+                <TextBox x:Name="MinutesInput"
+                        Grid.Column="2"
+                        Text="0"
+                        FontSize="18"
+                        FontWeight="SemiBold"
+                        Background="#15F5F7FA"
+                        Foreground="#F5F7FA"
+                        BorderBrush="#30F5F7FA"
+                        BorderThickness="1"
+                        Padding="10,8"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        TextChanged="TimerInput_TextChanged">
+                    <TextBox.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="6"/>
+                        </Style>
+                    </TextBox.Resources>
+                </TextBox>
+                
+                <TextBlock Grid.Column="3"
+                          Text=":"
+                          FontSize="18"
+                          FontWeight="Bold"
+                          Foreground="#888888"
+                          Margin="6,0"
+                          VerticalAlignment="Center"/>
+                
+                <TextBox x:Name="SecondsInput"
+                        Grid.Column="4"
+                        Text="0"
+                        FontSize="18"
+                        FontWeight="SemiBold"
+                        Background="#15F5F7FA"
+                        Foreground="#F5F7FA"
+                        BorderBrush="#30F5F7FA"
+                        BorderThickness="1"
+                        Padding="10,8"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        TextChanged="TimerInput_TextChanged">
+                    <TextBox.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="6"/>
+                        </Style>
+                    </TextBox.Resources>
+                </TextBox>
+            </Grid>
+            
+            <!-- Control Buttons -->
+            <Grid Grid.Row="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                
+                <Border x:Name="StartPauseButton"
+                        Grid.Column="0"
+                        Background="#30007ACC"
+                        BorderBrush="#40007ACC"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="14,10"
+                        Margin="0,0,6,0"
+                        Cursor="Hand"
+                        MouseLeftButtonDown="StartPauseButton_Click">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#45007ACC"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock x:Name="StartPauseText"
+                              Text="Start"
+                              FontSize="13"
+                              FontWeight="SemiBold"
+                              Foreground="#F5F7FA"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                </Border>
+                
+                <Border x:Name="ResetButton"
+                        Grid.Column="1"
+                        Background="#15F5F7FA"
+                        BorderBrush="#30F5F7FA"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="14,10"
+                        Margin="6,0,0,0"
+                        Cursor="Hand"
+                        MouseLeftButtonDown="ResetButton_Click">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#30F5F7FA"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="Reset"
+                              FontSize="13"
+                              FontWeight="SemiBold"
+                              Foreground="#F5F7FA"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                </Border>
+            </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

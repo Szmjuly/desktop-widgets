@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" 
+           Name="DesktopHub" 
+           Language="1033" 
+           Version="1.0.0.0" 
+           Manufacturer="DesktopHub" 
+           UpgradeCode="12345678-1234-1234-1234-123456789012">
+    
+    <Package InstallerVersion="200" 
+             Compressed="yes" 
+             InstallScope="perMachine" 
+             Description="DesktopHub - Project Search and Widget Launcher"
+             Comments="DesktopHub application for project search and widget management"
+             Manufacturer="DesktopHub" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of DesktopHub is already installed." />
+    
+    <MediaTemplate EmbedCab="yes" />
+
+    <Feature Id="ProductFeature" Title="DesktopHub" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentRef Id="ApplicationShortcut" />
+      <ComponentRef Id="DesktopShortcut" />
+    </Feature>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLFOLDER" Name="DesktopHub" />
+      </Directory>
+      
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="DesktopHub"/>
+      </Directory>
+      
+      <Directory Id="DesktopFolder" Name="Desktop" />
+    </Directory>
+
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <Component Id="MainExecutable" Guid="*">
+        <File Id="DesktopHubExe" 
+              Source="$(var.SourcePath)\publish\DesktopHub.UI.exe" 
+              KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Start Menu Shortcut -->
+    <Component Id="ApplicationShortcut" Directory="ApplicationProgramsFolder" Guid="*">
+      <Shortcut Id="ApplicationStartMenuShortcut"
+                Name="DesktopHub"
+                Description="DesktopHub - Project Search and Widget Launcher"
+                Target="[#DesktopHubExe]"
+                WorkingDirectory="INSTALLFOLDER"
+                Icon="DesktopHubIcon.exe" />
+      <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+      <RegistryValue Root="HKCU" 
+                     Key="Software\Microsoft\DesktopHub" 
+                     Name="installed" 
+                     Type="integer" 
+                     Value="1" 
+                     KeyPath="yes"/>
+    </Component>
+
+    <!-- Desktop Shortcut -->
+    <Component Id="DesktopShortcut" Directory="DesktopFolder" Guid="*">
+      <Shortcut Id="ApplicationDesktopShortcut"
+                Name="DesktopHub"
+                Description="DesktopHub - Project Search and Widget Launcher"
+                Target="[#DesktopHubExe]"
+                WorkingDirectory="INSTALLFOLDER"
+                Icon="DesktopHubIcon.exe" />
+      <RegistryValue Root="HKCU" 
+                     Key="Software\Microsoft\DesktopHub" 
+                     Name="desktop_shortcut" 
+                     Type="integer" 
+                     Value="1" 
+                     KeyPath="yes"/>
+    </Component>
+
+    <!-- Icon definition -->
+    <Icon Id="DesktopHubIcon.exe" SourceFile="$(var.SourcePath)\publish\DesktopHub.UI.exe" />
+
+    <!-- Auto-start option -->
+    <Component Id="AutoStart" Directory="INSTALLFOLDER" Guid="*">
+      <RegistryKey Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run">
+        <RegistryValue Name="DesktopHub" 
+                       Type="string" 
+                       Value="[#DesktopHubExe]" 
+                       KeyPath="yes" />
+      </RegistryKey>
+    </Component>
+
+  </Product>
+</Wix>

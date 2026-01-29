@@ -1,14 +1,14 @@
 <Window x:Class="DesktopHub.UI.SearchOverlay"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Project Searcher"
+        Title="DesktopHub"
         WindowStyle="None"
         AllowsTransparency="False"
         Background="Transparent"
         Topmost="True"
         ShowInTaskbar="False"
         WindowStartupLocation="Manual"
-        Width="980"
+        Width="700"
         Height="500"
         SizeToContent="Manual"
         ResizeMode="NoResize"
@@ -96,13 +96,6 @@
                     IsHitTestVisible="False"/>
             <Border x:Name="ContentBorder" Background="Transparent" Padding="19">
                 <Grid Margin="0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    
-                    <!-- Main content area -->
-                    <Grid Grid.Column="0" Margin="0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -425,68 +418,6 @@
                 </StackPanel>
             </Grid>
         </Grid>
-                    </Grid>
-                    
-                    <!-- Side menu panel -->
-                    <Border Grid.Column="1"
-                            x:Name="SideMenuPanel"
-                            Background="#D0121212"
-                            BorderBrush="#2A2A2A"
-                            BorderThickness="1,0,0,0"
-                            Width="250"
-                            Padding="12"
-                            Margin="12,0,0,0">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            
-                            <!-- Side menu header -->
-                            <TextBlock Grid.Row="0"
-                                      Text="Widgets"
-                                      FontSize="14"
-                                      FontWeight="SemiBold"
-                                      Foreground="#F5F7FA"
-                                      Margin="0,0,0,12"/>
-                            
-                            <!-- Widget selector buttons -->
-                            <StackPanel Grid.Row="1" Margin="0,0,0,12">
-                                <Border x:Name="TimerWidgetButton"
-                                        Background="#20007ACC"
-                                        BorderBrush="#30007ACC"
-                                        BorderThickness="1"
-                                        CornerRadius="6"
-                                        Padding="10,8"
-                                        Margin="0,0,0,6"
-                                        Cursor="Hand"
-                                        MouseLeftButtonDown="TimerWidgetButton_Click">
-                                    <Border.Style>
-                                        <Style TargetType="Border">
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="#30007ACC"/>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Border.Style>
-                                    <TextBlock Text="⏱️ Timer"
-                                              FontSize="12"
-                                              Foreground="#F5F7FA"
-                                              HorizontalAlignment="Left"/>
-                                </Border>
-                            </StackPanel>
-                            
-                            <!-- Widget content area -->
-                            <ScrollViewer Grid.Row="2"
-                                         VerticalScrollBarVisibility="Auto"
-                                         HorizontalScrollBarVisibility="Disabled">
-                                <ContentControl x:Name="WidgetContentArea"/>
-                            </ScrollViewer>
-                        </Grid>
-                    </Border>
-                </Grid>
     </Border>
     </Grid>
     </Border>
