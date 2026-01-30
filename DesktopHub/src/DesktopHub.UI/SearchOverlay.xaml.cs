@@ -40,6 +40,9 @@ public partial class SearchOverlay : Window
     private DateTime _lastHotkeyPress = DateTime.MinValue;
     private System.Windows.Threading.DispatcherTimer? _deactivateTimer;
     private CancellationTokenSource? _ipcCts;
+    private bool _isClosing = false;
+
+    public bool IsClosing => _isClosing;
 
     public SearchOverlay()
     {
@@ -415,6 +418,25 @@ public partial class SearchOverlay : Window
         DebugLogger.LogVariable("SearchBox.IsKeyboardFocused", SearchBox.IsKeyboardFocused);
         DebugLogger.LogVariable("SearchBox.IsKeyboardFocusWithin", SearchBox.IsKeyboardFocusWithin);
         DebugLogger.LogVariable("_isTogglingViaHotkey", _isTogglingViaHotkey);
+        DebugLogger.LogVariable("_isClosing", _isClosing);
+        
+        // Cancel any pending deactivate timer to prevent race conditions
+        if (_deactivateTimer != null)
+        {
+            DebugLogger.Log("ShowOverlay: Cancelling pending deactivate timer");
+            _deactivateTimer.Stop();
+            _deactivateTimer = null;
+        }
+        
+        // Don't show if window is closing
+        if (_isClosing)
+        {
+            DebugLogger.Log("ShowOverlay: IGNORING - window is closing");
+            return;
+        }
+        
+        // Reset closing state when showing overlay (app is starting up or user action)
+        _isClosing = false;
         
         ApplyDynamicTinting();
         
@@ -1135,6 +1157,13 @@ public partial class SearchOverlay : Window
             return;
         }
         
+        // Don't process if window is closing or not loaded
+        if (!IsLoaded || IsClosing)
+        {
+            DebugLogger.Log("Window_Deactivated: IGNORING - window is closing or not loaded");
+            return;
+        }
+        
         // Use a delayed auto-hide to avoid race conditions with hotkey toggles
         // Cancel any existing timer
         if (_deactivateTimer != null)
@@ -1154,9 +1183,17 @@ public partial class SearchOverlay : Window
             DebugLogger.LogHeader("Deactivate Timer Tick (after 150ms)");
             _deactivateTimer?.Stop();
             
+            // Additional safety check - don't process if window is closing or not loaded
+            if (!IsLoaded || _isClosing)
+            {
+                DebugLogger.Log("Deactivate Timer: IGNORING - window is closing or not loaded");
+                return;
+            }
+            
             DebugLogger.LogVariable("Window.IsActive (now)", this.IsActive);
             DebugLogger.LogVariable("_isTogglingViaHotkey (now)", _isTogglingViaHotkey);
             DebugLogger.LogVariable("Window.Visibility (now)", this.Visibility);
+            DebugLogger.LogVariable("_isClosing", _isClosing);
             
             // Check if widget launcher or timer overlay is active
             var isWidgetLauncherActive = _widgetLauncher != null && _widgetLauncher.IsActive;
@@ -1168,7 +1205,7 @@ public partial class SearchOverlay : Window
             // Double-check we're still deactivated and not toggling
             // Don't auto-hide if widget launcher or timer overlay is active
             if (!this.IsActive && !_isTogglingViaHotkey && this.Visibility == Visibility.Visible 
-                && !isWidgetLauncherActive && !isTimerOverlayActive)
+                && !isWidgetLauncherActive && !isTimerOverlayActive && !_isClosing)
             {
                 DebugLogger.Log("Window_Deactivated: Conditions met -> AUTO-HIDING overlay");
                 HideOverlay();
@@ -1179,9 +1216,16 @@ public partial class SearchOverlay : Window
                 DebugLogger.LogVariable("  Reason: IsActive", this.IsActive);
                 DebugLogger.LogVariable("  Reason: _isTogglingViaHotkey", _isTogglingViaHotkey);
                 DebugLogger.LogVariable("  Reason: Visibility", this.Visibility);
+                DebugLogger.LogVariable("  Reason: _isClosing", _isClosing);
             }
         };
         _deactivateTimer.Start();
+    }
+
+    private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        DebugLogger.Log("Window_Closing: Setting closing state");
+        _isClosing = true;
     }
 
     private void ShowLoading(bool show)

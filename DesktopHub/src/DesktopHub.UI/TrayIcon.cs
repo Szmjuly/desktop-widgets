@@ -52,16 +52,35 @@ public class TrayIcon : IDisposable
 
     private void ShowCustomMenu()
     {
-        _searchOverlay.Dispatcher.Invoke(() =>
+        try
         {
-            var menu = new TrayMenu(
-                ShowSearch,
-                RescanProjects,
-                ShowSettings,
-                Exit
-            );
-            menu.Show();
-        });
+            _searchOverlay.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    var menu = new TrayMenu(
+                        ShowSearch,
+                        RescanProjects,
+                        ShowSettings,
+                        Exit
+                    );
+                    menu.Show();
+                }
+                catch (InvalidOperationException ex)
+                {
+                    DebugLogger.Log($"ShowCustomMenu: Failed to show menu (window closing conflict): {ex.Message}");
+                    // Window was closing, silently ignore
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"ShowCustomMenu: Unexpected error: {ex}");
+                }
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"ShowCustomMenu: Failed to queue menu: {ex.Message}");
+        }
     }
 
     private void ShowSearch()
