@@ -5,12 +5,29 @@ namespace DesktopHub.UI;
 
 public static class DebugLogger
 {
-    private static readonly string LogPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-        "DesktopHub_Debug.log"
+    private static readonly string LogDirectory = Path.Combine(
+        AppContext.BaseDirectory,
+        "logs"
     );
     
+    private static readonly string LogPath = Path.Combine(LogDirectory, "debug.log");
+    
     private static readonly object _lock = new object();
+    
+    static DebugLogger()
+    {
+        try
+        {
+            if (!Directory.Exists(LogDirectory))
+            {
+                Directory.CreateDirectory(LogDirectory);
+            }
+        }
+        catch
+        {
+            // Ignore directory creation errors
+        }
+    }
 
     public static void Log(string message)
     {

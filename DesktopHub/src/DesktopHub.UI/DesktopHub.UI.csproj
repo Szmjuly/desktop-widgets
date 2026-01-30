@@ -21,8 +21,8 @@
     <AssemblyDescription>DesktopHub - Project Search and Widget Launcher</AssemblyDescription>
     <AssemblyCompany>DesktopHub</AssemblyCompany>
     <Copyright>Copyright © 2025 DesktopHub</Copyright>
-    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>DesktopHub</AssemblyName>
+    <RootNamespace>DesktopHub.UI</RootNamespace>
   </PropertyGroup>
 
   <!-- Publishing configuration for single-file executable -->

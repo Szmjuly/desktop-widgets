@@ -3,6 +3,7 @@
 
 # Local .NET SDK installation
 .dotnet/
+publish/
 
 # User-specific files
 *.suo
