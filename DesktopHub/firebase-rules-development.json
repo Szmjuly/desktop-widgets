@@ -1,0 +1,74 @@
+{
+  "rules": {
+    "licenses": {
+      "$licenseKey": {
+        ".read": true,
+        ".write": true,
+        ".indexOn": ["email", "status", "app_id", "plan", "source"]
+      }
+    },
+    "device_activations": {
+      "$deviceId": {
+        ".read": true,
+        ".write": true,
+        ".indexOn": ["license_key", "app_id", "device_id"]
+      }
+    },
+    "device_heartbeats": {
+      "$deviceId": {
+        ".read": true,
+        ".write": true,
+        ".indexOn": ["app_id", "status", "last_seen"]
+      }
+    },
+    "usage_logs": {
+      "$logId": {
+        ".read": false,
+        ".write": true,
+        ".indexOn": ["device_id", "license_key", "timestamp", "app_id"]
+      }
+    },
+    "user_metrics": {
+      "$licenseKey": {
+        ".read": true,
+        ".write": false,
+        ".indexOn": ["license_key", "app_id"]
+      }
+    },
+    "app_launches": {
+      "$launchId": {
+        ".read": false,
+        ".write": true,
+        ".indexOn": ["device_id", "license_key", "timestamp", "app_id", "user_id", "event_type"]
+      }
+    },
+    "processing_sessions": {
+      "$sessionId": {
+        ".read": false,
+        ".write": true,
+        ".indexOn": ["device_id", "license_key", "timestamp", "app_id", "user_id", "event_type"]
+      }
+    },
+    "error_logs": {
+      "$errorId": {
+        ".read": false,
+        ".write": true,
+        ".indexOn": ["device_id", "timestamp", "app_id", "error_type"]
+      }
+    },
+    "update_checks": {
+      "$checkId": {
+        ".read": false,
+        ".write": true,
+        ".indexOn": ["device_id", "timestamp", "app_id"]
+      }
+    },
+    "app_versions": {
+      "$appId": {
+        ".read": true,
+        ".write": true,
+        ".indexOn": ["latest_version", "updated_at"]
+      }
+    }
+  }
+}

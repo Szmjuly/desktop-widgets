@@ -1,0 +1,11 @@
+{
+  "app_versions": {
+    "desktophub": {
+      "latest_version": "1.0.1",
+      "release_date": "2026-02-02T14:00:00Z",
+      "release_notes": "Test update notification - this is a simulated new version",
+      "download_url": "https://github.com/yourusername/desktophub/releases",
+      "required_update": false
+    }
+  }
+}

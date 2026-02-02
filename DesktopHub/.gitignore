@@ -11,6 +11,9 @@ publish/
 *.userosscache
 *.sln.docstates
 
+# Secrets folder - service accounts, API keys, etc. (DO NOT COMMIT)
+secrets/
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
