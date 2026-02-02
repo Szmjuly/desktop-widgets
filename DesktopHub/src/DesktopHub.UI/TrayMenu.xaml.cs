@@ -23,6 +23,10 @@ public partial class TrayMenu : Window
         _onSettings = onSettings;
         _onExit = onExit;
 
+        var version = System.Reflection.Assembly.GetExecutingAssembly()
+            .GetName().Version?.ToString(3) ?? "1.0.0";
+        VersionText.Text = $"v{version}";
+
         Loaded += (s, e) =>
         {
             PositionNearCursor();

@@ -117,39 +117,60 @@ public class TrayIcon : IDisposable
         });
     }
 
+    private static string FormatVersion(string version)
+    {
+        if (string.IsNullOrEmpty(version))
+            return version;
+        
+        var parts = version.Split('.');
+        if (parts.Length >= 3)
+        {
+            return $"{parts[0]}.{parts[1]}.{parts[2]}";
+        }
+        return version;
+    }
+
     private void CheckForUpdates()
     {
-        ShowBalloonTip("DesktopHub", "Checking for updates...", System.Windows.Forms.ToolTipIcon.Info);
+        DebugLogger.Log("=== CHECK FOR UPDATES STARTED ===");
 
         Task.Run(async () =>
         {
             try
             {
+                DebugLogger.Log("Update: Getting FirebaseManager instance");
                 var app = System.Windows.Application.Current as App;
                 var firebaseManager = app?.FirebaseManager;
 
                 if (firebaseManager == null)
                 {
+                    DebugLogger.Log("Update: FirebaseManager is null - offline mode");
                     ShowBalloonTip("DesktopHub", "Update checking unavailable (offline mode)", System.Windows.Forms.ToolTipIcon.Warning);
                     return;
                 }
 
+                DebugLogger.Log("Update: Calling CheckForUpdatesAsync");
                 var updateInfo = await firebaseManager.CheckForUpdatesAsync();
 
                 if (updateInfo == null)
                 {
+                    DebugLogger.Log("Update: CheckForUpdatesAsync returned null");
                     ShowBalloonTip("DesktopHub", "Could not check for updates", System.Windows.Forms.ToolTipIcon.Warning);
                     return;
                 }
 
+                DebugLogger.Log($"Update: Current={updateInfo.CurrentVersion}, Latest={updateInfo.LatestVersion}, Available={updateInfo.UpdateAvailable}");
+                DebugLogger.Log($"Update: DownloadUrl={updateInfo.DownloadUrl}");
+                DebugLogger.Log($"Update: ReleaseNotes={updateInfo.ReleaseNotes}");
+
                 if (updateInfo.UpdateAvailable)
                 {
-                    var message = $"Version {updateInfo.LatestVersion} is available!\n\nCurrent: {updateInfo.CurrentVersion}";
+                    var message = $"Version {FormatVersion(updateInfo.LatestVersion)} is available!\n\nCurrent: {FormatVersion(updateInfo.CurrentVersion)}";
                     if (!string.IsNullOrEmpty(updateInfo.ReleaseNotes))
                     {
                         message += $"\n\n{updateInfo.ReleaseNotes}";
                     }
-                    message += "\n\nThe update will download and install automatically.";
+                    message += "\n\nWould you like to download and install this update now?";
 
                     System.Windows.Application.Current.Dispatcher.Invoke(() =>
                     {
@@ -162,18 +183,24 @@ public class TrayIcon : IDisposable
 
                         if (result == System.Windows.MessageBoxResult.Yes)
                         {
+                            DebugLogger.Log("Update: User confirmed update installation");
                             Task.Run(async () => await DownloadAndInstallUpdateAsync(updateInfo));
+                        }
+                        else
+                        {
+                            DebugLogger.Log("Update: User declined update installation");
                         }
                     });
                 }
                 else
                 {
-                    ShowBalloonTip("DesktopHub", $"You're up to date! (v{updateInfo.CurrentVersion})", System.Windows.Forms.ToolTipIcon.Info);
+                    ShowBalloonTip("DesktopHub", $"You're up to date! (v{FormatVersion(updateInfo.CurrentVersion)})", System.Windows.Forms.ToolTipIcon.Info);
                 }
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"CheckForUpdates: Error: {ex.Message}");
+                DebugLogger.Log($"Update: EXCEPTION in CheckForUpdates: {ex.Message}");
+                DebugLogger.Log($"Update: Stack trace: {ex.StackTrace}");
                 ShowBalloonTip("DesktopHub", "Update check failed", System.Windows.Forms.ToolTipIcon.Error);
             }
         });
@@ -183,38 +210,74 @@ public class TrayIcon : IDisposable
     {
         try
         {
+            DebugLogger.Log("=== DOWNLOAD AND INSTALL UPDATE STARTED ===");
+            DebugLogger.Log($"Update: Target version: {updateInfo.LatestVersion}");
+            DebugLogger.Log($"Update: Download URL: {updateInfo.DownloadUrl}");
+            
             if (string.IsNullOrEmpty(updateInfo.DownloadUrl))
             {
+                DebugLogger.Log("Update: ERROR - Download URL is empty");
                 ShowBalloonTip("DesktopHub", "Update download URL is missing", System.Windows.Forms.ToolTipIcon.Error);
                 return;
             }
 
-            ShowBalloonTip("DesktopHub", "Downloading update...", System.Windows.Forms.ToolTipIcon.Info);
-            DebugLogger.Log($"Update: Downloading from {updateInfo.DownloadUrl}");
+            DebugLogger.Log($"Update: Starting download from {updateInfo.DownloadUrl}");
+            ShowBalloonTip("DesktopHub", $"Downloading v{FormatVersion(updateInfo.LatestVersion)}...", System.Windows.Forms.ToolTipIcon.Info);
 
             var tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"DesktopHub-{updateInfo.LatestVersion}.exe");
 
-            using (var client = new System.Net.Http.HttpClient())
+            using (var client = new System.Net.Http.HttpClient(new System.Net.Http.HttpClientHandler 
+            { 
+                AllowAutoRedirect = true,
+                MaxAutomaticRedirections = 10
+            }))
             {
                 client.Timeout = TimeSpan.FromMinutes(5);
+                client.DefaultRequestHeaders.Add("User-Agent", "DesktopHub-AutoUpdater/1.0");
+                
+                DebugLogger.Log($"Update: Starting HTTP download from {updateInfo.DownloadUrl}");
+                DebugLogger.Log($"Update: User-Agent: DesktopHub-AutoUpdater/1.0");
+                DebugLogger.Log($"Update: AllowAutoRedirect: True, MaxRedirections: 10");
                 
                 var response = await client.GetAsync(updateInfo.DownloadUrl);
+                
+                DebugLogger.Log($"Update: HTTP Status: {response.StatusCode} ({(int)response.StatusCode})");
+                DebugLogger.Log($"Update: Response URL: {response.RequestMessage?.RequestUri}");
+                DebugLogger.Log($"Update: Content-Type: {response.Content.Headers.ContentType}");
+                DebugLogger.Log($"Update: Content-Length: {response.Content.Headers.ContentLength}");
+                
+                if (response.Headers.Contains("Location"))
+                {
+                    DebugLogger.Log($"Update: Redirect Location: {response.Headers.GetValues("Location").FirstOrDefault()}");
+                }
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    DebugLogger.Log($"Update: Error response body (first 500 chars): {errorContent.Substring(0, Math.Min(500, errorContent.Length))}");
+                }
+                
                 response.EnsureSuccessStatusCode();
 
                 var updateData = await response.Content.ReadAsByteArrayAsync();
-                await System.IO.File.WriteAllBytesAsync(tempPath, updateData);
+                DebugLogger.Log($"Update: Download complete, size: {updateData.Length} bytes");
                 
-                DebugLogger.Log($"Update: Downloaded to {tempPath} ({updateData.Length} bytes)");
+                await System.IO.File.WriteAllBytesAsync(tempPath, updateData);
+                DebugLogger.Log($"Update: Saved to {tempPath}");
             }
 
-            ShowBalloonTip("DesktopHub", "Update downloaded! Installing...", System.Windows.Forms.ToolTipIcon.Info);
+            DebugLogger.Log("Update: Download complete, preparing to install");
+            ShowBalloonTip("DesktopHub", "Installing update...", System.Windows.Forms.ToolTipIcon.Info);
 
             var currentExePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName 
                 ?? System.Reflection.Assembly.GetExecutingAssembly().Location;
             
+            DebugLogger.Log($"Update: Current exe path (initial): {currentExePath}");
+            
             if (string.IsNullOrEmpty(currentExePath) || currentExePath.EndsWith(".dll"))
             {
                 currentExePath = System.AppContext.BaseDirectory + "DesktopHub.exe";
+                DebugLogger.Log($"Update: Using fallback path: {currentExePath}");
             }
 
             var updateBatchPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "DesktopHub-Update.bat");

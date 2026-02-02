@@ -1,11 +1,17 @@
-using System.Text;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
-using DesktopHub.Infrastructure.Firebase.Models;
-using DesktopHub.Infrastructure.Firebase.Utilities;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+using System.IO;
 using FirebaseAdmin;
-using FirebaseAdmin.Auth;
 using Google.Apis.Auth.OAuth2;
 using Newtonsoft.Json;
+using DesktopHub.Infrastructure.Firebase.Models;
+using DesktopHub.Infrastructure.Firebase.Utilities;
+using DesktopHub.Infrastructure.Logging;
 
 namespace DesktopHub.Infrastructure.Firebase;
 
@@ -46,27 +52,27 @@ public class FirebaseService : IFirebaseService
 
         try
         {
-            Console.WriteLine("Firebase: Starting initialization...");
+            InfraLogger.Log("Firebase: Starting initialization...");
             
-            Console.WriteLine("Firebase: Loading credentials...");
+            InfraLogger.Log("Firebase: Loading credentials...");
             var credential = await GetCredentialAsync();
             if (credential == null)
             {
-                Console.WriteLine("Firebase: No credentials found, running in offline mode");
+                InfraLogger.Log("Firebase: No credentials found, running in offline mode");
                 _isInitialized = false;
                 return;
             }
 
-            Console.WriteLine("Firebase: Getting database URL...");
+            InfraLogger.Log("Firebase: Getting database URL...");
             var databaseUrl = await GetDatabaseUrlAsync();
             if (string.IsNullOrEmpty(databaseUrl))
             {
-                Console.WriteLine("Firebase: No database URL found");
+                InfraLogger.Log("Firebase: No database URL found");
                 _isInitialized = false;
                 return;
             }
 
-            Console.WriteLine("Firebase: Creating Firebase app instance...");
+            InfraLogger.Log("Firebase: Creating Firebase app instance...");
             if (FirebaseApp.DefaultInstance == null)
             {
                 _firebaseApp = FirebaseApp.Create(new AppOptions
@@ -80,19 +86,19 @@ public class FirebaseService : IFirebaseService
                 _firebaseApp = FirebaseApp.DefaultInstance;
             }
 
-            Console.WriteLine("Firebase: Setting up HTTP client and device info...");
+            InfraLogger.Log("Firebase: Setting up HTTP client and device info...");
             _databaseUrl = databaseUrl;
             _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
             _deviceInfo = DeviceIdentifier.GetDeviceInfo();
             _sessionStartTime = DateTime.UtcNow;
             _isInitialized = true;
 
-            Console.WriteLine($"Firebase: Initialized successfully for device {_deviceInfo.DeviceId}");
+            InfraLogger.Log($"Firebase: Initialized successfully for device {_deviceInfo.DeviceId}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Firebase: Initialization failed: {ex.Message}");
-            Console.WriteLine($"Firebase: Stack trace: {ex.StackTrace}");
+            InfraLogger.Log($"Firebase: Initialization failed: {ex.Message}");
+            InfraLogger.Log($"Firebase: Stack trace: {ex.StackTrace}");
             _isInitialized = false;
         }
     }
@@ -108,7 +114,7 @@ public class FirebaseService : IFirebaseService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Firebase: Failed to load config from file: {ex.Message}");
+                InfraLogger.Log($"Firebase: Failed to load config from file: {ex.Message}");
             }
         }
 
@@ -121,7 +127,7 @@ public class FirebaseService : IFirebaseService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Firebase: Failed to load embedded config: {ex.Message}");
+                InfraLogger.Log($"Firebase: Failed to load embedded config: {ex.Message}");
             }
         }
 
@@ -156,24 +162,68 @@ public class FirebaseService : IFirebaseService
     {
         try
         {
-            // Look for firebase-license.json in the secrets/ folder
-            var currentDir = AppDomain.CurrentDomain.BaseDirectory;
-            var solutionRoot = FindSolutionRoot(currentDir);
+            // First try to read from embedded resource (for Release single-file builds)
+            InfraLogger.Log("Firebase: Checking for embedded resource credentials...");
+            var assembly = System.Reflection.Assembly.GetEntryAssembly();
+            if (assembly != null)
+            {
+                var resourceName = "firebase-license.json";
+                var resourceNames = assembly.GetManifestResourceNames();
+                var matchingResource = resourceNames.FirstOrDefault(r => r.EndsWith(resourceName));
+                
+                if (matchingResource != null)
+                {
+                    InfraLogger.Log($"Firebase: Found embedded resource: {matchingResource}");
+                    using (var stream = assembly.GetManifestResourceStream(matchingResource))
+                    {
+                        if (stream != null)
+                        {
+                            using (var reader = new StreamReader(stream))
+                            {
+                                var content = reader.ReadToEnd();
+                                InfraLogger.Log("Firebase: Successfully read credentials from embedded resource");
+                                return content;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    InfraLogger.Log($"Firebase: No embedded resource found. Available resources: {string.Join(", ", resourceNames)}");
+                }
+            }
             
+            // Fallback: Check the application directory (for non-single-file builds)
+            var appDir = AppDomain.CurrentDomain.BaseDirectory;
+            var appDirLicense = Path.Combine(appDir, "firebase-license.json");
+            
+            InfraLogger.Log($"Firebase: Checking for credentials at: {appDirLicense}");
+            if (File.Exists(appDirLicense))
+            {
+                InfraLogger.Log("Firebase: Found credentials in application directory");
+                return File.ReadAllText(appDirLicense);
+            }
+            
+            // Fallback: Look for firebase-license.json in the secrets/ folder (for Debug builds)
+            var solutionRoot = FindSolutionRoot(appDir);
             if (solutionRoot != null)
             {
                 var licenseFile = Path.Combine(solutionRoot, "secrets", "firebase-license.json");
+                InfraLogger.Log($"Firebase: Checking for credentials at: {licenseFile}");
                 if (File.Exists(licenseFile))
                 {
+                    InfraLogger.Log("Firebase: Found credentials in secrets folder");
                     return File.ReadAllText(licenseFile);
                 }
             }
             
+            InfraLogger.Log("Firebase: No credentials file found in any location");
             return null;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Firebase: Failed to read embedded service account: {ex.Message}");
+            InfraLogger.Log($"Firebase: Failed to read embedded service account: {ex.Message}");
+            InfraLogger.Log($"Firebase: Stack trace: {ex.StackTrace}");
             return null;
         }
     }
@@ -222,11 +272,11 @@ public class FirebaseService : IFirebaseService
 
             await PutDataAsync($"device_activations/{_deviceInfo.DeviceId}", activationData);
 
-            Console.WriteLine($"Firebase: Device registered - {_deviceInfo.DeviceId}");
+            InfraLogger.Log($"Firebase: Device registered - {_deviceInfo.DeviceId}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Firebase: Failed to register device: {ex.Message}");
+            InfraLogger.Log($"Firebase: Failed to register device: {ex.Message}");
         }
     }
 
@@ -257,7 +307,7 @@ public class FirebaseService : IFirebaseService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Firebase: Heartbeat update failed: {ex.Message}");
+            InfraLogger.Log($"Firebase: Heartbeat update failed: {ex.Message}");
         }
     }
 
@@ -295,7 +345,7 @@ public class FirebaseService : IFirebaseService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Firebase: Failed to get license info: {ex.Message}");
+            InfraLogger.Log($"Firebase: Failed to get license info: {ex.Message}");
             return null;
         }
     }
@@ -337,12 +387,12 @@ public class FirebaseService : IFirebaseService
 
             await SaveLicenseKeyAsync(licenseKey);
 
-            Console.WriteLine($"Firebase: Created free license - {licenseKey}");
+            InfraLogger.Log($"Firebase: Created free license - {licenseKey}");
             return true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Firebase: Failed to create license: {ex.Message}");
+            InfraLogger.Log($"Firebase: Failed to create license: {ex.Message}");
             return false;
         }
     }
@@ -374,11 +424,11 @@ public class FirebaseService : IFirebaseService
 
             await PostDataAsync("app_launches", launchData);
 
-            Console.WriteLine($"Firebase: App launch logged");
+            InfraLogger.Log($"Firebase: App launch logged");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Firebase: Failed to log app launch: {ex.Message}");
+            InfraLogger.Log($"Firebase: Failed to log app launch: {ex.Message}");
         }
     }
 
@@ -414,11 +464,11 @@ public class FirebaseService : IFirebaseService
                 ["last_seen"] = DateTime.UtcNow.ToString("o")
             });
 
-            Console.WriteLine($"Firebase: App close logged (session: {sessionDuration.TotalMinutes:F1} min)");
+            InfraLogger.Log($"Firebase: App close logged (session: {sessionDuration.TotalMinutes:F1} min)");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Firebase: Failed to log app close: {ex.Message}");
+            InfraLogger.Log($"Firebase: Failed to log app close: {ex.Message}");
         }
     }
 
@@ -457,7 +507,7 @@ public class FirebaseService : IFirebaseService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Firebase: Failed to log usage event: {ex.Message}");
+            InfraLogger.Log($"Firebase: Failed to log usage event: {ex.Message}");
         }
     }
 
@@ -484,32 +534,48 @@ public class FirebaseService : IFirebaseService
 
             await PostDataAsync("error_logs", errorData);
 
-            Console.WriteLine($"Firebase: Error logged - {ex.GetType().Name}");
+            InfraLogger.Log($"Firebase: Error logged - {ex.GetType().Name}");
         }
         catch (Exception logEx)
         {
-            Console.WriteLine($"Firebase: Failed to log error: {logEx.Message}");
+            InfraLogger.Log($"Firebase: Failed to log error: {logEx.Message}");
         }
     }
 
     public async Task<UpdateInfo?> CheckForUpdatesAsync(string currentVersion)
     {
+        InfraLogger.Log($"FirebaseService: CheckForUpdatesAsync START - currentVersion={currentVersion}");
+        InfraLogger.Log($"FirebaseService: _isInitialized={_isInitialized}, _httpClient={(_httpClient != null)}, _deviceInfo={(_deviceInfo != null)}");
+        
         if (!_isInitialized || _httpClient == null || _deviceInfo == null)
         {
+            InfraLogger.Log("FirebaseService: CheckForUpdatesAsync - Early return due to uninitialized state");
             return null;
         }
 
         try
         {
+            InfraLogger.Log($"FirebaseService: Fetching version data from app_versions/{AppId}");
             var data = await GetDataAsync<Dictionary<string, object>>($"app_versions/{AppId}");
+            
             if (data == null)
             {
+                InfraLogger.Log("FirebaseService: GetDataAsync returned null - no version data found");
                 return null;
             }
 
+            InfraLogger.Log($"FirebaseService: Received {data.Count} fields from Firebase");
+            foreach (var kvp in data)
+            {
+                InfraLogger.Log($"FirebaseService:   {kvp.Key} = {kvp.Value}");
+            }
+
             var latestVersion = data.GetValueOrDefault("latest_version")?.ToString();
+            InfraLogger.Log($"FirebaseService: latest_version from Firebase: {latestVersion}");
+            
             if (string.IsNullOrEmpty(latestVersion))
             {
+                InfraLogger.Log("FirebaseService: latest_version is null or empty - returning null");
                 return null;
             }
 
@@ -523,6 +589,13 @@ public class FirebaseService : IFirebaseService
                 RequiredUpdate = ParseBool(data.GetValueOrDefault("required_update")?.ToString()) ?? false
             };
 
+            InfraLogger.Log($"FirebaseService: Created UpdateInfo:");
+            InfraLogger.Log($"FirebaseService:   LatestVersion={updateInfo.LatestVersion}");
+            InfraLogger.Log($"FirebaseService:   CurrentVersion={updateInfo.CurrentVersion}");
+            InfraLogger.Log($"FirebaseService:   UpdateAvailable={updateInfo.UpdateAvailable}");
+            InfraLogger.Log($"FirebaseService:   DownloadUrl={updateInfo.DownloadUrl}");
+            InfraLogger.Log($"FirebaseService:   ReleaseNotes={updateInfo.ReleaseNotes}");
+
             var checkData = new Dictionary<string, object>
             {
                 ["app_id"] = AppId,
@@ -533,13 +606,16 @@ public class FirebaseService : IFirebaseService
                 ["timestamp"] = DateTime.UtcNow.ToString("o")
             };
 
+            InfraLogger.Log("FirebaseService: Logging update check to Firebase");
             await PostDataAsync("update_checks", checkData);
 
+            InfraLogger.Log("FirebaseService: CheckForUpdatesAsync SUCCESS - returning UpdateInfo");
             return updateInfo;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Firebase: Failed to check for updates: {ex.Message}");
+            InfraLogger.Log($"FirebaseService: EXCEPTION in CheckForUpdatesAsync: {ex.Message}");
+            InfraLogger.Log($"FirebaseService: Stack trace: {ex.StackTrace}");
             return null;
         }
     }
@@ -564,11 +640,11 @@ public class FirebaseService : IFirebaseService
 
             await PostDataAsync("processing_sessions", installData);
 
-            Console.WriteLine($"Firebase: Update installation logged - v{version}");
+            InfraLogger.Log($"Firebase: Update installation logged - v{version}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Firebase: Failed to log update installation: {ex.Message}");
+            InfraLogger.Log($"Firebase: Failed to log update installation: {ex.Message}");
         }
     }
 
@@ -586,7 +662,7 @@ public class FirebaseService : IFirebaseService
             TimeSpan.FromMinutes(5)
         );
 
-        Console.WriteLine("Firebase: Heartbeat started (every 5 minutes)");
+        InfraLogger.Log("Firebase: Heartbeat started (every 5 minutes)");
     }
 
     public void StopHeartbeat()
@@ -594,7 +670,7 @@ public class FirebaseService : IFirebaseService
         _heartbeatTimer?.Dispose();
         _heartbeatTimer = null;
 
-        Console.WriteLine("Firebase: Heartbeat stopped");
+        InfraLogger.Log("Firebase: Heartbeat stopped");
     }
 
     private string GenerateFreeLicenseKey()
@@ -676,7 +752,7 @@ public class FirebaseService : IFirebaseService
             
             if (completedTask == timeoutTask)
             {
-                Console.WriteLine("Firebase: Access token request timed out");
+                InfraLogger.Log("Firebase: Access token request timed out");
                 return null;
             }
             
@@ -684,7 +760,7 @@ public class FirebaseService : IFirebaseService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Firebase: Failed to get access token: {ex.Message}");
+            InfraLogger.Log($"Firebase: Failed to get access token: {ex.Message}");
             return null;
         }
     }
@@ -763,3 +839,4 @@ public class FirebaseService : IFirebaseService
         };
     }
 }
+

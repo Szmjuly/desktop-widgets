@@ -89,11 +89,24 @@ public class FirebaseLifecycleManager
     {
         try
         {
-            return await _firebaseService.CheckForUpdatesAsync(_appVersion);
+            DebugLogger.Log($"FirebaseLifecycleManager: CheckForUpdatesAsync called with version {_appVersion}");
+            var result = await _firebaseService.CheckForUpdatesAsync(_appVersion);
+            
+            if (result == null)
+            {
+                DebugLogger.Log("FirebaseLifecycleManager: CheckForUpdatesAsync returned null from FirebaseService");
+            }
+            else
+            {
+                DebugLogger.Log($"FirebaseLifecycleManager: CheckForUpdatesAsync returned UpdateInfo - Current={result.CurrentVersion}, Latest={result.LatestVersion}, Available={result.UpdateAvailable}");
+            }
+            
+            return result;
         }
         catch (Exception ex)
         {
-            DebugLogger.Log($"Firebase: Failed to check for updates: {ex.Message}");
+            DebugLogger.Log($"FirebaseLifecycleManager: EXCEPTION in CheckForUpdatesAsync: {ex.Message}");
+            DebugLogger.Log($"FirebaseLifecycleManager: Stack trace: {ex.StackTrace}");
             return null;
         }
     }

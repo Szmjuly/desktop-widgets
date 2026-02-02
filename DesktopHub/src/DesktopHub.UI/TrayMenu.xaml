@@ -132,6 +132,15 @@
                           FontSize="13"
                           Foreground="{StaticResource TextBrush}"/>
             </Border>
+            
+            <!-- Version Display -->
+            <Border Margin="8,8,8,0" Padding="8,6">
+                <TextBlock x:Name="VersionText"
+                          Text="v1.0.0"
+                          FontSize="11"
+                          Foreground="#66FFFFFF"
+                          HorizontalAlignment="Center"/>
+            </Border>
         </StackPanel>
     </Border>
 </Window>

@@ -16,7 +16,7 @@ $data = @{
     latest_version = $Version
     release_date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
     release_notes = $ReleaseNotes
-    download_url = "https://github.com/yourusername/desktophub/releases/tag/v$Version"
+    download_url = "https://github.com/Szmjuly/desktop-widgets/releases/download/v$Version/DesktopHub.exe"
     required_update = $false
     updated_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 } | ConvertTo-Json

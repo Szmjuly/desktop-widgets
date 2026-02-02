@@ -77,15 +77,21 @@ public partial class App : System.Windows.Application
     
     private async void InitializeFirebaseAsync()
     {
+        DebugLogger.Log("App.xaml.cs: InitializeFirebaseAsync CALLED");
+        
         // Fire-and-forget with timeout to avoid blocking app startup
         _ = Task.Run(async () =>
         {
             try
             {
                 DebugLogger.Log("Firebase: Starting initialization in background...");
+                DebugLogger.Log("Firebase: Creating FirebaseService instance...");
                 
                 var firebaseService = new FirebaseService();
+                DebugLogger.Log("Firebase: Creating FirebaseLifecycleManager instance...");
+                
                 _firebaseManager = new FirebaseLifecycleManager(firebaseService);
+                DebugLogger.Log("Firebase: Calling InitializeAsync...");
                 
                 // Add 10 second timeout for initialization
                 var initTask = _firebaseManager.InitializeAsync();
@@ -105,10 +111,17 @@ public partial class App : System.Windows.Application
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"Firebase: Initialization failed: {ex.Message}");
+                DebugLogger.Log($"Firebase: Initialization EXCEPTION: {ex.Message}");
+                DebugLogger.Log($"Firebase: Exception type: {ex.GetType().Name}");
                 DebugLogger.Log($"Firebase: Stack trace: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    DebugLogger.Log($"Firebase: Inner exception: {ex.InnerException.Message}");
+                }
             }
         });
+        
+        DebugLogger.Log("App.xaml.cs: InitializeFirebaseAsync RETURNING (Task.Run started)");
     }
     
     private bool ShouldSelfInstall()

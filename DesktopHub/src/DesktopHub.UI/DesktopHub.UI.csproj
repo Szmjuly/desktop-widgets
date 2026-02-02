@@ -9,6 +9,10 @@
     <PackageReference Include="System.Runtime.InteropServices" Version="4.3.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\secrets\firebase-license.json" Link="firebase-license.json" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -23,6 +27,7 @@
     <Copyright>Copyright © 2025 DesktopHub</Copyright>
     <AssemblyName>DesktopHub</AssemblyName>
     <RootNamespace>DesktopHub.UI</RootNamespace>
+    <Version>1.0.2</Version>
   </PropertyGroup>
 
   <!-- Publishing configuration for single-file executable -->
