@@ -1,0 +1,35 @@
+# Secrets and credentials
+secrets/
+**/firebase-license.json
+**/firebase_config*.py
+**/*_embedded.py
+*.pem
+*.key
+.env
+.env.local
+
+# Build outputs
+bin/
+obj/
+publish/
+publish-*/
+dist/
+build/
+*.exe
+*.dll
+*.pdb
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
