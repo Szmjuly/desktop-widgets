@@ -1,6 +1,8 @@
 using System.IO;
 using System.Threading;
 using DesktopHub.UI.Helpers;
+using DesktopHub.Infrastructure.Firebase;
+using DesktopHub.UI.Services;
 
 namespace DesktopHub.UI;
 
@@ -9,6 +11,9 @@ public partial class App : System.Windows.Application
     private static bool _shownDispatcherCrash;
     private static Mutex? _instanceMutex;
     private const string MutexName = "Global\\DesktopHub_SingleInstance_Mutex";
+    private FirebaseLifecycleManager? _firebaseManager;
+
+    public FirebaseLifecycleManager? FirebaseManager => _firebaseManager;
 
     public App()
     {
@@ -58,6 +63,9 @@ public partial class App : System.Windows.Application
         
         base.OnStartup(e);
         
+        // Initialize Firebase tracking (non-blocking)
+        InitializeFirebaseAsync();
+        
         // Create Start Menu shortcut on startup (only creates if it doesn't exist)
         StartMenuHelper.CreateStartMenuShortcut();
         
@@ -65,6 +73,42 @@ public partial class App : System.Windows.Application
         var mainWindow = new SearchOverlay();
         MainWindow = mainWindow;
         mainWindow.Show(); // Must show to trigger Window_Loaded which initializes tray/hotkey
+    }
+    
+    private async void InitializeFirebaseAsync()
+    {
+        // Fire-and-forget with timeout to avoid blocking app startup
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                DebugLogger.Log("Firebase: Starting initialization in background...");
+                
+                var firebaseService = new FirebaseService();
+                _firebaseManager = new FirebaseLifecycleManager(firebaseService);
+                
+                // Add 10 second timeout for initialization
+                var initTask = _firebaseManager.InitializeAsync();
+                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
+                
+                var completedTask = await Task.WhenAny(initTask, timeoutTask);
+                
+                if (completedTask == timeoutTask)
+                {
+                    DebugLogger.Log("Firebase: Initialization timed out after 10 seconds, running in offline mode");
+                }
+                else
+                {
+                    await initTask; // Propagate any exceptions
+                    DebugLogger.Log("Firebase: Initialization completed successfully");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"Firebase: Initialization failed: {ex.Message}");
+                DebugLogger.Log($"Firebase: Stack trace: {ex.StackTrace}");
+            }
+        });
     }
     
     private bool ShouldSelfInstall()
@@ -286,6 +330,18 @@ public partial class App : System.Windows.Application
     
     protected override void OnExit(System.Windows.ExitEventArgs e)
     {
+        if (_firebaseManager != null)
+        {
+            try
+            {
+                _firebaseManager.ShutdownAsync().Wait(TimeSpan.FromSeconds(5));
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"Firebase shutdown error: {ex.Message}");
+            }
+        }
+        
         base.OnExit(e);
         _instanceMutex?.ReleaseMutex();
         _instanceMutex?.Dispose();
@@ -350,6 +406,12 @@ public partial class App : System.Windows.Application
     {
         LogCrash("DispatcherUnhandledException", e.Exception);
         
+        // Log to Firebase (non-blocking)
+        if (_firebaseManager != null)
+        {
+            Task.Run(async () => await _firebaseManager.LogErrorAsync(e.Exception, "DispatcherUnhandledException"));
+        }
+        
         // Handle the specific "Cannot set Visibility while closing" WPF bug gracefully
         if (e.Exception is InvalidOperationException ioe && 
             ioe.Message.Contains("Cannot set Visibility") && 
@@ -375,11 +437,17 @@ public partial class App : System.Windows.Application
         try { Current.Shutdown(); } catch { }
     }
 
-    private static void OnUnhandledException(object? sender, UnhandledExceptionEventArgs e)
+    private void OnUnhandledException(object? sender, UnhandledExceptionEventArgs e)
     {
         if (e.ExceptionObject is Exception ex)
         {
             LogCrash("UnhandledException", ex);
+            
+            // Log to Firebase (non-blocking)
+            if (_firebaseManager != null)
+            {
+                Task.Run(async () => await _firebaseManager.LogErrorAsync(ex, "UnhandledException"));
+            }
         }
     }
 }

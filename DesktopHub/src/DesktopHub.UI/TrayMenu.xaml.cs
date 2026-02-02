@@ -8,16 +8,18 @@ public partial class TrayMenu : Window
 {
     private readonly Action _onOpenSearch;
     private readonly Action _onRescanProjects;
+    private readonly Action _onCheckForUpdates;
     private readonly Action _onSettings;
     private readonly Action _onExit;
     private bool _isExiting;
 
-    public TrayMenu(Action onOpenSearch, Action onRescanProjects, Action onSettings, Action onExit)
+    public TrayMenu(Action onOpenSearch, Action onRescanProjects, Action onCheckForUpdates, Action onSettings, Action onExit)
     {
         InitializeComponent();
         
         _onOpenSearch = onOpenSearch;
         _onRescanProjects = onRescanProjects;
+        _onCheckForUpdates = onCheckForUpdates;
         _onSettings = onSettings;
         _onExit = onExit;
 
@@ -75,6 +77,12 @@ public partial class TrayMenu : Window
     {
         this.Close();
         _onRescanProjects?.Invoke();
+    }
+
+    private void CheckForUpdates_Click(object sender, MouseButtonEventArgs e)
+    {
+        this.Close();
+        _onCheckForUpdates?.Invoke();
     }
 
     private void Settings_Click(object sender, MouseButtonEventArgs e)
