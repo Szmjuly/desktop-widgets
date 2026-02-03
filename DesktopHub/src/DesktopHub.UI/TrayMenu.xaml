@@ -4,7 +4,7 @@
         Title="DesktopHub Menu"
         WindowStyle="None"
         AllowsTransparency="False"
-        Background="#FF181818"
+        Background="Transparent"
         ResizeMode="NoResize"
         Width="220"
         SizeToContent="Height"
@@ -12,7 +12,8 @@
         ShowInTaskbar="False"
         Deactivated="Window_Deactivated"
         ShowActivated="True"
-        LostFocus="Window_LostFocus">
+        LostFocus="Window_LostFocus"
+        ContextMenu="{x:Null}">
     
     <Border x:Name="RootBorder" 
             Background="#F0181818" 
@@ -65,7 +66,8 @@
             <!-- Separator -->
             <Border Height="1"
                     Background="#22FFFFFF"
-                    Margin="8,8"/>
+                    Margin="8,8"
+                    IsHitTestVisible="True"/>
             
             <!-- Check for Updates -->
             <Border Background="Transparent"
@@ -111,7 +113,8 @@
             <!-- Separator -->
             <Border Height="1"
                     Background="#22FFFFFF"
-                    Margin="8,8"/>
+                    Margin="8,8"
+                    IsHitTestVisible="True"/>
             
             <!-- Exit -->
             <Border Background="Transparent"

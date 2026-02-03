@@ -15,6 +15,7 @@ public class SearchService : ISearchService
         {
             var filter = ParseQuery(query);
             var results = new List<SearchResult>();
+            const double minScoreThreshold = 0.3; // Skip very low relevance results
 
             foreach (var project in projects)
             {
@@ -24,7 +25,7 @@ public class SearchService : ISearchService
 
                 // Calculate relevance score
                 var score = CalculateRelevanceScore(project, filter);
-                if (score > 0.0)
+                if (score > minScoreThreshold)
                 {
                     results.Add(new SearchResult
                     {
@@ -32,6 +33,12 @@ public class SearchService : ISearchService
                         Score = score,
                         MatchedFields = GetMatchedFields(project, filter)
                     });
+                }
+
+                // Early exit if we have enough high-quality results
+                if (results.Count >= filter.MaxResults * 2 && results.Any(r => r.Score > 0.8))
+                {
+                    break;
                 }
             }
 
@@ -125,7 +132,7 @@ public class SearchService : ISearchService
         if (source == target)
             return 1.0;
 
-        // Contains match
+        // Contains match (fast string search)
         if (target.Contains(source))
         {
             return 0.8 + (0.2 * (1.0 - (target.Length - source.Length) / (double)target.Length));
@@ -147,6 +154,11 @@ public class SearchService : ISearchService
             if (word.Contains(source))
                 return 0.65; // Good score for word contains match
         }
+
+        // Skip expensive Levenshtein for very different length strings
+        var lengthDiff = Math.Abs(source.Length - target.Length);
+        if (lengthDiff > source.Length)
+            return 0.0;
 
         // Levenshtein distance - more lenient threshold for short queries
         var distance = CalculateLevenshteinDistance(source, target);
@@ -272,23 +284,33 @@ public class SearchService : ISearchService
 
         var sourceLength = source.Length;
         var targetLength = target.Length;
-        var distance = new int[sourceLength + 1, targetLength + 1];
+        
+        // Optimize memory: use single array instead of 2D matrix
+        var previousRow = new int[targetLength + 1];
+        var currentRow = new int[targetLength + 1];
 
-        for (var i = 0; i <= sourceLength; distance[i, 0] = i++) { }
-        for (var j = 0; j <= targetLength; distance[0, j] = j++) { }
+        for (var j = 0; j <= targetLength; j++)
+            previousRow[j] = j;
 
         for (var i = 1; i <= sourceLength; i++)
         {
+            currentRow[0] = i;
+            
             for (var j = 1; j <= targetLength; j++)
             {
                 var cost = target[j - 1] == source[i - 1] ? 0 : 1;
-                distance[i, j] = Math.Min(
-                    Math.Min(distance[i - 1, j] + 1, distance[i, j - 1] + 1),
-                    distance[i - 1, j - 1] + cost
+                currentRow[j] = Math.Min(
+                    Math.Min(previousRow[j] + 1, currentRow[j - 1] + 1),
+                    previousRow[j - 1] + cost
                 );
             }
+            
+            // Swap rows
+            var temp = previousRow;
+            previousRow = currentRow;
+            currentRow = temp;
         }
 
-        return distance[sourceLength, targetLength];
+        return previousRow[targetLength];
     }
 }

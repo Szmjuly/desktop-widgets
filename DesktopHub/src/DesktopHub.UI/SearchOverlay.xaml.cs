@@ -461,7 +461,8 @@ public partial class SearchOverlay : Window
         // Show widget launcher next to search overlay
         if (_widgetLauncher != null)
         {
-            _widgetLauncher.Left = this.Left + this.Width + 12;
+            var windowWidth = this.ActualWidth > 0 ? this.ActualWidth : this.Width;
+            _widgetLauncher.Left = this.Left + windowWidth + 12;
             _widgetLauncher.Top = this.Top;
             _widgetLauncher.Visibility = Visibility.Visible;
         }
@@ -538,12 +539,25 @@ public partial class SearchOverlay : Window
             // Get the screen containing the mouse cursor
             var screen = Screen.FromPoint(mousePos);
             
-            // Position at top of screen with margin
+            // Position at top-center of screen with margin
             var workingArea = screen.WorkingArea;
-            this.Left = workingArea.Left + (workingArea.Width - this.Width) / 2;
+            
+            // Use ActualWidth if available, otherwise use Width property
+            var overlayWidth = this.ActualWidth > 0 ? this.ActualWidth : this.Width;
+            
+            // Calculate total width including widget launcher (180px) and gap (12px)
+            var widgetLauncherWidth = _widgetLauncher != null ? 180.0 : 0.0;
+            var gap = _widgetLauncher != null ? 12.0 : 0.0;
+            var totalWidth = overlayWidth + gap + widgetLauncherWidth;
+            
+            DebugLogger.Log($"SearchOverlay: Positioning - WorkArea({workingArea.Left},{workingArea.Top},{workingArea.Width}x{workingArea.Height}), OverlayWidth={overlayWidth}, TotalWidth={totalWidth}");
+            
+            // Center the combined group on screen
+            var groupLeft = workingArea.Left + (workingArea.Width - totalWidth) / 2.0;
+            this.Left = groupLeft;
             this.Top = workingArea.Top + 80; // 80px from top edge
             
-            DebugLogger.Log($"SearchOverlay: Positioned on screen at ({this.Left}, {this.Top}), Mouse at ({mousePos.X}, {mousePos.Y})");
+            DebugLogger.Log($"SearchOverlay: Positioned at ({this.Left}, {this.Top}), Mouse at ({mousePos.X}, {mousePos.Y})");
         }
         catch (Exception ex)
         {
@@ -553,7 +567,12 @@ public partial class SearchOverlay : Window
             if (primaryScreen != null)
             {
                 var workingArea = primaryScreen.WorkingArea;
-                this.Left = workingArea.Left + (workingArea.Width - this.Width) / 2;
+                var overlayWidth = this.ActualWidth > 0 ? this.ActualWidth : this.Width;
+                var widgetLauncherWidth = _widgetLauncher != null ? 180.0 : 0.0;
+                var gap = _widgetLauncher != null ? 12.0 : 0.0;
+                var totalWidth = overlayWidth + gap + widgetLauncherWidth;
+                var groupLeft = workingArea.Left + (workingArea.Width - totalWidth) / 2.0;
+                this.Left = groupLeft;
                 this.Top = workingArea.Top + 80;
             }
         }
@@ -586,23 +605,27 @@ public partial class SearchOverlay : Window
         var hasHistory = _searchHistory.Any();
         var hasResults = ResultsList?.Items.Count > 0;
         
-        // Show container if either: (1) searching with history, or (2) has results to collapse
-        var shouldShowHistory = !isSearchBlank && hasHistory;
-        var shouldShowCaret = hasResults;
+        // Always show container if there's history OR results to collapse
+        var shouldShowContainer = hasHistory || hasResults;
         
-        if (shouldShowHistory || shouldShowCaret)
+        if (shouldShowContainer)
         {
             HistoryAndCollapseContainer.Visibility = Visibility.Visible;
             
-            // Only populate history pills if we have a search and history
-            if (shouldShowHistory)
+            // Show actual history if available, otherwise show placeholder text
+            if (hasHistory)
             {
-                HorizontalHistoryList.ItemsSource = _searchHistory.Take(5).ToList();
+                // Show history pills
                 HistoryScrollViewer.Visibility = Visibility.Visible;
+                HistoryPlaceholder.Visibility = Visibility.Collapsed;
+                HorizontalHistoryList.ItemsSource = _searchHistory.Take(5).ToList();
             }
             else
             {
+                // Show single random placeholder as background text
                 HistoryScrollViewer.Visibility = Visibility.Collapsed;
+                HistoryPlaceholder.Visibility = Visibility.Visible;
+                HistoryPlaceholder.Text = GetRandomHistoryPlaceholder();
             }
         }
         else
@@ -611,6 +634,20 @@ public partial class SearchOverlay : Window
         }
         
         DebugLogger.Log($"UpdateHistoryVisibility: isSearchBlank={isSearchBlank}, hasHistory={hasHistory}, hasResults={hasResults}, containerVisible={HistoryAndCollapseContainer.Visibility}");
+    }
+    
+    private string GetRandomHistoryPlaceholder()
+    {
+        var placeholders = new[]
+        {
+            "No history yet...",
+            "Nothing here",
+            "Start searching!",
+            "No recent searches",
+            "Search history empty"
+        };
+        var random = new Random();
+        return placeholders[random.Next(placeholders.Length)];
     }
 
     private void LoadAllProjects()
@@ -895,8 +932,8 @@ public partial class SearchOverlay : Window
 
         try
         {
-            // Debounce search (wait 150ms)
-            await Task.Delay(150, token);
+            // Debounce search (wait 250ms for slower PCs)
+            await Task.Delay(250, token);
 
             if (token.IsCancellationRequested)
                 return;
@@ -909,7 +946,7 @@ public partial class SearchOverlay : Window
             if (token.IsCancellationRequested)
                 return;
 
-            // Update UI
+            // Update UI - batch operations to reduce overhead
             var projectViewModels = results.Select(r => new ProjectViewModel(r.Project)).ToList();
             ResultsList.ItemsSource = projectViewModels;
 
@@ -927,8 +964,7 @@ public partial class SearchOverlay : Window
                     this.Height = 500;
                 }
                 
-                // Add to search history
-                AddToSearchHistory(query);
+                // History tracking removed - only track on actual project launch
             }
             else
             {
@@ -970,10 +1006,10 @@ public partial class SearchOverlay : Window
         // Add to front
         _searchHistory.Insert(0, query);
         
-        // Keep only last 10
-        if (_searchHistory.Count > 10)
+        // Keep only last 25 to prevent excessive memory usage
+        if (_searchHistory.Count > 25)
         {
-            _searchHistory = _searchHistory.Take(10).ToList();
+            _searchHistory = _searchHistory.Take(25).ToList();
         }
     }
 

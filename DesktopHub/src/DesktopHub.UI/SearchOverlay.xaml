@@ -298,43 +298,56 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
-                <ScrollViewer Grid.Column="0"
-                             HorizontalScrollBarVisibility="Auto"
-                             VerticalScrollBarVisibility="Disabled"
-                             x:Name="HistoryScrollViewer">
-                    <ItemsControl x:Name="HorizontalHistoryList">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Horizontal"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="#20F5F7FA"
-                                        BorderBrush="#30F5F7FA"
-                                        BorderThickness="1"
-                                        CornerRadius="12"
-                                        Padding="12,6"
-                                        Margin="0,0,6,0"
-                                        Cursor="Hand"
-                                        MouseLeftButtonDown="HistoryItem_Click">
-                                    <Border.Style>
-                                        <Style TargetType="Border">
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="#30F5F7FA"/>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Border.Style>
-                                    <TextBlock Text="{Binding}"
-                                              FontSize="12"
-                                              Foreground="#F5F7FA"/>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                <!-- Grid to overlay placeholder text and history pills -->
+                <Grid Grid.Column="0">
+                    <!-- Background placeholder text (shown when no history) -->
+                    <TextBlock x:Name="HistoryPlaceholder"
+                              Text="No history yet..."
+                              FontSize="12"
+                              FontStyle="Italic"
+                              Foreground="#60808080"
+                              VerticalAlignment="Center"
+                              Margin="4,0,0,0"
+                              Visibility="Collapsed"/>
+                    
+                    <!-- History pills ScrollViewer -->
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                 VerticalScrollBarVisibility="Disabled"
+                                 x:Name="HistoryScrollViewer">
+                        <ItemsControl x:Name="HorizontalHistoryList">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#20F5F7FA"
+                                            BorderBrush="#30F5F7FA"
+                                            BorderThickness="1"
+                                            CornerRadius="12"
+                                            Padding="12,6"
+                                            Margin="0,0,6,0"
+                                            Cursor="Hand"
+                                            MouseLeftButtonDown="HistoryItem_Click">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#30F5F7FA"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="{Binding}"
+                                                  FontSize="12"
+                                                  Foreground="#F5F7FA"/>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
                 
                 <!-- Collapse/Expand button on the right -->
                 <Border Grid.Column="1"

@@ -658,11 +658,11 @@ public class FirebaseService : IFirebaseService
         _heartbeatTimer = new System.Threading.Timer(
             async _ => await UpdateHeartbeatAsync(),
             null,
-            TimeSpan.FromMinutes(1),
-            TimeSpan.FromMinutes(5)
+            TimeSpan.FromMinutes(2),
+            TimeSpan.FromMinutes(10)
         );
 
-        InfraLogger.Log("Firebase: Heartbeat started (every 5 minutes)");
+        InfraLogger.Log("Firebase: Heartbeat started (every 10 minutes)");
     }
 
     public void StopHeartbeat()

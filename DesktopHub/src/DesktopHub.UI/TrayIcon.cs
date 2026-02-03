@@ -11,6 +11,7 @@ public class TrayIcon : IDisposable
     private readonly SearchOverlay _searchOverlay;
     private readonly string _hotkeyLabel;
     private readonly DesktopHub.Core.Abstractions.ISettingsService _settings;
+    private TrayMenu? _currentMenu;
 
     public TrayIcon(SearchOverlay searchOverlay, string hotkeyLabel, DesktopHub.Core.Abstractions.ISettingsService settings)
     {
@@ -58,6 +59,14 @@ public class TrayIcon : IDisposable
             {
                 try
                 {
+                    // Close any existing menu first
+                    if (_currentMenu != null && !_currentMenu.IsClosed())
+                    {
+                        DebugLogger.Log("ShowCustomMenu: Closing existing menu");
+                        _currentMenu.Close();
+                        _currentMenu = null;
+                    }
+
                     var menu = new TrayMenu(
                         ShowSearch,
                         RescanProjects,
@@ -65,6 +74,17 @@ public class TrayIcon : IDisposable
                         ShowSettings,
                         Exit
                     );
+                    
+                    // Track the menu and clean up when it closes
+                    menu.Closed += (s, e) =>
+                    {
+                        if (_currentMenu == menu)
+                        {
+                            _currentMenu = null;
+                        }
+                    };
+                    
+                    _currentMenu = menu;
                     menu.Show();
                 }
                 catch (InvalidOperationException ex)
@@ -361,6 +381,23 @@ del ""%~f0""
 
     public void Dispose()
     {
+        // Close any open menu
+        if (_currentMenu != null)
+        {
+            try
+            {
+                _searchOverlay.Dispatcher.Invoke(() =>
+                {
+                    if (!_currentMenu.IsClosed())
+                    {
+                        _currentMenu.Close();
+                    }
+                });
+            }
+            catch { }
+            _currentMenu = null;
+        }
+        
         _notifyIcon?.Dispose();
     }
 }

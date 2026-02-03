@@ -5,6 +5,7 @@ namespace DesktopHub.UI;
 
 public static class DebugLogger
 {
+#if DEBUG
     private static readonly string LogDirectory = Path.Combine(
         AppContext.BaseDirectory,
         "logs"
@@ -13,9 +14,11 @@ public static class DebugLogger
     private static readonly string LogPath = Path.Combine(LogDirectory, "debug.log");
     
     private static readonly object _lock = new object();
+#endif
     
     static DebugLogger()
     {
+#if DEBUG
         try
         {
             if (!Directory.Exists(LogDirectory))
@@ -27,10 +30,12 @@ public static class DebugLogger
         {
             // Ignore directory creation errors
         }
+#endif
     }
 
     public static void Log(string message)
     {
+#if DEBUG
         try
         {
             lock (_lock)
@@ -45,10 +50,12 @@ public static class DebugLogger
         {
             // Ignore logging errors
         }
+#endif
     }
 
     public static void LogSeparator(string title = "")
     {
+#if DEBUG
         try
         {
             lock (_lock)
@@ -68,10 +75,12 @@ public static class DebugLogger
         {
             // Ignore logging errors
         }
+#endif
     }
 
     public static void LogHeader(string header)
     {
+#if DEBUG
         try
         {
             lock (_lock)
@@ -85,10 +94,12 @@ public static class DebugLogger
         {
             // Ignore logging errors
         }
+#endif
     }
 
     public static void LogVariable(string name, object? value)
     {
+#if DEBUG
         try
         {
             lock (_lock)
@@ -103,10 +114,12 @@ public static class DebugLogger
         {
             // Ignore logging errors
         }
+#endif
     }
 
     public static void Clear()
     {
+#if DEBUG
         try
         {
             lock (_lock)
@@ -122,5 +135,6 @@ public static class DebugLogger
         {
             // Ignore
         }
+#endif
     }
 }
