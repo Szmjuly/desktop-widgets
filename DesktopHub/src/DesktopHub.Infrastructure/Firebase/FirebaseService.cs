@@ -43,6 +43,7 @@ public class FirebaseService : IFirebaseService
         Directory.CreateDirectory(_appDataDir);
     }
 
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public async Task InitializeAsync()
     {
         if (_isInitialized)

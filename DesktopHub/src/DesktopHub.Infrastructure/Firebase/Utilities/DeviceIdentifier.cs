@@ -37,6 +37,7 @@ public static class DeviceIdentifier
         return newDeviceId;
     }
     
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public static DeviceInfo GetDeviceInfo()
     {
         var deviceId = GetDeviceId();
@@ -116,6 +117,7 @@ public static class DeviceIdentifier
         }
     }
     
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     private static string GetDeviceName()
     {
         try

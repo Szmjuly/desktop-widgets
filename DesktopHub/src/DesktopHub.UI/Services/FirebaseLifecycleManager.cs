@@ -18,6 +18,7 @@ public class FirebaseLifecycleManager
         _appVersion = GetAppVersion();
     }
 
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public async Task InitializeAsync()
     {
         try

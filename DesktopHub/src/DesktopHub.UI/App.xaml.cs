@@ -21,15 +21,21 @@ public partial class App : System.Windows.Application
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
     }
 
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     protected override void OnStartup(System.Windows.StartupEventArgs e)
     {
         // Check if we need to self-install
         if (ShouldSelfInstall())
         {
             base.OnStartup(e);
-            PerformSelfInstall();
-            Current.Shutdown();
-            return;
+            bool installSucceeded = PerformSelfInstall();
+            if (installSucceeded)
+            {
+                Current.Shutdown();
+                return;
+            }
+            // If install failed, continue running from current location
+            DebugLogger.Log("OnStartup: Install failed, continuing from current location");
         }
         
         // Check if another instance is already running
@@ -75,7 +81,8 @@ public partial class App : System.Windows.Application
         mainWindow.Show(); // Must show to trigger Window_Loaded which initializes tray/hotkey
     }
     
-    private async void InitializeFirebaseAsync()
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private void InitializeFirebaseAsync()
     {
         DebugLogger.Log("App.xaml.cs: InitializeFirebaseAsync CALLED");
         
@@ -172,17 +179,17 @@ public partial class App : System.Windows.Application
         }
     }
     
-    private void PerformSelfInstall()
+    private bool PerformSelfInstall()
     {
+        var currentExe = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "";
+        var installDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "DesktopHub"
+        );
+        var targetExe = Path.Combine(installDir, "DesktopHub.exe");
+        
         try
         {
-            var currentExe = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "";
-            var installDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "DesktopHub"
-            );
-            var targetExe = Path.Combine(installDir, "DesktopHub.exe");
-            
             DebugLogger.Log($"PerformSelfInstall: Installing from {currentExe} to {targetExe}");
             
             // Create install directory
@@ -192,45 +199,97 @@ public partial class App : System.Windows.Application
                 DebugLogger.Log($"PerformSelfInstall: Created directory {installDir}");
             }
             
-            // Copy executable
+            // Copy executable - this is the critical step
             File.Copy(currentExe, targetExe, overwrite: true);
-            DebugLogger.Log($"PerformSelfInstall: Copied executable");
-            
-            // Create Start Menu shortcut
+            DebugLogger.Log($"PerformSelfInstall: Copied executable successfully");
+        }
+        catch (Exception ex)
+        {
+            // Critical failure - cannot copy executable
+            DebugLogger.Log($"PerformSelfInstall: CRITICAL ERROR - Failed to copy executable: {ex}");
+            System.Windows.MessageBox.Show(
+                $"Failed to install DesktopHub:\n{ex.Message}\n\n" +
+                "Cannot copy executable to installation directory.\n" +
+                "You can still run the application from its current location.",
+                "Installation Error",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error
+            );
+            return false;
+        }
+        
+        // Non-critical steps - log failures but continue
+        var warnings = new List<string>();
+        
+        // Create Start Menu shortcut (non-critical)
+        try
+        {
             CreateStartMenuShortcut(targetExe);
-            
-            // Add to startup
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"PerformSelfInstall: Failed to create Start Menu shortcut: {ex.Message}");
+            warnings.Add("Start Menu shortcut could not be created");
+        }
+        
+        // Add to startup (non-critical)
+        try
+        {
             AddToStartup(targetExe);
-            
-            // Launch the installed copy
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"PerformSelfInstall: Failed to add to startup: {ex.Message}");
+            warnings.Add("Auto-start registry entry could not be created");
+        }
+        
+        // Launch the installed copy
+        bool launchSucceeded = true;
+        try
+        {
             DebugLogger.Log($"PerformSelfInstall: Launching installed copy");
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
             {
                 FileName = targetExe,
                 UseShellExecute = true
             });
-            
-            System.Windows.MessageBox.Show(
-                "DesktopHub has been installed successfully!\n\n" +
-                $"Location: {installDir}\n\n" +
-                "The application will now start and run in the background.\n" +
-                "Look for the tray icon or press Ctrl+Alt+Space to open.",
-                "DesktopHub Installed",
-                System.Windows.MessageBoxButton.OK,
-                System.Windows.MessageBoxImage.Information
-            );
         }
         catch (Exception ex)
         {
-            DebugLogger.Log($"PerformSelfInstall: Error during installation: {ex}");
-            System.Windows.MessageBox.Show(
-                $"Failed to install DesktopHub:\n{ex.Message}\n\n" +
-                "You can still run the application from its current location.",
-                "Installation Error",
-                System.Windows.MessageBoxButton.OK,
-                System.Windows.MessageBoxImage.Warning
-            );
+            DebugLogger.Log($"PerformSelfInstall: Failed to launch installed copy: {ex.Message}");
+            warnings.Add("Could not automatically launch installed application");
+            launchSucceeded = false;
         }
+        
+        // Show success message with any warnings
+        var message = "DesktopHub has been installed successfully!\n\n" +
+                      $"Location: {installDir}\n\n";
+        
+        if (launchSucceeded)
+        {
+            message += "The application is now running in the background.\n" +
+                      "Look for the tray icon or press Ctrl+Alt+Space to open.";
+        }
+        else
+        {
+            message += "Please launch DesktopHub from the Start Menu or:\n" +
+                      $"{targetExe}";
+        }
+        
+        if (warnings.Count > 0)
+        {
+            message += "\n\nNote: Some optional features could not be configured:\n" +
+                      string.Join("\n", warnings.Select(w => $"• {w}"));
+        }
+        
+        System.Windows.MessageBox.Show(
+            message,
+            "DesktopHub Installed",
+            System.Windows.MessageBoxButton.OK,
+            warnings.Count > 0 ? System.Windows.MessageBoxImage.Warning : System.Windows.MessageBoxImage.Information
+        );
+        
+        return launchSucceeded;
     }
     
     private void CreateStartMenuShortcut(string targetExe)

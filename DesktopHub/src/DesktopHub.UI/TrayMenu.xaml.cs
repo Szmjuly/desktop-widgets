@@ -14,7 +14,6 @@ public partial class TrayMenu : Window
     private bool _isExiting;
     private bool _itemClicked;
     private bool _isClosing;
-    private System.Windows.Threading.DispatcherTimer? _deactivateTimer;
     private DateTime _openedTime;
 
     public TrayMenu(Action onOpenSearch, Action onRescanProjects, Action onCheckForUpdates, Action onSettings, Action onExit)

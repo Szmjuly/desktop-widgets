@@ -20,6 +20,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
+    <SupportedOSPlatform>windows</SupportedOSPlatform>
     <AssemblyTitle>DesktopHub</AssemblyTitle>
     <Product>DesktopHub</Product>
     <AssemblyDescription>DesktopHub - Project Search and Widget Launcher</AssemblyDescription>
