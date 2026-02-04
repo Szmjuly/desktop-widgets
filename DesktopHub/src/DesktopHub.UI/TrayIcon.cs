@@ -304,13 +304,49 @@ public class TrayIcon : IDisposable
 
             var updateBatchPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "DesktopHub-Update.bat");
             var batchContent = $@"@echo off
-timeout /t 2 /nobreak > nul
-taskkill /F /IM DesktopHub.exe > nul 2>&1
+echo Waiting for DesktopHub to close...
+timeout /t 3 /nobreak > nul
+
+REM Wait for process to fully exit (up to 10 seconds)
+:WAIT_LOOP
+tasklist /FI ""IMAGENAME eq DesktopHub.exe"" 2>NUL | find /I /N ""DesktopHub.exe"">NUL
+if ""%ERRORLEVEL%""==""0"" (
+    timeout /t 1 /nobreak > nul
+    goto WAIT_LOOP
+)
+
+echo Process closed, replacing exe...
 timeout /t 1 /nobreak > nul
+
+REM Try to delete old exe first (with retries)
+:DELETE_RETRY
+if exist ""{currentExePath}"" (
+    del /F /Q ""{currentExePath}"" 2>NUL
+    if exist ""{currentExePath}"" (
+        timeout /t 1 /nobreak > nul
+        goto DELETE_RETRY
+    )
+)
+
+REM Copy new version
 copy /Y ""{tempPath}"" ""{currentExePath}"" > nul
+
+REM Verify copy succeeded
+if not exist ""{currentExePath}"" (
+    echo ERROR: Failed to copy new version!
+    pause
+    exit /b 1
+)
+
+REM Clean up temp file
 del ""{tempPath}"" > nul
+
+echo Starting updated version...
+timeout /t 1 /nobreak > nul
 start """" ""{currentExePath}""
-del ""%~f0""
+
+REM Delete this batch file
+(goto) 2>nul & del ""%~f0""
 ";
 
             await System.IO.File.WriteAllTextAsync(updateBatchPath, batchContent);
