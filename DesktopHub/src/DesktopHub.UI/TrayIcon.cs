@@ -399,7 +399,8 @@ REM Delete this batch file
             var settings = new SettingsWindow(
                 _settings,
                 () => _searchOverlay.ReloadHotkey(),
-                () => _searchOverlay.UpdateDraggingMode()
+                () => _searchOverlay.UpdateDraggingMode(),
+                () => _searchOverlay.OnDriveSettingsChanged()
             );
             settings.Show();
         }), System.Windows.Threading.DispatcherPriority.Normal);

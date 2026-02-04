@@ -16,14 +16,34 @@ public interface ISettingsService
     void SetQDrivePath(string path);
 
     /// <summary>
+    /// Get whether Q drive is enabled for scanning
+    /// </summary>
+    bool GetQDriveEnabled();
+
+    /// <summary>
+    /// Set whether Q drive is enabled for scanning
+    /// </summary>
+    void SetQDriveEnabled(bool enabled);
+
+    /// <summary>
     /// Get P: drive path
     /// </summary>
     string GetPDrivePath();
 
     /// <summary>
-    /// Set P: drive path
+    /// Set P drive path
     /// </summary>
     void SetPDrivePath(string path);
+
+    /// <summary>
+    /// Get whether P drive is enabled for scanning
+    /// </summary>
+    bool GetPDriveEnabled();
+
+    /// <summary>
+    /// Set whether P drive is enabled for scanning
+    /// </summary>
+    void SetPDriveEnabled(bool enabled);
 
     /// <summary>
     /// Get scan interval in minutes

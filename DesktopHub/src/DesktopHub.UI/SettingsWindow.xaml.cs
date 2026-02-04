@@ -15,14 +15,16 @@ public partial class SettingsWindow : Window
     private int _recordedKey;
     private Action? _onHotkeyChanged;
     private Action? _onLivingWidgetsModeChanged;
+    private Action? _onDriveSettingsChanged;
     private bool _isUpdatingSliders;
 
-    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onLivingWidgetsModeChanged = null)
+    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null)
     {
         InitializeComponent();
         _settings = settings;
         _onHotkeyChanged = onHotkeyChanged;
         _onLivingWidgetsModeChanged = onLivingWidgetsModeChanged;
+        _onDriveSettingsChanged = onDriveSettingsChanged;
 
         // Setup transparency when window handle is available
         SourceInitialized += (s, e) =>
@@ -135,9 +137,12 @@ public partial class SettingsWindow : Window
             AutoStartToggle.IsChecked = _settings.GetAutoStart();
             LivingWidgetsModeToggle.IsChecked = _settings.GetLivingWidgetsMode();
             
+            // Load drive settings
+            QDriveEnabledToggle.IsChecked = _settings.GetQDriveEnabled();
             var qDrivePath = _settings.GetQDrivePath();
             QDrivePathBox.Text = string.IsNullOrEmpty(qDrivePath) ? "Q:\\" : qDrivePath;
             
+            PDriveEnabledToggle.IsChecked = _settings.GetPDriveEnabled();
             var pDrivePath = _settings.GetPDrivePath();
             PDrivePathBox.Text = string.IsNullOrEmpty(pDrivePath) ? "P:\\" : pDrivePath;
             
@@ -365,6 +370,54 @@ public partial class SettingsWindow : Window
                 StatusText.Text = $"Error updating path: {ex.Message}";
             }
         }
+    }
+
+    private async void QDriveEnabledToggle_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null) return;
+        _settings.SetQDriveEnabled(true);
+        await _settings.SaveAsync();
+        if (StatusText != null)
+        {
+            StatusText.Text = "Q: drive enabled - updating projects...";
+        }
+        _onDriveSettingsChanged?.Invoke();
+    }
+
+    private async void QDriveEnabledToggle_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null) return;
+        _settings.SetQDriveEnabled(false);
+        await _settings.SaveAsync();
+        if (StatusText != null)
+        {
+            StatusText.Text = "Q: drive disabled - updating projects...";
+        }
+        _onDriveSettingsChanged?.Invoke();
+    }
+
+    private async void PDriveEnabledToggle_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null) return;
+        _settings.SetPDriveEnabled(true);
+        await _settings.SaveAsync();
+        if (StatusText != null)
+        {
+            StatusText.Text = "P: drive enabled - scanning...";
+        }
+        _onDriveSettingsChanged?.Invoke();
+    }
+
+    private async void PDriveEnabledToggle_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null) return;
+        _settings.SetPDriveEnabled(false);
+        await _settings.SaveAsync();
+        if (StatusText != null)
+        {
+            StatusText.Text = "P: drive disabled - updating projects...";
+        }
+        _onDriveSettingsChanged?.Invoke();
     }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e)

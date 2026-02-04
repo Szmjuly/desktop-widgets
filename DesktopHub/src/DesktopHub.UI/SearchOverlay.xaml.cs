@@ -777,7 +777,15 @@ public partial class SearchOverlay : Window
             var selectedYear = YearFilter.SelectedItem?.ToString();
             var selectedLocation = DriveLocationFilter.SelectedItem?.ToString();
             
-            _filteredProjects = _allProjects.ToList();
+            // Start with all projects, but filter by enabled drives first
+            _filteredProjects = _allProjects.Where(p => 
+            {
+                if (p.DriveLocation == "Q") return _settings.GetQDriveEnabled();
+                if (p.DriveLocation == "P") return _settings.GetPDriveEnabled();
+                return false; // Unknown drive, exclude
+            }).ToList();
+            
+            DebugLogger.Log($"LoadAllProjects: After drive filter: {_filteredProjects.Count} projects (Q enabled: {_settings.GetQDriveEnabled()}, P enabled: {_settings.GetPDriveEnabled()})");
             
             // Apply year filter
             if (selectedYear != "All Years" && !string.IsNullOrEmpty(selectedYear))
@@ -792,7 +800,7 @@ public partial class SearchOverlay : Window
                 _filteredProjects = _filteredProjects.Where(p => p.DriveLocation == driveFilter).ToList();
             }
             
-            DebugLogger.Log($"LoadAllProjects: Filtered to {_filteredProjects.Count} projects for year {selectedYear}, location {selectedLocation}");
+            DebugLogger.Log($"LoadAllProjects: Final filtered count: {_filteredProjects.Count} projects for year {selectedYear}, location {selectedLocation}");
             ResultsList.ItemsSource = _filteredProjects;
             UpdateResultsHeader();
             UpdateHistoryVisibility();
@@ -953,7 +961,16 @@ public partial class SearchOverlay : Window
             PopulateYearFilter();
             PopulateDriveLocationFilter();
 
-            StatusText.Text = $"{_allProjects.Count} projects loaded";
+            // Count only projects from enabled drives
+            var enabledProjectsCount = _allProjects.Count(p => 
+            {
+                if (p.DriveLocation == "Q") return _settings.GetQDriveEnabled();
+                if (p.DriveLocation == "P") return _settings.GetPDriveEnabled();
+                return false;
+            });
+
+            StatusText.Text = $"{enabledProjectsCount} projects loaded";
+            DebugLogger.Log($"LoadProjectsAsync: Total in DB: {_allProjects.Count}, From enabled drives: {enabledProjectsCount} (Q: {_settings.GetQDriveEnabled()}, P: {_settings.GetPDriveEnabled()})");
             ShowLoading(false);
         }
         catch (Exception ex)
@@ -979,7 +996,19 @@ public partial class SearchOverlay : Window
 
     private void PopulateDriveLocationFilter()
     {
-        var locations = new List<string> { "All Locations", "Florida (Q:)", "Connecticut (P:)" };
+        var locations = new List<string> { "All Locations" };
+        
+        // Only add enabled drives to the dropdown
+        if (_settings.GetQDriveEnabled())
+        {
+            locations.Add("Florida (Q:)");
+        }
+        
+        if (_settings.GetPDriveEnabled())
+        {
+            locations.Add("Connecticut (P:)");
+        }
+        
         DriveLocationFilter.ItemsSource = locations;
         DriveLocationFilter.SelectedIndex = 0;
     }
@@ -996,36 +1025,52 @@ public partial class SearchOverlay : Window
             {
                 var allScannedProjects = new List<Project>();
 
-                // Scan Q: drive (Florida)
-                await Dispatcher.InvokeAsync(() => StatusText.Text = "Scanning Q: drive (Florida)...");
-                var qDrivePath = _settings.GetQDrivePath();
-                if (Directory.Exists(qDrivePath))
+                // Scan Q: drive (Florida) - only if enabled
+                if (_settings.GetQDriveEnabled())
                 {
-                    try
+                    await Dispatcher.InvokeAsync(() => StatusText.Text = "Scanning Q: drive (Florida)...");
+                    var qDrivePath = _settings.GetQDrivePath();
+                    if (Directory.Exists(qDrivePath))
                     {
-                        var qProjects = await _scanner.ScanProjectsAsync(qDrivePath, "Q", CancellationToken.None);
-                        allScannedProjects.AddRange(qProjects);
-                    }
-                    catch (Exception ex)
-                    {
-                        DebugLogger.Log($"Q: drive scan error: {ex.Message}");
+                        try
+                        {
+                            var qProjects = await _scanner.ScanProjectsAsync(qDrivePath, "Q", CancellationToken.None);
+                            allScannedProjects.AddRange(qProjects);
+                            DebugLogger.Log($"Q: drive scan completed: {qProjects.Count} projects found");
+                        }
+                        catch (Exception ex)
+                        {
+                            DebugLogger.Log($"Q: drive scan error: {ex.Message}");
+                        }
                     }
                 }
-
-                // Scan P: drive (Connecticut)
-                await Dispatcher.InvokeAsync(() => StatusText.Text = "Scanning P: drive (Connecticut)...");
-                var pDrivePath = _settings.GetPDrivePath();
-                if (Directory.Exists(pDrivePath))
+                else
                 {
-                    try
+                    DebugLogger.Log("Q: drive scanning disabled - skipping");
+                }
+
+                // Scan P: drive (Connecticut) - only if enabled
+                if (_settings.GetPDriveEnabled())
+                {
+                    await Dispatcher.InvokeAsync(() => StatusText.Text = "Scanning P: drive (Connecticut)...");
+                    var pDrivePath = _settings.GetPDrivePath();
+                    if (Directory.Exists(pDrivePath))
                     {
-                        var pProjects = await _scanner.ScanProjectsAsync(pDrivePath, "P", CancellationToken.None);
-                        allScannedProjects.AddRange(pProjects);
+                        try
+                        {
+                            var pProjects = await _scanner.ScanProjectsAsync(pDrivePath, "P", CancellationToken.None);
+                            allScannedProjects.AddRange(pProjects);
+                            DebugLogger.Log($"P: drive scan completed: {pProjects.Count} projects found");
+                        }
+                        catch (Exception ex)
+                        {
+                            DebugLogger.Log($"P: drive scan error: {ex.Message}");
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        DebugLogger.Log($"P: drive scan error: {ex.Message}");
-                    }
+                }
+                else
+                {
+                    DebugLogger.Log("P: drive scanning disabled - skipping");
                 }
 
                 // Update database with all scanned projects (Q and P drives are separate)
@@ -1088,7 +1133,13 @@ public partial class SearchOverlay : Window
             var selectedYear = YearFilter.SelectedItem?.ToString();
             var selectedLocation = DriveLocationFilter.SelectedItem?.ToString();
             
-            var projectsToSearch = _allProjects.ToList();
+            // Start with all projects, but filter by enabled drives first
+            var projectsToSearch = _allProjects.Where(p => 
+            {
+                if (p.DriveLocation == "Q") return _settings.GetQDriveEnabled();
+                if (p.DriveLocation == "P") return _settings.GetPDriveEnabled();
+                return false; // Unknown drive, exclude
+            }).ToList();
             
             // Apply year filter
             if (selectedYear != "All Years" && !string.IsNullOrEmpty(selectedYear))
@@ -1956,6 +2007,27 @@ public partial class SearchOverlay : Window
             }
             
             DebugLogger.Log("Window dragging disabled (Living Widgets Mode OFF) - Topmost enabled");
+        }
+    }
+
+    public async void OnDriveSettingsChanged()
+    {
+        try
+        {
+            DebugLogger.Log("OnDriveSettingsChanged: Drive settings changed, reloading projects...");
+            
+            // Reload projects from database to apply new filtering
+            await Dispatcher.InvokeAsync(async () => 
+            {
+                await LoadProjectsAsync();
+                
+                // Trigger a background scan to pick up newly enabled drives
+                _ = BackgroundScanAsync();
+            });
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"OnDriveSettingsChanged: Error reloading projects: {ex.Message}");
         }
     }
 }

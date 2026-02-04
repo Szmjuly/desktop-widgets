@@ -292,7 +292,7 @@
                         </Grid>
                     </Border>
                     
-                    <!-- Q Drive Path Section -->
+                    <!-- Network Drives Section -->
                     <Border Background="{StaticResource SurfaceBrush}" 
                             BorderBrush="{StaticResource BorderBrush}"
                             BorderThickness="1"
@@ -300,57 +300,158 @@
                             Padding="16"
                             Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="Q: Drive Path (Florida)" 
+                            <TextBlock Text="Network Drives" 
                                        FontSize="16" 
                                        FontWeight="SemiBold"
                                        Foreground="{StaticResource TextBrush}"
                                        Margin="0,0,0,8"/>
                             
-                            <TextBox x:Name="QDrivePathBox"
-                                     Text="Q:\"
-                                     FontSize="14"
-                                     Padding="8"
-                                     Background="#22FFFFFF"
-                                     Foreground="{StaticResource TextBrush}"
-                                     BorderBrush="{StaticResource BorderBrush}"
-                                     TextChanged="QDrivePathBox_TextChanged">
-                                <TextBox.Resources>
-                                    <Style TargetType="Border">
-                                        <Setter Property="CornerRadius" Value="6"/>
-                                    </Style>
-                                </TextBox.Resources>
-                            </TextBox>
-                        </StackPanel>
-                    </Border>
-                    
-                    <!-- P Drive Path Section -->
-                    <Border Background="{StaticResource SurfaceBrush}" 
-                            BorderBrush="{StaticResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="16"
-                            Margin="0,0,0,12">
-                        <StackPanel>
-                            <TextBlock Text="P: Drive Path (Connecticut)" 
-                                       FontSize="16" 
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextBrush}"
-                                       Margin="0,0,0,8"/>
+                            <TextBlock Text="Configure which network drives to scan for projects" 
+                                       FontSize="12" 
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Margin="0,0,0,16"/>
                             
-                            <TextBox x:Name="PDrivePathBox"
-                                     Text="P:\"
-                                     FontSize="14"
-                                     Padding="8"
-                                     Background="#22FFFFFF"
-                                     Foreground="{StaticResource TextBrush}"
-                                     BorderBrush="{StaticResource BorderBrush}"
-                                     TextChanged="PDrivePathBox_TextChanged">
-                                <TextBox.Resources>
-                                    <Style TargetType="Border">
-                                        <Setter Property="CornerRadius" Value="6"/>
-                                    </Style>
-                                </TextBox.Resources>
-                            </TextBox>
+                            <!-- Q Drive -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <ToggleButton x:Name="QDriveEnabledToggle"
+                                              Grid.Column="0"
+                                              Width="50"
+                                              Height="28"
+                                              VerticalAlignment="Center"
+                                              Margin="0,0,12,0"
+                                              Checked="QDriveEnabledToggle_Checked"
+                                              Unchecked="QDriveEnabledToggle_Unchecked"
+                                              Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="Border"
+                                                                Background="#333333"
+                                                                CornerRadius="14"
+                                                                Width="50"
+                                                                Height="28">
+                                                            <Ellipse x:Name="Thumb"
+                                                                     Width="20"
+                                                                     Height="20"
+                                                                     Fill="White"
+                                                                     HorizontalAlignment="Left"
+                                                                     Margin="4,0,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
+                                
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Q: Drive (Florida)" 
+                                               FontSize="14" 
+                                               FontWeight="Medium"
+                                               Foreground="{StaticResource TextBrush}"
+                                               Margin="0,0,0,4"/>
+                                    <TextBox x:Name="QDrivePathBox"
+                                             Text="Q:\"
+                                             FontSize="12"
+                                             Padding="6"
+                                             Background="#22FFFFFF"
+                                             Foreground="{StaticResource TextBrush}"
+                                             BorderBrush="{StaticResource BorderBrush}"
+                                             TextChanged="QDrivePathBox_TextChanged">
+                                        <TextBox.Resources>
+                                            <Style TargetType="Border">
+                                                <Setter Property="CornerRadius" Value="4"/>
+                                            </Style>
+                                        </TextBox.Resources>
+                                    </TextBox>
+                                </StackPanel>
+                            </Grid>
+                            
+                            <!-- P Drive -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <ToggleButton x:Name="PDriveEnabledToggle"
+                                              Grid.Column="0"
+                                              Width="50"
+                                              Height="28"
+                                              VerticalAlignment="Center"
+                                              Margin="0,0,12,0"
+                                              Checked="PDriveEnabledToggle_Checked"
+                                              Unchecked="PDriveEnabledToggle_Unchecked"
+                                              Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="Border"
+                                                                Background="#333333"
+                                                                CornerRadius="14"
+                                                                Width="50"
+                                                                Height="28">
+                                                            <Ellipse x:Name="Thumb"
+                                                                     Width="20"
+                                                                     Height="20"
+                                                                     Fill="White"
+                                                                     HorizontalAlignment="Left"
+                                                                     Margin="4,0,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
+                                
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="P: Drive (Connecticut)" 
+                                               FontSize="14" 
+                                               FontWeight="Medium"
+                                               Foreground="{StaticResource TextBrush}"
+                                               Margin="0,0,0,4"/>
+                                    <TextBox x:Name="PDrivePathBox"
+                                             Text="P:\"
+                                             FontSize="12"
+                                             Padding="6"
+                                             Background="#22FFFFFF"
+                                             Foreground="{StaticResource TextBrush}"
+                                             BorderBrush="{StaticResource BorderBrush}"
+                                             TextChanged="PDrivePathBox_TextChanged">
+                                        <TextBox.Resources>
+                                            <Style TargetType="Border">
+                                                <Setter Property="CornerRadius" Value="4"/>
+                                            </Style>
+                                        </TextBox.Resources>
+                                    </TextBox>
+                                </StackPanel>
+                            </Grid>
                         </StackPanel>
                     </Border>
                     
