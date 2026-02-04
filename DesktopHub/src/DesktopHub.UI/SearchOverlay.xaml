@@ -109,6 +109,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
                 <!-- Search box -->
@@ -168,7 +169,8 @@
                         BorderBrush="{StaticResource BorderBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
-                        Padding="8,4">
+                        Padding="8,4"
+                        Margin="0,0,8,0">
                     <ComboBox x:Name="YearFilter"
                               MinWidth="100"
                               Background="Transparent"
@@ -286,6 +288,49 @@
                         </ComboBox.ItemContainerStyle>
                     </ComboBox>
                 </Border>
+                
+                <!-- Widget Launcher Toggle Button -->
+                <Button x:Name="WidgetLauncherToggle"
+                        Grid.Column="2"
+                        Background="#D0121212"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        Width="50"
+                        Click="WidgetLauncherToggle_Click"
+                        Cursor="Hand"
+                        ToolTip="Toggle Widget Launcher"
+                        VerticalAlignment="Stretch">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="ButtonBorder"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="8">
+                                            <TextBlock Text="&#xE80F;"
+                                                       FontFamily="Segoe MDL2 Assets"
+                                                       FontSize="16"
+                                                       Foreground="#F5F7FA"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ButtonBorder" Property="Background" Value="#E0121212"/>
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="ButtonBorder" Property="Background" Value="#F0121212"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
             </Grid>
             
             <!-- Horizontal search history pills with collapse/expand button -->

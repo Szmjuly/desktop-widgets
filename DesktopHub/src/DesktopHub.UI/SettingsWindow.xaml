@@ -563,6 +563,77 @@
                             </StackPanel>
                         </StackPanel>
                     </Border>
+                    
+                    <!-- Living Widgets Mode Section -->
+                    <Border Background="{StaticResource SurfaceBrush}" 
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="16"
+                            Margin="0,0,0,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Living Widgets Mode" 
+                                           FontSize="16" 
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextBrush}"
+                                           Margin="0,0,0,4"/>
+                                <TextBlock FontSize="12" 
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap">
+                                    <Run Text="Make widgets draggable, snappable to screen edges, and pinnable to desktop."/>
+                                    <LineBreak/>
+                                    <Run Text="When enabled, widgets stay visible until manually closed with hotkey."/>
+                                    <LineBreak/>
+                                    <Run Text="When disabled (default), widgets auto-hide when clicking away."/>
+                                </TextBlock>
+                            </StackPanel>
+                            
+                            <ToggleButton x:Name="LivingWidgetsModeToggle"
+                                          Grid.Column="1"
+                                          Width="50"
+                                          Height="28"
+                                          VerticalAlignment="Center"
+                                          Checked="LivingWidgetsModeToggle_Checked"
+                                          Unchecked="LivingWidgetsModeToggle_Unchecked"
+                                          Cursor="Hand">
+                                <ToggleButton.Style>
+                                    <Style TargetType="ToggleButton">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ToggleButton">
+                                                    <Border x:Name="Border"
+                                                            Background="#333333"
+                                                            CornerRadius="14"
+                                                            Width="50"
+                                                            Height="28">
+                                                        <Ellipse x:Name="Thumb"
+                                                                 Width="20"
+                                                                 Height="20"
+                                                                 Fill="White"
+                                                                 HorizontalAlignment="Left"
+                                                                 Margin="4,0,0,0"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsChecked" Value="True">
+                                                            <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                            <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ToggleButton.Style>
+                            </ToggleButton>
+                        </Grid>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
             </Grid>

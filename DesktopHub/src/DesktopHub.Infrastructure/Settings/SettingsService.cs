@@ -57,6 +57,23 @@ public class SettingsService : ISettingsService
     public int GetNotificationDurationMs() => _settings.NotificationDurationMs;
     public void SetNotificationDurationMs(int durationMs) => _settings.NotificationDurationMs = durationMs;
 
+    public bool GetLivingWidgetsMode() => _settings.LivingWidgetsMode;
+    public void SetLivingWidgetsMode(bool enabled) => _settings.LivingWidgetsMode = enabled;
+    
+    public (double? left, double? top) GetSearchOverlayPosition() => (_settings.SearchOverlayLeft, _settings.SearchOverlayTop);
+    public void SetSearchOverlayPosition(double left, double top)
+    {
+        _settings.SearchOverlayLeft = left;
+        _settings.SearchOverlayTop = top;
+    }
+    
+    public (double? left, double? top) GetWidgetLauncherPosition() => (_settings.WidgetLauncherLeft, _settings.WidgetLauncherTop);
+    public void SetWidgetLauncherPosition(double left, double top)
+    {
+        _settings.WidgetLauncherLeft = left;
+        _settings.WidgetLauncherTop = top;
+    }
+
     public async Task SaveAsync()
     {
         var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions
@@ -99,5 +116,12 @@ public class SettingsService : ISettingsService
         public double OverlayTransparency { get; set; } = 0.78;
         public bool TransparencyLinked { get; set; } = true;
         public int NotificationDurationMs { get; set; } = 3000; // 3 seconds
+        public bool LivingWidgetsMode { get; set; } = false; // False = legacy overlay mode (auto-hide)
+        
+        // Widget positions for Living Widgets Mode (null = use default positioning)
+        public double? SearchOverlayLeft { get; set; } = null;
+        public double? SearchOverlayTop { get; set; } = null;
+        public double? WidgetLauncherLeft { get; set; } = null;
+        public double? WidgetLauncherTop { get; set; } = null;
     }
 }

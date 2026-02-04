@@ -96,6 +96,36 @@ public interface ISettingsService
     void SetNotificationDurationMs(int durationMs);
 
     /// <summary>
+    /// Get whether Living Widgets Mode is enabled (draggable, snappable, pinnable)
+    /// </summary>
+    bool GetLivingWidgetsMode();
+
+    /// <summary>
+    /// Set whether Living Widgets Mode is enabled
+    /// </summary>
+    void SetLivingWidgetsMode(bool enabled);
+
+    /// <summary>
+    /// Get saved search overlay position for Living Widgets Mode
+    /// </summary>
+    (double? left, double? top) GetSearchOverlayPosition();
+
+    /// <summary>
+    /// Set search overlay position for Living Widgets Mode
+    /// </summary>
+    void SetSearchOverlayPosition(double left, double top);
+
+    /// <summary>
+    /// Get saved widget launcher position for Living Widgets Mode
+    /// </summary>
+    (double? left, double? top) GetWidgetLauncherPosition();
+
+    /// <summary>
+    /// Set widget launcher position for Living Widgets Mode
+    /// </summary>
+    void SetWidgetLauncherPosition(double left, double top);
+
+    /// <summary>
     /// Save all settings to disk
     /// </summary>
     Task SaveAsync();

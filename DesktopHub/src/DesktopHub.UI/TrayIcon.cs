@@ -360,7 +360,8 @@ del ""%~f0""
         {
             var settings = new SettingsWindow(
                 _settings,
-                () => _searchOverlay.ReloadHotkey()
+                () => _searchOverlay.ReloadHotkey(),
+                () => _searchOverlay.UpdateDraggingMode()
             );
             settings.Show();
         }), System.Windows.Threading.DispatcherPriority.Normal);

@@ -14,13 +14,15 @@ public partial class SettingsWindow : Window
     private int _recordedModifiers;
     private int _recordedKey;
     private Action? _onHotkeyChanged;
+    private Action? _onLivingWidgetsModeChanged;
     private bool _isUpdatingSliders;
 
-    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null)
+    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onLivingWidgetsModeChanged = null)
     {
         InitializeComponent();
         _settings = settings;
         _onHotkeyChanged = onHotkeyChanged;
+        _onLivingWidgetsModeChanged = onLivingWidgetsModeChanged;
 
         // Setup transparency when window handle is available
         SourceInitialized += (s, e) =>
@@ -131,6 +133,7 @@ public partial class SettingsWindow : Window
             UpdateHotkeyWarning(modifiers, key);
 
             AutoStartToggle.IsChecked = _settings.GetAutoStart();
+            LivingWidgetsModeToggle.IsChecked = _settings.GetLivingWidgetsMode();
             
             var qDrivePath = _settings.GetQDrivePath();
             QDrivePathBox.Text = string.IsNullOrEmpty(qDrivePath) ? "Q:\\" : qDrivePath;
@@ -532,4 +535,19 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private async void LivingWidgetsModeToggle_Checked(object sender, RoutedEventArgs e)
+    {
+        _settings.SetLivingWidgetsMode(true);
+        await _settings.SaveAsync();
+        StatusText.Text = "Living Widgets Mode enabled - widgets are now draggable and pinnable";
+        _onLivingWidgetsModeChanged?.Invoke();
+    }
+
+    private async void LivingWidgetsModeToggle_Unchecked(object sender, RoutedEventArgs e)
+    {
+        _settings.SetLivingWidgetsMode(false);
+        await _settings.SaveAsync();
+        StatusText.Text = "Living Widgets Mode disabled - widgets will auto-hide when clicking away";
+        _onLivingWidgetsModeChanged?.Invoke();
+    }
 }

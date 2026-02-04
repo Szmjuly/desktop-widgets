@@ -41,6 +41,8 @@ public partial class SearchOverlay : Window
     private System.Windows.Threading.DispatcherTimer? _deactivateTimer;
     private CancellationTokenSource? _ipcCts;
     private bool _isClosing = false;
+    private bool _isDragging = false;
+    private System.Windows.Point _dragStartPoint;
 
     public bool IsClosing => _isClosing;
 
@@ -198,6 +200,30 @@ public partial class SearchOverlay : Window
 
             // Start IPC listener for commands from second instances
             _ = Task.Run(() => StartIpcListener());
+            
+            // Initialize dragging mode based on Living Widgets Mode setting
+            UpdateDraggingMode();
+            
+            // Restore saved widget positions if in Living Widgets Mode
+            var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+            if (isLivingWidgetsMode)
+            {
+                var (overlayLeft, overlayTop) = _settings.GetSearchOverlayPosition();
+                if (overlayLeft.HasValue && overlayTop.HasValue)
+                {
+                    this.Left = overlayLeft.Value;
+                    this.Top = overlayTop.Value;
+                    DebugLogger.Log($"Restored search overlay position: ({overlayLeft.Value}, {overlayTop.Value})");
+                }
+                
+                var (launcherLeft, launcherTop) = _settings.GetWidgetLauncherPosition();
+                if (launcherLeft.HasValue && launcherTop.HasValue && _widgetLauncher != null)
+                {
+                    _widgetLauncher.Left = launcherLeft.Value;
+                    _widgetLauncher.Top = launcherTop.Value;
+                    DebugLogger.Log($"Restored widget launcher position: ({launcherLeft.Value}, {launcherTop.Value})");
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -258,15 +284,81 @@ public partial class SearchOverlay : Window
                 _deactivateTimer.Stop();
             }
             
-            if (this.Visibility == Visibility.Visible)
+            var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+            DebugLogger.LogVariable("Living Widgets Mode", isLivingWidgetsMode);
+            
+            if (isLivingWidgetsMode)
             {
-                DebugLogger.Log("OnHotkeyPressed: Window visible -> HIDING overlay");
-                HideOverlay();
+                // Living Widgets Mode: bring forward or send to back
+                if (this.Visibility != Visibility.Visible)
+                {
+                    DebugLogger.Log("OnHotkeyPressed: Window hidden -> SHOWING overlay");
+                    ShowOverlay();
+                }
+                else if (this.IsActive)
+                {
+                    // Window is visible and active -> send to back
+                    DebugLogger.Log("OnHotkeyPressed: Window active -> SENDING TO BACK");
+                    this.Topmost = false;
+                    
+                    // Use Win32 API to send window to bottom of Z-order
+                    var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+                    NativeMethods.SetWindowPos(hwnd, NativeMethods.HWND_BOTTOM, 0, 0, 0, 0, 
+                        NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
+                    
+                    // Also send widget launcher to back if visible
+                    if (_widgetLauncher != null && _widgetLauncher.Visibility == Visibility.Visible)
+                    {
+                        var launcherHwnd = new System.Windows.Interop.WindowInteropHelper(_widgetLauncher).Handle;
+                        NativeMethods.SetWindowPos(launcherHwnd, NativeMethods.HWND_BOTTOM, 0, 0, 0, 0, 
+                            NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
+                        DebugLogger.Log("OnHotkeyPressed: Sent widget launcher to back too");
+                    }
+                    
+                    // Also send timer overlay to back if visible
+                    if (_timerOverlay != null && _timerOverlay.Visibility == Visibility.Visible)
+                    {
+                        var timerHwnd = new System.Windows.Interop.WindowInteropHelper(_timerOverlay).Handle;
+                        NativeMethods.SetWindowPos(timerHwnd, NativeMethods.HWND_BOTTOM, 0, 0, 0, 0, 
+                            NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
+                        DebugLogger.Log("OnHotkeyPressed: Sent timer overlay to back too");
+                    }
+                }
+                else
+                {
+                    // Window is visible but not active -> bring to front
+                    DebugLogger.Log("OnHotkeyPressed: Window not active -> BRINGING TO FRONT");
+                    this.Activate();
+                    SearchBox.Focus();
+                    
+                    // Also bring widget launcher forward if visible
+                    if (_widgetLauncher != null && _widgetLauncher.Visibility == Visibility.Visible)
+                    {
+                        _widgetLauncher.Activate();
+                        DebugLogger.Log("OnHotkeyPressed: Brought widget launcher forward too");
+                    }
+                    
+                    // Also bring timer overlay forward if visible
+                    if (_timerOverlay != null && _timerOverlay.Visibility == Visibility.Visible)
+                    {
+                        _timerOverlay.Activate();
+                        DebugLogger.Log("OnHotkeyPressed: Brought timer overlay forward too");
+                    }
+                }
             }
             else
             {
-                DebugLogger.Log("OnHotkeyPressed: Window hidden -> SHOWING overlay");
-                ShowOverlay();
+                // Legacy overlay mode: show/hide behavior
+                if (this.Visibility == Visibility.Visible)
+                {
+                    DebugLogger.Log("OnHotkeyPressed: Window visible -> HIDING overlay");
+                    HideOverlay();
+                }
+                else
+                {
+                    DebugLogger.Log("OnHotkeyPressed: Window hidden -> SHOWING overlay");
+                    ShowOverlay();
+                }
             }
             
             // Reset toggle flag after a short delay
@@ -450,9 +542,15 @@ public partial class SearchOverlay : Window
         this.Height = 140; // Collapsed height
         
         DebugLogger.LogHeader("Positioning Window");
-        PositionOnMouseScreen();
+        // Only reposition if Living Widgets Mode is disabled (legacy overlay mode)
+        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+        if (!isLivingWidgetsMode)
+        {
+            PositionOnMouseScreen();
+        }
         DebugLogger.LogVariable("Window.Left", this.Left);
         DebugLogger.LogVariable("Window.Top", this.Top);
+        DebugLogger.LogVariable("Living Widgets Mode", isLivingWidgetsMode);
         
         DebugLogger.LogHeader("Making Window Visible");
         this.Visibility = Visibility.Visible;
@@ -461,17 +559,18 @@ public partial class SearchOverlay : Window
         // Show widget launcher next to search overlay
         if (_widgetLauncher != null)
         {
-            var windowWidth = this.ActualWidth > 0 ? this.ActualWidth : this.Width;
-            _widgetLauncher.Left = this.Left + windowWidth + 12;
-            _widgetLauncher.Top = this.Top;
+            // Only auto-attach in Legacy mode; in Living Widgets Mode, remember position
+            if (!isLivingWidgetsMode)
+            {
+                var windowWidth = this.ActualWidth > 0 ? this.ActualWidth : this.Width;
+                _widgetLauncher.Left = this.Left + windowWidth + 12;
+                _widgetLauncher.Top = this.Top;
+            }
+            
             _widgetLauncher.Visibility = Visibility.Visible;
         }
         
-        // Show timer overlay if it was visible before
-        if (_timerOverlay != null && _timerOverlay.Tag as string == "WasVisible")
-        {
-            _timerOverlay.Visibility = Visibility.Visible;
-        }
+        // Timer overlay is now independent - don't auto-show/hide with search overlay
         
         DebugLogger.LogHeader("Calling Window.Activate()");
         var activateResult = this.Activate();
@@ -772,19 +871,7 @@ public partial class SearchOverlay : Window
             _widgetLauncher.Visibility = Visibility.Hidden;
         }
         
-        // Remember timer overlay state and hide it
-        if (_timerOverlay != null)
-        {
-            if (_timerOverlay.Visibility == Visibility.Visible)
-            {
-                _timerOverlay.Tag = "WasVisible";
-                _timerOverlay.Visibility = Visibility.Hidden;
-            }
-            else
-            {
-                _timerOverlay.Tag = null;
-            }
-        }
+        // Timer overlay is now independent - don't auto-hide with search overlay
         
         DebugLogger.LogHeader("Clearing SearchBox and UI");
         SearchBox.Clear();
@@ -1028,6 +1115,23 @@ public partial class SearchOverlay : Window
         }
     }
 
+    private void WidgetLauncherToggle_Click(object sender, RoutedEventArgs e)
+    {
+        if (_widgetLauncher != null)
+        {
+            if (_widgetLauncher.Visibility == Visibility.Visible)
+            {
+                _widgetLauncher.Visibility = Visibility.Hidden;
+                DebugLogger.Log("Widget launcher hidden via toggle button");
+            }
+            else
+            {
+                _widgetLauncher.Visibility = Visibility.Visible;
+                DebugLogger.Log("Widget launcher shown via toggle button");
+            }
+        }
+    }
+    
     private void HistoryItem_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is System.Windows.Controls.Border border && border.DataContext is string query)
@@ -1186,6 +1290,15 @@ public partial class SearchOverlay : Window
         DebugLogger.LogVariable("SearchBox.IsFocused", SearchBox.IsFocused);
         DebugLogger.LogVariable("SearchBox.IsKeyboardFocused", SearchBox.IsKeyboardFocused);
         
+        // Don't auto-hide if Living Widgets Mode is enabled
+        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+        DebugLogger.LogVariable("LivingWidgetsMode", isLivingWidgetsMode);
+        if (isLivingWidgetsMode)
+        {
+            DebugLogger.Log("Window_Deactivated: IGNORING - Living Widgets Mode is enabled");
+            return;
+        }
+        
         // Don't auto-hide if we're in the middle of a hotkey toggle
         if (_isTogglingViaHotkey)
         {
@@ -1262,6 +1375,22 @@ public partial class SearchOverlay : Window
     {
         DebugLogger.Log("Window_Closing: Setting closing state");
         _isClosing = true;
+        
+        // Save widget positions if in Living Widgets Mode
+        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+        if (isLivingWidgetsMode)
+        {
+            _settings.SetSearchOverlayPosition(this.Left, this.Top);
+            
+            if (_widgetLauncher != null)
+            {
+                _settings.SetWidgetLauncherPosition(_widgetLauncher.Left, _widgetLauncher.Top);
+            }
+            
+            // Save async but don't await (app is closing)
+            _ = _settings.SaveAsync();
+            DebugLogger.Log("Window_Closing: Saved widget positions");
+        }
     }
 
     private void ShowLoading(bool show)
@@ -1452,12 +1581,16 @@ public partial class SearchOverlay : Window
             {
                 _timerOverlay = new TimerOverlay(_timerService);
                 
+                // Set Topmost based on Living Widgets Mode
+                var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+                _timerOverlay.Topmost = !isLivingWidgetsMode; // False in Living Widgets Mode
+                
                 // Position timer overlay on same screen as search overlay
                 PositionTimerOverlayOnSameScreen();
                 
                 _timerOverlay.Show();
                 _timerOverlay.Tag = "WasVisible";
-                DebugLogger.Log("OnTimerWidgetRequested: Timer overlay created and shown");
+                DebugLogger.Log($"OnTimerWidgetRequested: Timer overlay created and shown (Topmost={_timerOverlay.Topmost})");
             }
             else
             {
@@ -1506,6 +1639,226 @@ public partial class SearchOverlay : Window
         catch (Exception ex)
         {
             DebugLogger.Log($"PositionTimerOverlayOnSameScreen: Error positioning timer: {ex.Message}");
+        }
+    }
+    
+    private void EnableWindowDragging()
+    {
+        // Remove handlers first to prevent duplicates when switching modes
+        this.MouseLeftButtonDown -= Window_MouseLeftButtonDown;
+        this.MouseLeftButtonUp -= Window_MouseLeftButtonUp;
+        this.MouseMove -= Window_MouseMove;
+        
+        // Add mouse event handlers for dragging when Living Widgets Mode is enabled
+        this.MouseLeftButtonDown += Window_MouseLeftButtonDown;
+        this.MouseLeftButtonUp += Window_MouseLeftButtonUp;
+        this.MouseMove += Window_MouseMove;
+    }
+
+    private void DisableWindowDragging()
+    {
+        // Remove mouse event handlers when Living Widgets Mode is disabled
+        this.MouseLeftButtonDown -= Window_MouseLeftButtonDown;
+        this.MouseLeftButtonUp -= Window_MouseLeftButtonUp;
+        this.MouseMove -= Window_MouseMove;
+    }
+
+    private void Window_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        // Only allow dragging if Living Widgets Mode is enabled and not clicking on interactive elements
+        if (!_settings.GetLivingWidgetsMode())
+            return;
+            
+        // Don't start drag if clicking on interactive elements (textbox, buttons, list)
+        var element = e.OriginalSource as FrameworkElement;
+        if (element != null)
+        {
+            // Allow dragging only from non-interactive areas (borders, panels, window background)
+            var clickedType = element.GetType().Name;
+            if (clickedType == "TextBox" || clickedType == "Button" || clickedType == "ListBoxItem" || 
+                clickedType == "ComboBox" || clickedType == "ScrollBar" || clickedType == "Thumb")
+            {
+                return;
+            }
+        }
+        
+        _isDragging = true;
+        _dragStartPoint = e.GetPosition(this);
+        this.CaptureMouse();
+        DebugLogger.Log("Window dragging started");
+    }
+
+    private void Window_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (_isDragging)
+        {
+            _isDragging = false;
+            this.ReleaseMouseCapture();
+            
+            // Apply snap to screen edges if close
+            SnapToScreenEdges();
+            DebugLogger.Log("Window dragging ended");
+        }
+    }
+
+    private void Window_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (_isDragging && e.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
+        {
+            var currentPosition = e.GetPosition(this);
+            var offset = currentPosition - _dragStartPoint;
+            
+            this.Left += offset.X;
+            this.Top += offset.Y;
+            
+            // Only update widget launcher position in Legacy mode (keep attached)
+            // In Living Widgets Mode, widgets are independent
+            var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+            if (!isLivingWidgetsMode)
+            {
+                UpdateWidgetLauncherPosition();
+            }
+        }
+    }
+
+    private void SnapToScreenEdges()
+    {
+        try
+        {
+            // Get the screen containing the window
+            var windowCenter = new System.Drawing.Point(
+                (int)(this.Left + this.Width / 2),
+                (int)(this.Top + this.Height / 2)
+            );
+            var screen = Screen.FromPoint(windowCenter);
+            var workArea = screen.WorkingArea;
+            
+            const int snapThreshold = 20; // pixels from edge to trigger snap
+            
+            // Snap to left edge
+            if (Math.Abs(this.Left - workArea.Left) < snapThreshold)
+            {
+                this.Left = workArea.Left + 10; // 10px margin
+                DebugLogger.Log("Snapped to left edge");
+            }
+            
+            // Snap to right edge
+            if (Math.Abs(this.Left + this.Width - workArea.Right) < snapThreshold)
+            {
+                this.Left = workArea.Right - this.Width - 10;
+                DebugLogger.Log("Snapped to right edge");
+            }
+            
+            // Snap to top edge
+            if (Math.Abs(this.Top - workArea.Top) < snapThreshold)
+            {
+                this.Top = workArea.Top + 10;
+                DebugLogger.Log("Snapped to top edge");
+            }
+            
+            // Snap to bottom edge
+            if (Math.Abs(this.Top + this.Height - workArea.Bottom) < snapThreshold)
+            {
+                this.Top = workArea.Bottom - this.Height - 10;
+                DebugLogger.Log("Snapped to bottom edge");
+            }
+            
+            // Snap to top-left corner
+            if (Math.Abs(this.Left - workArea.Left) < snapThreshold && 
+                Math.Abs(this.Top - workArea.Top) < snapThreshold)
+            {
+                this.Left = workArea.Left + 10;
+                this.Top = workArea.Top + 10;
+                DebugLogger.Log("Snapped to top-left corner");
+            }
+            
+            // Snap to top-right corner
+            if (Math.Abs(this.Left + this.Width - workArea.Right) < snapThreshold && 
+                Math.Abs(this.Top - workArea.Top) < snapThreshold)
+            {
+                this.Left = workArea.Right - this.Width - 10;
+                this.Top = workArea.Top + 10;
+                DebugLogger.Log("Snapped to top-right corner");
+            }
+            
+            // Snap to bottom-left corner
+            if (Math.Abs(this.Left - workArea.Left) < snapThreshold && 
+                Math.Abs(this.Top + this.Height - workArea.Bottom) < snapThreshold)
+            {
+                this.Left = workArea.Left + 10;
+                this.Top = workArea.Bottom - this.Height - 10;
+                DebugLogger.Log("Snapped to bottom-left corner");
+            }
+            
+            // Snap to bottom-right corner
+            if (Math.Abs(this.Left + this.Width - workArea.Right) < snapThreshold && 
+                Math.Abs(this.Top + this.Height - workArea.Bottom) < snapThreshold)
+            {
+                this.Left = workArea.Right - this.Width - 10;
+                this.Top = workArea.Bottom - this.Height - 10;
+                DebugLogger.Log("Snapped to bottom-right corner");
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"SnapToScreenEdges: Error: {ex.Message}");
+        }
+    }
+
+    private void UpdateWidgetLauncherPosition()
+    {
+        if (_widgetLauncher != null && _widgetLauncher.Visibility == Visibility.Visible)
+        {
+            var windowWidth = this.ActualWidth > 0 ? this.ActualWidth : this.Width;
+            _widgetLauncher.Left = this.Left + windowWidth + 12;
+            _widgetLauncher.Top = this.Top;
+        }
+    }
+    
+    public void UpdateDraggingMode()
+    {
+        // Called when Living Widgets Mode setting changes
+        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+        
+        if (isLivingWidgetsMode)
+        {
+            EnableWindowDragging();
+            this.Topmost = false; // Live on desktop, not always on top
+            
+            // Enable dragging and disable Topmost for widget launcher too
+            if (_widgetLauncher != null)
+            {
+                _widgetLauncher.EnableDragging();
+                _widgetLauncher.Topmost = false;
+            }
+            
+            // Disable Topmost for timer overlay too if it exists
+            if (_timerOverlay != null)
+            {
+                _timerOverlay.Topmost = false;
+            }
+            
+            DebugLogger.Log("Window dragging enabled (Living Widgets Mode ON) - Topmost disabled");
+        }
+        else
+        {
+            DisableWindowDragging();
+            this.Topmost = true; // Legacy mode: always on top
+            
+            // Disable dragging and enable Topmost for widget launcher too
+            if (_widgetLauncher != null)
+            {
+                _widgetLauncher.DisableDragging();
+                _widgetLauncher.Topmost = true;
+            }
+            
+            // Enable Topmost for timer overlay too if it exists
+            if (_timerOverlay != null)
+            {
+                _timerOverlay.Topmost = true;
+            }
+            
+            DebugLogger.Log("Window dragging disabled (Living Widgets Mode OFF) - Topmost enabled");
         }
     }
 }
