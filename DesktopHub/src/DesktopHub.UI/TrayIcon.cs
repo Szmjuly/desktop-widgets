@@ -289,15 +289,17 @@ public class TrayIcon : IDisposable
             DebugLogger.Log("Update: Download complete, preparing to install");
             ShowBalloonTip("DesktopHub", "Installing update...", System.Windows.Forms.ToolTipIcon.Info);
 
-            var currentExePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName 
-                ?? System.Reflection.Assembly.GetExecutingAssembly().Location;
-            
-            DebugLogger.Log($"Update: Current exe path (initial): {currentExePath}");
+            // For single-file apps, use AppContext.BaseDirectory instead of Assembly.Location
+            var currentExePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
             
             if (string.IsNullOrEmpty(currentExePath) || currentExePath.EndsWith(".dll"))
             {
-                currentExePath = System.AppContext.BaseDirectory + "DesktopHub.exe";
-                DebugLogger.Log($"Update: Using fallback path: {currentExePath}");
+                currentExePath = System.IO.Path.Combine(System.AppContext.BaseDirectory, "DesktopHub.exe");
+                DebugLogger.Log($"Update: Using AppContext.BaseDirectory path: {currentExePath}");
+            }
+            else
+            {
+                DebugLogger.Log($"Update: Current exe path: {currentExePath}");
             }
 
             var updateBatchPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "DesktopHub-Update.bat");
