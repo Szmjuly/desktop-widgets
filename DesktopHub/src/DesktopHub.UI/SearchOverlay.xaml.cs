@@ -186,7 +186,7 @@ public partial class SearchOverlay : Window
             _trayIcon = new TrayIcon(this, hotkeyLabel, _settings);
 
             // Initialize widget launcher
-            _widgetLauncher = new WidgetLauncher();
+            _widgetLauncher = new WidgetLauncher(_settings);
             _widgetLauncher.TimerWidgetRequested += OnTimerWidgetRequested;
 
             // Register global hotkey (Ctrl+Alt+Space by default)
@@ -1727,7 +1727,7 @@ public partial class SearchOverlay : Window
         {
             if (_timerOverlay == null)
             {
-                _timerOverlay = new TimerOverlay(_timerService);
+                _timerOverlay = new TimerOverlay(_timerService, _settings);
                 
                 // Set Topmost based on Living Widgets Mode
                 var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
@@ -2028,6 +2028,38 @@ public partial class SearchOverlay : Window
         catch (Exception ex)
         {
             DebugLogger.Log($"OnDriveSettingsChanged: Error reloading projects: {ex.Message}");
+        }
+    }
+
+    public void UpdateTransparency()
+    {
+        try
+        {
+            Dispatcher.Invoke(() =>
+            {
+                // Update search overlay transparency
+                var overlayTransparency = _settings.GetOverlayTransparency();
+                var overlayAlpha = (byte)(overlayTransparency * 255);
+                RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(overlayAlpha, 0x18, 0x18, 0x18));
+                
+                DebugLogger.Log($"UpdateTransparency: SearchOverlay transparency updated to {overlayTransparency:F2}");
+                
+                // Update widget launcher transparency if it exists
+                if (_widgetLauncher != null)
+                {
+                    _widgetLauncher.UpdateTransparency();
+                }
+                
+                // Update timer overlay transparency if it exists
+                if (_timerOverlay != null)
+                {
+                    _timerOverlay.UpdateTransparency();
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"UpdateTransparency: Error updating transparency: {ex.Message}");
         }
     }
 }

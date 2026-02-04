@@ -1,6 +1,8 @@
 using System;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
+using DesktopHub.Core.Abstractions;
 
 namespace DesktopHub.UI;
 
@@ -10,10 +12,32 @@ public partial class WidgetLauncher : Window
     private bool _isDragging = false;
     private System.Windows.Point _dragStartPoint;
     private bool _isLivingWidgetsMode = false;
+    private readonly ISettingsService _settings;
     
-    public WidgetLauncher()
+    public WidgetLauncher(ISettingsService settings)
     {
         InitializeComponent();
+        _settings = settings;
+    }
+    
+    public void UpdateTransparency()
+    {
+        try
+        {
+            var transparency = _settings.GetWidgetLauncherTransparency();
+            var alpha = (byte)(transparency * 255);
+            
+            if (RootBorder != null)
+            {
+                RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, 0x18, 0x18, 0x18));
+            }
+            
+            DebugLogger.Log($"WidgetLauncher: Transparency updated to {transparency:F2}");
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"WidgetLauncher: UpdateTransparency error: {ex.Message}");
+        }
     }
     
     private void TimerWidgetButton_Click(object sender, MouseButtonEventArgs e)

@@ -400,7 +400,8 @@ REM Delete this batch file
                 _settings,
                 () => _searchOverlay.ReloadHotkey(),
                 () => _searchOverlay.UpdateDraggingMode(),
-                () => _searchOverlay.OnDriveSettingsChanged()
+                () => _searchOverlay.OnDriveSettingsChanged(),
+                () => _searchOverlay.UpdateTransparency()
             );
             settings.Show();
         }), System.Windows.Threading.DispatcherPriority.Normal);

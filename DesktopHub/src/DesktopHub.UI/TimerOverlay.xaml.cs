@@ -2,24 +2,30 @@ using System;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Controls;
+using System.Windows.Media;
 using DesktopHub.UI.Services;
+using DesktopHub.Core.Abstractions;
 
 namespace DesktopHub.UI;
 
 public partial class TimerOverlay : Window
 {
     private readonly TimerService _timerService;
+    private readonly ISettingsService _settings;
     private bool _isInitialized = false;
     
-    public TimerOverlay(TimerService timerService)
+    public TimerOverlay(TimerService timerService, ISettingsService settings)
     {
         try
         {
             if (timerService == null)
                 throw new ArgumentNullException(nameof(timerService));
+            if (settings == null)
+                throw new ArgumentNullException(nameof(settings));
                 
             InitializeComponent();
             _timerService = timerService;
+            _settings = settings;
             
             _timerService.TimeUpdated += OnTimeUpdated;
             _timerService.TimerCompleted += OnTimerCompleted;
@@ -165,6 +171,26 @@ public partial class TimerOverlay : Window
                 var duration = new TimeSpan(hours, minutes, seconds);
                 _timerService.SetTimerDuration(duration);
             }
+        }
+    }
+    
+    public void UpdateTransparency()
+    {
+        try
+        {
+            var transparency = _settings.GetTimerWidgetTransparency();
+            var alpha = (byte)(transparency * 255);
+            
+            if (RootBorder != null)
+            {
+                RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, 0x18, 0x18, 0x18));
+            }
+            
+            DebugLogger.Log($"TimerOverlay: Transparency updated to {transparency:F2}");
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"TimerOverlay: UpdateTransparency error: {ex.Message}");
         }
     }
     

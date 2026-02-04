@@ -13,7 +13,8 @@
         Height="140"
         Deactivated="Window_Deactivated">
     
-    <Border Background="#A8121212"
+    <Border x:Name="RootBorder"
+            Background="#A8121212"
             CornerRadius="12"
             BorderBrush="#3A2A2A2A"
             BorderThickness="1">

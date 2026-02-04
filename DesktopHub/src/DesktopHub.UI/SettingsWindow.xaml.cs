@@ -16,15 +16,17 @@ public partial class SettingsWindow : Window
     private Action? _onHotkeyChanged;
     private Action? _onLivingWidgetsModeChanged;
     private Action? _onDriveSettingsChanged;
+    private Action? _onTransparencyChanged;
     private bool _isUpdatingSliders;
 
-    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null)
+    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null)
     {
         InitializeComponent();
         _settings = settings;
         _onHotkeyChanged = onHotkeyChanged;
         _onLivingWidgetsModeChanged = onLivingWidgetsModeChanged;
         _onDriveSettingsChanged = onDriveSettingsChanged;
+        _onTransparencyChanged = onTransparencyChanged;
 
         // Setup transparency when window handle is available
         SourceInitialized += (s, e) =>
@@ -481,7 +483,7 @@ public partial class SettingsWindow : Window
         _settings.SetSettingsTransparency(e.NewValue);
         _ = _settings.SaveAsync();
         
-        // If linked, update overlay slider too
+        // If linked, update all other sliders (but don't trigger their callbacks)
         if (_settings.GetTransparencyLinked())
         {
             _isUpdatingSliders = true;
@@ -489,9 +491,22 @@ public partial class SettingsWindow : Window
             {
                 OverlayTransparencySlider.Value = e.NewValue;
             }
+            if (WidgetLauncherTransparencySlider != null)
+            {
+                WidgetLauncherTransparencySlider.Value = e.NewValue;
+            }
+            if (TimerWidgetTransparencySlider != null)
+            {
+                TimerWidgetTransparencySlider.Value = e.NewValue;
+            }
             _settings.SetOverlayTransparency(e.NewValue);
+            _settings.SetWidgetLauncherTransparency(e.NewValue);
+            _settings.SetTimerWidgetTransparency(e.NewValue);
             _isUpdatingSliders = false;
         }
+        
+        // Notify windows to update their transparency
+        _onTransparencyChanged?.Invoke();
     }
 
     private void OverlayTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -501,7 +516,7 @@ public partial class SettingsWindow : Window
         _settings.SetOverlayTransparency(e.NewValue);
         _ = _settings.SaveAsync();
         
-        // If linked, update settings slider too
+        // If linked, update all other sliders
         if (_settings.GetTransparencyLinked())
         {
             _isUpdatingSliders = true;
@@ -509,7 +524,17 @@ public partial class SettingsWindow : Window
             {
                 SettingsTransparencySlider.Value = e.NewValue;
             }
+            if (WidgetLauncherTransparencySlider != null)
+            {
+                WidgetLauncherTransparencySlider.Value = e.NewValue;
+            }
+            if (TimerWidgetTransparencySlider != null)
+            {
+                TimerWidgetTransparencySlider.Value = e.NewValue;
+            }
             _settings.SetSettingsTransparency(e.NewValue);
+            _settings.SetWidgetLauncherTransparency(e.NewValue);
+            _settings.SetTimerWidgetTransparency(e.NewValue);
             _isUpdatingSliders = false;
             
             if (RootBorder != null)
@@ -519,6 +544,9 @@ public partial class SettingsWindow : Window
                 RootBorder.Background = new System.Windows.Media.SolidColorBrush(color);
             }
         }
+        
+        // Notify windows to update their transparency
+        _onTransparencyChanged?.Invoke();
     }
 
     private void WidgetLauncherTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -556,6 +584,9 @@ public partial class SettingsWindow : Window
                 RootBorder.Background = new System.Windows.Media.SolidColorBrush(color);
             }
         }
+        
+        // Notify windows to update their transparency
+        _onTransparencyChanged?.Invoke();
     }
 
     private void TimerWidgetTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -593,6 +624,9 @@ public partial class SettingsWindow : Window
                 RootBorder.Background = new System.Windows.Media.SolidColorBrush(color);
             }
         }
+        
+        // Notify windows to update their transparency
+        _onTransparencyChanged?.Invoke();
     }
 
     private void LinkTransparencyButton_Click(object sender, RoutedEventArgs e)
