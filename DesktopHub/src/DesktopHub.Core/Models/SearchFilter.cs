@@ -26,6 +26,11 @@ public class SearchFilter
     public List<string> Years { get; set; } = new();
 
     /// <summary>
+    /// Filter by drive location (e.g., "Q", "P", "All")
+    /// </summary>
+    public string? DriveLocation { get; set; }
+
+    /// <summary>
     /// Filter by tags (e.g., ["residential", "commercial"])
     /// </summary>
     public List<string> Tags { get; set; } = new();

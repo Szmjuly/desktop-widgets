@@ -29,6 +29,9 @@ public class SettingsService : ISettingsService
     public string GetQDrivePath() => _settings.QDrivePath;
     public void SetQDrivePath(string path) => _settings.QDrivePath = path;
 
+    public string GetPDrivePath() => _settings.PDrivePath;
+    public void SetPDrivePath(string path) => _settings.PDrivePath = path;
+
     public int GetScanIntervalMinutes() => _settings.ScanIntervalMinutes;
     public void SetScanIntervalMinutes(int minutes) => _settings.ScanIntervalMinutes = minutes;
 
@@ -53,6 +56,12 @@ public class SettingsService : ISettingsService
 
     public bool GetTransparencyLinked() => _settings.TransparencyLinked;
     public void SetTransparencyLinked(bool linked) => _settings.TransparencyLinked = linked;
+
+    public double GetWidgetLauncherTransparency() => _settings.WidgetLauncherTransparency;
+    public void SetWidgetLauncherTransparency(double transparency) => _settings.WidgetLauncherTransparency = transparency;
+
+    public double GetTimerWidgetTransparency() => _settings.TimerWidgetTransparency;
+    public void SetTimerWidgetTransparency(double transparency) => _settings.TimerWidgetTransparency = transparency;
 
     public int GetNotificationDurationMs() => _settings.NotificationDurationMs;
     public void SetNotificationDurationMs(int durationMs) => _settings.NotificationDurationMs = durationMs;
@@ -107,6 +116,7 @@ public class SettingsService : ISettingsService
     private class AppSettings
     {
         public string QDrivePath { get; set; } = @"Q:\";
+        public string PDrivePath { get; set; } = @"P:\";
         public int ScanIntervalMinutes { get; set; } = 30;
         public int HotkeyModifiers { get; set; } = DefaultHotkeyModifiers; // Ctrl+Alt
         public int HotkeyKey { get; set; } = DefaultHotkeyKey; // Space
@@ -114,6 +124,8 @@ public class SettingsService : ISettingsService
         public bool AutoStart { get; set; } = false;
         public double SettingsTransparency { get; set; } = 0.78;
         public double OverlayTransparency { get; set; } = 0.78;
+        public double WidgetLauncherTransparency { get; set; } = 0.78;
+        public double TimerWidgetTransparency { get; set; } = 0.78;
         public bool TransparencyLinked { get; set; } = true;
         public int NotificationDurationMs { get; set; } = 3000; // 3 seconds
         public bool LivingWidgetsMode { get; set; } = false; // False = legacy overlay mode (auto-hide)

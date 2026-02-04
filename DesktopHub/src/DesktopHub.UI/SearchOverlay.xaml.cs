@@ -160,7 +160,24 @@ public partial class SearchOverlay : Window
             await _settings.LoadAsync();
 
             // Initialize database
-            await _dataStore.InitializeAsync();
+            try
+            {
+                DebugLogger.Log("SearchOverlay: Starting database initialization");
+                await _dataStore.InitializeAsync();
+                DebugLogger.Log("SearchOverlay: Database initialized successfully");
+            }
+            catch (Exception dbEx)
+            {
+                DebugLogger.Log($"SearchOverlay: DATABASE INITIALIZATION FAILED: {dbEx.Message}");
+                DebugLogger.Log($"SearchOverlay: Exception type: {dbEx.GetType().Name}");
+                DebugLogger.Log($"SearchOverlay: Stack trace: {dbEx.StackTrace}");
+                if (dbEx.InnerException != null)
+                {
+                    DebugLogger.Log($"SearchOverlay: Inner exception: {dbEx.InnerException.Message}");
+                    DebugLogger.Log($"SearchOverlay: Inner exception type: {dbEx.InnerException.GetType().Name}");
+                }
+                throw;
+            }
 
             var (modifiers, key) = _settings.GetHotkey();
             var hotkeyLabel = FormatHotkey(modifiers, key);
@@ -756,23 +773,26 @@ public partial class SearchOverlay : Window
             DebugLogger.Log($"LoadAllProjects: Starting, total projects: {_allProjects.Count}");
             ShowLoading(true);
             
-            // Get selected year filter
+            // Get selected filters
             var selectedYear = YearFilter.SelectedItem?.ToString();
+            var selectedLocation = DriveLocationFilter.SelectedItem?.ToString();
             
-            if (selectedYear == "All Years" || string.IsNullOrEmpty(selectedYear))
+            _filteredProjects = _allProjects.ToList();
+            
+            // Apply year filter
+            if (selectedYear != "All Years" && !string.IsNullOrEmpty(selectedYear))
             {
-                _filteredProjects = _allProjects.ToList();
-            }
-            else if (int.TryParse(selectedYear, out int year))
-            {
-                _filteredProjects = _allProjects.Where(p => p.Year == selectedYear).ToList();
-            }
-            else
-            {
-                _filteredProjects = _allProjects.ToList();
+                _filteredProjects = _filteredProjects.Where(p => p.Year == selectedYear).ToList();
             }
             
-            DebugLogger.Log($"LoadAllProjects: Filtered to {_filteredProjects.Count} projects for year {selectedYear}");
+            // Apply drive location filter
+            if (!string.IsNullOrEmpty(selectedLocation) && selectedLocation != "All Locations")
+            {
+                var driveFilter = selectedLocation.Contains("Florida") ? "Q" : "P";
+                _filteredProjects = _filteredProjects.Where(p => p.DriveLocation == driveFilter).ToList();
+            }
+            
+            DebugLogger.Log($"LoadAllProjects: Filtered to {_filteredProjects.Count} projects for year {selectedYear}, location {selectedLocation}");
             ResultsList.ItemsSource = _filteredProjects;
             UpdateResultsHeader();
             UpdateHistoryVisibility();
@@ -929,8 +949,9 @@ public partial class SearchOverlay : Window
 
             _allProjects = await _dataStore.GetAllProjectsAsync();
 
-            // Populate year filter
+            // Populate year and drive location filters
             PopulateYearFilter();
+            PopulateDriveLocationFilter();
 
             StatusText.Text = $"{_allProjects.Count} projects loaded";
             ShowLoading(false);
@@ -956,6 +977,13 @@ public partial class SearchOverlay : Window
         YearFilter.SelectedIndex = 0;
     }
 
+    private void PopulateDriveLocationFilter()
+    {
+        var locations = new List<string> { "All Locations", "Florida (Q:)", "Connecticut (P:)" };
+        DriveLocationFilter.ItemsSource = locations;
+        DriveLocationFilter.SelectedIndex = 0;
+    }
+
     private async Task BackgroundScanAsync()
     {
         try
@@ -966,13 +994,42 @@ public partial class SearchOverlay : Window
 
             if (lastScan == null || DateTime.UtcNow - lastScan.Value > scanInterval)
             {
-                await Dispatcher.InvokeAsync(() => StatusText.Text = "Scanning Q: drive...");
+                var allScannedProjects = new List<Project>();
 
+                // Scan Q: drive (Florida)
+                await Dispatcher.InvokeAsync(() => StatusText.Text = "Scanning Q: drive (Florida)...");
                 var qDrivePath = _settings.GetQDrivePath();
-                var scannedProjects = await _scanner.ScanProjectsAsync(qDrivePath);
+                if (Directory.Exists(qDrivePath))
+                {
+                    try
+                    {
+                        var qProjects = await _scanner.ScanProjectsAsync(qDrivePath, "Q", CancellationToken.None);
+                        allScannedProjects.AddRange(qProjects);
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"Q: drive scan error: {ex.Message}");
+                    }
+                }
 
-                // Update database
-                await _dataStore.BatchUpsertProjectsAsync(scannedProjects);
+                // Scan P: drive (Connecticut)
+                await Dispatcher.InvokeAsync(() => StatusText.Text = "Scanning P: drive (Connecticut)...");
+                var pDrivePath = _settings.GetPDrivePath();
+                if (Directory.Exists(pDrivePath))
+                {
+                    try
+                    {
+                        var pProjects = await _scanner.ScanProjectsAsync(pDrivePath, "P", CancellationToken.None);
+                        allScannedProjects.AddRange(pProjects);
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"P: drive scan error: {ex.Message}");
+                    }
+                }
+
+                // Update database with all scanned projects (Q and P drives are separate)
+                await _dataStore.BatchUpsertProjectsAsync(allScannedProjects);
                 await _dataStore.UpdateLastScanTimeAsync(DateTime.UtcNow);
 
                 // Reload projects
@@ -1027,8 +1084,27 @@ public partial class SearchOverlay : Window
 
             ShowLoading(true);
 
-            // Search ALL projects regardless of year filter
-            var results = await _searchService.SearchAsync(query, _allProjects);
+            // Apply filters before searching
+            var selectedYear = YearFilter.SelectedItem?.ToString();
+            var selectedLocation = DriveLocationFilter.SelectedItem?.ToString();
+            
+            var projectsToSearch = _allProjects.ToList();
+            
+            // Apply year filter
+            if (selectedYear != "All Years" && !string.IsNullOrEmpty(selectedYear))
+            {
+                projectsToSearch = projectsToSearch.Where(p => p.Year == selectedYear).ToList();
+            }
+            
+            // Apply drive location filter
+            if (!string.IsNullOrEmpty(selectedLocation) && selectedLocation != "All Locations")
+            {
+                var driveFilter = selectedLocation.Contains("Florida") ? "Q" : "P";
+                projectsToSearch = projectsToSearch.Where(p => p.DriveLocation == driveFilter).ToList();
+            }
+
+            // Search filtered projects
+            var results = await _searchService.SearchAsync(query, projectsToSearch);
 
             if (token.IsCancellationRequested)
                 return;
@@ -1111,6 +1187,21 @@ public partial class SearchOverlay : Window
         else
         {
             // Reload all projects with new year filter
+            LoadAllProjects();
+        }
+    }
+
+    private void DriveLocationFilter_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        // Reload projects with new drive location filter
+        if (!string.IsNullOrWhiteSpace(SearchBox.Text))
+        {
+            // Re-trigger search with new filter
+            SearchBox_TextChanged(SearchBox, new TextChangedEventArgs(e.RoutedEvent, System.Windows.Controls.UndoAction.None));
+        }
+        else
+        {
+            // Reload all projects with new drive location filter
             LoadAllProjects();
         }
     }
@@ -1249,7 +1340,13 @@ public partial class SearchOverlay : Window
                 }
                 
                 Process.Start("explorer.exe", vm.Path);
-                HideOverlay();
+                
+                // Only hide overlay if NOT in Living Widgets Mode (live widget mode keeps it open)
+                var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+                if (!isLivingWidgetsMode)
+                {
+                    HideOverlay();
+                }
             }
             catch (Exception ex)
             {

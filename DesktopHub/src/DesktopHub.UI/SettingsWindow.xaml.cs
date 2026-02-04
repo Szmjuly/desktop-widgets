@@ -138,10 +138,15 @@ public partial class SettingsWindow : Window
             var qDrivePath = _settings.GetQDrivePath();
             QDrivePathBox.Text = string.IsNullOrEmpty(qDrivePath) ? "Q:\\" : qDrivePath;
             
+            var pDrivePath = _settings.GetPDrivePath();
+            PDrivePathBox.Text = string.IsNullOrEmpty(pDrivePath) ? "P:\\" : pDrivePath;
+            
             // Load transparency settings
             _isUpdatingSliders = true;
             SettingsTransparencySlider.Value = _settings.GetSettingsTransparency();
             OverlayTransparencySlider.Value = _settings.GetOverlayTransparency();
+            WidgetLauncherTransparencySlider.Value = _settings.GetWidgetLauncherTransparency();
+            TimerWidgetTransparencySlider.Value = _settings.GetTimerWidgetTransparency();
             _isUpdatingSliders = false;
             
             // Load notification duration setting
@@ -331,6 +336,37 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private async void PDrivePathBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        try
+        {
+            if (_settings == null)
+            {
+                DebugLogger.Log("SettingsWindow: _settings is null in PDrivePathBox_TextChanged");
+                return;
+            }
+            
+            var path = PDrivePathBox.Text;
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                _settings.SetPDrivePath(path);
+                await _settings.SaveAsync();
+                if (StatusText != null)
+                {
+                    StatusText.Text = "P: drive path updated";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"SettingsWindow: PDrivePathBox_TextChanged error: {ex.Message}");
+            if (StatusText != null)
+            {
+                StatusText.Text = $"Error updating path: {ex.Message}";
+            }
+        }
+    }
+
     private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
         this.Close();
@@ -432,6 +468,80 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private void WidgetLauncherTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isUpdatingSliders || _settings == null) return;
+        
+        _settings.SetWidgetLauncherTransparency(e.NewValue);
+        _ = _settings.SaveAsync();
+        
+        // If linked, update other sliders too
+        if (_settings.GetTransparencyLinked())
+        {
+            _isUpdatingSliders = true;
+            if (SettingsTransparencySlider != null)
+            {
+                SettingsTransparencySlider.Value = e.NewValue;
+            }
+            if (OverlayTransparencySlider != null)
+            {
+                OverlayTransparencySlider.Value = e.NewValue;
+            }
+            if (TimerWidgetTransparencySlider != null)
+            {
+                TimerWidgetTransparencySlider.Value = e.NewValue;
+            }
+            _settings.SetSettingsTransparency(e.NewValue);
+            _settings.SetOverlayTransparency(e.NewValue);
+            _settings.SetTimerWidgetTransparency(e.NewValue);
+            _isUpdatingSliders = false;
+            
+            if (RootBorder != null)
+            {
+                var alpha = (byte)(e.NewValue * 255);
+                var color = System.Windows.Media.Color.FromArgb(alpha, 0x18, 0x18, 0x18);
+                RootBorder.Background = new System.Windows.Media.SolidColorBrush(color);
+            }
+        }
+    }
+
+    private void TimerWidgetTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isUpdatingSliders || _settings == null) return;
+        
+        _settings.SetTimerWidgetTransparency(e.NewValue);
+        _ = _settings.SaveAsync();
+        
+        // If linked, update other sliders too
+        if (_settings.GetTransparencyLinked())
+        {
+            _isUpdatingSliders = true;
+            if (SettingsTransparencySlider != null)
+            {
+                SettingsTransparencySlider.Value = e.NewValue;
+            }
+            if (OverlayTransparencySlider != null)
+            {
+                OverlayTransparencySlider.Value = e.NewValue;
+            }
+            if (WidgetLauncherTransparencySlider != null)
+            {
+                WidgetLauncherTransparencySlider.Value = e.NewValue;
+            }
+            _settings.SetSettingsTransparency(e.NewValue);
+            _settings.SetOverlayTransparency(e.NewValue);
+            _settings.SetWidgetLauncherTransparency(e.NewValue);
+            _isUpdatingSliders = false;
+            
+            if (RootBorder != null)
+            {
+                var alpha = (byte)(e.NewValue * 255);
+                var color = System.Windows.Media.Color.FromArgb(alpha, 0x18, 0x18, 0x18);
+                RootBorder.Background = new System.Windows.Media.SolidColorBrush(color);
+            }
+        }
+    }
+
     private void LinkTransparencyButton_Click(object sender, RoutedEventArgs e)
     {
         var isLinked = _settings.GetTransparencyLinked();
@@ -440,13 +550,17 @@ public partial class SettingsWindow : Window
         
         UpdateLinkButtonIcon();
         
-        // If linking, sync the values
+        // If linking, sync all transparency values to settings window value
         if (!isLinked)
         {
             _isUpdatingSliders = true;
             var settingsValue = SettingsTransparencySlider.Value;
             OverlayTransparencySlider.Value = settingsValue;
+            WidgetLauncherTransparencySlider.Value = settingsValue;
+            TimerWidgetTransparencySlider.Value = settingsValue;
             _settings.SetOverlayTransparency(settingsValue);
+            _settings.SetWidgetLauncherTransparency(settingsValue);
+            _settings.SetTimerWidgetTransparency(settingsValue);
             _isUpdatingSliders = false;
         }
         
@@ -466,6 +580,8 @@ public partial class SettingsWindow : Window
         var linkedOpacity = isLinked ? 0.6 : 1.0;
         SettingsTransparencySlider.Opacity = linkedOpacity;
         OverlayTransparencySlider.Opacity = linkedOpacity;
+        WidgetLauncherTransparencySlider.Opacity = linkedOpacity;
+        TimerWidgetTransparencySlider.Opacity = linkedOpacity;
     }
 
     private void LoadNotificationDurationSetting()

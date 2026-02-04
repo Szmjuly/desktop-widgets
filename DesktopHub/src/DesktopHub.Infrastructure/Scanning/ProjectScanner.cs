@@ -5,19 +5,25 @@ using DesktopHub.Core.Models;
 namespace DesktopHub.Infrastructure.Scanning;
 
 /// <summary>
-/// Scans Q: drive for project folders using regex patterns
+/// Scans Q: and P: drives for project folders using regex patterns
 /// </summary>
 public class ProjectScanner : IProjectScanner
 {
-    // Old format: 2024638.001 Project Name
-    private static readonly Regex OldProjectPattern = new(
+    // Q Drive - Old format: 2024638.001 Project Name
+    private static readonly Regex QDriveOldProjectPattern = new(
         @"^(?<full_number>\d{4})(?<seq>\d{3}\.?\d*)(\s+)?(?<name>.+)?$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase
     );
 
-    // New format: P250784.00 - Project Name
-    private static readonly Regex NewProjectPattern = new(
+    // Q Drive - New format: P250784.00 - Project Name
+    private static readonly Regex QDriveNewProjectPattern = new(
         @"^P(?<number>\d{6}\.?\d*)(\s*-\s*)?(?<name>.+)?$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase
+    );
+
+    // P Drive - format: 2019038.00 Malden City Hall Cx (YYYYNNN.NN - 7 digits before decimal)
+    private static readonly Regex PDriveProjectPattern = new(
+        @"^(?<number>\d{7}\.\d{2})(\s*-?\s*)?(?<name>.+)?$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase
     );
 
@@ -29,11 +35,17 @@ public class ProjectScanner : IProjectScanner
 
     public async Task<List<Project>> ScanProjectsAsync(string drivePath, CancellationToken cancellationToken = default)
     {
+        var driveLetter = Path.GetPathRoot(drivePath)?.TrimEnd('\\').TrimEnd(':');
+        return await ScanProjectsAsync(drivePath, driveLetter ?? "Q", cancellationToken);
+    }
+
+    public async Task<List<Project>> ScanProjectsAsync(string drivePath, string driveLocation, CancellationToken cancellationToken = default)
+    {
         var projects = new List<Project>();
 
         if (!Directory.Exists(drivePath))
         {
-            throw new DirectoryNotFoundException($"Q: drive not found at {drivePath}");
+            throw new DirectoryNotFoundException($"{driveLocation}: drive not found at {drivePath}");
         }
 
         // Find all year directories (_Proj-24, _Proj-2024, etc.)
@@ -46,7 +58,7 @@ public class ProjectScanner : IProjectScanner
             if (cancellationToken.IsCancellationRequested)
                 break;
 
-            var yearProjects = await ScanYearDirectoryAsync(yearDir, cancellationToken);
+            var yearProjects = await ScanYearDirectoryAsync(yearDir, driveLocation, cancellationToken);
             projects.AddRange(yearProjects);
         }
 
@@ -54,6 +66,12 @@ public class ProjectScanner : IProjectScanner
     }
 
     public async Task<List<Project>> ScanYearDirectoryAsync(string yearDirectoryPath, CancellationToken cancellationToken = default)
+    {
+        var driveLetter = Path.GetPathRoot(yearDirectoryPath)?.TrimEnd('\\').TrimEnd(':');
+        return await ScanYearDirectoryAsync(yearDirectoryPath, driveLetter ?? "Q", cancellationToken);
+    }
+
+    public async Task<List<Project>> ScanYearDirectoryAsync(string yearDirectoryPath, string driveLocation, CancellationToken cancellationToken = default)
     {
         var projects = new List<Project>();
 
@@ -89,7 +107,7 @@ public class ProjectScanner : IProjectScanner
                         break;
 
                     var dirName = Path.GetFileName(dir);
-                    var project = TryParseProjectFolder(dirName, dir, year);
+                    var project = TryParseProjectFolder(dirName, dir, year, driveLocation);
                     if (project != null)
                     {
                         projects.Add(project);
@@ -111,48 +129,86 @@ public class ProjectScanner : IProjectScanner
 
     public Project? TryParseProjectFolder(string directoryName, string fullPath, string year)
     {
-        // Try new format first (P250784.00 - Name)
-        var newMatch = NewProjectPattern.Match(directoryName);
-        if (newMatch.Success)
+        var driveLetter = Path.GetPathRoot(fullPath)?.TrimEnd('\\').TrimEnd(':');
+        return TryParseProjectFolder(directoryName, fullPath, year, driveLetter ?? "Q");
+    }
+
+    public Project? TryParseProjectFolder(string directoryName, string fullPath, string year, string driveLocation)
+    {
+        // P Drive uses different pattern
+        if (driveLocation == "P")
         {
-            var number = newMatch.Groups["number"].Value;
-            var name = newMatch.Groups["name"].Value.Trim();
-
-            // Generate short number (last 6 digits)
-            var shortNumber = number.Length >= 6 ? number.Substring(number.Length - 6) : number;
-
-            return new Project
+            var pMatch = PDriveProjectPattern.Match(directoryName);
+            if (pMatch.Success)
             {
-                Id = GenerateProjectId(fullPath),
-                FullNumber = "P" + number,
-                ShortNumber = shortNumber,
-                Name = name,
-                Path = fullPath,
-                Year = year,
-                LastScanned = DateTime.UtcNow
-            };
+                var number = pMatch.Groups["number"].Value;
+                var name = pMatch.Groups["name"].Value?.Trim() ?? string.Empty;
+
+                // Generate short number (last 6 digits)
+                var shortNumber = number.Replace(".", "");
+                if (shortNumber.Length >= 6)
+                    shortNumber = shortNumber.Substring(shortNumber.Length - 6);
+
+                return new Project
+                {
+                    Id = GenerateProjectId(fullPath),
+                    FullNumber = number,
+                    ShortNumber = shortNumber,
+                    Name = name,
+                    Path = fullPath,
+                    Year = year,
+                    DriveLocation = driveLocation,
+                    LastScanned = DateTime.UtcNow
+                };
+            }
         }
-
-        // Try old format (2024638.001 Name)
-        var oldMatch = OldProjectPattern.Match(directoryName);
-        if (oldMatch.Success)
+        else // Q Drive patterns
         {
-            var fullNumber = oldMatch.Groups["full_number"].Value + oldMatch.Groups["seq"].Value;
-            var name = oldMatch.Groups["name"].Value?.Trim() ?? string.Empty;
-
-            // Generate short number (last 4 digits)
-            var shortNumber = fullNumber.Length >= 4 ? fullNumber.Substring(fullNumber.Length - 4) : fullNumber;
-
-            return new Project
+            // Try new format first (P250784.00 - Name)
+            var newMatch = QDriveNewProjectPattern.Match(directoryName);
+            if (newMatch.Success)
             {
-                Id = GenerateProjectId(fullPath),
-                FullNumber = fullNumber,
-                ShortNumber = shortNumber,
-                Name = name,
-                Path = fullPath,
-                Year = year,
-                LastScanned = DateTime.UtcNow
-            };
+                var number = newMatch.Groups["number"].Value;
+                var name = newMatch.Groups["name"].Value?.Trim() ?? string.Empty;
+
+                // Generate short number (last 6 digits)
+                var shortNumber = number.Length >= 6 ? number.Substring(number.Length - 6) : number;
+
+                return new Project
+                {
+                    Id = GenerateProjectId(fullPath),
+                    FullNumber = "P" + number,
+                    ShortNumber = shortNumber,
+                    Name = name,
+                    Path = fullPath,
+                    Year = year,
+                    DriveLocation = driveLocation,
+                    LastScanned = DateTime.UtcNow
+                };
+            }
+
+            // Try old format (2024638.001 Name)
+            var oldMatch = QDriveOldProjectPattern.Match(directoryName);
+            if (oldMatch.Success)
+            {
+                var fullNumber = oldMatch.Groups["full_number"].Value + oldMatch.Groups["seq"].Value;
+                var name = oldMatch.Groups["name"].Value?.Trim() ?? string.Empty;
+
+                // Generate short number (last 4 digits)
+                var shortNumber = fullNumber.Length >= 4 ? fullNumber.Substring(fullNumber.Length - 4) : fullNumber;
+
+                return new Project
+                {
+                    Id = GenerateProjectId(fullPath),
+                    FullNumber = fullNumber,
+                    ShortNumber = shortNumber,
+                    Name = name,
+                    Path = fullPath,
+                    Year = year,
+                    DriveLocation = driveLocation,
+                    LastScanned = DateTime.UtcNow
+                };
+            }
         }
 
         return null;

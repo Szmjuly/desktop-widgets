@@ -1,7 +1,7 @@
 namespace DesktopHub.Core.Models;
 
 /// <summary>
-/// Represents a project folder scanned from Q: drive
+/// Represents a project folder scanned from Q: or P: drive
 /// </summary>
 public class Project
 {
@@ -26,7 +26,7 @@ public class Project
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Full filesystem path to project folder
+    /// Full filesystem path to project folder (primary location)
     /// </summary>
     public string Path { get; set; } = string.Empty;
 
@@ -36,9 +36,40 @@ public class Project
     public string Year { get; set; } = string.Empty;
 
     /// <summary>
+    /// Drive location: "Q" (Florida) or "P" (Connecticut)
+    /// </summary>
+    public string DriveLocation { get; set; } = "Q";
+
+    /// <summary>
+    /// Alternative path if project exists on another drive
+    /// </summary>
+    public string? AlternatePath { get; set; }
+
+    /// <summary>
+    /// Alternative drive location if project exists on another drive
+    /// </summary>
+    public string? AlternateDriveLocation { get; set; }
+
+    /// <summary>
     /// Display string for UI (e.g., "2024638.001 - Project Name")
     /// </summary>
     public string Display => $"{FullNumber} - {Name}";
+
+    /// <summary>
+    /// Display name for drive location
+    /// </summary>
+    public string DriveLocationDisplay => DriveLocation == "Q" ? "Florida" : "Connecticut";
+
+    /// <summary>
+    /// Display name for alternate drive location
+    /// </summary>
+    public string? AlternateDriveLocationDisplay => AlternateDriveLocation == "Q" ? "Florida" : 
+                                                     AlternateDriveLocation == "P" ? "Connecticut" : null;
+
+    /// <summary>
+    /// Whether this project exists on multiple drives
+    /// </summary>
+    public bool HasMultipleLocations => !string.IsNullOrEmpty(AlternatePath);
 
     /// <summary>
     /// When this project was last scanned from filesystem

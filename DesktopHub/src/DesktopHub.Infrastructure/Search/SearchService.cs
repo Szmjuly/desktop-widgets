@@ -195,6 +195,13 @@ public class SearchService : ISearchService
                 return false;
         }
 
+        // Drive location filter
+        if (!string.IsNullOrEmpty(filter.DriveLocation) && filter.DriveLocation != "All")
+        {
+            if (!project.DriveLocation.Equals(filter.DriveLocation, StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+
         // Tag filter
         if (filter.Tags.Any())
         {

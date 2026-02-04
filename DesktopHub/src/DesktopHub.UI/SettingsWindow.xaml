@@ -300,7 +300,7 @@
                             Padding="16"
                             Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="Q: Drive Path" 
+                            <TextBlock Text="Q: Drive Path (Florida)" 
                                        FontSize="16" 
                                        FontWeight="SemiBold"
                                        Foreground="{StaticResource TextBrush}"
@@ -314,6 +314,37 @@
                                      Foreground="{StaticResource TextBrush}"
                                      BorderBrush="{StaticResource BorderBrush}"
                                      TextChanged="QDrivePathBox_TextChanged">
+                                <TextBox.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </TextBox.Resources>
+                            </TextBox>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- P Drive Path Section -->
+                    <Border Background="{StaticResource SurfaceBrush}" 
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="16"
+                            Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="P: Drive Path (Connecticut)" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextBrush}"
+                                       Margin="0,0,0,8"/>
+                            
+                            <TextBox x:Name="PDrivePathBox"
+                                     Text="P:\"
+                                     FontSize="14"
+                                     Padding="8"
+                                     Background="#22FFFFFF"
+                                     Foreground="{StaticResource TextBrush}"
+                                     BorderBrush="{StaticResource BorderBrush}"
+                                     TextChanged="PDrivePathBox_TextChanged">
                                 <TextBox.Resources>
                                     <Style TargetType="Border">
                                         <Setter Property="CornerRadius" Value="6"/>
@@ -469,6 +500,148 @@
                                        TickFrequency="0.05"
                                        IsSnapToTickEnabled="True"
                                        ValueChanged="OverlayTransparencySlider_ValueChanged"
+                                       VerticalAlignment="Center">
+                                    <Slider.Template>
+                                        <ControlTemplate TargetType="Slider">
+                                            <Grid>
+                                                <Border Background="#40FFFFFF" 
+                                                        Height="4" 
+                                                        CornerRadius="2"
+                                                        VerticalAlignment="Center"/>
+                                                <Track x:Name="PART_Track">
+                                                    <Track.DecreaseRepeatButton>
+                                                        <RepeatButton Command="Slider.DecreaseLarge" Background="Transparent" BorderThickness="0"/>
+                                                    </Track.DecreaseRepeatButton>
+                                                    <Track.IncreaseRepeatButton>
+                                                        <RepeatButton Command="Slider.IncreaseLarge" Background="Transparent" BorderThickness="0"/>
+                                                    </Track.IncreaseRepeatButton>
+                                                    <Track.Thumb>
+                                                        <Thumb>
+                                                            <Thumb.Template>
+                                                                <ControlTemplate>
+                                                                    <Ellipse Fill="{StaticResource PrimaryBrush}"
+                                                                            Width="16"
+                                                                            Height="16"
+                                                                            Stroke="White"
+                                                                            StrokeThickness="2"/>
+                                                                </ControlTemplate>
+                                                            </Thumb.Template>
+                                                        </Thumb>
+                                                    </Track.Thumb>
+                                                </Track>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Slider.Template>
+                                </Slider>
+                                
+                                <TextBlock Grid.Column="2"
+                                          Text="Opaque"
+                                          FontSize="10"
+                                          Foreground="{StaticResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center"
+                                          Margin="8,0,0,0"/>
+                            </Grid>
+                            
+                            <!-- Widget Launcher Transparency -->
+                            <TextBlock Text="Widget Launcher" 
+                                       FontSize="13" 
+                                       FontWeight="Medium"
+                                       Foreground="{StaticResource TextBrush}"
+                                       Margin="0,16,0,8"/>
+                            
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <TextBlock Grid.Column="0"
+                                          Text="Transparent"
+                                          FontSize="10"
+                                          Foreground="{StaticResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,8,0"/>
+                                
+                                <Slider x:Name="WidgetLauncherTransparencySlider"
+                                       Grid.Column="1"
+                                       Minimum="0.4"
+                                       Maximum="0.95"
+                                       Value="0.78"
+                                       TickFrequency="0.05"
+                                       IsSnapToTickEnabled="True"
+                                       ValueChanged="WidgetLauncherTransparencySlider_ValueChanged"
+                                       VerticalAlignment="Center">
+                                    <Slider.Template>
+                                        <ControlTemplate TargetType="Slider">
+                                            <Grid>
+                                                <Border Background="#40FFFFFF" 
+                                                        Height="4" 
+                                                        CornerRadius="2"
+                                                        VerticalAlignment="Center"/>
+                                                <Track x:Name="PART_Track">
+                                                    <Track.DecreaseRepeatButton>
+                                                        <RepeatButton Command="Slider.DecreaseLarge" Background="Transparent" BorderThickness="0"/>
+                                                    </Track.DecreaseRepeatButton>
+                                                    <Track.IncreaseRepeatButton>
+                                                        <RepeatButton Command="Slider.IncreaseLarge" Background="Transparent" BorderThickness="0"/>
+                                                    </Track.IncreaseRepeatButton>
+                                                    <Track.Thumb>
+                                                        <Thumb>
+                                                            <Thumb.Template>
+                                                                <ControlTemplate>
+                                                                    <Ellipse Fill="{StaticResource PrimaryBrush}"
+                                                                            Width="16"
+                                                                            Height="16"
+                                                                            Stroke="White"
+                                                                            StrokeThickness="2"/>
+                                                                </ControlTemplate>
+                                                            </Thumb.Template>
+                                                        </Thumb>
+                                                    </Track.Thumb>
+                                                </Track>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Slider.Template>
+                                </Slider>
+                                
+                                <TextBlock Grid.Column="2"
+                                          Text="Opaque"
+                                          FontSize="10"
+                                          Foreground="{StaticResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center"
+                                          Margin="8,0,0,0"/>
+                            </Grid>
+                            
+                            <!-- Timer Widget Transparency -->
+                            <TextBlock Text="Timer Widget" 
+                                       FontSize="13" 
+                                       FontWeight="Medium"
+                                       Foreground="{StaticResource TextBrush}"
+                                       Margin="0,0,0,8"/>
+                            
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <TextBlock Grid.Column="0"
+                                          Text="Transparent"
+                                          FontSize="10"
+                                          Foreground="{StaticResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,8,0"/>
+                                
+                                <Slider x:Name="TimerWidgetTransparencySlider"
+                                       Grid.Column="1"
+                                       Minimum="0.4"
+                                       Maximum="0.95"
+                                       Value="0.78"
+                                       TickFrequency="0.05"
+                                       IsSnapToTickEnabled="True"
+                                       ValueChanged="TimerWidgetTransparencySlider_ValueChanged"
                                        VerticalAlignment="Center">
                                     <Slider.Template>
                                         <ControlTemplate TargetType="Slider">

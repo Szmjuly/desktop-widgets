@@ -104,10 +104,11 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             
-            <!-- Search box and year filter -->
+            <!-- Search box, drive location filter, and year filter -->
             <Grid Grid.Row="0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
@@ -163,8 +164,128 @@
                     </Grid>
                 </Border>
                 
-                <!-- Year filter -->
+                <!-- Drive Location filter -->
                 <Border Grid.Column="1"
+                        Background="#D0121212"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="8,4"
+                        Margin="0,0,8,0">
+                    <ComboBox x:Name="DriveLocationFilter"
+                              MinWidth="120"
+                              Background="Transparent"
+                              Foreground="#F5F7FA"
+                              BorderThickness="0"
+                              SelectionChanged="DriveLocationFilter_SelectionChanged">
+                        <ComboBox.Resources>
+                            <Style TargetType="ComboBox">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ComboBox">
+                                            <Grid>
+                                                <ToggleButton x:Name="ToggleButton"
+                                                              Grid.Column="0"
+                                                              Focusable="False"
+                                                              IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                                              ClickMode="Press"
+                                                              HorizontalAlignment="Stretch"
+                                                              VerticalAlignment="Stretch">
+                                                    <ToggleButton.Template>
+                                                        <ControlTemplate TargetType="ToggleButton">
+                                                            <Border x:Name="HoverBorder"
+                                                                    Background="Transparent"
+                                                                    BorderThickness="0"
+                                                                    CornerRadius="8"
+                                                                    HorizontalAlignment="Stretch"
+                                                                    VerticalAlignment="Stretch">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="20"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <ContentPresenter Grid.Column="0"
+                                                                                      Content="{Binding Path=SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                                                      TextElement.Foreground="#F5F7FA"
+                                                                                      Margin="8,3,0,3"
+                                                                                      HorizontalAlignment="Left"
+                                                                                      VerticalAlignment="Center"/>
+                                                                    <Path Grid.Column="1"
+                                                                          Fill="#F5F7FA"
+                                                                          HorizontalAlignment="Center"
+                                                                          VerticalAlignment="Center"
+                                                                          Data="M 0 0 L 4 4 L 8 0 Z"/>
+                                                                </Grid>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="HoverBorder" Property="Background" Value="#15F5F7FA"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsChecked" Value="True">
+                                                                    <Setter TargetName="HoverBorder" Property="Background" Value="#20F5F7FA"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </ToggleButton.Template>
+                                                </ToggleButton>
+                                                <Popup x:Name="Popup"
+                                                       Placement="Bottom"
+                                                       IsOpen="{TemplateBinding IsDropDownOpen}"
+                                                       AllowsTransparency="True"
+                                                       Focusable="False"
+                                                       PopupAnimation="Slide">
+                                                    <Border Background="#D0121212"
+                                                            BorderBrush="{StaticResource BorderBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="8"
+                                                            Padding="4"
+                                                            MinWidth="{TemplateBinding ActualWidth}">
+                                                        <ScrollViewer MaxHeight="200">
+                                                            <ItemsPresenter/>
+                                                        </ScrollViewer>
+                                                    </Border>
+                                                </Popup>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ComboBox.Resources>
+                        <ComboBox.ItemContainerStyle>
+                            <Style TargetType="ComboBoxItem">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="#F5F7FA"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="2,1"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ComboBoxItem">
+                                            <Border Name="Border"
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderThickness="0"
+                                                    CornerRadius="6"
+                                                    Padding="10,6"
+                                                    Margin="0">
+                                                <ContentPresenter/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsHighlighted" Value="True">
+                                                    <Setter TargetName="Border" Property="Background" Value="#20F5F7FA"/>
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Border" Property="Background" Value="#30F5F7FA"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ComboBox.ItemContainerStyle>
+                    </ComboBox>
+                </Border>
+                
+                <!-- Year filter -->
+                <Border Grid.Column="2"
                         Background="#D0121212"
                         BorderBrush="{StaticResource BorderBrush}"
                         BorderThickness="1"
@@ -291,7 +412,7 @@
                 
                 <!-- Widget Launcher Toggle Button -->
                 <Button x:Name="WidgetLauncherToggle"
-                        Grid.Column="2"
+                        Grid.Column="3"
                         Background="#D0121212"
                         BorderBrush="{StaticResource BorderBrush}"
                         BorderThickness="1"

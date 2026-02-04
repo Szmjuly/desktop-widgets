@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Diagnostics;
 using Microsoft.Data.Sqlite;
 using DesktopHub.Core.Abstractions;
 using DesktopHub.Core.Models;
@@ -27,10 +28,14 @@ public class SqliteDataStore : IDataStore
 
     public async Task InitializeAsync()
     {
-        using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
+        try
+        {
+            Debug.WriteLine($"SqliteDataStore: Initializing database at {_connectionString}");
+            using var connection = new SqliteConnection(_connectionString);
+            await connection.OpenAsync();
+            Debug.WriteLine("SqliteDataStore: Database connection opened successfully");
 
-        var createTablesSql = @"
+            var createTablesSql = @"
             CREATE TABLE IF NOT EXISTS projects (
                 id TEXT PRIMARY KEY,
                 full_number TEXT NOT NULL,
@@ -68,6 +73,78 @@ public class SqliteDataStore : IDataStore
 
         using var command = new SqliteCommand(createTablesSql, connection);
         await command.ExecuteNonQueryAsync();
+        Debug.WriteLine("SqliteDataStore: Tables and indexes created successfully");
+
+        // Migrate existing databases to add drive location columns if they don't exist
+        await MigrateDatabaseAsync(connection);
+        Debug.WriteLine("SqliteDataStore: Database initialization completed successfully");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"SqliteDataStore: ERROR during initialization: {ex.Message}");
+            Debug.WriteLine($"SqliteDataStore: Stack trace: {ex.StackTrace}");
+            throw;
+        }
+    }
+
+    private async Task MigrateDatabaseAsync(SqliteConnection connection)
+    {
+        try
+        {
+            Debug.WriteLine("SqliteDataStore: Starting database migration check");
+            
+            // Check if drive_location column exists
+            var checkColumnSql = @"
+                SELECT COUNT(*) 
+                FROM pragma_table_info('projects') 
+                WHERE name = 'drive_location';
+            ";
+
+            using var checkCmd = new SqliteCommand(checkColumnSql, connection);
+            var columnExists = Convert.ToInt32(await checkCmd.ExecuteScalarAsync()) > 0;
+            
+            Debug.WriteLine($"SqliteDataStore: drive_location column exists: {columnExists}");
+
+            if (!columnExists)
+            {
+                Debug.WriteLine("SqliteDataStore: Adding drive_location columns to existing database");
+                
+                // Add new columns for multi-drive support (SQLite requires separate statements)
+                Debug.WriteLine("SqliteDataStore: Adding drive_location column");
+                using var cmd1 = new SqliteCommand("ALTER TABLE projects ADD COLUMN drive_location TEXT DEFAULT 'Q';", connection);
+                await cmd1.ExecuteNonQueryAsync();
+                
+                Debug.WriteLine("SqliteDataStore: Adding alternate_path column");
+                using var cmd2 = new SqliteCommand("ALTER TABLE projects ADD COLUMN alternate_path TEXT;", connection);
+                await cmd2.ExecuteNonQueryAsync();
+                
+                Debug.WriteLine("SqliteDataStore: Adding alternate_drive_location column");
+                using var cmd3 = new SqliteCommand("ALTER TABLE projects ADD COLUMN alternate_drive_location TEXT;", connection);
+                await cmd3.ExecuteNonQueryAsync();
+                
+                // Update all existing rows to have 'Q' as default
+                Debug.WriteLine("SqliteDataStore: Updating existing rows with default drive_location");
+                using var updateCmd = new SqliteCommand("UPDATE projects SET drive_location = 'Q' WHERE drive_location IS NULL;", connection);
+                await updateCmd.ExecuteNonQueryAsync();
+                
+                // Create index
+                Debug.WriteLine("SqliteDataStore: Creating drive_location index");
+                using var indexCmd = new SqliteCommand("CREATE INDEX IF NOT EXISTS idx_projects_drive_location ON projects(drive_location);", connection);
+                await indexCmd.ExecuteNonQueryAsync();
+                
+                Debug.WriteLine("SqliteDataStore: Migration completed successfully");
+            }
+            else
+            {
+                Debug.WriteLine("SqliteDataStore: No migration needed - columns already exist");
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"SqliteDataStore: ERROR during migration: {ex.Message}");
+            Debug.WriteLine($"SqliteDataStore: Stack trace: {ex.StackTrace}");
+            throw;
+        }
     }
 
     public async Task<List<Project>> GetAllProjectsAsync()
@@ -96,22 +173,25 @@ public class SqliteDataStore : IDataStore
                 Name = reader.GetString(3),
                 Path = reader.GetString(4),
                 Year = reader.GetString(5),
-                LastScanned = DateTime.Parse(reader.GetString(6))
+                LastScanned = DateTime.Parse(reader.GetString(6)),
+                DriveLocation = reader.IsDBNull(7) ? "Q" : reader.GetString(7),
+                AlternatePath = reader.IsDBNull(8) ? null : reader.GetString(8),
+                AlternateDriveLocation = reader.IsDBNull(9) ? null : reader.GetString(9)
             };
 
             // Load metadata if exists
-            if (!reader.IsDBNull(7))
+            if (!reader.IsDBNull(10))
             {
                 project.Metadata = new ProjectMetadata
                 {
                     ProjectId = project.Id,
-                    Location = reader.IsDBNull(7) ? null : reader.GetString(7),
-                    Status = reader.IsDBNull(8) ? null : reader.GetString(8),
-                    Tags = reader.IsDBNull(9) ? new List<string>() : JsonSerializer.Deserialize<List<string>>(reader.GetString(9)) ?? new List<string>(),
-                    Notes = reader.IsDBNull(10) ? null : reader.GetString(10),
-                    IsFavorite = reader.GetInt32(11) == 1,
-                    Team = reader.IsDBNull(12) ? null : reader.GetString(12),
-                    LastUpdated = reader.IsDBNull(13) ? DateTime.UtcNow : DateTime.Parse(reader.GetString(13))
+                    Location = reader.IsDBNull(10) ? null : reader.GetString(10),
+                    Status = reader.IsDBNull(11) ? null : reader.GetString(11),
+                    Tags = reader.IsDBNull(12) ? new List<string>() : JsonSerializer.Deserialize<List<string>>(reader.GetString(12)) ?? new List<string>(),
+                    Notes = reader.IsDBNull(13) ? null : reader.GetString(13),
+                    IsFavorite = reader.GetInt32(14) == 1,
+                    Team = reader.IsDBNull(15) ? null : reader.GetString(15),
+                    LastUpdated = reader.IsDBNull(16) ? DateTime.UtcNow : DateTime.Parse(reader.GetString(16))
                 };
             }
 
@@ -147,21 +227,24 @@ public class SqliteDataStore : IDataStore
                 Name = reader.GetString(3),
                 Path = reader.GetString(4),
                 Year = reader.GetString(5),
-                LastScanned = DateTime.Parse(reader.GetString(6))
+                LastScanned = DateTime.Parse(reader.GetString(6)),
+                DriveLocation = reader.IsDBNull(7) ? "Q" : reader.GetString(7),
+                AlternatePath = reader.IsDBNull(8) ? null : reader.GetString(8),
+                AlternateDriveLocation = reader.IsDBNull(9) ? null : reader.GetString(9)
             };
 
-            if (!reader.IsDBNull(7))
+            if (!reader.IsDBNull(10))
             {
                 project.Metadata = new ProjectMetadata
                 {
                     ProjectId = project.Id,
-                    Location = reader.IsDBNull(7) ? null : reader.GetString(7),
-                    Status = reader.IsDBNull(8) ? null : reader.GetString(8),
-                    Tags = reader.IsDBNull(9) ? new List<string>() : JsonSerializer.Deserialize<List<string>>(reader.GetString(9)) ?? new List<string>(),
-                    Notes = reader.IsDBNull(10) ? null : reader.GetString(10),
-                    IsFavorite = reader.GetInt32(11) == 1,
-                    Team = reader.IsDBNull(12) ? null : reader.GetString(12),
-                    LastUpdated = reader.IsDBNull(13) ? DateTime.UtcNow : DateTime.Parse(reader.GetString(13))
+                    Location = reader.IsDBNull(10) ? null : reader.GetString(10),
+                    Status = reader.IsDBNull(11) ? null : reader.GetString(11),
+                    Tags = reader.IsDBNull(12) ? new List<string>() : JsonSerializer.Deserialize<List<string>>(reader.GetString(12)) ?? new List<string>(),
+                    Notes = reader.IsDBNull(13) ? null : reader.GetString(13),
+                    IsFavorite = reader.GetInt32(14) == 1,
+                    Team = reader.IsDBNull(15) ? null : reader.GetString(15),
+                    LastUpdated = reader.IsDBNull(16) ? DateTime.UtcNow : DateTime.Parse(reader.GetString(16))
                 };
             }
 
@@ -177,14 +260,17 @@ public class SqliteDataStore : IDataStore
         await connection.OpenAsync();
 
         var sql = @"
-            INSERT INTO projects (id, full_number, short_number, name, path, year, last_scanned)
-            VALUES (@id, @fullNumber, @shortNumber, @name, @path, @year, @lastScanned)
+            INSERT INTO projects (id, full_number, short_number, name, path, year, drive_location, alternate_path, alternate_drive_location, last_scanned)
+            VALUES (@id, @fullNumber, @shortNumber, @name, @path, @year, @driveLocation, @alternatePath, @alternateDriveLocation, @lastScanned)
             ON CONFLICT(id) DO UPDATE SET
                 full_number = @fullNumber,
                 short_number = @shortNumber,
                 name = @name,
                 path = @path,
                 year = @year,
+                drive_location = @driveLocation,
+                alternate_path = @alternatePath,
+                alternate_drive_location = @alternateDriveLocation,
                 last_scanned = @lastScanned
         ";
 
@@ -195,6 +281,9 @@ public class SqliteDataStore : IDataStore
         command.Parameters.AddWithValue("@name", project.Name);
         command.Parameters.AddWithValue("@path", project.Path);
         command.Parameters.AddWithValue("@year", project.Year);
+        command.Parameters.AddWithValue("@driveLocation", project.DriveLocation);
+        command.Parameters.AddWithValue("@alternatePath", project.AlternatePath ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@alternateDriveLocation", project.AlternateDriveLocation ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@lastScanned", project.LastScanned.ToString("O"));
 
         await command.ExecuteNonQueryAsync();
@@ -210,14 +299,17 @@ public class SqliteDataStore : IDataStore
         try
         {
             var sql = @"
-                INSERT INTO projects (id, full_number, short_number, name, path, year, last_scanned)
-                VALUES (@id, @fullNumber, @shortNumber, @name, @path, @year, @lastScanned)
+                INSERT INTO projects (id, full_number, short_number, name, path, year, drive_location, alternate_path, alternate_drive_location, last_scanned)
+                VALUES (@id, @fullNumber, @shortNumber, @name, @path, @year, @driveLocation, @alternatePath, @alternateDriveLocation, @lastScanned)
                 ON CONFLICT(id) DO UPDATE SET
                     full_number = @fullNumber,
                     short_number = @shortNumber,
                     name = @name,
                     path = @path,
                     year = @year,
+                    drive_location = @driveLocation,
+                    alternate_path = @alternatePath,
+                    alternate_drive_location = @alternateDriveLocation,
                     last_scanned = @lastScanned
             ";
 
@@ -230,6 +322,9 @@ public class SqliteDataStore : IDataStore
                 command.Parameters.AddWithValue("@name", project.Name);
                 command.Parameters.AddWithValue("@path", project.Path);
                 command.Parameters.AddWithValue("@year", project.Year);
+                command.Parameters.AddWithValue("@driveLocation", project.DriveLocation);
+                command.Parameters.AddWithValue("@alternatePath", project.AlternatePath ?? (object)DBNull.Value);
+                command.Parameters.AddWithValue("@alternateDriveLocation", project.AlternateDriveLocation ?? (object)DBNull.Value);
                 command.Parameters.AddWithValue("@lastScanned", project.LastScanned.ToString("O"));
 
                 await command.ExecuteNonQueryAsync();

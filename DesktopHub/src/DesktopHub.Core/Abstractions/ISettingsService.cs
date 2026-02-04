@@ -16,6 +16,16 @@ public interface ISettingsService
     void SetQDrivePath(string path);
 
     /// <summary>
+    /// Get P: drive path
+    /// </summary>
+    string GetPDrivePath();
+
+    /// <summary>
+    /// Set P: drive path
+    /// </summary>
+    void SetPDrivePath(string path);
+
+    /// <summary>
     /// Get scan interval in minutes
     /// </summary>
     int GetScanIntervalMinutes();
@@ -84,6 +94,26 @@ public interface ISettingsService
     /// Set whether transparency is linked between windows
     /// </summary>
     void SetTransparencyLinked(bool linked);
+
+    /// <summary>
+    /// Get widget launcher transparency (0.0 to 1.0)
+    /// </summary>
+    double GetWidgetLauncherTransparency();
+
+    /// <summary>
+    /// Set widget launcher transparency
+    /// </summary>
+    void SetWidgetLauncherTransparency(double transparency);
+
+    /// <summary>
+    /// Get timer widget transparency (0.0 to 1.0)
+    /// </summary>
+    double GetTimerWidgetTransparency();
+
+    /// <summary>
+    /// Set timer widget transparency
+    /// </summary>
+    void SetTimerWidgetTransparency(double transparency);
 
     /// <summary>
     /// Get notification duration in milliseconds
