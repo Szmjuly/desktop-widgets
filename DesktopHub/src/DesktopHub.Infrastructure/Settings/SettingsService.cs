@@ -100,6 +100,9 @@ public class SettingsService : ISettingsService
         _settings.WidgetLauncherTop = top;
     }
 
+    public bool GetSearchOverlayVisible() => _settings.SearchOverlayVisible;
+    public void SetSearchOverlayVisible(bool visible) => _settings.SearchOverlayVisible = visible;
+
     public bool GetWidgetLauncherVisible() => _settings.WidgetLauncherVisible;
     public void SetWidgetLauncherVisible(bool visible) => _settings.WidgetLauncherVisible = visible;
 
@@ -169,6 +172,7 @@ public class SettingsService : ISettingsService
         public double? WidgetLauncherTop { get; set; } = null;
         
         // Widget visibility state (for Living Widgets Mode persistence)
+        public bool SearchOverlayVisible { get; set; } = false; // False = overlay hidden by default
         public bool WidgetLauncherVisible { get; set; } = true; // True = show launcher by default
         
         // Close shortcut for closing widgets (ESC by default)

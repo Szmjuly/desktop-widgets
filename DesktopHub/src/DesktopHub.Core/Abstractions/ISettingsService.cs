@@ -206,6 +206,16 @@ public interface ISettingsService
     void SetWidgetLauncherPosition(double left, double top);
 
     /// <summary>
+    /// Get saved search overlay visibility state
+    /// </summary>
+    bool GetSearchOverlayVisible();
+
+    /// <summary>
+    /// Set search overlay visibility state
+    /// </summary>
+    void SetSearchOverlayVisible(bool visible);
+
+    /// <summary>
     /// Get saved widget launcher visibility state
     /// </summary>
     bool GetWidgetLauncherVisible();

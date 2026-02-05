@@ -206,22 +206,10 @@ public partial class SearchOverlay : Window
                 );
             }
 
-            // Hide window after core initialization
-            HideOverlay();
-
-            // Load projects in the background
-            _ = LoadProjectsAsync();
-
-            // Start background scan if needed
-            _ = Task.Run(async () => await BackgroundScanAsync());
-
-            // Start IPC listener for commands from second instances
-            _ = Task.Run(() => StartIpcListener());
-            
             // Initialize dragging mode based on Living Widgets Mode setting
             UpdateDraggingMode();
             
-            // Restore saved widget positions if in Living Widgets Mode
+            // Restore saved widget positions and visibility if in Living Widgets Mode
             var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
             if (isLivingWidgetsMode)
             {
@@ -241,6 +229,19 @@ public partial class SearchOverlay : Window
                     DebugLogger.Log($"Restored widget launcher position: ({launcherLeft.Value}, {launcherTop.Value})");
                 }
                 
+                // Restore search overlay visibility state
+                var searchOverlayVisible = _settings.GetSearchOverlayVisible();
+                if (searchOverlayVisible)
+                {
+                    ShowOverlay();
+                    DebugLogger.Log($"Restored search overlay visibility: {searchOverlayVisible}");
+                }
+                else
+                {
+                    HideOverlay();
+                    DebugLogger.Log($"Restored search overlay visibility: {searchOverlayVisible}");
+                }
+                
                 // Restore widget launcher visibility state
                 var widgetLauncherVisible = _settings.GetWidgetLauncherVisible();
                 if (_widgetLauncher != null)
@@ -249,6 +250,23 @@ public partial class SearchOverlay : Window
                     DebugLogger.Log($"Restored widget launcher visibility: {widgetLauncherVisible}");
                 }
             }
+            else
+            {
+                // Not in Living Widgets Mode - hide overlay by default
+                HideOverlay();
+            }
+
+            // Load projects in the background
+            _ = LoadProjectsAsync();
+
+            // Start background scan if needed
+            _ = Task.Run(async () => await BackgroundScanAsync());
+
+            // Start IPC listener for commands from second instances
+            _ = Task.Run(() => StartIpcListener());
+            
+            // Load transparency setting
+            // ...
         }
         catch (Exception ex)
         {
@@ -1562,6 +1580,7 @@ public partial class SearchOverlay : Window
         if (isLivingWidgetsMode)
         {
             _settings.SetSearchOverlayPosition(this.Left, this.Top);
+            _settings.SetSearchOverlayVisible(this.Visibility == Visibility.Visible);
             
             if (_widgetLauncher != null)
             {
