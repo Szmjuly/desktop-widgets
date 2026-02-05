@@ -399,6 +399,7 @@ REM Delete this batch file
             var settings = new SettingsWindow(
                 _settings,
                 () => _searchOverlay.ReloadHotkey(),
+                null, // Close shortcut is checked dynamically by widgets
                 () => _searchOverlay.UpdateDraggingMode(),
                 () => _searchOverlay.OnDriveSettingsChanged(),
                 () => _searchOverlay.UpdateTransparency()

@@ -9,7 +9,8 @@
         ShowInTaskbar="False"
         ResizeMode="NoResize"
         Width="300"
-        Height="340">
+        Height="340"
+        KeyDown="Window_KeyDown">
     
     <Border x:Name="RootBorder"
             Background="#A8121212"

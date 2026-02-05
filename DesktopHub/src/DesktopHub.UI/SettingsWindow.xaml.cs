@@ -13,17 +13,22 @@ public partial class SettingsWindow : Window
     private bool _isRecording;
     private int _recordedModifiers;
     private int _recordedKey;
+    private bool _isRecordingCloseShortcut;
+    private int _recordedCloseShortcutModifiers;
+    private int _recordedCloseShortcutKey;
     private Action? _onHotkeyChanged;
+    private Action? _onCloseShortcutChanged;
     private Action? _onLivingWidgetsModeChanged;
     private Action? _onDriveSettingsChanged;
     private Action? _onTransparencyChanged;
     private bool _isUpdatingSliders;
 
-    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null)
+    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null)
     {
         InitializeComponent();
         _settings = settings;
         _onHotkeyChanged = onHotkeyChanged;
+        _onCloseShortcutChanged = onCloseShortcutChanged;
         _onLivingWidgetsModeChanged = onLivingWidgetsModeChanged;
         _onDriveSettingsChanged = onDriveSettingsChanged;
         _onTransparencyChanged = onTransparencyChanged;
@@ -136,6 +141,9 @@ public partial class SettingsWindow : Window
             HotkeyText.Text = FormatHotkey(modifiers, key);
             UpdateHotkeyWarning(modifiers, key);
 
+            var (closeModifiers, closeKey) = _settings.GetCloseShortcut();
+            CloseShortcutText.Text = FormatHotkey(closeModifiers, closeKey);
+
             AutoStartToggle.IsChecked = _settings.GetAutoStart();
             LivingWidgetsModeToggle.IsChecked = _settings.GetLivingWidgetsMode();
             
@@ -203,53 +211,100 @@ public partial class SettingsWindow : Window
                 e.Handled = true;
                 return;
             }
+            if (_isRecordingCloseShortcut)
+            {
+                StopRecordingCloseShortcut();
+                e.Handled = true;
+                return;
+            }
             this.Close();
             e.Handled = true;
             return;
         }
 
-        if (!_isRecording)
-            return;
-
-        // Ignore modifier-only keys
-        if (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl ||
-            e.Key == Key.LeftAlt || e.Key == Key.RightAlt ||
-            e.Key == Key.LeftShift || e.Key == Key.RightShift ||
-            e.Key == Key.LWin || e.Key == Key.RWin)
+        if (_isRecording)
         {
+            // Ignore modifier-only keys
+            if (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl ||
+                e.Key == Key.LeftAlt || e.Key == Key.RightAlt ||
+                e.Key == Key.LeftShift || e.Key == Key.RightShift ||
+                e.Key == Key.LWin || e.Key == Key.RWin)
+            {
+                e.Handled = true;
+                return;
+            }
+
+            // Record the hotkey
+            _recordedModifiers = 0;
+            if ((Keyboard.Modifiers & ModifierKeys.Control) != 0)
+                _recordedModifiers |= (int)GlobalHotkey.MOD_CONTROL;
+            if ((Keyboard.Modifiers & ModifierKeys.Alt) != 0)
+                _recordedModifiers |= (int)GlobalHotkey.MOD_ALT;
+            if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
+                _recordedModifiers |= (int)GlobalHotkey.MOD_SHIFT;
+            if ((Keyboard.Modifiers & ModifierKeys.Windows) != 0)
+                _recordedModifiers |= (int)GlobalHotkey.MOD_WIN;
+
+            _recordedKey = KeyInterop.VirtualKeyFromKey(e.Key);
+
+            // Update display
+            var hotkeyLabel = FormatHotkey(_recordedModifiers, _recordedKey);
+            HotkeyText.Text = hotkeyLabel;
+            UpdateHotkeyWarning(_recordedModifiers, _recordedKey);
+
+            // Save the new hotkey
+            _settings.SetHotkey(_recordedModifiers, _recordedKey);
+            _ = _settings.SaveAsync();
+
+            StopRecording();
+            StatusText.Text = "Hotkey updated!";
+
+            // Notify parent to update hotkey
+            _onHotkeyChanged?.Invoke();
+
             e.Handled = true;
-            return;
         }
+        else if (_isRecordingCloseShortcut)
+        {
+            // Ignore modifier-only keys
+            if (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl ||
+                e.Key == Key.LeftAlt || e.Key == Key.RightAlt ||
+                e.Key == Key.LeftShift || e.Key == Key.RightShift ||
+                e.Key == Key.LWin || e.Key == Key.RWin)
+            {
+                e.Handled = true;
+                return;
+            }
 
-        // Record the hotkey
-        _recordedModifiers = 0;
-        if ((Keyboard.Modifiers & ModifierKeys.Control) != 0)
-            _recordedModifiers |= (int)GlobalHotkey.MOD_CONTROL;
-        if ((Keyboard.Modifiers & ModifierKeys.Alt) != 0)
-            _recordedModifiers |= (int)GlobalHotkey.MOD_ALT;
-        if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
-            _recordedModifiers |= (int)GlobalHotkey.MOD_SHIFT;
-        if ((Keyboard.Modifiers & ModifierKeys.Windows) != 0)
-            _recordedModifiers |= (int)GlobalHotkey.MOD_WIN;
+            // Record the close shortcut
+            _recordedCloseShortcutModifiers = 0;
+            if ((Keyboard.Modifiers & ModifierKeys.Control) != 0)
+                _recordedCloseShortcutModifiers |= (int)GlobalHotkey.MOD_CONTROL;
+            if ((Keyboard.Modifiers & ModifierKeys.Alt) != 0)
+                _recordedCloseShortcutModifiers |= (int)GlobalHotkey.MOD_ALT;
+            if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
+                _recordedCloseShortcutModifiers |= (int)GlobalHotkey.MOD_SHIFT;
+            if ((Keyboard.Modifiers & ModifierKeys.Windows) != 0)
+                _recordedCloseShortcutModifiers |= (int)GlobalHotkey.MOD_WIN;
 
-        _recordedKey = KeyInterop.VirtualKeyFromKey(e.Key);
+            _recordedCloseShortcutKey = KeyInterop.VirtualKeyFromKey(e.Key);
 
-        // Update display
-        var hotkeyLabel = FormatHotkey(_recordedModifiers, _recordedKey);
-        HotkeyText.Text = hotkeyLabel;
-        UpdateHotkeyWarning(_recordedModifiers, _recordedKey);
+            // Update display
+            var closeShortcutLabel = FormatHotkey(_recordedCloseShortcutModifiers, _recordedCloseShortcutKey);
+            CloseShortcutText.Text = closeShortcutLabel;
 
-        // Save the new hotkey
-        _settings.SetHotkey(_recordedModifiers, _recordedKey);
-        _ = _settings.SaveAsync();
+            // Save the new close shortcut
+            _settings.SetCloseShortcut(_recordedCloseShortcutModifiers, _recordedCloseShortcutKey);
+            _ = _settings.SaveAsync();
 
-        StopRecording();
-        StatusText.Text = "Hotkey updated!";
+            StopRecordingCloseShortcut();
+            StatusText.Text = "Close shortcut updated!";
 
-        // Notify parent to update hotkey
-        _onHotkeyChanged?.Invoke();
+            // Notify parent to update close shortcut
+            _onCloseShortcutChanged?.Invoke();
 
-        e.Handled = true;
+            e.Handled = true;
+        }
     }
 
     private void ResetHotkeyButton_Click(object sender, RoutedEventArgs e)
@@ -265,6 +320,42 @@ public partial class SettingsWindow : Window
         StatusText.Text = "Hotkey reset to default.";
 
         _onHotkeyChanged?.Invoke();
+    }
+
+    private void CloseShortcutBox_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        StartRecordingCloseShortcut();
+    }
+
+    private void StartRecordingCloseShortcut()
+    {
+        _isRecordingCloseShortcut = true;
+        CloseShortcutText.Visibility = Visibility.Collapsed;
+        CloseShortcutRecordingText.Visibility = Visibility.Visible;
+        CloseShortcutBox.BorderBrush = (System.Windows.Media.Brush)FindResource("PrimaryBrush");
+        this.Focus();
+    }
+
+    private void StopRecordingCloseShortcut()
+    {
+        _isRecordingCloseShortcut = false;
+        CloseShortcutRecordingText.Visibility = Visibility.Collapsed;
+        CloseShortcutText.Visibility = Visibility.Visible;
+        CloseShortcutBox.BorderBrush = (System.Windows.Media.Brush)FindResource("BorderBrush");
+    }
+
+    private void ResetCloseShortcutButton_Click(object sender, RoutedEventArgs e)
+    {
+        const int defaultModifiers = 0x0000; // No modifiers
+        const int defaultKey = 0x1B; // ESC
+
+        _settings.SetCloseShortcut(defaultModifiers, defaultKey);
+        _ = _settings.SaveAsync();
+
+        CloseShortcutText.Text = FormatHotkey(defaultModifiers, defaultKey);
+        StatusText.Text = "Close shortcut reset to default.";
+
+        _onCloseShortcutChanged?.Invoke();
     }
 
     private async void AutoStartToggle_Checked(object sender, RoutedEventArgs e)

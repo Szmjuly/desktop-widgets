@@ -176,6 +176,26 @@ public interface ISettingsService
     void SetWidgetLauncherPosition(double left, double top);
 
     /// <summary>
+    /// Get saved widget launcher visibility state
+    /// </summary>
+    bool GetWidgetLauncherVisible();
+
+    /// <summary>
+    /// Set widget launcher visibility state
+    /// </summary>
+    void SetWidgetLauncherVisible(bool visible);
+
+    /// <summary>
+    /// Get close shortcut configuration for closing widgets
+    /// </summary>
+    (int modifiers, int key) GetCloseShortcut();
+
+    /// <summary>
+    /// Set close shortcut configuration
+    /// </summary>
+    void SetCloseShortcut(int modifiers, int key);
+
+    /// <summary>
     /// Save all settings to disk
     /// </summary>
     Task SaveAsync();

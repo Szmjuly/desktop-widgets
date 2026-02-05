@@ -240,6 +240,14 @@ public partial class SearchOverlay : Window
                     _widgetLauncher.Top = launcherTop.Value;
                     DebugLogger.Log($"Restored widget launcher position: ({launcherLeft.Value}, {launcherTop.Value})");
                 }
+                
+                // Restore widget launcher visibility state
+                var widgetLauncherVisible = _settings.GetWidgetLauncherVisible();
+                if (_widgetLauncher != null)
+                {
+                    _widgetLauncher.Visibility = widgetLauncherVisible ? Visibility.Visible : Visibility.Hidden;
+                    DebugLogger.Log($"Restored widget launcher visibility: {widgetLauncherVisible}");
+                }
             }
         }
         catch (Exception ex)
@@ -1271,6 +1279,15 @@ public partial class SearchOverlay : Window
                 _widgetLauncher.Visibility = Visibility.Visible;
                 DebugLogger.Log("Widget launcher shown via toggle button");
             }
+            
+            // Save visibility state if in Living Widgets Mode
+            var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+            if (isLivingWidgetsMode)
+            {
+                _settings.SetWidgetLauncherVisible(_widgetLauncher.Visibility == Visibility.Visible);
+                _ = _settings.SaveAsync();
+                DebugLogger.Log($"Saved widget launcher visibility state: {_widgetLauncher.Visibility == Visibility.Visible}");
+            }
         }
     }
     
@@ -1323,14 +1340,30 @@ public partial class SearchOverlay : Window
         DebugLogger.LogVariable("Handled", e.Handled);
         DebugLogger.LogVariable("Source", e.Source?.GetType().Name ?? "<null>");
         
+        // Check if close shortcut was pressed
+        var (closeModifiers, closeKey) = _settings.GetCloseShortcut();
+        var currentModifiers = 0;
+        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
+            currentModifiers |= (int)GlobalHotkey.MOD_CONTROL;
+        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Alt) != 0)
+            currentModifiers |= (int)GlobalHotkey.MOD_ALT;
+        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Shift) != 0)
+            currentModifiers |= (int)GlobalHotkey.MOD_SHIFT;
+        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Windows) != 0)
+            currentModifiers |= (int)GlobalHotkey.MOD_WIN;
+        
+        var currentKey = System.Windows.Input.KeyInterop.VirtualKeyFromKey(e.Key);
+        
+        if (currentModifiers == closeModifiers && currentKey == closeKey)
+        {
+            DebugLogger.Log($"Window_KeyDown: Close shortcut pressed -> Hiding overlay");
+            HideOverlay();
+            e.Handled = true;
+            return;
+        }
+        
         switch (e.Key)
         {
-            case System.Windows.Input.Key.Escape:
-                DebugLogger.Log("Window_KeyDown: Escape pressed -> Hiding overlay");
-                HideOverlay();
-                e.Handled = true;
-                break;
-
             case System.Windows.Input.Key.Enter:
                 DebugLogger.Log("Window_KeyDown: Enter pressed -> Opening selected project");
                 OpenSelectedProject();
@@ -1533,11 +1566,13 @@ public partial class SearchOverlay : Window
             if (_widgetLauncher != null)
             {
                 _settings.SetWidgetLauncherPosition(_widgetLauncher.Left, _widgetLauncher.Top);
+                // Save widget launcher visibility state
+                _settings.SetWidgetLauncherVisible(_widgetLauncher.Visibility == Visibility.Visible);
             }
             
             // Save async but don't await (app is closing)
             _ = _settings.SaveAsync();
-            DebugLogger.Log("Window_Closing: Saved widget positions");
+            DebugLogger.Log("Window_Closing: Saved widget positions and visibility state");
         }
     }
 

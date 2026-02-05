@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using DesktopHub.UI.Services;
 using DesktopHub.Core.Abstractions;
+using DesktopHub.UI.Helpers;
 
 namespace DesktopHub.UI;
 
@@ -183,7 +184,7 @@ public partial class TimerOverlay : Window
             
             if (RootBorder != null)
             {
-                RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, 0x18, 0x18, 0x18));
+                RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, 0x12, 0x12, 0x12));
             }
             
             DebugLogger.Log($"TimerOverlay: Transparency updated to {transparency:F2}");
@@ -191,6 +192,30 @@ public partial class TimerOverlay : Window
         catch (Exception ex)
         {
             DebugLogger.Log($"TimerOverlay: UpdateTransparency error: {ex.Message}");
+        }
+    }
+    
+    private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        // Check if close shortcut was pressed
+        var (closeModifiers, closeKey) = _settings.GetCloseShortcut();
+        var currentModifiers = 0;
+        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
+            currentModifiers |= (int)GlobalHotkey.MOD_CONTROL;
+        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Alt) != 0)
+            currentModifiers |= (int)GlobalHotkey.MOD_ALT;
+        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Shift) != 0)
+            currentModifiers |= (int)GlobalHotkey.MOD_SHIFT;
+        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Windows) != 0)
+            currentModifiers |= (int)GlobalHotkey.MOD_WIN;
+        
+        var currentKey = System.Windows.Input.KeyInterop.VirtualKeyFromKey(e.Key);
+        
+        if (currentModifiers == closeModifiers && currentKey == closeKey)
+        {
+            DebugLogger.Log($"TimerOverlay: Close shortcut pressed -> Hiding timer overlay");
+            this.Visibility = Visibility.Hidden;
+            e.Handled = true;
         }
     }
     

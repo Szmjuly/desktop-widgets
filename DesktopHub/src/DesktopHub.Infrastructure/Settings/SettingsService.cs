@@ -12,6 +12,8 @@ public class SettingsService : ISettingsService
     private const int DefaultHotkeyKey = 0x20; // Space
     private const int LegacyHotkeyModifiers = 0x0006; // Ctrl+Shift
     private const int LegacyHotkeyKey = 0x50; // P
+    private const int DefaultCloseShortcutModifiers = 0x0000; // No modifiers
+    private const int DefaultCloseShortcutKey = 0x1B; // ESC
     private readonly string _settingsPath;
     private AppSettings _settings;
 
@@ -89,6 +91,16 @@ public class SettingsService : ISettingsService
         _settings.WidgetLauncherTop = top;
     }
 
+    public bool GetWidgetLauncherVisible() => _settings.WidgetLauncherVisible;
+    public void SetWidgetLauncherVisible(bool visible) => _settings.WidgetLauncherVisible = visible;
+
+    public (int modifiers, int key) GetCloseShortcut() => (_settings.CloseShortcutModifiers, _settings.CloseShortcutKey);
+    public void SetCloseShortcut(int modifiers, int key)
+    {
+        _settings.CloseShortcutModifiers = modifiers;
+        _settings.CloseShortcutKey = key;
+    }
+
     public async Task SaveAsync()
     {
         var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions
@@ -143,5 +155,12 @@ public class SettingsService : ISettingsService
         public double? SearchOverlayTop { get; set; } = null;
         public double? WidgetLauncherLeft { get; set; } = null;
         public double? WidgetLauncherTop { get; set; } = null;
+        
+        // Widget visibility state (for Living Widgets Mode persistence)
+        public bool WidgetLauncherVisible { get; set; } = true; // True = show launcher by default
+        
+        // Close shortcut for closing widgets (ESC by default)
+        public int CloseShortcutModifiers { get; set; } = DefaultCloseShortcutModifiers;
+        public int CloseShortcutKey { get; set; } = DefaultCloseShortcutKey;
     }
 }

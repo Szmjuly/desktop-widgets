@@ -226,6 +226,94 @@
                         </StackPanel>
                     </Border>
                     
+                    <!-- Close Shortcut Section -->
+                    <Border Background="{StaticResource SurfaceBrush}" 
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="16"
+                            Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Widget Close Shortcut" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextBrush}"
+                                       Margin="0,0,0,8"/>
+                            
+                            <TextBlock Text="Shortcut key to close overlay and widget windows" 
+                                       FontSize="12" 
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Margin="0,0,0,12"/>
+                            
+                            <!-- Close Shortcut Display -->
+                            <Border x:Name="CloseShortcutBox"
+                                    Background="#22FFFFFF"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="12"
+                                    Margin="0,0,0,12"
+                                    Cursor="Hand"
+                                    MouseDown="CloseShortcutBox_MouseDown">
+                                <Grid>
+                                    <TextBlock x:Name="CloseShortcutText"
+                                               Text="Esc"
+                                               FontSize="14"
+                                               FontWeight="Medium"
+                                               Foreground="{StaticResource TextBrush}"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="CloseShortcutRecordingText"
+                                               Text="Press a key combination..."
+                                               FontSize="14"
+                                               FontStyle="Italic"
+                                               Foreground="{StaticResource PrimaryBrush}"
+                                               HorizontalAlignment="Center"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+                            </Border>
+                            
+                            <Button x:Name="ResetCloseShortcutButton"
+                                    Content="Reset to Default (Esc)"
+                                    Padding="12,8"
+                                    Background="#22FFFFFF"
+                                    Foreground="{StaticResource TextSecondaryBrush}"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    Click="ResetCloseShortcutButton_Click"
+                                    Cursor="Hand">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}" 
+                                                            BorderBrush="{TemplateBinding BorderBrush}" 
+                                                            BorderThickness="1"
+                                                            CornerRadius="6">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+
+                            <Border x:Name="CloseShortcutTypingWarning"
+                                    Background="#332B1B00"
+                                    BorderBrush="#665A3A00"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="10"
+                                    Margin="0,12,0,0"
+                                    Visibility="Collapsed">
+                                <TextBlock x:Name="CloseShortcutTypingWarningText"
+                                           TextWrapping="Wrap"
+                                           FontSize="12"
+                                           Foreground="#F3D6A2"/>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                    
                     <!-- Auto-start Section -->
                     <Border Background="{StaticResource SurfaceBrush}" 
                             BorderBrush="{StaticResource BorderBrush}"

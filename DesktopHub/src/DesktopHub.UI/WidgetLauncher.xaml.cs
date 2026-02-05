@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using DesktopHub.Core.Abstractions;
+using DesktopHub.UI.Helpers;
 
 namespace DesktopHub.UI;
 
@@ -113,6 +114,30 @@ public partial class WidgetLauncher : Window
             
             this.Left += offset.X;
             this.Top += offset.Y;
+        }
+    }
+    
+    private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        // Check if close shortcut was pressed
+        var (closeModifiers, closeKey) = _settings.GetCloseShortcut();
+        var currentModifiers = 0;
+        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
+            currentModifiers |= (int)GlobalHotkey.MOD_CONTROL;
+        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Alt) != 0)
+            currentModifiers |= (int)GlobalHotkey.MOD_ALT;
+        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Shift) != 0)
+            currentModifiers |= (int)GlobalHotkey.MOD_SHIFT;
+        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Windows) != 0)
+            currentModifiers |= (int)GlobalHotkey.MOD_WIN;
+        
+        var currentKey = System.Windows.Input.KeyInterop.VirtualKeyFromKey(e.Key);
+        
+        if (currentModifiers == closeModifiers && currentKey == closeKey)
+        {
+            DebugLogger.Log($"WidgetLauncher: Close shortcut pressed -> Hiding widget launcher");
+            this.Visibility = Visibility.Hidden;
+            e.Handled = true;
         }
     }
 }
