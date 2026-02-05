@@ -62,8 +62,17 @@ public class SettingsService : ISettingsService
     public double GetOverlayTransparency() => _settings.OverlayTransparency;
     public void SetOverlayTransparency(double transparency) => _settings.OverlayTransparency = transparency;
 
-    public bool GetTransparencyLinked() => _settings.TransparencyLinked;
-    public void SetTransparencyLinked(bool linked) => _settings.TransparencyLinked = linked;
+    public bool GetSettingsTransparencyLinked() => _settings.SettingsTransparencyLinked;
+    public void SetSettingsTransparencyLinked(bool linked) => _settings.SettingsTransparencyLinked = linked;
+
+    public bool GetOverlayTransparencyLinked() => _settings.OverlayTransparencyLinked;
+    public void SetOverlayTransparencyLinked(bool linked) => _settings.OverlayTransparencyLinked = linked;
+
+    public bool GetLauncherTransparencyLinked() => _settings.LauncherTransparencyLinked;
+    public void SetLauncherTransparencyLinked(bool linked) => _settings.LauncherTransparencyLinked = linked;
+
+    public bool GetTimerTransparencyLinked() => _settings.TimerTransparencyLinked;
+    public void SetTimerTransparencyLinked(bool linked) => _settings.TimerTransparencyLinked = linked;
 
     public double GetWidgetLauncherTransparency() => _settings.WidgetLauncherTransparency;
     public void SetWidgetLauncherTransparency(double transparency) => _settings.WidgetLauncherTransparency = transparency;
@@ -146,7 +155,10 @@ public class SettingsService : ISettingsService
         public double OverlayTransparency { get; set; } = 0.78;
         public double WidgetLauncherTransparency { get; set; } = 0.78;
         public double TimerWidgetTransparency { get; set; } = 0.78;
-        public bool TransparencyLinked { get; set; } = true;
+        public bool SettingsTransparencyLinked { get; set; } = false;
+        public bool OverlayTransparencyLinked { get; set; } = false;
+        public bool LauncherTransparencyLinked { get; set; } = false;
+        public bool TimerTransparencyLinked { get; set; } = false;
         public int NotificationDurationMs { get; set; } = 3000; // 3 seconds
         public bool LivingWidgetsMode { get; set; } = false; // False = legacy overlay mode (auto-hide)
         

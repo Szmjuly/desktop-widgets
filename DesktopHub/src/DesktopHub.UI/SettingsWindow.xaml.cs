@@ -167,7 +167,7 @@ public partial class SettingsWindow : Window
             // Load notification duration setting
             LoadNotificationDurationSetting();
             
-            UpdateLinkButtonIcon();
+            UpdateAllLinkButtons();
         }
         catch (Exception ex)
         {
@@ -499,6 +499,13 @@ public partial class SettingsWindow : Window
             StatusText.Text = "P: drive enabled - scanning...";
         }
         _onDriveSettingsChanged?.Invoke();
+        
+        // Wait for scan to complete and update status
+        await Task.Delay(3000);
+        if (StatusText != null && StatusText.Text.Contains("scanning"))
+        {
+            StatusText.Text = "P: drive enabled - scan complete";
+        }
     }
 
     private async void PDriveEnabledToggle_Unchecked(object sender, RoutedEventArgs e)
@@ -516,6 +523,41 @@ public partial class SettingsWindow : Window
     private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
         this.Close();
+    }
+
+    private void Header_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Left)
+        {
+            // Ensure window is active before dragging to avoid "stuck" behavior
+            this.Activate();
+            this.DragMove();
+        }
+    }
+
+    private void MenuButton_Checked(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.RadioButton radioButton)
+        {
+            // Hide all panels
+            if (ShortcutsPanel != null) ShortcutsPanel.Visibility = Visibility.Collapsed;
+            if (AppearancePanel != null) AppearancePanel.Visibility = Visibility.Collapsed;
+            if (GeneralPanel != null) GeneralPanel.Visibility = Visibility.Collapsed;
+
+            // Show selected panel
+            if (radioButton.Name == "ShortcutsMenuButton" && ShortcutsPanel != null)
+            {
+                ShortcutsPanel.Visibility = Visibility.Visible;
+            }
+            else if (radioButton.Name == "AppearanceMenuButton" && AppearancePanel != null)
+            {
+                AppearancePanel.Visibility = Visibility.Visible;
+            }
+            else if (radioButton.Name == "GeneralMenuButton" && GeneralPanel != null)
+            {
+                GeneralPanel.Visibility = Visibility.Visible;
+            }
+        }
     }
 
     private static string FormatHotkey(int modifiers, int key)
@@ -567,33 +609,19 @@ public partial class SettingsWindow : Window
     {
         if (RootBorder == null || _isUpdatingSliders || _settings == null) return;
         
+        _settings.SetSettingsTransparency(e.NewValue);
+        _ = _settings.SaveAsync();
+        StatusText.Text = "Settings transparency updated";
+        
+        // Update this window's transparency in real-time
         var alpha = (byte)(e.NewValue * 255);
         var color = System.Windows.Media.Color.FromArgb(alpha, 0x18, 0x18, 0x18);
         RootBorder.Background = new System.Windows.Media.SolidColorBrush(color);
         
-        _settings.SetSettingsTransparency(e.NewValue);
-        _ = _settings.SaveAsync();
-        
-        // If linked, update all other sliders (but don't trigger their callbacks)
-        if (_settings.GetTransparencyLinked())
+        // Sync linked sliders
+        if (_settings.GetSettingsTransparencyLinked())
         {
-            _isUpdatingSliders = true;
-            if (OverlayTransparencySlider != null)
-            {
-                OverlayTransparencySlider.Value = e.NewValue;
-            }
-            if (WidgetLauncherTransparencySlider != null)
-            {
-                WidgetLauncherTransparencySlider.Value = e.NewValue;
-            }
-            if (TimerWidgetTransparencySlider != null)
-            {
-                TimerWidgetTransparencySlider.Value = e.NewValue;
-            }
-            _settings.SetOverlayTransparency(e.NewValue);
-            _settings.SetWidgetLauncherTransparency(e.NewValue);
-            _settings.SetTimerWidgetTransparency(e.NewValue);
-            _isUpdatingSliders = false;
+            SyncLinkedSliders(e.NewValue);
         }
         
         // Notify windows to update their transparency
@@ -606,34 +634,12 @@ public partial class SettingsWindow : Window
         
         _settings.SetOverlayTransparency(e.NewValue);
         _ = _settings.SaveAsync();
+        StatusText.Text = "Overlay transparency updated";
         
-        // If linked, update all other sliders
-        if (_settings.GetTransparencyLinked())
+        // Sync linked sliders
+        if (_settings.GetOverlayTransparencyLinked())
         {
-            _isUpdatingSliders = true;
-            if (SettingsTransparencySlider != null)
-            {
-                SettingsTransparencySlider.Value = e.NewValue;
-            }
-            if (WidgetLauncherTransparencySlider != null)
-            {
-                WidgetLauncherTransparencySlider.Value = e.NewValue;
-            }
-            if (TimerWidgetTransparencySlider != null)
-            {
-                TimerWidgetTransparencySlider.Value = e.NewValue;
-            }
-            _settings.SetSettingsTransparency(e.NewValue);
-            _settings.SetWidgetLauncherTransparency(e.NewValue);
-            _settings.SetTimerWidgetTransparency(e.NewValue);
-            _isUpdatingSliders = false;
-            
-            if (RootBorder != null)
-            {
-                var alpha = (byte)(e.NewValue * 255);
-                var color = System.Windows.Media.Color.FromArgb(alpha, 0x18, 0x18, 0x18);
-                RootBorder.Background = new System.Windows.Media.SolidColorBrush(color);
-            }
+            SyncLinkedSliders(e.NewValue);
         }
         
         // Notify windows to update their transparency
@@ -646,34 +652,12 @@ public partial class SettingsWindow : Window
         
         _settings.SetWidgetLauncherTransparency(e.NewValue);
         _ = _settings.SaveAsync();
+        StatusText.Text = "Widget launcher transparency updated";
         
-        // If linked, update other sliders too
-        if (_settings.GetTransparencyLinked())
+        // Sync linked sliders
+        if (_settings.GetLauncherTransparencyLinked())
         {
-            _isUpdatingSliders = true;
-            if (SettingsTransparencySlider != null)
-            {
-                SettingsTransparencySlider.Value = e.NewValue;
-            }
-            if (OverlayTransparencySlider != null)
-            {
-                OverlayTransparencySlider.Value = e.NewValue;
-            }
-            if (TimerWidgetTransparencySlider != null)
-            {
-                TimerWidgetTransparencySlider.Value = e.NewValue;
-            }
-            _settings.SetSettingsTransparency(e.NewValue);
-            _settings.SetOverlayTransparency(e.NewValue);
-            _settings.SetTimerWidgetTransparency(e.NewValue);
-            _isUpdatingSliders = false;
-            
-            if (RootBorder != null)
-            {
-                var alpha = (byte)(e.NewValue * 255);
-                var color = System.Windows.Media.Color.FromArgb(alpha, 0x18, 0x18, 0x18);
-                RootBorder.Background = new System.Windows.Media.SolidColorBrush(color);
-            }
+            SyncLinkedSliders(e.NewValue);
         }
         
         // Notify windows to update their transparency
@@ -686,80 +670,148 @@ public partial class SettingsWindow : Window
         
         _settings.SetTimerWidgetTransparency(e.NewValue);
         _ = _settings.SaveAsync();
+        StatusText.Text = "Timer widget transparency updated";
         
-        // If linked, update other sliders too
-        if (_settings.GetTransparencyLinked())
+        // Sync linked sliders
+        if (_settings.GetTimerTransparencyLinked())
         {
-            _isUpdatingSliders = true;
-            if (SettingsTransparencySlider != null)
-            {
-                SettingsTransparencySlider.Value = e.NewValue;
-            }
-            if (OverlayTransparencySlider != null)
-            {
-                OverlayTransparencySlider.Value = e.NewValue;
-            }
-            if (WidgetLauncherTransparencySlider != null)
-            {
-                WidgetLauncherTransparencySlider.Value = e.NewValue;
-            }
-            _settings.SetSettingsTransparency(e.NewValue);
-            _settings.SetOverlayTransparency(e.NewValue);
-            _settings.SetWidgetLauncherTransparency(e.NewValue);
-            _isUpdatingSliders = false;
-            
-            if (RootBorder != null)
-            {
-                var alpha = (byte)(e.NewValue * 255);
-                var color = System.Windows.Media.Color.FromArgb(alpha, 0x18, 0x18, 0x18);
-                RootBorder.Background = new System.Windows.Media.SolidColorBrush(color);
-            }
+            SyncLinkedSliders(e.NewValue);
         }
         
         // Notify windows to update their transparency
         _onTransparencyChanged?.Invoke();
     }
 
-    private void LinkTransparencyButton_Click(object sender, RoutedEventArgs e)
+    private void LinkSettingsButton_Click(object sender, RoutedEventArgs e)
     {
-        var isLinked = _settings.GetTransparencyLinked();
-        _settings.SetTransparencyLinked(!isLinked);
+        var isLinked = _settings.GetSettingsTransparencyLinked();
+        _settings.SetSettingsTransparencyLinked(!isLinked);
         _ = _settings.SaveAsync();
         
-        UpdateLinkButtonIcon();
+        UpdateLinkButton(LinkSettingsButton, !isLinked);
         
-        // If linking, sync all transparency values to settings window value
         if (!isLinked)
         {
-            _isUpdatingSliders = true;
-            var settingsValue = SettingsTransparencySlider.Value;
-            OverlayTransparencySlider.Value = settingsValue;
-            WidgetLauncherTransparencySlider.Value = settingsValue;
-            TimerWidgetTransparencySlider.Value = settingsValue;
-            _settings.SetOverlayTransparency(settingsValue);
-            _settings.SetWidgetLauncherTransparency(settingsValue);
-            _settings.SetTimerWidgetTransparency(settingsValue);
-            _isUpdatingSliders = false;
+            SyncLinkedSliders(SettingsTransparencySlider.Value);
         }
         
-        StatusText.Text = !isLinked ? "Transparency linked" : "Transparency unlinked";
+        StatusText.Text = !isLinked ? "Settings transparency linked" : "Settings transparency unlinked";
     }
 
-    private void UpdateLinkButtonIcon()
+    private void LinkOverlayButton_Click(object sender, RoutedEventArgs e)
     {
-        var isLinked = _settings.GetTransparencyLinked();
-        // Find the TextBlock in the button template
-        if (LinkTransparencyButton.Template?.FindName("LinkIcon", LinkTransparencyButton) is System.Windows.Controls.TextBlock linkIcon)
+        var isLinked = _settings.GetOverlayTransparencyLinked();
+        _settings.SetOverlayTransparencyLinked(!isLinked);
+        _ = _settings.SaveAsync();
+        
+        UpdateLinkButton(LinkOverlayButton, !isLinked);
+        
+        if (!isLinked)
         {
-            linkIcon.Text = isLinked ? "🔗" : "🔓";
+            SyncLinkedSliders(OverlayTransparencySlider.Value);
         }
+        
+        StatusText.Text = !isLinked ? "Overlay transparency linked" : "Overlay transparency unlinked";
+    }
 
-        // Grey out sliders when linked but keep them interactive
-        var linkedOpacity = isLinked ? 0.6 : 1.0;
-        SettingsTransparencySlider.Opacity = linkedOpacity;
-        OverlayTransparencySlider.Opacity = linkedOpacity;
-        WidgetLauncherTransparencySlider.Opacity = linkedOpacity;
-        TimerWidgetTransparencySlider.Opacity = linkedOpacity;
+    private void LinkLauncherButton_Click(object sender, RoutedEventArgs e)
+    {
+        var isLinked = _settings.GetLauncherTransparencyLinked();
+        _settings.SetLauncherTransparencyLinked(!isLinked);
+        _ = _settings.SaveAsync();
+        
+        UpdateLinkButton(LinkLauncherButton, !isLinked);
+        
+        if (!isLinked)
+        {
+            SyncLinkedSliders(WidgetLauncherTransparencySlider.Value);
+        }
+        
+        StatusText.Text = !isLinked ? "Launcher transparency linked" : "Launcher transparency unlinked";
+    }
+
+    private void LinkTimerButton_Click(object sender, RoutedEventArgs e)
+    {
+        var isLinked = _settings.GetTimerTransparencyLinked();
+        _settings.SetTimerTransparencyLinked(!isLinked);
+        _ = _settings.SaveAsync();
+        
+        UpdateLinkButton(LinkTimerButton, !isLinked);
+        
+        if (!isLinked)
+        {
+            SyncLinkedSliders(TimerWidgetTransparencySlider.Value);
+        }
+        
+        StatusText.Text = !isLinked ? "Timer transparency linked" : "Timer transparency unlinked";
+    }
+
+    private void SyncLinkedSliders(double value)
+    {
+        _isUpdatingSliders = true;
+        
+        if (_settings.GetSettingsTransparencyLinked())
+        {
+            SettingsTransparencySlider.Value = value;
+            _settings.SetSettingsTransparency(value);
+        }
+        
+        if (_settings.GetOverlayTransparencyLinked())
+        {
+            OverlayTransparencySlider.Value = value;
+            _settings.SetOverlayTransparency(value);
+        }
+        
+        if (_settings.GetLauncherTransparencyLinked())
+        {
+            WidgetLauncherTransparencySlider.Value = value;
+            _settings.SetWidgetLauncherTransparency(value);
+        }
+        
+        if (_settings.GetTimerTransparencyLinked())
+        {
+            TimerWidgetTransparencySlider.Value = value;
+            _settings.SetTimerWidgetTransparency(value);
+        }
+        
+        _isUpdatingSliders = false;
+    }
+
+    private void UpdateLinkButton(System.Windows.Controls.Button button, bool isLinked)
+    {
+        // Update the button's content to show linked/unlinked state
+        var contentGrid = button.Content as System.Windows.Controls.Grid;
+        if (contentGrid == null)
+        {
+            // Create a grid with icon if it doesn't exist
+            contentGrid = new System.Windows.Controls.Grid();
+            var textBlock = new System.Windows.Controls.TextBlock
+            {
+                Text = isLinked ? "🔗" : "🔓",
+                FontSize = 12,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                VerticalAlignment = System.Windows.VerticalAlignment.Center
+            };
+            contentGrid.Children.Add(textBlock);
+            button.Content = contentGrid;
+        }
+        else if (contentGrid.Children.Count > 0 && contentGrid.Children[0] is System.Windows.Controls.TextBlock tb)
+        {
+            tb.Text = isLinked ? "🔗" : "🔓";
+        }
+        
+        // Update background color
+        button.Background = isLinked 
+            ? (System.Windows.Media.Brush)FindResource("PrimaryBrush") 
+            : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF));
+    }
+
+    private void UpdateAllLinkButtons()
+    {
+        UpdateLinkButton(LinkSettingsButton, _settings.GetSettingsTransparencyLinked());
+        UpdateLinkButton(LinkOverlayButton, _settings.GetOverlayTransparencyLinked());
+        UpdateLinkButton(LinkLauncherButton, _settings.GetLauncherTransparencyLinked());
+        UpdateLinkButton(LinkTimerButton, _settings.GetTimerTransparencyLinked());
     }
 
     private void LoadNotificationDurationSetting()

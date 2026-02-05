@@ -96,6 +96,16 @@ public interface ISettingsService
     void SetSettingsTransparency(double transparency);
 
     /// <summary>
+    /// Get whether settings window transparency is linked to the group
+    /// </summary>
+    bool GetSettingsTransparencyLinked();
+
+    /// <summary>
+    /// Set whether settings window transparency is linked to the group
+    /// </summary>
+    void SetSettingsTransparencyLinked(bool linked);
+
+    /// <summary>
     /// Get overlay window transparency (0.0 to 1.0)
     /// </summary>
     double GetOverlayTransparency();
@@ -106,14 +116,14 @@ public interface ISettingsService
     void SetOverlayTransparency(double transparency);
 
     /// <summary>
-    /// Get whether transparency is linked between windows
+    /// Get whether overlay transparency is linked to the group
     /// </summary>
-    bool GetTransparencyLinked();
+    bool GetOverlayTransparencyLinked();
 
     /// <summary>
-    /// Set whether transparency is linked between windows
+    /// Set whether overlay transparency is linked to the group
     /// </summary>
-    void SetTransparencyLinked(bool linked);
+    void SetOverlayTransparencyLinked(bool linked);
 
     /// <summary>
     /// Get widget launcher transparency (0.0 to 1.0)
@@ -126,6 +136,16 @@ public interface ISettingsService
     void SetWidgetLauncherTransparency(double transparency);
 
     /// <summary>
+    /// Get whether widget launcher transparency is linked to the group
+    /// </summary>
+    bool GetLauncherTransparencyLinked();
+
+    /// <summary>
+    /// Set whether widget launcher transparency is linked to the group
+    /// </summary>
+    void SetLauncherTransparencyLinked(bool linked);
+
+    /// <summary>
     /// Get timer widget transparency (0.0 to 1.0)
     /// </summary>
     double GetTimerWidgetTransparency();
@@ -134,6 +154,16 @@ public interface ISettingsService
     /// Set timer widget transparency
     /// </summary>
     void SetTimerWidgetTransparency(double transparency);
+
+    /// <summary>
+    /// Get whether timer widget transparency is linked to the group
+    /// </summary>
+    bool GetTimerTransparencyLinked();
+
+    /// <summary>
+    /// Set whether timer widget transparency is linked to the group
+    /// </summary>
+    void SetTimerTransparencyLinked(bool linked);
 
     /// <summary>
     /// Get notification duration in milliseconds

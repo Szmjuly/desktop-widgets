@@ -7,8 +7,8 @@
         Background="Transparent"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
-        Width="750"
-        Height="650"
+        Width="550"
+        Height="550"
         Topmost="True"
         ShowInTaskbar="False"
         KeyDown="Window_KeyDown">
@@ -96,8 +96,8 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             
-            <!-- Header (draggable) -->
-            <Grid Grid.Row="0" Margin="0,0,0,20" Background="Transparent" MouseDown="Header_MouseDown" Cursor="Hand">
+            <!-- Header -->
+            <Grid Grid.Row="0" Margin="0,0,0,20">
                 <TextBlock Text="Settings" 
                            FontSize="24" 
                            FontWeight="SemiBold"
@@ -131,102 +131,51 @@
                 </Button>
             </Grid>
             
-            <!-- Side Menu Layout -->
-            <Grid Grid.Row="1">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="180"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+            <!-- Tabbed Settings Content -->
+            <TabControl Grid.Row="1" x:Name="SettingsTabs" Background="Transparent" BorderThickness="0">
+                <TabControl.Resources>
+                    <!-- Modern Tab Style -->
+                    <Style TargetType="TabItem">
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="TabItem">
+                                    <Border x:Name="Border"
+                                            Background="#22FFFFFF"
+                                            BorderBrush="#22FFFFFF"
+                                            BorderThickness="1"
+                                            CornerRadius="8,8,0,0"
+                                            Padding="16,10"
+                                            Margin="0,0,4,0"
+                                            Cursor="Hand">
+                                        <ContentPresenter ContentSource="Header"
+                                                         HorizontalAlignment="Center"
+                                                         VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                                            <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                                        </Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="#33FFFFFF"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                        <Setter Property="FontSize" Value="13"/>
+                        <Setter Property="FontWeight" Value="Medium"/>
+                    </Style>
+                </TabControl.Resources>
                 
-                <!-- Side Navigation Menu -->
-                <Border Grid.Column="0" Background="#18FFFFFF" CornerRadius="8" Padding="8" Margin="0,0,12,0">
-                    <StackPanel x:Name="NavigationMenu">
-                        <RadioButton x:Name="ShortcutsMenuButton" Content="⚡ Shortcuts" IsChecked="True" Checked="MenuButton_Checked" 
-                                     GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium" 
-                                     Foreground="{StaticResource TextBrush}" Cursor="Hand">
-                            <RadioButton.Style>
-                                <Style TargetType="RadioButton">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="RadioButton">
-                                                <Border x:Name="Border" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                    <ContentPresenter/>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsChecked" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryBrush}"/>
-                                                    </Trigger>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="#33FFFFFF"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </RadioButton.Style>
-                        </RadioButton>
-                        
-                        <RadioButton x:Name="AppearanceMenuButton" Content="🎨 Appearance" Checked="MenuButton_Checked"
-                                     GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
-                                     Foreground="{StaticResource TextBrush}" Cursor="Hand">
-                            <RadioButton.Style>
-                                <Style TargetType="RadioButton">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="RadioButton">
-                                                <Border x:Name="Border" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                    <ContentPresenter/>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsChecked" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryBrush}"/>
-                                                    </Trigger>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="#33FFFFFF"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </RadioButton.Style>
-                        </RadioButton>
-                        
-                        <RadioButton x:Name="GeneralMenuButton" Content="⚙️ General" Checked="MenuButton_Checked"
-                                     GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
-                                     Foreground="{StaticResource TextBrush}" Cursor="Hand">
-                            <RadioButton.Style>
-                                <Style TargetType="RadioButton">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="RadioButton">
-                                                <Border x:Name="Border" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                    <ContentPresenter/>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsChecked" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryBrush}"/>
-                                                    </Trigger>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="#33FFFFFF"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </RadioButton.Style>
-                        </RadioButton>
-                    </StackPanel>
-                </Border>
-                
-                <!-- Content Area -->
-                <Grid Grid.Column="1">
-                    <!-- Shortcuts Panel -->
-                    <Border x:Name="ShortcutsPanel" Background="{StaticResource SurfaceBrush}" 
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                            CornerRadius="8" Padding="20" Visibility="Visible">
+                <!-- Shortcuts Tab -->
+                <TabItem Header="⚡ Shortcuts">
+                    <Border Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1,0,1,1"
+                            CornerRadius="0,8,8,8"
+                            Padding="20">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
                     <!-- Hotkey Section -->
@@ -407,11 +356,15 @@
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
-                    
-                    <!-- Appearance Panel -->
-                    <Border x:Name="AppearancePanel" Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                            CornerRadius="8" Padding="20" Visibility="Collapsed">
+                </TabItem>
+                
+                <!-- Appearance Tab -->
+                <TabItem Header="🎨 Appearance">
+                    <Border Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1,0,1,1"
+                            CornerRadius="0,8,8,8"
+                            Padding="20">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
                     
@@ -422,40 +375,17 @@
                             CornerRadius="8"
                             Padding="16">
                         <StackPanel>
-                            <TextBlock Text="Window Transparency" 
-                                       FontSize="16" 
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextBrush}"
-                                       Margin="0,0,0,12"/>
-                            
-                            <!-- Settings Window Transparency -->
-                            <Grid Margin="0,0,0,8">
-                                <TextBlock Text="Settings Window" 
-                                           FontSize="13" 
-                                           FontWeight="Medium"
+                            <Grid Margin="0,0,0,12">
+                                <TextBlock Text="Window Transparency" 
+                                           FontSize="16" 
+                                           FontWeight="SemiBold"
                                            Foreground="{StaticResource TextBrush}"
-                                           VerticalAlignment="Center"/>
-                                
-                                <Button x:Name="LinkSettingsButton"
-                                        HorizontalAlignment="Right"
-                                        Width="24"
-                                        Height="24"
-                                        Background="#22FFFFFF"
-                                        BorderBrush="{StaticResource BorderBrush}"
-                                        BorderThickness="1"
-                                        Click="LinkSettingsButton_Click"
-                                        Cursor="Hand"
-                                        ToolTip="Link to other sliders">
-                                    <Grid>
-                                        <TextBlock Text="�" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Grid>
-                                    <Button.Resources>
-                                        <Style TargetType="Border">
-                                            <Setter Property="CornerRadius" Value="4"/>
-                                        </Style>
-                                    </Button.Resources>
-                                </Button>
-                            </Grid>
+                                           Margin="0,0,0,4"/>
+                                <TextBlock Text="Launch Project Searcher automatically when Windows starts" 
+                                       FontSize="13" 
+                                       FontWeight="Medium"
+                                       Foreground="{StaticResource TextBrush}"
+                                       Margin="0,0,0,8"/>
                             
                             <Grid Margin="0,0,0,16">
                                 <Grid.ColumnDefinitions>
@@ -489,10 +419,10 @@
                                                         VerticalAlignment="Center"/>
                                                 <Track x:Name="PART_Track">
                                                     <Track.DecreaseRepeatButton>
-                                                        <RepeatButton Command="Slider.DecreaseLarge" Opacity="0" IsHitTestVisible="False"/>
+                                                        <RepeatButton Command="Slider.DecreaseLarge" Background="Transparent" BorderThickness="0"/>
                                                     </Track.DecreaseRepeatButton>
                                                     <Track.IncreaseRepeatButton>
-                                                        <RepeatButton Command="Slider.IncreaseLarge" Opacity="0" IsHitTestVisible="False"/>
+                                                        <RepeatButton Command="Slider.IncreaseLarge" Background="Transparent" BorderThickness="0"/>
                                                     </Track.IncreaseRepeatButton>
                                                     <Track.Thumb>
                                                         <Thumb>
@@ -522,33 +452,121 @@
                             </Grid>
                             
                             <!-- Search Overlay Transparency -->
-                            <Grid Margin="0,0,0,8">
-                                <TextBlock Text="Search Overlay" 
-                                           FontSize="13" 
-                                           FontWeight="Medium"
+                            <TextBlock Text="Search Overlay" 
+                                           FontSize="16" 
+                                           FontWeight="SemiBold"
                                            Foreground="{StaticResource TextBrush}"
                                            VerticalAlignment="Center"/>
                                 
-                                <Button x:Name="LinkOverlayButton"
+                                <Button x:Name="LinkTransparencyButton"
                                         HorizontalAlignment="Right"
-                                        Width="24"
-                                        Height="24"
+                                        Width="28"
+                                        Height="28"
                                         Background="#22FFFFFF"
                                         BorderBrush="{StaticResource BorderBrush}"
-                                        BorderThickness="1"
-                                        Click="LinkOverlayButton_Click"
+                                        Click="LinkTransparencyButton_Click"
                                         Cursor="Hand"
-                                        ToolTip="Link to other sliders">
-                                    <Grid>
-                                        <TextBlock Text="�" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Grid>
-                                    <Button.Resources>
-                                        <Style TargetType="Border">
-                                            <Setter Property="CornerRadius" Value="4"/>
+                                        ToolTip="Link/Unlink transparency">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}" 
+                                                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                                                BorderThickness="1"
+                                                                CornerRadius="6">
+                                                            <TextBlock x:Name="LinkIcon"
+                                                                      Text="🔗"
+                                                                      FontSize="14"
+                                                                      HorizontalAlignment="Center"
+                                                                      VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
                                         </Style>
-                                    </Button.Resources>
+                                    </Button.Style>
                                 </Button>
                             </Grid>
+                            
+                            <!-- Settings Window Transparency -->
+                            <TextBlock Text="Settings Window" 
+                                       FontSize="13" 
+                                       FontWeight="Medium"
+                                       Foreground="{StaticResource TextBrush}"
+                                       Margin="0,0,0,8"/>
+                            
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <TextBlock Grid.Column="0"
+                                          Text="Transparent"
+                                          FontSize="10"
+                                          Foreground="{StaticResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,8,0"/>
+                                
+                                <Slider x:Name="SettingsTransparencySlider"
+                                       Grid.Column="1"
+                                       Minimum="0.4"
+                                       Maximum="0.95"
+                                       Value="0.78"
+                                       TickFrequency="0.05"
+                                       IsSnapToTickEnabled="True"
+                                       ValueChanged="SettingsTransparencySlider_ValueChanged"
+                                       VerticalAlignment="Center">
+                                    <Slider.Template>
+                                        <ControlTemplate TargetType="Slider">
+                                            <Grid>
+                                                <Border Background="#40FFFFFF" 
+                                                        Height="4" 
+                                                        CornerRadius="2"
+                                                        VerticalAlignment="Center"/>
+                                                <Track x:Name="PART_Track">
+                                                    <Track.DecreaseRepeatButton>
+                                                        <RepeatButton Command="Slider.DecreaseLarge" Background="Transparent" BorderThickness="0"/>
+                                                    </Track.DecreaseRepeatButton>
+                                                    <Track.IncreaseRepeatButton>
+                                                        <RepeatButton Command="Slider.IncreaseLarge" Background="Transparent" BorderThickness="0"/>
+                                                    </Track.IncreaseRepeatButton>
+                                                    <Track.Thumb>
+                                                        <Thumb>
+                                                            <Thumb.Template>
+                                                                <ControlTemplate>
+                                                                    <Ellipse Fill="{StaticResource PrimaryBrush}"
+                                                                            Width="16"
+                                                                            Height="16"
+                                                                            Stroke="White"
+                                                                            StrokeThickness="2"/>
+                                                                </ControlTemplate>
+                                                            </Thumb.Template>
+                                                        </Thumb>
+                                                    </Track.Thumb>
+                                                </Track>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Slider.Template>
+                                </Slider>
+                                
+                                <TextBlock Grid.Column="2"
+                                          Text="Opaque"
+                                          FontSize="10"
+                                          Foreground="{StaticResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center"
+                                          Margin="8,0,0,0"/>
+                            </Grid>
+                            
+                            <!-- Search Overlay Transparency -->
+                            <TextBlock Text="Search Overlay" 
+                                       FontSize="13" 
+                                       FontWeight="Medium"
+                                       Foreground="{StaticResource TextBrush}"
+                                       Margin="0,0,0,8"/>
                             
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -582,10 +600,10 @@
                                                         VerticalAlignment="Center"/>
                                                 <Track x:Name="PART_Track">
                                                     <Track.DecreaseRepeatButton>
-                                                        <RepeatButton Command="Slider.DecreaseLarge" Opacity="0" IsHitTestVisible="False"/>
+                                                        <RepeatButton Command="Slider.DecreaseLarge" Background="Transparent" BorderThickness="0"/>
                                                     </Track.DecreaseRepeatButton>
                                                     <Track.IncreaseRepeatButton>
-                                                        <RepeatButton Command="Slider.IncreaseLarge" Opacity="0" IsHitTestVisible="False"/>
+                                                        <RepeatButton Command="Slider.IncreaseLarge" Background="Transparent" BorderThickness="0"/>
                                                     </Track.IncreaseRepeatButton>
                                                     <Track.Thumb>
                                                         <Thumb>
@@ -615,33 +633,11 @@
                             </Grid>
                             
                             <!-- Widget Launcher Transparency -->
-                            <Grid Margin="0,16,0,8">
-                                <TextBlock Text="Widget Launcher" 
-                                           FontSize="13" 
-                                           FontWeight="Medium"
-                                           Foreground="{StaticResource TextBrush}"
-                                           VerticalAlignment="Center"/>
-                                
-                                <Button x:Name="LinkLauncherButton"
-                                        HorizontalAlignment="Right"
-                                        Width="24"
-                                        Height="24"
-                                        Background="#22FFFFFF"
-                                        BorderBrush="{StaticResource BorderBrush}"
-                                        BorderThickness="1"
-                                        Click="LinkLauncherButton_Click"
-                                        Cursor="Hand"
-                                        ToolTip="Link to other sliders">
-                                    <Grid>
-                                        <TextBlock Text="�" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Grid>
-                                    <Button.Resources>
-                                        <Style TargetType="Border">
-                                            <Setter Property="CornerRadius" Value="4"/>
-                                        </Style>
-                                    </Button.Resources>
-                                </Button>
-                            </Grid>
+                            <TextBlock Text="Widget Launcher" 
+                                       FontSize="13" 
+                                       FontWeight="Medium"
+                                       Foreground="{StaticResource TextBrush}"
+                                       Margin="0,16,0,8"/>
                             
                             <Grid Margin="0,0,0,16">
                                 <Grid.ColumnDefinitions>
@@ -675,10 +671,10 @@
                                                         VerticalAlignment="Center"/>
                                                 <Track x:Name="PART_Track">
                                                     <Track.DecreaseRepeatButton>
-                                                        <RepeatButton Command="Slider.DecreaseLarge" Opacity="0" IsHitTestVisible="False"/>
+                                                        <RepeatButton Command="Slider.DecreaseLarge" Background="Transparent" BorderThickness="0"/>
                                                     </Track.DecreaseRepeatButton>
                                                     <Track.IncreaseRepeatButton>
-                                                        <RepeatButton Command="Slider.IncreaseLarge" Opacity="0" IsHitTestVisible="False"/>
+                                                        <RepeatButton Command="Slider.IncreaseLarge" Background="Transparent" BorderThickness="0"/>
                                                     </Track.IncreaseRepeatButton>
                                                     <Track.Thumb>
                                                         <Thumb>
@@ -708,33 +704,11 @@
                             </Grid>
                             
                             <!-- Timer Widget Transparency -->
-                            <Grid Margin="0,0,0,8">
-                                <TextBlock Text="Timer Widget" 
-                                           FontSize="13" 
-                                           FontWeight="Medium"
-                                           Foreground="{StaticResource TextBrush}"
-                                           VerticalAlignment="Center"/>
-                                
-                                <Button x:Name="LinkTimerButton"
-                                        HorizontalAlignment="Right"
-                                        Width="24"
-                                        Height="24"
-                                        Background="#22FFFFFF"
-                                        BorderBrush="{StaticResource BorderBrush}"
-                                        BorderThickness="1"
-                                        Click="LinkTimerButton_Click"
-                                        Cursor="Hand"
-                                        ToolTip="Link to other sliders">
-                                    <Grid>
-                                        <TextBlock Text="�" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Grid>
-                                    <Button.Resources>
-                                        <Style TargetType="Border">
-                                            <Setter Property="CornerRadius" Value="4"/>
-                                        </Style>
-                                    </Button.Resources>
-                                </Button>
-                            </Grid>
+                            <TextBlock Text="Timer Widget" 
+                                       FontSize="13" 
+                                       FontWeight="Medium"
+                                       Foreground="{StaticResource TextBrush}"
+                                       Margin="0,0,0,8"/>
                             
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -768,10 +742,10 @@
                                                         VerticalAlignment="Center"/>
                                                 <Track x:Name="PART_Track">
                                                     <Track.DecreaseRepeatButton>
-                                                        <RepeatButton Command="Slider.DecreaseLarge" Opacity="0" IsHitTestVisible="False"/>
+                                                        <RepeatButton Command="Slider.DecreaseLarge" Background="Transparent" BorderThickness="0"/>
                                                     </Track.DecreaseRepeatButton>
                                                     <Track.IncreaseRepeatButton>
-                                                        <RepeatButton Command="Slider.IncreaseLarge" Opacity="0" IsHitTestVisible="False"/>
+                                                        <RepeatButton Command="Slider.IncreaseLarge" Background="Transparent" BorderThickness="0"/>
                                                     </Track.IncreaseRepeatButton>
                                                     <Track.Thumb>
                                                         <Thumb>
@@ -804,11 +778,15 @@
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
-                    
-                    <!-- General Panel -->
-                    <Border x:Name="GeneralPanel" Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                            CornerRadius="8" Padding="20" Visibility="Collapsed">
+                </TabItem>
+                
+                <!-- General Tab -->
+                <TabItem Header="⚙️ General">
+                    <Border Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1,0,1,1"
+                            CornerRadius="0,8,8,8"
+                            Padding="20">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
                     
@@ -886,156 +864,46 @@
                             Padding="16"
                             Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="Network Drives" 
+                            <TextBlock Text="Notification Duration" 
                                        FontSize="16" 
                                        FontWeight="SemiBold"
                                        Foreground="{StaticResource TextBrush}"
                                        Margin="0,0,0,8"/>
                             
-                            <TextBlock Text="Configure which network drives to scan for projects" 
+                            <TextBlock Text="How long balloon notifications stay visible" 
                                        FontSize="12" 
                                        Foreground="{StaticResource TextSecondaryBrush}"
-                                       Margin="0,0,0,16"/>
+                                       Margin="0,0,0,12"/>
                             
-                            <!-- Q Drive -->
-                            <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                
-                                <ToggleButton x:Name="QDriveEnabledToggle"
-                                              Grid.Column="0"
-                                              Width="50"
-                                              Height="28"
-                                              VerticalAlignment="Bottom"
-                                              Margin="0,0,12,4"
-                                              Checked="QDriveEnabledToggle_Checked"
-                                              Unchecked="QDriveEnabledToggle_Unchecked"
-                                              Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border"
-                                                                Background="#333333"
-                                                                CornerRadius="14"
-                                                                Width="50"
-                                                                Height="28">
-                                                            <Ellipse x:Name="Thumb"
-                                                                     Width="20"
-                                                                     Height="20"
-                                                                     Fill="White"
-                                                                     HorizontalAlignment="Left"
-                                                                     Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-                                
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="Q: Drive (Florida)" 
-                                               FontSize="14" 
-                                               FontWeight="Medium"
-                                               Foreground="{StaticResource TextBrush}"
-                                               Margin="0,0,0,4"/>
-                                    <TextBox x:Name="QDrivePathBox"
-                                             Text="Q:\"
-                                             FontSize="12"
-                                             Padding="6"
-                                             Background="#22FFFFFF"
+                            <!-- Radio buttons for preset durations -->
+                            <StackPanel x:Name="NotificationDurationStack" Margin="0,0,0,8">
+                                <RadioButton x:Name="NotificationShortRadio"
+                                             Content="Short (2 seconds)"
+                                             FontSize="13"
                                              Foreground="{StaticResource TextBrush}"
-                                             BorderBrush="{StaticResource BorderBrush}"
-                                             TextChanged="QDrivePathBox_TextChanged">
-                                        <TextBox.Resources>
-                                            <Style TargetType="Border">
-                                                <Setter Property="CornerRadius" Value="4"/>
-                                            </Style>
-                                        </TextBox.Resources>
-                                    </TextBox>
-                                </StackPanel>
-                            </Grid>
-                            
-                            <!-- P Drive -->
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
+                                             Margin="0,0,0,4"
+                                             Checked="NotificationDurationRadio_Checked"/>
                                 
-                                <ToggleButton x:Name="PDriveEnabledToggle"
-                                              Grid.Column="0"
-                                              Width="50"
-                                              Height="28"
-                                              VerticalAlignment="Bottom"
-                                              Margin="0,0,12,4"
-                                              Checked="PDriveEnabledToggle_Checked"
-                                              Unchecked="PDriveEnabledToggle_Unchecked"
-                                              Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border"
-                                                                Background="#333333"
-                                                                CornerRadius="14"
-                                                                Width="50"
-                                                                Height="28">
-                                                            <Ellipse x:Name="Thumb"
-                                                                     Width="20"
-                                                                     Height="20"
-                                                                     Fill="White"
-                                                                     HorizontalAlignment="Left"
-                                                                     Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-                                
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="P: Drive (Connecticut)" 
-                                               FontSize="14" 
-                                               FontWeight="Medium"
-                                               Foreground="{StaticResource TextBrush}"
-                                               Margin="0,0,0,4"/>
-                                    <TextBox x:Name="PDrivePathBox"
-                                             Text="P:\"
-                                             FontSize="12"
-                                             Padding="6"
-                                             Background="#22FFFFFF"
+                                <RadioButton x:Name="NotificationMediumRadio"
+                                             Content="Medium (3 seconds)"
+                                             FontSize="13"
                                              Foreground="{StaticResource TextBrush}"
-                                             BorderBrush="{StaticResource BorderBrush}"
-                                             TextChanged="PDrivePathBox_TextChanged">
-                                        <TextBox.Resources>
-                                            <Style TargetType="Border">
-                                                <Setter Property="CornerRadius" Value="4"/>
-                                            </Style>
-                                        </TextBox.Resources>
-                                    </TextBox>
-                                </StackPanel>
-                            </Grid>
+                                             Margin="0,0,0,4"
+                                             Checked="NotificationDurationRadio_Checked"/>
+                                
+                                <RadioButton x:Name="NotificationLongRadio"
+                                             Content="Long (5 seconds)"
+                                             FontSize="13"
+                                             Foreground="{StaticResource TextBrush}"
+                                             Margin="0,0,0,4"
+                                             Checked="NotificationDurationRadio_Checked"/>
+                                
+                                <RadioButton x:Name="NotificationDisabledRadio"
+                                             Content="Disabled (no notifications)"
+                                             FontSize="13"
+                                             Foreground="{StaticResource TextBrush}"
+                                             Checked="NotificationDurationRadio_Checked"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                     
@@ -1109,61 +977,11 @@
                             </ToggleButton>
                         </Grid>
                     </Border>
-                    
-                    <!-- Notification Duration Section -->
-                    <Border Background="{StaticResource SurfaceBrush}" 
-                            BorderBrush="{StaticResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="16">
-                        <StackPanel>
-                            <TextBlock Text="Notification Duration" 
-                                       FontSize="16" 
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextBrush}"
-                                       Margin="0,0,0,8"/>
-                            
-                            <TextBlock Text="How long balloon notifications stay visible" 
-                                       FontSize="12" 
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       Margin="0,0,0,12"/>
-                            
-                            <!-- Radio buttons for preset durations -->
-                            <StackPanel x:Name="NotificationDurationStack" Margin="0,0,0,8">
-                                <RadioButton x:Name="NotificationShortRadio"
-                                             Content="Short (2 seconds)"
-                                             FontSize="13"
-                                             Foreground="{StaticResource TextBrush}"
-                                             Margin="0,0,0,4"
-                                             Checked="NotificationDurationRadio_Checked"/>
-                                
-                                <RadioButton x:Name="NotificationMediumRadio"
-                                             Content="Medium (3 seconds)"
-                                             FontSize="13"
-                                             Foreground="{StaticResource TextBrush}"
-                                             Margin="0,0,0,4"
-                                             Checked="NotificationDurationRadio_Checked"/>
-                                
-                                <RadioButton x:Name="NotificationLongRadio"
-                                             Content="Long (5 seconds)"
-                                             FontSize="13"
-                                             Foreground="{StaticResource TextBrush}"
-                                             Margin="0,0,0,4"
-                                             Checked="NotificationDurationRadio_Checked"/>
-                                
-                                <RadioButton x:Name="NotificationDisabledRadio"
-                                             Content="Disabled (no notifications)"
-                                             FontSize="13"
-                                             Foreground="{StaticResource TextBrush}"
-                                             Checked="NotificationDurationRadio_Checked"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
-                </Grid>
-            </Grid>
+                </TabItem>
+            </TabControl>
             
             <!-- Footer -->
             <Grid Grid.Row="2" Margin="0,20,0,0">
