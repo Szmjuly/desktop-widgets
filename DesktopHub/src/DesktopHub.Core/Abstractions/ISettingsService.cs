@@ -226,6 +226,66 @@ public interface ISettingsService
     void SetWidgetLauncherVisible(bool visible);
 
     /// <summary>
+    /// Get quick tasks widget transparency (0.0 to 1.0)
+    /// </summary>
+    double GetQuickTasksWidgetTransparency();
+
+    /// <summary>
+    /// Set quick tasks widget transparency
+    /// </summary>
+    void SetQuickTasksWidgetTransparency(double transparency);
+
+    /// <summary>
+    /// Get whether quick tasks widget transparency is linked to the group
+    /// </summary>
+    bool GetQuickTasksTransparencyLinked();
+
+    /// <summary>
+    /// Set whether quick tasks widget transparency is linked to the group
+    /// </summary>
+    void SetQuickTasksTransparencyLinked(bool linked);
+
+    /// <summary>
+    /// Get saved timer widget position
+    /// </summary>
+    (double? left, double? top) GetTimerWidgetPosition();
+
+    /// <summary>
+    /// Set timer widget position
+    /// </summary>
+    void SetTimerWidgetPosition(double left, double top);
+
+    /// <summary>
+    /// Get saved timer widget visibility state
+    /// </summary>
+    bool GetTimerWidgetVisible();
+
+    /// <summary>
+    /// Set timer widget visibility state
+    /// </summary>
+    void SetTimerWidgetVisible(bool visible);
+
+    /// <summary>
+    /// Get saved quick tasks widget position
+    /// </summary>
+    (double? left, double? top) GetQuickTasksWidgetPosition();
+
+    /// <summary>
+    /// Set quick tasks widget position
+    /// </summary>
+    void SetQuickTasksWidgetPosition(double left, double top);
+
+    /// <summary>
+    /// Get saved quick tasks widget visibility state
+    /// </summary>
+    bool GetQuickTasksWidgetVisible();
+
+    /// <summary>
+    /// Set quick tasks widget visibility state
+    /// </summary>
+    void SetQuickTasksWidgetVisible(bool visible);
+
+    /// <summary>
     /// Get close shortcut configuration for closing widgets
     /// </summary>
     (int modifiers, int key) GetCloseShortcut();

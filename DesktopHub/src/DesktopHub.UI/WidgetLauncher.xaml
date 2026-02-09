@@ -10,7 +10,7 @@
         WindowStartupLocation="Manual"
         ResizeMode="NoResize"
         Width="180"
-        Height="140"
+        Height="190"
         Deactivated="Window_Deactivated"
         KeyDown="Window_KeyDown">
     
@@ -67,6 +67,29 @@
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="⏱️" FontSize="14" Margin="0,0,8,0"/>
                                 <TextBlock Text="Timer" FontSize="12" Foreground="#F5F7FA" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border x:Name="QuickTasksWidgetButton"
+                                Background="#10F5F7FA"
+                                BorderBrush="#30F5F7FA"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="12,10"
+                                Margin="0,0,0,8"
+                                Cursor="Hand"
+                                MouseLeftButtonDown="QuickTasksWidgetButton_Click">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#25F5F7FA"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#9745;" FontSize="14" Margin="0,0,8,0"/>
+                                <TextBlock Text="Quick Tasks" FontSize="12" Foreground="#F5F7FA" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

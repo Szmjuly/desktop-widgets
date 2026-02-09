@@ -10,6 +10,7 @@ namespace DesktopHub.UI;
 public partial class WidgetLauncher : Window
 {
     public event EventHandler? TimerWidgetRequested;
+    public event EventHandler? QuickTasksWidgetRequested;
     private bool _isDragging = false;
     private System.Windows.Point _dragStartPoint;
     private bool _isLivingWidgetsMode = false;
@@ -44,6 +45,11 @@ public partial class WidgetLauncher : Window
     private void TimerWidgetButton_Click(object sender, MouseButtonEventArgs e)
     {
         TimerWidgetRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void QuickTasksWidgetButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        QuickTasksWidgetRequested?.Invoke(this, EventArgs.Empty);
     }
     
     private void Window_Deactivated(object sender, EventArgs e)

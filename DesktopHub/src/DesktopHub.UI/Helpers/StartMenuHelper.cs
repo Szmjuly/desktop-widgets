@@ -10,8 +10,8 @@ public static class StartMenuHelper
         try
         {
             var startMenuPath = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
-            var shortcutFolder = Path.Combine(startMenuPath, "Project Searcher");
-            var shortcutPath = Path.Combine(shortcutFolder, "Project Searcher.lnk");
+            var shortcutFolder = Path.Combine(startMenuPath, "DesktopHub");
+            var shortcutPath = Path.Combine(shortcutFolder, "DesktopHub.lnk");
 
             // Create folder if it doesn't exist
             if (!Directory.Exists(shortcutFolder))
@@ -42,7 +42,7 @@ public static class StartMenuHelper
                     dynamic shortcut = shell.CreateShortcut(shortcutPath);
                     shortcut.TargetPath = Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "";
                     shortcut.WorkingDirectory = Path.GetDirectoryName(shortcut.TargetPath) ?? "";
-                    shortcut.Description = "Quick project search tool";
+                    shortcut.Description = "DesktopHub - Desktop Widgets and Project Search";
                     shortcut.Save();
 
                     DebugLogger.Log($"StartMenuHelper: Created Start Menu shortcut at {shortcutPath}");
@@ -68,7 +68,7 @@ public static class StartMenuHelper
         try
         {
             var startMenuPath = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
-            var shortcutFolder = Path.Combine(startMenuPath, "Project Searcher");
+            var shortcutFolder = Path.Combine(startMenuPath, "DesktopHub");
 
             if (Directory.Exists(shortcutFolder))
             {

@@ -29,7 +29,9 @@ public partial class SearchOverlay : Window
     private GlobalHotkey? _hotkey;
     private TrayIcon? _trayIcon;
     private TimerOverlay? _timerOverlay;
+    private QuickTasksOverlay? _quickTasksOverlay;
     private WidgetLauncher? _widgetLauncher;
+    private TaskService? _taskService;
     private List<Project> _allProjects = new();
     private List<Project> _filteredProjects = new();
     private CancellationTokenSource? _searchCts;
@@ -46,6 +48,7 @@ public partial class SearchOverlay : Window
     private Helpers.DesktopFollower? _desktopFollower;
 
     public bool IsClosing => _isClosing;
+    public TaskService? TaskService => _taskService;
 
     public SearchOverlay()
     {
@@ -60,6 +63,7 @@ public partial class SearchOverlay : Window
         _dataStore = new SqliteDataStore();
         _settings = new SettingsService();
         _timerService = new TimerService();
+        _taskService = new TaskService(new Infrastructure.Data.TaskDataStore());
 
         // Setup transparency when window handle is available
         SourceInitialized += (s, e) =>
@@ -189,6 +193,7 @@ public partial class SearchOverlay : Window
             // Initialize widget launcher
             _widgetLauncher = new WidgetLauncher(_settings);
             _widgetLauncher.TimerWidgetRequested += OnTimerWidgetRequested;
+            _widgetLauncher.QuickTasksWidgetRequested += OnQuickTasksWidgetRequested;
 
             // Register global hotkey (Ctrl+Alt+Space by default)
             try
@@ -250,6 +255,22 @@ public partial class SearchOverlay : Window
                 {
                     _widgetLauncher.Visibility = widgetLauncherVisible ? Visibility.Visible : Visibility.Hidden;
                     DebugLogger.Log($"Restored widget launcher visibility: {widgetLauncherVisible}");
+                }
+                
+                // Restore timer widget if it was visible
+                var timerVisible = _settings.GetTimerWidgetVisible();
+                if (timerVisible)
+                {
+                    CreateTimerOverlay();
+                    DebugLogger.Log("Restored timer widget from previous session");
+                }
+                
+                // Restore quick tasks widget if it was visible
+                var quickTasksVisible = _settings.GetQuickTasksWidgetVisible();
+                if (quickTasksVisible)
+                {
+                    CreateQuickTasksOverlay();
+                    DebugLogger.Log("Restored quick tasks widget from previous session");
                 }
             }
             else
@@ -1622,6 +1643,30 @@ public partial class SearchOverlay : Window
                 _settings.SetWidgetLauncherVisible(_widgetLauncher.Visibility == Visibility.Visible);
             }
             
+            // Save timer widget position and visibility
+            if (_timerOverlay != null)
+            {
+                _settings.SetTimerWidgetPosition(_timerOverlay.Left, _timerOverlay.Top);
+                _settings.SetTimerWidgetVisible(_timerOverlay.Visibility == Visibility.Visible);
+                DebugLogger.Log($"Window_Closing: Saved timer position: ({_timerOverlay.Left}, {_timerOverlay.Top}), visible: {_timerOverlay.Visibility == Visibility.Visible}");
+            }
+            else
+            {
+                _settings.SetTimerWidgetVisible(false);
+            }
+            
+            // Save quick tasks widget position and visibility
+            if (_quickTasksOverlay != null)
+            {
+                _settings.SetQuickTasksWidgetPosition(_quickTasksOverlay.Left, _quickTasksOverlay.Top);
+                _settings.SetQuickTasksWidgetVisible(_quickTasksOverlay.Visibility == Visibility.Visible);
+                DebugLogger.Log($"Window_Closing: Saved quick tasks position: ({_quickTasksOverlay.Left}, {_quickTasksOverlay.Top}), visible: {_quickTasksOverlay.Visibility == Visibility.Visible}");
+            }
+            else
+            {
+                _settings.SetQuickTasksWidgetVisible(false);
+            }
+            
             // Save async but don't await (app is closing)
             _ = _settings.SaveAsync();
             DebugLogger.Log("Window_Closing: Saved widget positions and visibility state");
@@ -1808,28 +1853,35 @@ public partial class SearchOverlay : Window
         }
     }
     
+    private void CreateTimerOverlay(double? left = null, double? top = null)
+    {
+        _timerOverlay = new TimerOverlay(_timerService, _settings);
+        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+        _timerOverlay.Topmost = !isLivingWidgetsMode;
+
+        // Use provided position, then saved position, then default
+        var (savedLeft, savedTop) = _settings.GetTimerWidgetPosition();
+        _timerOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + 12);
+        _timerOverlay.Top = top ?? savedTop ?? this.Top;
+
+        _timerOverlay.Show();
+        _timerOverlay.Tag = "WasVisible";
+
+        if (isLivingWidgetsMode && _desktopFollower != null)
+        {
+            _desktopFollower.TrackWindow(_timerOverlay);
+        }
+
+        DebugLogger.Log($"CreateTimerOverlay: Timer overlay created at ({_timerOverlay.Left}, {_timerOverlay.Top}), Topmost={_timerOverlay.Topmost}");
+    }
+
     private void OnTimerWidgetRequested(object? sender, EventArgs e)
     {
         try
         {
             if (_timerOverlay == null)
             {
-                _timerOverlay = new TimerOverlay(_timerService, _settings);
-                var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
-                _timerOverlay.Topmost = !isLivingWidgetsMode; // Only topmost in legacy mode
-                _timerOverlay.Left = this.Left + this.Width + 12;
-                _timerOverlay.Top = this.Top;
-                
-                _timerOverlay.Show();
-                _timerOverlay.Tag = "WasVisible";
-                
-                // Track timer overlay in desktop follower
-                if (isLivingWidgetsMode && _desktopFollower != null)
-                {
-                    _desktopFollower.TrackWindow(_timerOverlay);
-                }
-                
-                DebugLogger.Log($"OnTimerWidgetRequested: Timer overlay created and shown (Topmost={_timerOverlay.Topmost})");
+                CreateTimerOverlay();
             }
             else
             {
@@ -1854,6 +1906,59 @@ public partial class SearchOverlay : Window
         }
     }
     
+    private void CreateQuickTasksOverlay(double? left = null, double? top = null)
+    {
+        _quickTasksOverlay = new QuickTasksOverlay(_taskService!, _settings);
+        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+        _quickTasksOverlay.Topmost = !isLivingWidgetsMode;
+
+        // Use provided position, then saved position, then default
+        var (savedLeft, savedTop) = _settings.GetQuickTasksWidgetPosition();
+        _quickTasksOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + 12);
+        _quickTasksOverlay.Top = top ?? savedTop ?? this.Top;
+
+        _quickTasksOverlay.Show();
+        _quickTasksOverlay.Tag = "WasVisible";
+
+        if (isLivingWidgetsMode && _desktopFollower != null)
+        {
+            _desktopFollower.TrackWindow(_quickTasksOverlay);
+        }
+
+        DebugLogger.Log($"CreateQuickTasksOverlay: Quick Tasks overlay created at ({_quickTasksOverlay.Left}, {_quickTasksOverlay.Top}), Topmost={_quickTasksOverlay.Topmost}");
+    }
+
+    private void OnQuickTasksWidgetRequested(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (_quickTasksOverlay == null)
+            {
+                CreateQuickTasksOverlay();
+            }
+            else
+            {
+                if (_quickTasksOverlay.Visibility == Visibility.Visible)
+                {
+                    _quickTasksOverlay.Visibility = Visibility.Hidden;
+                    _quickTasksOverlay.Tag = null;
+                    DebugLogger.Log("OnQuickTasksWidgetRequested: Quick Tasks overlay hidden");
+                }
+                else
+                {
+                    _quickTasksOverlay.Visibility = Visibility.Visible;
+                    _quickTasksOverlay.Tag = "WasVisible";
+                    DebugLogger.Log("OnQuickTasksWidgetRequested: Quick Tasks overlay shown");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"OnQuickTasksWidgetRequested: Error with quick tasks overlay: {ex}");
+            System.Windows.MessageBox.Show($"Error with quick tasks overlay: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private void PositionTimerOverlayOnSameScreen()
     {
         if (_timerOverlay == null)
@@ -2074,6 +2179,11 @@ public partial class SearchOverlay : Window
             _desktopFollower.TrackWindow(_timerOverlay);
         }
         
+        if (_quickTasksOverlay != null)
+        {
+            _desktopFollower.TrackWindow(_quickTasksOverlay);
+        }
+        
         _desktopFollower.Start();
     }
     
@@ -2110,6 +2220,12 @@ public partial class SearchOverlay : Window
                 _timerOverlay.Topmost = false;
             }
             
+            // Disable Topmost for quick tasks overlay too if it exists
+            if (_quickTasksOverlay != null)
+            {
+                _quickTasksOverlay.Topmost = false;
+            }
+            
             // Start following desktop switches
             StartDesktopFollower();
             
@@ -2131,6 +2247,12 @@ public partial class SearchOverlay : Window
             if (_timerOverlay != null)
             {
                 _timerOverlay.Topmost = true;
+            }
+            
+            // Enable Topmost for quick tasks overlay too if it exists
+            if (_quickTasksOverlay != null)
+            {
+                _quickTasksOverlay.Topmost = true;
             }
             
             // Stop following desktop switches
@@ -2184,6 +2306,12 @@ public partial class SearchOverlay : Window
                 if (_timerOverlay != null)
                 {
                     _timerOverlay.UpdateTransparency();
+                }
+                
+                // Update quick tasks overlay transparency if it exists
+                if (_quickTasksOverlay != null)
+                {
+                    _quickTasksOverlay.UpdateTransparency();
                 }
             });
         }

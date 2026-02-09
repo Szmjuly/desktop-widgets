@@ -1,15 +1,18 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Win32;
 using DesktopHub.Core.Abstractions;
 using DesktopHub.Infrastructure.Settings;
 using DesktopHub.UI.Helpers;
+using DesktopHub.UI.Services;
 
 namespace DesktopHub.UI;
 
 public partial class SettingsWindow : Window
 {
     private readonly ISettingsService _settings;
+    private readonly TaskService? _taskService;
     private bool _isRecording;
     private int _recordedModifiers;
     private int _recordedKey;
@@ -22,11 +25,13 @@ public partial class SettingsWindow : Window
     private Action? _onDriveSettingsChanged;
     private Action? _onTransparencyChanged;
     private bool _isUpdatingSliders;
+    private bool _isLoadingQTSettings;
 
-    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null)
+    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null)
     {
         InitializeComponent();
         _settings = settings;
+        _taskService = taskService;
         _onHotkeyChanged = onHotkeyChanged;
         _onCloseShortcutChanged = onCloseShortcutChanged;
         _onLivingWidgetsModeChanged = onLivingWidgetsModeChanged;
@@ -166,6 +171,9 @@ public partial class SettingsWindow : Window
             
             // Load notification duration setting
             LoadNotificationDurationSetting();
+            
+            // Load Quick Tasks config
+            LoadQuickTasksSettings();
             
             UpdateAllLinkButtons();
         }
@@ -543,6 +551,7 @@ public partial class SettingsWindow : Window
             if (ShortcutsPanel != null) ShortcutsPanel.Visibility = Visibility.Collapsed;
             if (AppearancePanel != null) AppearancePanel.Visibility = Visibility.Collapsed;
             if (GeneralPanel != null) GeneralPanel.Visibility = Visibility.Collapsed;
+            if (QuickTasksPanel != null) QuickTasksPanel.Visibility = Visibility.Collapsed;
 
             // Show selected panel
             if (radioButton.Name == "ShortcutsMenuButton" && ShortcutsPanel != null)
@@ -556,6 +565,10 @@ public partial class SettingsWindow : Window
             else if (radioButton.Name == "GeneralMenuButton" && GeneralPanel != null)
             {
                 GeneralPanel.Visibility = Visibility.Visible;
+            }
+            else if (radioButton.Name == "QuickTasksMenuButton" && QuickTasksPanel != null)
+            {
+                QuickTasksPanel.Visibility = Visibility.Visible;
             }
         }
     }
@@ -895,5 +908,177 @@ public partial class SettingsWindow : Window
         await _settings.SaveAsync();
         StatusText.Text = "Living Widgets Mode disabled - widgets will auto-hide when clicking away";
         _onLivingWidgetsModeChanged?.Invoke();
+    }
+
+    // ===== Quick Tasks Settings =====
+
+    private void LoadQuickTasksSettings()
+    {
+        if (_taskService == null) return;
+
+        _isLoadingQTSettings = true;
+        try
+        {
+            var config = _taskService.Config;
+            QT_ShowCompletedToggle.IsChecked = config.ShowCompletedTasks;
+            QT_CompactModeToggle.IsChecked = config.CompactMode;
+            QT_AutoCarryOverToggle.IsChecked = config.AutoCarryOver;
+            QT_CompletedOpacitySlider.Value = config.CompletedOpacity;
+
+            // Default priority
+            QT_PriorityLow.IsChecked = config.DefaultPriority == "low";
+            QT_PriorityNormal.IsChecked = config.DefaultPriority == "normal";
+            QT_PriorityHigh.IsChecked = config.DefaultPriority == "high";
+
+            // Sort mode
+            QT_SortManual.IsChecked = config.SortBy == "manual";
+            QT_SortPriority.IsChecked = config.SortBy == "priority";
+            QT_SortCreated.IsChecked = config.SortBy == "created";
+
+            // Categories
+            RenderCategoriesList();
+        }
+        finally
+        {
+            _isLoadingQTSettings = false;
+        }
+    }
+
+    private void RenderCategoriesList()
+    {
+        if (_taskService == null || QT_CategoriesList == null) return;
+
+        QT_CategoriesList.Children.Clear();
+        foreach (var category in _taskService.Config.Categories)
+        {
+            var cat = category;
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var label = new System.Windows.Controls.TextBlock
+            {
+                Text = cat,
+                FontSize = 13,
+                Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(label, 0);
+            row.Children.Add(label);
+
+            var removeBtn = new System.Windows.Controls.Button
+            {
+                Content = "✕",
+                Width = 26,
+                Height = 26,
+                FontSize = 11,
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
+                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0x52, 0x52)),
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            // Apply rounded template
+            var btnTemplate = new System.Windows.Controls.ControlTemplate(typeof(System.Windows.Controls.Button));
+            var btnBorder = new FrameworkElementFactory(typeof(Border));
+            btnBorder.SetValue(Border.BackgroundProperty, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)));
+            btnBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
+            var btnContent = new FrameworkElementFactory(typeof(System.Windows.Controls.ContentPresenter));
+            btnContent.SetValue(System.Windows.Controls.ContentPresenter.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
+            btnContent.SetValue(System.Windows.Controls.ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+            btnBorder.AppendChild(btnContent);
+            btnTemplate.VisualTree = btnBorder;
+            removeBtn.Template = btnTemplate;
+            removeBtn.Click += async (s, ev) =>
+            {
+                _taskService.Config.Categories.Remove(cat);
+                await _taskService.ApplyConfigAsync();
+                RenderCategoriesList();
+                StatusText.Text = $"Category '{cat}' removed";
+            };
+            Grid.SetColumn(removeBtn, 1);
+            row.Children.Add(removeBtn);
+
+            QT_CategoriesList.Children.Add(row);
+        }
+    }
+
+    private async void QT_ShowCompletedToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingQTSettings || _taskService == null) return;
+        _taskService.Config.ShowCompletedTasks = QT_ShowCompletedToggle.IsChecked == true;
+        await _taskService.ApplyConfigAsync();
+        StatusText.Text = _taskService.Config.ShowCompletedTasks ? "Completed tasks visible" : "Completed tasks hidden";
+    }
+
+    private async void QT_CompactModeToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingQTSettings || _taskService == null) return;
+        _taskService.Config.CompactMode = QT_CompactModeToggle.IsChecked == true;
+        await _taskService.ApplyConfigAsync();
+        StatusText.Text = _taskService.Config.CompactMode ? "Compact mode enabled" : "Compact mode disabled";
+    }
+
+    private async void QT_AutoCarryOverToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingQTSettings || _taskService == null) return;
+        _taskService.Config.AutoCarryOver = QT_AutoCarryOverToggle.IsChecked == true;
+        await _taskService.ApplyConfigAsync();
+        StatusText.Text = _taskService.Config.AutoCarryOver ? "Auto carry-over enabled" : "Auto carry-over disabled";
+    }
+
+    private async void QT_CompletedOpacitySlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isLoadingQTSettings || _taskService == null) return;
+        _taskService.Config.CompletedOpacity = QT_CompletedOpacitySlider.Value;
+        await _taskService.ApplyConfigAsync();
+    }
+
+    private async void QT_DefaultPriority_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingQTSettings || _taskService == null) return;
+        if (QT_PriorityLow.IsChecked == true) _taskService.Config.DefaultPriority = "low";
+        else if (QT_PriorityHigh.IsChecked == true) _taskService.Config.DefaultPriority = "high";
+        else _taskService.Config.DefaultPriority = "normal";
+        await _taskService.ApplyConfigAsync();
+        StatusText.Text = $"Default priority: {_taskService.Config.DefaultPriority}";
+    }
+
+    private async void QT_SortMode_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingQTSettings || _taskService == null) return;
+        if (QT_SortPriority.IsChecked == true) _taskService.Config.SortBy = "priority";
+        else if (QT_SortCreated.IsChecked == true) _taskService.Config.SortBy = "created";
+        else _taskService.Config.SortBy = "manual";
+        await _taskService.ApplyConfigAsync();
+        StatusText.Text = $"Sort order: {_taskService.Config.SortBy}";
+    }
+
+    private async void QT_AddCategory_Click(object sender, RoutedEventArgs e)
+    {
+        await AddNewCategory();
+    }
+
+    private async void QT_NewCategoryInput_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            await AddNewCategory();
+            e.Handled = true;
+        }
+    }
+
+    private async Task AddNewCategory()
+    {
+        if (_taskService == null) return;
+        var name = QT_NewCategoryInput.Text.Trim();
+        if (string.IsNullOrEmpty(name)) return;
+        if (_taskService.Config.Categories.Contains(name)) return;
+
+        _taskService.Config.Categories.Add(name);
+        await _taskService.ApplyConfigAsync();
+        QT_NewCategoryInput.Text = "";
+        RenderCategoriesList();
+        StatusText.Text = $"Category '{name}' added";
     }
 }

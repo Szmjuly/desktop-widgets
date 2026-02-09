@@ -23,7 +23,7 @@ public class TrayIcon : IDisposable
         {
             Icon = LoadCustomIcon(),
             Visible = true,
-            Text = $"Project Searcher - Press {_hotkeyLabel} to search"
+            Text = $"DesktopHub - Press {_hotkeyLabel} to search"
         };
 
         // Use custom styled menu instead of Windows Forms context menu
@@ -39,7 +39,7 @@ public class TrayIcon : IDisposable
         _notifyIcon.DoubleClick += (s, e) => ShowSearch();
 
         // Show balloon tip on first run
-        ShowBalloonTip("Project Searcher", $"Press {_hotkeyLabel} to search projects", System.Windows.Forms.ToolTipIcon.Info);
+        ShowBalloonTip("DesktopHub", $"Press {_hotkeyLabel} to search projects", System.Windows.Forms.ToolTipIcon.Info);
     }
 
     private static System.Drawing.Icon LoadCustomIcon()
@@ -192,7 +192,7 @@ public class TrayIcon : IDisposable
 
     private void RescanProjects()
     {
-        ShowBalloonTip("Project Searcher", "Rescanning Q: drive...", System.Windows.Forms.ToolTipIcon.Info);
+        ShowBalloonTip("DesktopHub", "Rescanning Q: drive...", System.Windows.Forms.ToolTipIcon.Info);
 
         // Trigger rescan
         Task.Run(async () =>
@@ -206,11 +206,11 @@ public class TrayIcon : IDisposable
                     // Trigger background scan
                 });
 
-                ShowBalloonTip("Project Searcher", "Rescan complete", System.Windows.Forms.ToolTipIcon.Info);
+                ShowBalloonTip("DesktopHub", "Rescan complete", System.Windows.Forms.ToolTipIcon.Info);
             }
             catch (Exception ex)
             {
-                ShowBalloonTip("Project Searcher", $"Rescan failed: {ex.Message}", System.Windows.Forms.ToolTipIcon.Error);
+                ShowBalloonTip("DesktopHub", $"Rescan failed: {ex.Message}", System.Windows.Forms.ToolTipIcon.Error);
             }
         });
     }
@@ -480,7 +480,8 @@ REM Delete this batch file
                 null, // Close shortcut is checked dynamically by widgets
                 () => _searchOverlay.UpdateDraggingMode(),
                 () => _searchOverlay.OnDriveSettingsChanged(),
-                () => _searchOverlay.UpdateTransparency()
+                () => _searchOverlay.UpdateTransparency(),
+                _searchOverlay.TaskService
             );
             settings.Show();
         }), System.Windows.Threading.DispatcherPriority.Normal);
@@ -490,7 +491,7 @@ REM Delete this batch file
     {
         var confirmed = _searchOverlay.Dispatcher.Invoke(() =>
         {
-            return ConfirmationDialog.Show("Are you sure you want to exit Project Searcher?");
+            return ConfirmationDialog.Show("Are you sure you want to exit DesktopHub?");
         });
 
         if (confirmed)

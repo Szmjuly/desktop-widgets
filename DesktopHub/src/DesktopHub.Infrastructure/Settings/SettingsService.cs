@@ -106,6 +106,32 @@ public class SettingsService : ISettingsService
     public bool GetWidgetLauncherVisible() => _settings.WidgetLauncherVisible;
     public void SetWidgetLauncherVisible(bool visible) => _settings.WidgetLauncherVisible = visible;
 
+    public double GetQuickTasksWidgetTransparency() => _settings.QuickTasksWidgetTransparency;
+    public void SetQuickTasksWidgetTransparency(double transparency) => _settings.QuickTasksWidgetTransparency = transparency;
+
+    public bool GetQuickTasksTransparencyLinked() => _settings.QuickTasksTransparencyLinked;
+    public void SetQuickTasksTransparencyLinked(bool linked) => _settings.QuickTasksTransparencyLinked = linked;
+
+    public (double? left, double? top) GetTimerWidgetPosition() => (_settings.TimerWidgetLeft, _settings.TimerWidgetTop);
+    public void SetTimerWidgetPosition(double left, double top)
+    {
+        _settings.TimerWidgetLeft = left;
+        _settings.TimerWidgetTop = top;
+    }
+
+    public bool GetTimerWidgetVisible() => _settings.TimerWidgetVisible;
+    public void SetTimerWidgetVisible(bool visible) => _settings.TimerWidgetVisible = visible;
+
+    public (double? left, double? top) GetQuickTasksWidgetPosition() => (_settings.QuickTasksWidgetLeft, _settings.QuickTasksWidgetTop);
+    public void SetQuickTasksWidgetPosition(double left, double top)
+    {
+        _settings.QuickTasksWidgetLeft = left;
+        _settings.QuickTasksWidgetTop = top;
+    }
+
+    public bool GetQuickTasksWidgetVisible() => _settings.QuickTasksWidgetVisible;
+    public void SetQuickTasksWidgetVisible(bool visible) => _settings.QuickTasksWidgetVisible = visible;
+
     public (int modifiers, int key) GetCloseShortcut() => (_settings.CloseShortcutModifiers, _settings.CloseShortcutKey);
     public void SetCloseShortcut(int modifiers, int key)
     {
@@ -175,6 +201,20 @@ public class SettingsService : ISettingsService
         public bool SearchOverlayVisible { get; set; } = false; // False = overlay hidden by default
         public bool WidgetLauncherVisible { get; set; } = true; // True = show launcher by default
         
+        // Quick Tasks widget
+        public double QuickTasksWidgetTransparency { get; set; } = 0.78;
+        public bool QuickTasksTransparencyLinked { get; set; } = false;
+        
+        // Timer widget position & visibility
+        public double? TimerWidgetLeft { get; set; } = null;
+        public double? TimerWidgetTop { get; set; } = null;
+        public bool TimerWidgetVisible { get; set; } = false;
+        
+        // Quick Tasks widget position & visibility
+        public double? QuickTasksWidgetLeft { get; set; } = null;
+        public double? QuickTasksWidgetTop { get; set; } = null;
+        public bool QuickTasksWidgetVisible { get; set; } = false;
+
         // Close shortcut for closing widgets (ESC by default)
         public int CloseShortcutModifiers { get; set; } = DefaultCloseShortcutModifiers;
         public int CloseShortcutKey { get; set; } = DefaultCloseShortcutKey;
