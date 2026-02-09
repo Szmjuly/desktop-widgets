@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="..\..\secrets\firebase-license.json" Link="firebase-license.json" />
+    <EmbeddedResource Include="..\..\assets\DesktopHub_logo.png" Link="DesktopHub_logo.png" />
   </ItemGroup>
 
   <PropertyGroup>

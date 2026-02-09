@@ -21,7 +21,7 @@ public class TrayIcon : IDisposable
 
         _notifyIcon = new System.Windows.Forms.NotifyIcon
         {
-            Icon = System.Drawing.SystemIcons.Application, // TODO: Add custom icon
+            Icon = LoadCustomIcon(),
             Visible = true,
             Text = $"Project Searcher - Press {_hotkeyLabel} to search"
         };
@@ -40,6 +40,84 @@ public class TrayIcon : IDisposable
 
         // Show balloon tip on first run
         ShowBalloonTip("Project Searcher", $"Press {_hotkeyLabel} to search projects", System.Windows.Forms.ToolTipIcon.Info);
+    }
+
+    private static System.Drawing.Icon LoadCustomIcon()
+    {
+        try
+        {
+            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            var resourceName = "DesktopHub.UI.DesktopHub_logo.png";
+            
+            using (var stream = assembly.GetManifestResourceStream(resourceName))
+            {
+                if (stream != null)
+                {
+                    using (var originalBitmap = new System.Drawing.Bitmap(stream))
+                    {
+                        // Trim transparent edges to maximize visible content
+                        var trimmedBitmap = TrimTransparentEdges(originalBitmap);
+                        
+                        // Resize to 56x56 for optimal visibility in system tray
+                        // The trimming ensures the actual graphic fills more of the icon space
+                        using (var resizedBitmap = new System.Drawing.Bitmap(trimmedBitmap, new System.Drawing.Size(56, 56)))
+                        {
+                            trimmedBitmap.Dispose();
+                            
+                            // Convert bitmap to icon
+                            var handle = resizedBitmap.GetHicon();
+                            return System.Drawing.Icon.FromHandle(handle);
+                        }
+                    }
+                }
+            }
+            
+            DebugLogger.Log("TrayIcon: Failed to load custom icon, using default");
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"TrayIcon: Error loading custom icon: {ex.Message}");
+        }
+        
+        return System.Drawing.SystemIcons.Application;
+    }
+    
+    private static System.Drawing.Bitmap TrimTransparentEdges(System.Drawing.Bitmap source)
+    {
+        // Find the bounds of non-transparent pixels
+        int minX = source.Width;
+        int minY = source.Height;
+        int maxX = 0;
+        int maxY = 0;
+        
+        for (int y = 0; y < source.Height; y++)
+        {
+            for (int x = 0; x < source.Width; x++)
+            {
+                var pixel = source.GetPixel(x, y);
+                if (pixel.A > 10) // Not fully transparent
+                {
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+        
+        // Add small padding to avoid clipping
+        int padding = 10;
+        minX = Math.Max(0, minX - padding);
+        minY = Math.Max(0, minY - padding);
+        maxX = Math.Min(source.Width - 1, maxX + padding);
+        maxY = Math.Min(source.Height - 1, maxY + padding);
+        
+        int width = maxX - minX + 1;
+        int height = maxY - minY + 1;
+        
+        // Create cropped bitmap
+        var cropRect = new System.Drawing.Rectangle(minX, minY, width, height);
+        return source.Clone(cropRect, source.PixelFormat);
     }
 
     private void ShowBalloonTip(string title, string text, System.Windows.Forms.ToolTipIcon icon)

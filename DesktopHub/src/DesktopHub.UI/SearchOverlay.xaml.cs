@@ -43,6 +43,7 @@ public partial class SearchOverlay : Window
     private bool _isClosing = false;
     private bool _isDragging = false;
     private System.Windows.Point _dragStartPoint;
+    private Helpers.DesktopFollower? _desktopFollower;
 
     public bool IsClosing => _isClosing;
 
@@ -207,6 +208,7 @@ public partial class SearchOverlay : Window
             }
 
             // Initialize dragging mode based on Living Widgets Mode setting
+            // Note: Virtual desktop pinning is deferred until after window is fully loaded
             UpdateDraggingMode();
             
             // Restore saved widget positions and visibility if in Living Widgets Mode
@@ -264,6 +266,12 @@ public partial class SearchOverlay : Window
 
             // Start IPC listener for commands from second instances
             _ = Task.Run(() => StartIpcListener());
+            
+            // Start desktop follower to move widgets across virtual desktops
+            if (isLivingWidgetsMode)
+            {
+                StartDesktopFollower();
+            }
             
             // Load transparency setting
             // ...
@@ -919,10 +927,17 @@ public partial class SearchOverlay : Window
         this.Visibility = Visibility.Hidden;
         this.Opacity = 0;
         
-        // Hide widget launcher
-        if (_widgetLauncher != null)
+        // In Living Widgets Mode, widget launcher is independent - don't auto-hide
+        // Only hide widget launcher in legacy mode (when not in Living Widgets Mode)
+        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+        if (!isLivingWidgetsMode && _widgetLauncher != null)
         {
             _widgetLauncher.Visibility = Visibility.Hidden;
+            DebugLogger.Log("HideOverlay: Also hid widget launcher (legacy mode)");
+        }
+        else if (isLivingWidgetsMode)
+        {
+            DebugLogger.Log("HideOverlay: Widget launcher remains independent (Living Widgets Mode)");
         }
         
         // Timer overlay is now independent - don't auto-hide with search overlay
@@ -1575,6 +1590,9 @@ public partial class SearchOverlay : Window
         DebugLogger.Log("Window_Closing: Setting closing state");
         _isClosing = true;
         
+        // Stop desktop follower
+        StopDesktopFollower();
+        
         // Save widget positions if in Living Widgets Mode
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
         if (isLivingWidgetsMode)
@@ -1782,16 +1800,20 @@ public partial class SearchOverlay : Window
             if (_timerOverlay == null)
             {
                 _timerOverlay = new TimerOverlay(_timerService, _settings);
-                
-                // Set Topmost based on Living Widgets Mode
                 var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
-                _timerOverlay.Topmost = !isLivingWidgetsMode; // False in Living Widgets Mode
-                
-                // Position timer overlay on same screen as search overlay
-                PositionTimerOverlayOnSameScreen();
+                _timerOverlay.Topmost = !isLivingWidgetsMode; // Only topmost in legacy mode
+                _timerOverlay.Left = this.Left + this.Width + 12;
+                _timerOverlay.Top = this.Top;
                 
                 _timerOverlay.Show();
                 _timerOverlay.Tag = "WasVisible";
+                
+                // Track timer overlay in desktop follower
+                if (isLivingWidgetsMode && _desktopFollower != null)
+                {
+                    _desktopFollower.TrackWindow(_timerOverlay);
+                }
+                
                 DebugLogger.Log($"OnTimerWidgetRequested: Timer overlay created and shown (Topmost={_timerOverlay.Topmost})");
             }
             else
@@ -2017,6 +2039,39 @@ public partial class SearchOverlay : Window
         }
     }
     
+    private void StartDesktopFollower()
+    {
+        // Stop existing follower if any
+        StopDesktopFollower();
+        
+        _desktopFollower = new Helpers.DesktopFollower();
+        
+        // Track all widget windows
+        _desktopFollower.TrackWindow(this);
+        
+        if (_widgetLauncher != null)
+        {
+            _desktopFollower.TrackWindow(_widgetLauncher);
+        }
+        
+        if (_timerOverlay != null)
+        {
+            _desktopFollower.TrackWindow(_timerOverlay);
+        }
+        
+        _desktopFollower.Start();
+    }
+    
+    private void StopDesktopFollower()
+    {
+        if (_desktopFollower != null)
+        {
+            _desktopFollower.Stop();
+            _desktopFollower.Dispose();
+            _desktopFollower = null;
+        }
+    }
+    
     public void UpdateDraggingMode()
     {
         // Called when Living Widgets Mode setting changes
@@ -2040,6 +2095,9 @@ public partial class SearchOverlay : Window
                 _timerOverlay.Topmost = false;
             }
             
+            // Start following desktop switches
+            StartDesktopFollower();
+            
             DebugLogger.Log("Window dragging enabled (Living Widgets Mode ON) - Topmost disabled");
         }
         else
@@ -2059,6 +2117,9 @@ public partial class SearchOverlay : Window
             {
                 _timerOverlay.Topmost = true;
             }
+            
+            // Stop following desktop switches
+            StopDesktopFollower();
             
             DebugLogger.Log("Window dragging disabled (Living Widgets Mode OFF) - Topmost enabled");
         }
