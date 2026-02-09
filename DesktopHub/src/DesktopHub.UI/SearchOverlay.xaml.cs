@@ -1037,21 +1037,36 @@ public partial class SearchOverlay : Window
 
     private void PopulateDriveLocationFilter()
     {
-        var locations = new List<string> { "All Locations" };
-        
-        // Only add enabled drives to the dropdown
-        if (_settings.GetQDriveEnabled())
+        bool qEnabled = _settings.GetQDriveEnabled();
+        bool pEnabled = _settings.GetPDriveEnabled();
+        int enabledCount = (qEnabled ? 1 : 0) + (pEnabled ? 1 : 0);
+
+        var locations = new List<string>();
+
+        if (enabledCount <= 1)
         {
-            locations.Add("Florida (Q:)");
+            // Single drive — show only that drive name, no dropdown interaction
+            if (qEnabled) locations.Add("Florida (Q:)");
+            else if (pEnabled) locations.Add("Connecticut (P:)");
+            else locations.Add("No Locations");
+
+            DriveLocationFilter.ItemsSource = locations;
+            DriveLocationFilter.SelectedIndex = 0;
+            DriveLocationFilter.IsHitTestVisible = false;
+            DriveLocationFilter.Cursor = System.Windows.Input.Cursors.Arrow;
         }
-        
-        if (_settings.GetPDriveEnabled())
+        else
         {
-            locations.Add("Connecticut (P:)");
+            // Multiple drives — show "All Locations" plus each drive
+            locations.Add("All Locations");
+            if (qEnabled) locations.Add("Florida (Q:)");
+            if (pEnabled) locations.Add("Connecticut (P:)");
+
+            DriveLocationFilter.ItemsSource = locations;
+            DriveLocationFilter.SelectedIndex = 0;
+            DriveLocationFilter.IsHitTestVisible = true;
+            DriveLocationFilter.Cursor = System.Windows.Input.Cursors.Hand;
         }
-        
-        DriveLocationFilter.ItemsSource = locations;
-        DriveLocationFilter.SelectedIndex = 0;
     }
 
     private async Task BackgroundScanAsync()

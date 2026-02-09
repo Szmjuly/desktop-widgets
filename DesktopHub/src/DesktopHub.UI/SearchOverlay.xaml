@@ -179,6 +179,7 @@
                               BorderThickness="0"
                               SelectionChanged="DriveLocationFilter_SelectionChanged">
                         <ComboBox.Resources>
+                            <BooleanToVisibilityConverter x:Key="BoolToVis"/>
                             <Style TargetType="ComboBox">
                                 <Setter Property="Template">
                                     <Setter.Value>
@@ -214,7 +215,8 @@
                                                                           Fill="#F5F7FA"
                                                                           HorizontalAlignment="Center"
                                                                           VerticalAlignment="Center"
-                                                                          Data="M 0 0 L 4 4 L 8 0 Z"/>
+                                                                          Data="M 0 0 L 4 4 L 8 0 Z"
+                                                                          Visibility="{Binding IsHitTestVisible, RelativeSource={RelativeSource AncestorType=ComboBox}, Converter={StaticResource BoolToVis}}"/>
                                                                 </Grid>
                                                             </Border>
                                                             <ControlTemplate.Triggers>
