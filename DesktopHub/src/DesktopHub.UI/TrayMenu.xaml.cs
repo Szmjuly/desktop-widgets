@@ -1,11 +1,20 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 using DesktopHub.UI.Helpers;
 
 namespace DesktopHub.UI;
 
 public partial class TrayMenu : Window
 {
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
     private readonly Action _onOpenSearch;
     private readonly Action _onRescanProjects;
     private readonly Action _onCheckForUpdates;
@@ -15,6 +24,8 @@ public partial class TrayMenu : Window
     private bool _itemClicked;
     private bool _isClosing;
     private DateTime _openedTime;
+    private DispatcherTimer? _dismissTimer;
+    private IntPtr _hwnd;
 
     public TrayMenu(Action onOpenSearch, Action onRescanProjects, Action onCheckForUpdates, Action onSettings, Action onExit)
     {
@@ -50,6 +61,17 @@ public partial class TrayMenu : Window
             PositionNearCursor();
             _openedTime = DateTime.Now;
             DebugLogger.Log($"TrayMenu: Loaded at {_openedTime:HH:mm:ss.fff}");
+
+            // Get our HWND and force ourselves to be the foreground window
+            // so that Deactivated fires reliably in most cases
+            _hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            SetForegroundWindow(_hwnd);
+
+            // Start a dismiss timer as a fallback for cases where Deactivated
+            // does NOT fire (e.g. user clicks the Windows taskbar)
+            _dismissTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+            _dismissTimer.Tick += DismissTimer_Tick;
+            _dismissTimer.Start();
         };
         
         // Log all mouse activity
@@ -179,9 +201,41 @@ public partial class TrayMenu : Window
         }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
     }
 
+    /// <summary>
+    /// Safe close that prevents the double-close crash.
+    /// All code paths that want to dismiss the menu should call this.
+    /// </summary>
+    private void SafeClose(string reason)
+    {
+        if (_isClosing) return;
+        _isClosing = true;
+        _dismissTimer?.Stop();
+        DebugLogger.Log($"TrayMenu: SafeClose - {reason}");
+        try { this.Close(); } catch (InvalidOperationException) { /* already closing */ }
+    }
+
+    private void DismissTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_isClosing || _isExiting || _itemClicked) return;
+
+        var timeSinceOpen = DateTime.Now - _openedTime;
+        if (timeSinceOpen.TotalMilliseconds < 500) return; // grace period
+
+        // If the foreground window is no longer us, something else was clicked
+        var fg = GetForegroundWindow();
+        if (fg != IntPtr.Zero && fg != _hwnd)
+        {
+            // Double-check mouse isn't over the menu (user may have clicked
+            // a child popup or tooltip that changed foreground temporarily)
+            if (!IsMouseOverWindow())
+            {
+                SafeClose($"DismissTimer - foreground changed to 0x{fg:X}");
+            }
+        }
+    }
+
     private void Window_Deactivated(object sender, EventArgs e)
     {
-        // Prevent double-close crash
         if (_isClosing)
         {
             DebugLogger.Log("TrayMenu: Window_Deactivated - Ignoring (already closing)");
@@ -196,41 +250,38 @@ public partial class TrayMenu : Window
             return;
         }
         
-        // Check mouse position IMMEDIATELY (before user can move it)
-        var isMouseOver = this.IsMouseOver || IsMouseOverWindow();
-        DebugLogger.Log($"TrayMenu: Window_Deactivated - _isExiting={_isExiting}, _itemClicked={_itemClicked}, IsMouseOver={isMouseOver}, timeSinceOpen={timeSinceOpen.TotalMilliseconds:F0}ms");
-        
-        // If item was clicked, close immediately
-        if (_itemClicked)
-        {
-            DebugLogger.Log("TrayMenu: Window_Deactivated - CLOSING (item clicked)");
-            _isClosing = true;
-            this.Close();
-            return;
-        }
-        
         if (_isExiting)
         {
             DebugLogger.Log("TrayMenu: Window_Deactivated - Ignoring (exiting)");
             return;
         }
         
-        // If mouse is over the window, don't close
-        if (isMouseOver)
+        if (_itemClicked)
+        {
+            SafeClose("Deactivated - item clicked");
+            return;
+        }
+        
+        // If mouse is over the window, don't close (user just moved focus briefly)
+        if (IsMouseOverWindow())
         {
             DebugLogger.Log("TrayMenu: Window_Deactivated - NOT closing (mouse is over window)");
             return;
         }
         
-        // Mouse is not over window, close it
-        DebugLogger.Log("TrayMenu: Window_Deactivated - CLOSING (mouse not over)");
-        _isClosing = true;
-        this.Close();
+        SafeClose("Deactivated - mouse not over");
     }
 
     private void Window_LostFocus(object sender, RoutedEventArgs e)
     {
         DebugLogger.Log($"TrayMenu: Window_LostFocus - ignoring (handled by Window_Deactivated)");
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _dismissTimer?.Stop();
+        _dismissTimer = null;
+        base.OnClosed(e);
     }
     
     private bool IsMouseOverWindow()

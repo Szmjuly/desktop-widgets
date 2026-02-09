@@ -141,7 +141,7 @@ public class TrayIcon : IDisposable
                     if (_currentMenu != null && !_currentMenu.IsClosed())
                     {
                         DebugLogger.Log("ShowCustomMenu: Closing existing menu");
-                        _currentMenu.Close();
+                        try { _currentMenu.Close(); } catch (InvalidOperationException) { /* already closing */ }
                         _currentMenu = null;
                     }
 
