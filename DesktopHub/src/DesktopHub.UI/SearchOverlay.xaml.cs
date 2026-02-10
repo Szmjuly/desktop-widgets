@@ -30,8 +30,10 @@ public partial class SearchOverlay : Window
     private TrayIcon? _trayIcon;
     private TimerOverlay? _timerOverlay;
     private QuickTasksOverlay? _quickTasksOverlay;
+    private DocQuickOpenOverlay? _docOverlay;
     private WidgetLauncher? _widgetLauncher;
     private TaskService? _taskService;
+    private DocOpenService? _docService;
     private List<Project> _allProjects = new();
     private List<Project> _filteredProjects = new();
     private CancellationTokenSource? _searchCts;
@@ -49,6 +51,7 @@ public partial class SearchOverlay : Window
 
     public bool IsClosing => _isClosing;
     public TaskService? TaskService => _taskService;
+    public DocOpenService? DocService => _docService;
 
     public SearchOverlay()
     {
@@ -64,6 +67,7 @@ public partial class SearchOverlay : Window
         _settings = new SettingsService();
         _timerService = new TimerService();
         _taskService = new TaskService(new Infrastructure.Data.TaskDataStore());
+        _docService = new DocOpenService(new Infrastructure.Scanning.DocumentScanner());
 
         // Setup transparency when window handle is available
         SourceInitialized += (s, e) =>
@@ -194,6 +198,7 @@ public partial class SearchOverlay : Window
             _widgetLauncher = new WidgetLauncher(_settings);
             _widgetLauncher.TimerWidgetRequested += OnTimerWidgetRequested;
             _widgetLauncher.QuickTasksWidgetRequested += OnQuickTasksWidgetRequested;
+            _widgetLauncher.DocQuickOpenRequested += OnDocQuickOpenRequested;
 
             // Register global hotkey (Ctrl+Alt+Space by default)
             try
@@ -271,6 +276,14 @@ public partial class SearchOverlay : Window
                 {
                     CreateQuickTasksOverlay();
                     DebugLogger.Log("Restored quick tasks widget from previous session");
+                }
+                
+                // Restore doc quick open widget if it was visible
+                var docVisible = _settings.GetDocWidgetVisible();
+                if (docVisible)
+                {
+                    CreateDocOverlay();
+                    DebugLogger.Log("Restored doc quick open widget from previous session");
                 }
             }
             else
@@ -1469,9 +1482,20 @@ public partial class SearchOverlay : Window
         }
     }
 
-    private void ResultsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private async void ResultsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        // Could show more details here
+        // Feed selected project to Doc Quick Open widget
+        if (ResultsList.SelectedItem is ProjectViewModel vm && _docOverlay?.Widget != null)
+        {
+            try
+            {
+                await _docOverlay.Widget.SetProjectAsync(vm.Path, $"{vm.FullNumber} {vm.Name}");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"ResultsList_SelectionChanged: Error feeding project to doc widget: {ex.Message}");
+            }
+        }
     }
 
     private void ResultsList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -1665,6 +1689,18 @@ public partial class SearchOverlay : Window
             else
             {
                 _settings.SetQuickTasksWidgetVisible(false);
+            }
+            
+            // Save doc quick open widget position and visibility
+            if (_docOverlay != null)
+            {
+                _settings.SetDocWidgetPosition(_docOverlay.Left, _docOverlay.Top);
+                _settings.SetDocWidgetVisible(_docOverlay.Visibility == Visibility.Visible);
+                DebugLogger.Log($"Window_Closing: Saved doc overlay position: ({_docOverlay.Left}, {_docOverlay.Top}), visible: {_docOverlay.Visibility == Visibility.Visible}");
+            }
+            else
+            {
+                _settings.SetDocWidgetVisible(false);
             }
             
             // Save async but don't await (app is closing)
@@ -1864,6 +1900,9 @@ public partial class SearchOverlay : Window
         _timerOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + 12);
         _timerOverlay.Top = top ?? savedTop ?? this.Top;
 
+        if (isLivingWidgetsMode)
+            _timerOverlay.EnableDragging();
+
         _timerOverlay.Show();
         _timerOverlay.Tag = "WasVisible";
 
@@ -1917,6 +1956,9 @@ public partial class SearchOverlay : Window
         _quickTasksOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + 12);
         _quickTasksOverlay.Top = top ?? savedTop ?? this.Top;
 
+        if (isLivingWidgetsMode)
+            _quickTasksOverlay.EnableDragging();
+
         _quickTasksOverlay.Show();
         _quickTasksOverlay.Tag = "WasVisible";
 
@@ -1956,6 +1998,61 @@ public partial class SearchOverlay : Window
         {
             DebugLogger.Log($"OnQuickTasksWidgetRequested: Error with quick tasks overlay: {ex}");
             System.Windows.MessageBox.Show($"Error with quick tasks overlay: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void CreateDocOverlay(double? left = null, double? top = null)
+    {
+        _docOverlay = new DocQuickOpenOverlay(_docService!, _settings);
+        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+        _docOverlay.Topmost = !isLivingWidgetsMode;
+
+        var (savedLeft, savedTop) = _settings.GetDocWidgetPosition();
+        _docOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + 12);
+        _docOverlay.Top = top ?? savedTop ?? (this.Top + 100);
+
+        if (isLivingWidgetsMode)
+            _docOverlay.EnableDragging();
+
+        _docOverlay.Show();
+        _docOverlay.Tag = "WasVisible";
+
+        if (isLivingWidgetsMode && _desktopFollower != null)
+        {
+            _desktopFollower.TrackWindow(_docOverlay);
+        }
+
+        DebugLogger.Log($"CreateDocOverlay: Doc overlay created at ({_docOverlay.Left}, {_docOverlay.Top}), Topmost={_docOverlay.Topmost}");
+    }
+
+    private void OnDocQuickOpenRequested(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (_docOverlay == null)
+            {
+                CreateDocOverlay();
+            }
+            else
+            {
+                if (_docOverlay.Visibility == Visibility.Visible)
+                {
+                    _docOverlay.Visibility = Visibility.Hidden;
+                    _docOverlay.Tag = null;
+                    DebugLogger.Log("OnDocQuickOpenRequested: Doc overlay hidden");
+                }
+                else
+                {
+                    _docOverlay.Visibility = Visibility.Visible;
+                    _docOverlay.Tag = "WasVisible";
+                    DebugLogger.Log("OnDocQuickOpenRequested: Doc overlay shown");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"OnDocQuickOpenRequested: Error with doc overlay: {ex}");
+            System.Windows.MessageBox.Show($"Error with doc overlay: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -2184,6 +2281,11 @@ public partial class SearchOverlay : Window
             _desktopFollower.TrackWindow(_quickTasksOverlay);
         }
         
+        if (_docOverlay != null)
+        {
+            _desktopFollower.TrackWindow(_docOverlay);
+        }
+        
         _desktopFollower.Start();
     }
     
@@ -2214,16 +2316,25 @@ public partial class SearchOverlay : Window
                 _widgetLauncher.Topmost = false;
             }
             
-            // Disable Topmost for timer overlay too if it exists
+            // Enable dragging and disable Topmost for timer overlay too if it exists
             if (_timerOverlay != null)
             {
+                _timerOverlay.EnableDragging();
                 _timerOverlay.Topmost = false;
             }
             
-            // Disable Topmost for quick tasks overlay too if it exists
+            // Enable dragging and disable Topmost for quick tasks overlay too if it exists
             if (_quickTasksOverlay != null)
             {
+                _quickTasksOverlay.EnableDragging();
                 _quickTasksOverlay.Topmost = false;
+            }
+            
+            // Enable dragging and disable Topmost for doc overlay too if it exists
+            if (_docOverlay != null)
+            {
+                _docOverlay.EnableDragging();
+                _docOverlay.Topmost = false;
             }
             
             // Start following desktop switches
@@ -2243,16 +2354,25 @@ public partial class SearchOverlay : Window
                 _widgetLauncher.Topmost = true;
             }
             
-            // Enable Topmost for timer overlay too if it exists
+            // Disable dragging and enable Topmost for timer overlay too if it exists
             if (_timerOverlay != null)
             {
+                _timerOverlay.DisableDragging();
                 _timerOverlay.Topmost = true;
             }
             
-            // Enable Topmost for quick tasks overlay too if it exists
+            // Disable dragging and enable Topmost for quick tasks overlay too if it exists
             if (_quickTasksOverlay != null)
             {
+                _quickTasksOverlay.DisableDragging();
                 _quickTasksOverlay.Topmost = true;
+            }
+            
+            // Disable dragging and enable Topmost for doc overlay too if it exists
+            if (_docOverlay != null)
+            {
+                _docOverlay.DisableDragging();
+                _docOverlay.Topmost = true;
             }
             
             // Stop following desktop switches
@@ -2312,6 +2432,12 @@ public partial class SearchOverlay : Window
                 if (_quickTasksOverlay != null)
                 {
                     _quickTasksOverlay.UpdateTransparency();
+                }
+                
+                // Update doc overlay transparency if it exists
+                if (_docOverlay != null)
+                {
+                    _docOverlay.UpdateTransparency();
                 }
             });
         }

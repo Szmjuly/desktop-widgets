@@ -12,7 +12,6 @@
         Width="380"
         SizeToContent="Height"
         MaxHeight="700"
-        MouseLeftButtonDown="Window_MouseLeftButtonDown"
         KeyDown="Window_KeyDown">
     
     <Border x:Name="RootBorder"

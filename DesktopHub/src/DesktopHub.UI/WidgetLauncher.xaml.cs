@@ -11,6 +11,7 @@ public partial class WidgetLauncher : Window
 {
     public event EventHandler? TimerWidgetRequested;
     public event EventHandler? QuickTasksWidgetRequested;
+    public event EventHandler? DocQuickOpenRequested;
     private bool _isDragging = false;
     private System.Windows.Point _dragStartPoint;
     private bool _isLivingWidgetsMode = false;
@@ -50,6 +51,11 @@ public partial class WidgetLauncher : Window
     private void QuickTasksWidgetButton_Click(object sender, MouseButtonEventArgs e)
     {
         QuickTasksWidgetRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void DocQuickOpenButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        DocQuickOpenRequested?.Invoke(this, EventArgs.Empty);
     }
     
     private void Window_Deactivated(object sender, EventArgs e)

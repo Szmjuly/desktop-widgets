@@ -481,7 +481,8 @@ REM Delete this batch file
                 () => _searchOverlay.UpdateDraggingMode(),
                 () => _searchOverlay.OnDriveSettingsChanged(),
                 () => _searchOverlay.UpdateTransparency(),
-                _searchOverlay.TaskService
+                _searchOverlay.TaskService,
+                _searchOverlay.DocService
             );
             settings.Show();
         }), System.Windows.Threading.DispatcherPriority.Normal);

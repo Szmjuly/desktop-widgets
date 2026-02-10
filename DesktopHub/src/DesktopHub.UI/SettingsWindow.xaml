@@ -244,6 +244,32 @@
                                 </Style>
                             </RadioButton.Style>
                         </RadioButton>
+                        
+                        <RadioButton x:Name="DocQuickOpenMenuButton" Content="📄 Doc Quick Open" Checked="MenuButton_Checked"
+                                     GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
+                                     Foreground="{StaticResource TextBrush}" Cursor="Hand">
+                            <RadioButton.Style>
+                                <Style TargetType="RadioButton">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="RadioButton">
+                                                <Border x:Name="Border" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryBrush}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="#33FFFFFF"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </RadioButton.Style>
+                        </RadioButton>
                     </StackPanel>
                 </Border>
                 
@@ -1421,6 +1447,307 @@
                             </Grid>
                         </StackPanel>
                     </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                    
+                    <!-- Doc Quick Open Panel -->
+                    <Border x:Name="DocQuickOpenPanel" Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
+                            <StackPanel>
+                    
+                    <!-- Display Settings -->
+                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Display" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                            
+                            <!-- Show File Size -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Show File Size" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Display file size next to each file" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                                <ToggleButton x:Name="DQ_ShowFileSizeToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
+                                              Checked="DQ_ShowFileSizeToggle_Changed" Unchecked="DQ_ShowFileSizeToggle_Changed" Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
+                            </Grid>
+                            
+                            <!-- Show Date Modified -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Show Date Modified" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Display last modified date for each file" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                                <ToggleButton x:Name="DQ_ShowDateModifiedToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
+                                              Checked="DQ_ShowDateModifiedToggle_Changed" Unchecked="DQ_ShowDateModifiedToggle_Changed" Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
+                            </Grid>
+                            
+                            <!-- Show File Extension -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Show File Extension" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Show .pdf, .dwg etc. in file names" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                                <ToggleButton x:Name="DQ_ShowFileExtToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
+                                              Checked="DQ_ShowFileExtToggle_Changed" Unchecked="DQ_ShowFileExtToggle_Changed" Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
+                            </Grid>
+                            
+                            <!-- Compact Mode -->
+                            <Grid Margin="0,0,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Compact Mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Tighter row spacing for more files on screen" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                                <ToggleButton x:Name="DQ_CompactModeToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
+                                              Checked="DQ_CompactModeToggle_Changed" Unchecked="DQ_CompactModeToggle_Changed" Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- Scanning Settings -->
+                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Scanning" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                            
+                            <!-- Max Scan Depth -->
+                            <StackPanel Margin="0,0,0,12">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Max Scan Depth" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBlock x:Name="DQ_MaxDepthValue" Grid.Column="1" Text="3" FontSize="13" Foreground="{StaticResource AccentBrush}"/>
+                                </Grid>
+                                <TextBlock Text="How many subfolder levels deep to scan (1-5)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
+                                <Slider x:Name="DQ_MaxDepthSlider" Minimum="1" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        ValueChanged="DQ_MaxDepthSlider_Changed" Foreground="{StaticResource AccentBrush}"/>
+                            </StackPanel>
+                            
+                            <!-- Max Files -->
+                            <StackPanel Margin="0,0,0,12">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Max Files" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBlock x:Name="DQ_MaxFilesValue" Grid.Column="1" Text="200" FontSize="13" Foreground="{StaticResource AccentBrush}"/>
+                                </Grid>
+                                <TextBlock Text="Maximum number of files to display (50-500)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
+                                <Slider x:Name="DQ_MaxFilesSlider" Minimum="50" Maximum="500" TickFrequency="50" IsSnapToTickEnabled="True"
+                                        ValueChanged="DQ_MaxFilesSlider_Changed" Foreground="{StaticResource AccentBrush}"/>
+                            </StackPanel>
+                            
+                            <!-- File Extensions -->
+                            <TextBlock Text="File Extensions" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                            <TextBlock Text="Comma-separated list of extensions to scan" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                            <TextBox x:Name="DQ_ExtensionsInput" FontSize="12" Padding="8,6" TextWrapping="Wrap" MinHeight="48"
+                                     Background="#22FFFFFF" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                     LostFocus="DQ_ExtensionsInput_LostFocus">
+                                <TextBox.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></TextBox.Resources>
+                            </TextBox>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- Sorting & Grouping -->
+                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Sorting &amp; Grouping" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                            
+                            <!-- Sort By -->
+                            <TextBlock Text="Sort By" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                <RadioButton x:Name="DQ_SortName" Content="Name" GroupName="DQSort" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0" Checked="DQ_SortChanged" Cursor="Hand"/>
+                                <RadioButton x:Name="DQ_SortDate" Content="Date" GroupName="DQSort" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0" Checked="DQ_SortChanged" Cursor="Hand"/>
+                                <RadioButton x:Name="DQ_SortType" Content="Type" GroupName="DQSort" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0" Checked="DQ_SortChanged" Cursor="Hand"/>
+                                <RadioButton x:Name="DQ_SortSize" Content="Size" GroupName="DQSort" Foreground="{StaticResource TextBrush}" Checked="DQ_SortChanged" Cursor="Hand"/>
+                            </StackPanel>
+                            
+                            <!-- Group By -->
+                            <TextBlock Text="Group By" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
+                                <RadioButton x:Name="DQ_GroupNone" Content="None" GroupName="DQGroup" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0" Checked="DQ_GroupChanged" Cursor="Hand"/>
+                                <RadioButton x:Name="DQ_GroupCategory" Content="Category" GroupName="DQGroup" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0" Checked="DQ_GroupChanged" Cursor="Hand"/>
+                                <RadioButton x:Name="DQ_GroupExt" Content="Extension" GroupName="DQGroup" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0" Checked="DQ_GroupChanged" Cursor="Hand"/>
+                                <RadioButton x:Name="DQ_GroupSubfolder" Content="Subfolder" GroupName="DQGroup" Foreground="{StaticResource TextBrush}" Checked="DQ_GroupChanged" Cursor="Hand"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- Behavior -->
+                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Behavior" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                            
+                            <!-- Auto-open last project -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Remember Last Project" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Auto-open the last selected project on launch" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                                <ToggleButton x:Name="DQ_AutoOpenToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
+                                              Checked="DQ_AutoOpenToggle_Changed" Unchecked="DQ_AutoOpenToggle_Changed" Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
+                            </Grid>
+                            
+                            <!-- Recent Files Count -->
+                            <StackPanel Margin="0,0,0,12">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Recent Files Count" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBlock x:Name="DQ_RecentCountValue" Grid.Column="1" Text="10" FontSize="13" Foreground="{StaticResource AccentBrush}"/>
+                                </Grid>
+                                <TextBlock Text="Number of recently opened files to remember (0 = disabled)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
+                                <Slider x:Name="DQ_RecentCountSlider" Minimum="0" Maximum="20" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        ValueChanged="DQ_RecentCountSlider_Changed" Foreground="{StaticResource AccentBrush}"/>
+                            </StackPanel>
+                            
+                            <!-- Transparency -->
+                            <StackPanel Margin="0,0,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Widget Transparency" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBlock x:Name="DQ_TransparencyValue" Grid.Column="1" Text="78%" FontSize="13" Foreground="{StaticResource AccentBrush}"/>
+                                </Grid>
+                                <TextBlock Text="Adjust the widget background transparency" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
+                                <Slider x:Name="DQ_TransparencySlider" Minimum="0.3" Maximum="1.0" TickFrequency="0.01" IsSnapToTickEnabled="True"
+                                        ValueChanged="DQ_TransparencySlider_Changed" Foreground="{StaticResource AccentBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                    
                             </StackPanel>
                         </ScrollViewer>
                     </Border>

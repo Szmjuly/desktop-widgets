@@ -1,0 +1,29 @@
+<Window x:Class="DesktopHub.UI.DocQuickOpenOverlay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Doc Quick Open"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        Width="400"
+        SizeToContent="Height"
+        MaxHeight="700"
+        Topmost="True"
+        KeyDown="Window_KeyDown">
+    
+    <Border x:Name="RootBorder"
+            Background="#C8121212"
+            CornerRadius="12"
+            BorderBrush="#30F5F7FA"
+            BorderThickness="1"
+            Margin="8">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="16" ShadowDepth="2" Opacity="0.5" Color="Black"/>
+        </Border.Effect>
+        
+        <!-- Widget content -->
+        <ContentControl x:Name="WidgetHost"/>
+    </Border>
+</Window>

@@ -17,7 +17,7 @@
             CornerRadius="12"
             BorderBrush="#3A2A2A2A"
             BorderThickness="1"
-            MouseLeftButtonDown="Window_MouseLeftButtonDown">
+            >
         <Grid>
             <!-- Glass overlay effect -->
             <Border Margin="2"

@@ -14,6 +14,9 @@ public partial class TimerOverlay : Window
     private readonly TimerService _timerService;
     private readonly ISettingsService _settings;
     private bool _isInitialized = false;
+    private bool _isDragging = false;
+    private System.Windows.Point _dragStartPoint;
+    private bool _isLivingWidgetsMode = false;
     
     public TimerOverlay(TimerService timerService, ISettingsService settings)
     {
@@ -52,11 +55,62 @@ public partial class TimerOverlay : Window
         Top = workArea.Bottom - Height - 20;
     }
     
-    private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    public void EnableDragging()
     {
-        if (e.ChangedButton == MouseButton.Left)
+        _isLivingWidgetsMode = true;
+        
+        this.MouseLeftButtonDown -= Overlay_MouseLeftButtonDown;
+        this.MouseLeftButtonUp -= Overlay_MouseLeftButtonUp;
+        this.MouseMove -= Overlay_MouseMove;
+        
+        this.MouseLeftButtonDown += Overlay_MouseLeftButtonDown;
+        this.MouseLeftButtonUp += Overlay_MouseLeftButtonUp;
+        this.MouseMove += Overlay_MouseMove;
+    }
+    
+    public void DisableDragging()
+    {
+        _isLivingWidgetsMode = false;
+        this.MouseLeftButtonDown -= Overlay_MouseLeftButtonDown;
+        this.MouseLeftButtonUp -= Overlay_MouseLeftButtonUp;
+        this.MouseMove -= Overlay_MouseMove;
+    }
+    
+    private void Overlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (!_isLivingWidgetsMode) return;
+        
+        var element = e.OriginalSource as FrameworkElement;
+        if (element != null)
         {
-            DragMove();
+            var clickedType = element.GetType().Name;
+            if (clickedType == "TextBox" || clickedType == "Button" || clickedType == "ListBoxItem" ||
+                clickedType == "ComboBox" || clickedType == "ScrollBar" || clickedType == "Thumb")
+                return;
+        }
+        
+        _isDragging = true;
+        _dragStartPoint = e.GetPosition(this);
+        this.CaptureMouse();
+    }
+    
+    private void Overlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_isDragging)
+        {
+            _isDragging = false;
+            this.ReleaseMouseCapture();
+        }
+    }
+    
+    private void Overlay_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (_isDragging && e.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
+        {
+            var currentPosition = e.GetPosition(this);
+            var offset = currentPosition - _dragStartPoint;
+            this.Left += offset.X;
+            this.Top += offset.Y;
         }
     }
     

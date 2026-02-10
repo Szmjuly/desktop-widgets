@@ -286,6 +286,46 @@ public interface ISettingsService
     void SetQuickTasksWidgetVisible(bool visible);
 
     /// <summary>
+    /// Get doc widget transparency (0.0 to 1.0)
+    /// </summary>
+    double GetDocWidgetTransparency();
+
+    /// <summary>
+    /// Set doc widget transparency
+    /// </summary>
+    void SetDocWidgetTransparency(double transparency);
+
+    /// <summary>
+    /// Get whether doc widget transparency is linked to the group
+    /// </summary>
+    bool GetDocTransparencyLinked();
+
+    /// <summary>
+    /// Set whether doc widget transparency is linked to the group
+    /// </summary>
+    void SetDocTransparencyLinked(bool linked);
+
+    /// <summary>
+    /// Get saved doc widget position
+    /// </summary>
+    (double? left, double? top) GetDocWidgetPosition();
+
+    /// <summary>
+    /// Set doc widget position
+    /// </summary>
+    void SetDocWidgetPosition(double left, double top);
+
+    /// <summary>
+    /// Get saved doc widget visibility state
+    /// </summary>
+    bool GetDocWidgetVisible();
+
+    /// <summary>
+    /// Set doc widget visibility state
+    /// </summary>
+    void SetDocWidgetVisible(bool visible);
+
+    /// <summary>
     /// Get close shortcut configuration for closing widgets
     /// </summary>
     (int modifiers, int key) GetCloseShortcut();

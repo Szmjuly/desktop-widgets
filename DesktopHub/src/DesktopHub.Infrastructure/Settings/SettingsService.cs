@@ -132,6 +132,22 @@ public class SettingsService : ISettingsService
     public bool GetQuickTasksWidgetVisible() => _settings.QuickTasksWidgetVisible;
     public void SetQuickTasksWidgetVisible(bool visible) => _settings.QuickTasksWidgetVisible = visible;
 
+    public double GetDocWidgetTransparency() => _settings.DocWidgetTransparency;
+    public void SetDocWidgetTransparency(double transparency) => _settings.DocWidgetTransparency = transparency;
+
+    public bool GetDocTransparencyLinked() => _settings.DocTransparencyLinked;
+    public void SetDocTransparencyLinked(bool linked) => _settings.DocTransparencyLinked = linked;
+
+    public (double? left, double? top) GetDocWidgetPosition() => (_settings.DocWidgetLeft, _settings.DocWidgetTop);
+    public void SetDocWidgetPosition(double left, double top)
+    {
+        _settings.DocWidgetLeft = left;
+        _settings.DocWidgetTop = top;
+    }
+
+    public bool GetDocWidgetVisible() => _settings.DocWidgetVisible;
+    public void SetDocWidgetVisible(bool visible) => _settings.DocWidgetVisible = visible;
+
     public (int modifiers, int key) GetCloseShortcut() => (_settings.CloseShortcutModifiers, _settings.CloseShortcutKey);
     public void SetCloseShortcut(int modifiers, int key)
     {
@@ -214,6 +230,13 @@ public class SettingsService : ISettingsService
         public double? QuickTasksWidgetLeft { get; set; } = null;
         public double? QuickTasksWidgetTop { get; set; } = null;
         public bool QuickTasksWidgetVisible { get; set; } = false;
+        
+        // Doc Quick Open widget
+        public double DocWidgetTransparency { get; set; } = 0.78;
+        public bool DocTransparencyLinked { get; set; } = false;
+        public double? DocWidgetLeft { get; set; } = null;
+        public double? DocWidgetTop { get; set; } = null;
+        public bool DocWidgetVisible { get; set; } = false;
 
         // Close shortcut for closing widgets (ESC by default)
         public int CloseShortcutModifiers { get; set; } = DefaultCloseShortcutModifiers;

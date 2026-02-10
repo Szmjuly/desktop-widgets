@@ -13,6 +13,7 @@ public partial class SettingsWindow : Window
 {
     private readonly ISettingsService _settings;
     private readonly TaskService? _taskService;
+    private readonly DocOpenService? _docService;
     private bool _isRecording;
     private int _recordedModifiers;
     private int _recordedKey;
@@ -26,12 +27,14 @@ public partial class SettingsWindow : Window
     private Action? _onTransparencyChanged;
     private bool _isUpdatingSliders;
     private bool _isLoadingQTSettings;
+    private bool _isLoadingDQSettings;
 
-    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null)
+    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null)
     {
         InitializeComponent();
         _settings = settings;
         _taskService = taskService;
+        _docService = docService;
         _onHotkeyChanged = onHotkeyChanged;
         _onCloseShortcutChanged = onCloseShortcutChanged;
         _onLivingWidgetsModeChanged = onLivingWidgetsModeChanged;
@@ -552,6 +555,7 @@ public partial class SettingsWindow : Window
             if (AppearancePanel != null) AppearancePanel.Visibility = Visibility.Collapsed;
             if (GeneralPanel != null) GeneralPanel.Visibility = Visibility.Collapsed;
             if (QuickTasksPanel != null) QuickTasksPanel.Visibility = Visibility.Collapsed;
+            if (DocQuickOpenPanel != null) DocQuickOpenPanel.Visibility = Visibility.Collapsed;
 
             // Show selected panel
             if (radioButton.Name == "ShortcutsMenuButton" && ShortcutsPanel != null)
@@ -569,6 +573,11 @@ public partial class SettingsWindow : Window
             else if (radioButton.Name == "QuickTasksMenuButton" && QuickTasksPanel != null)
             {
                 QuickTasksPanel.Visibility = Visibility.Visible;
+            }
+            else if (radioButton.Name == "DocQuickOpenMenuButton" && DocQuickOpenPanel != null)
+            {
+                DocQuickOpenPanel.Visibility = Visibility.Visible;
+                LoadDocQuickOpenSettings();
             }
         }
     }
@@ -1080,5 +1089,174 @@ public partial class SettingsWindow : Window
         QT_NewCategoryInput.Text = "";
         RenderCategoriesList();
         StatusText.Text = $"Category '{name}' added";
+    }
+
+    // ========== Doc Quick Open Settings ==========
+
+    private void LoadDocQuickOpenSettings()
+    {
+        if (_docService == null) return;
+        _isLoadingDQSettings = true;
+        try
+        {
+            var cfg = _docService.Config;
+            DQ_ShowFileSizeToggle.IsChecked = cfg.ShowFileSize;
+            DQ_ShowDateModifiedToggle.IsChecked = cfg.ShowDateModified;
+            DQ_ShowFileExtToggle.IsChecked = cfg.ShowFileExtension;
+            DQ_CompactModeToggle.IsChecked = cfg.CompactMode;
+            DQ_MaxDepthSlider.Value = cfg.MaxDepth;
+            DQ_MaxDepthValue.Text = cfg.MaxDepth.ToString();
+            DQ_MaxFilesSlider.Value = cfg.MaxFiles;
+            DQ_MaxFilesValue.Text = cfg.MaxFiles.ToString();
+            DQ_ExtensionsInput.Text = string.Join(", ", cfg.Extensions);
+            DQ_AutoOpenToggle.IsChecked = cfg.AutoOpenLastProject;
+            DQ_RecentCountSlider.Value = cfg.RecentFilesCount;
+            DQ_RecentCountValue.Text = cfg.RecentFilesCount.ToString();
+
+            // Sort radio
+            switch (cfg.SortBy)
+            {
+                case "date": DQ_SortDate.IsChecked = true; break;
+                case "type": DQ_SortType.IsChecked = true; break;
+                case "size": DQ_SortSize.IsChecked = true; break;
+                default: DQ_SortName.IsChecked = true; break;
+            }
+
+            // Group radio
+            switch (cfg.GroupBy)
+            {
+                case "category": DQ_GroupCategory.IsChecked = true; break;
+                case "extension": DQ_GroupExt.IsChecked = true; break;
+                case "subfolder": DQ_GroupSubfolder.IsChecked = true; break;
+                default: DQ_GroupNone.IsChecked = true; break;
+            }
+
+            // Transparency
+            var transparency = _settings.GetDocWidgetTransparency();
+            DQ_TransparencySlider.Value = transparency;
+            DQ_TransparencyValue.Text = $"{(int)(transparency * 100)}%";
+        }
+        finally
+        {
+            _isLoadingDQSettings = false;
+        }
+    }
+
+    private async void DQ_ShowFileSizeToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingDQSettings || _docService == null) return;
+        _docService.Config.ShowFileSize = DQ_ShowFileSizeToggle.IsChecked == true;
+        await _docService.ApplyConfigAsync();
+        StatusText.Text = $"Show file size: {_docService.Config.ShowFileSize}";
+    }
+
+    private async void DQ_ShowDateModifiedToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingDQSettings || _docService == null) return;
+        _docService.Config.ShowDateModified = DQ_ShowDateModifiedToggle.IsChecked == true;
+        await _docService.ApplyConfigAsync();
+        StatusText.Text = $"Show date modified: {_docService.Config.ShowDateModified}";
+    }
+
+    private async void DQ_ShowFileExtToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingDQSettings || _docService == null) return;
+        _docService.Config.ShowFileExtension = DQ_ShowFileExtToggle.IsChecked == true;
+        await _docService.ApplyConfigAsync();
+        StatusText.Text = $"Show file extension: {_docService.Config.ShowFileExtension}";
+    }
+
+    private async void DQ_CompactModeToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingDQSettings || _docService == null) return;
+        _docService.Config.CompactMode = DQ_CompactModeToggle.IsChecked == true;
+        await _docService.ApplyConfigAsync();
+        StatusText.Text = $"Compact mode: {_docService.Config.CompactMode}";
+    }
+
+    private async void DQ_MaxDepthSlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isLoadingDQSettings || _docService == null) return;
+        var val = (int)DQ_MaxDepthSlider.Value;
+        DQ_MaxDepthValue.Text = val.ToString();
+        _docService.Config.MaxDepth = val;
+        await _docService.ApplyConfigAsync();
+        StatusText.Text = $"Max scan depth: {val}";
+    }
+
+    private async void DQ_MaxFilesSlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isLoadingDQSettings || _docService == null) return;
+        var val = (int)DQ_MaxFilesSlider.Value;
+        DQ_MaxFilesValue.Text = val.ToString();
+        _docService.Config.MaxFiles = val;
+        await _docService.ApplyConfigAsync();
+        StatusText.Text = $"Max files: {val}";
+    }
+
+    private async void DQ_ExtensionsInput_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingDQSettings || _docService == null) return;
+        var text = DQ_ExtensionsInput.Text;
+        var exts = text.Split(new[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                       .Select(x => x.Trim().TrimStart('.').ToLowerInvariant())
+                       .Where(x => !string.IsNullOrEmpty(x))
+                       .Distinct()
+                       .ToList();
+        _docService.Config.Extensions = exts;
+        DQ_ExtensionsInput.Text = string.Join(", ", exts);
+        await _docService.ApplyConfigAsync();
+        StatusText.Text = $"File extensions updated ({exts.Count} types)";
+    }
+
+    private async void DQ_SortChanged(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingDQSettings || _docService == null) return;
+        if (DQ_SortDate.IsChecked == true) _docService.Config.SortBy = "date";
+        else if (DQ_SortType.IsChecked == true) _docService.Config.SortBy = "type";
+        else if (DQ_SortSize.IsChecked == true) _docService.Config.SortBy = "size";
+        else _docService.Config.SortBy = "name";
+        await _docService.ApplyConfigAsync();
+        StatusText.Text = $"Sort order: {_docService.Config.SortBy}";
+    }
+
+    private async void DQ_GroupChanged(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingDQSettings || _docService == null) return;
+        if (DQ_GroupCategory.IsChecked == true) _docService.Config.GroupBy = "category";
+        else if (DQ_GroupExt.IsChecked == true) _docService.Config.GroupBy = "extension";
+        else if (DQ_GroupSubfolder.IsChecked == true) _docService.Config.GroupBy = "subfolder";
+        else _docService.Config.GroupBy = "none";
+        await _docService.ApplyConfigAsync();
+        StatusText.Text = $"Group by: {_docService.Config.GroupBy}";
+    }
+
+    private async void DQ_AutoOpenToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingDQSettings || _docService == null) return;
+        _docService.Config.AutoOpenLastProject = DQ_AutoOpenToggle.IsChecked == true;
+        await _docService.ApplyConfigAsync();
+        StatusText.Text = $"Remember last project: {_docService.Config.AutoOpenLastProject}";
+    }
+
+    private async void DQ_RecentCountSlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isLoadingDQSettings || _docService == null) return;
+        var val = (int)DQ_RecentCountSlider.Value;
+        DQ_RecentCountValue.Text = val.ToString();
+        _docService.Config.RecentFilesCount = val;
+        await _docService.ApplyConfigAsync();
+        StatusText.Text = $"Recent files count: {val}";
+    }
+
+    private async void DQ_TransparencySlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isLoadingDQSettings) return;
+        var val = DQ_TransparencySlider.Value;
+        DQ_TransparencyValue.Text = $"{(int)(val * 100)}%";
+        _settings.SetDocWidgetTransparency(val);
+        await _settings.SaveAsync();
+        _onTransparencyChanged?.Invoke();
+        StatusText.Text = $"Doc widget transparency: {(int)(val * 100)}%";
     }
 }
