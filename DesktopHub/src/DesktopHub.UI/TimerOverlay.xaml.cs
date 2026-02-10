@@ -38,7 +38,6 @@ public partial class TimerOverlay : Window
             {
                 _isInitialized = true;
                 UpdateModeUI();
-                PositionWindow();
             };
         }
         catch (Exception ex)
@@ -46,13 +45,6 @@ public partial class TimerOverlay : Window
             System.Windows.MessageBox.Show($"Error initializing TimerOverlay: {ex.Message}", "Timer Error", MessageBoxButton.OK, MessageBoxImage.Error);
             throw;
         }
-    }
-    
-    private void PositionWindow()
-    {
-        var workArea = SystemParameters.WorkArea;
-        Left = workArea.Right - Width - 20;
-        Top = workArea.Bottom - Height - 20;
     }
     
     public void EnableDragging()

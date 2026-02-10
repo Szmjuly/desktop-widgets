@@ -29,15 +29,6 @@ public partial class QuickTasksOverlay : Window
         // Embed the QuickTasksWidget UserControl
         var widget = new QuickTasksWidget(_taskService);
         WidgetHost.Content = widget;
-
-        Loaded += (s, e) => PositionWindow();
-    }
-
-    private void PositionWindow()
-    {
-        var workArea = SystemParameters.WorkArea;
-        Left = workArea.Right - Width - 20;
-        Top = workArea.Bottom - Height - 20;
     }
 
     public void EnableDragging()

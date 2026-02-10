@@ -267,13 +267,66 @@ public class DesktopFollower : IDisposable
                 return true; // continue
             }, IntPtr.Zero);
             
-            return foundId;
+            if (foundId != Guid.Empty)
+                return foundId;
+            
+            // Last resort: create a temporary probe window to detect the current desktop.
+            // New windows are always created on the active virtual desktop.
+            return GetDesktopIdViaProbeWindow();
         }
         catch (Exception ex)
         {
             DebugLogger.Log($"DesktopFollower: GetCurrentDesktopId failed: {ex.Message}");
             return Guid.Empty;
         }
+    }
+    
+    /// <summary>
+    /// Creates a temporary invisible window to detect the current virtual desktop ID.
+    /// New windows are always created on the active virtual desktop, so this works
+    /// even on empty desktops where no other app windows exist to query.
+    /// </summary>
+    private Guid GetDesktopIdViaProbeWindow()
+    {
+        try
+        {
+            var probeWindow = new Window
+            {
+                Width = 1,
+                Height = 1,
+                WindowStyle = WindowStyle.None,
+                ShowInTaskbar = false,
+                Left = -32000,
+                Top = -32000,
+                AllowsTransparency = true,
+                Background = System.Windows.Media.Brushes.Transparent,
+                Opacity = 0
+            };
+            probeWindow.Show();
+            try
+            {
+                var probeHwnd = new WindowInteropHelper(probeWindow).Handle;
+                if (probeHwnd != IntPtr.Zero)
+                {
+                    var id = VirtualDesktopManager.GetWindowDesktopId(probeHwnd);
+                    if (id != Guid.Empty)
+                    {
+                        DebugLogger.Log($"DesktopFollower: Detected desktop via probe window: {id:B}");
+                        return id;
+                    }
+                }
+            }
+            finally
+            {
+                probeWindow.Close();
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"DesktopFollower: Probe window fallback failed: {ex.Message}");
+        }
+        
+        return Guid.Empty;
     }
     
     private void CleanupDeadReferences()

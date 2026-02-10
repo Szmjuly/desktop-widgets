@@ -262,34 +262,33 @@ public partial class SearchOverlay : Window
                     DebugLogger.Log($"Restored widget launcher visibility: {widgetLauncherVisible}");
                 }
                 
-                // Restore timer widget if it was visible
-                var timerVisible = _settings.GetTimerWidgetVisible();
-                if (timerVisible)
-                {
-                    CreateTimerOverlay();
-                    DebugLogger.Log("Restored timer widget from previous session");
-                }
-                
-                // Restore quick tasks widget if it was visible
-                var quickTasksVisible = _settings.GetQuickTasksWidgetVisible();
-                if (quickTasksVisible)
-                {
-                    CreateQuickTasksOverlay();
-                    DebugLogger.Log("Restored quick tasks widget from previous session");
-                }
-                
-                // Restore doc quick open widget if it was visible
-                var docVisible = _settings.GetDocWidgetVisible();
-                if (docVisible)
-                {
-                    CreateDocOverlay();
-                    DebugLogger.Log("Restored doc quick open widget from previous session");
-                }
             }
             else
             {
                 // Not in Living Widgets Mode - hide overlay by default
                 HideOverlay();
+            }
+            
+            // Restore individual widgets if they were visible (regardless of Living Widgets Mode)
+            var timerVisible = _settings.GetTimerWidgetVisible();
+            if (timerVisible)
+            {
+                CreateTimerOverlay();
+                DebugLogger.Log("Restored timer widget from previous session");
+            }
+            
+            var quickTasksVisible = _settings.GetQuickTasksWidgetVisible();
+            if (quickTasksVisible)
+            {
+                CreateQuickTasksOverlay();
+                DebugLogger.Log("Restored quick tasks widget from previous session");
+            }
+            
+            var docVisible = _settings.GetDocWidgetVisible();
+            if (docVisible)
+            {
+                CreateDocOverlay();
+                DebugLogger.Log("Restored doc quick open widget from previous session");
             }
 
             // Load projects in the background
@@ -1653,7 +1652,7 @@ public partial class SearchOverlay : Window
         // Stop desktop follower
         StopDesktopFollower();
         
-        // Save widget positions if in Living Widgets Mode
+        // Save Living Widgets Mode-specific positions (search overlay, widget launcher)
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
         if (isLivingWidgetsMode)
         {
@@ -1666,47 +1665,45 @@ public partial class SearchOverlay : Window
                 // Save widget launcher visibility state
                 _settings.SetWidgetLauncherVisible(_widgetLauncher.Visibility == Visibility.Visible);
             }
-            
-            // Save timer widget position and visibility
-            if (_timerOverlay != null)
-            {
-                _settings.SetTimerWidgetPosition(_timerOverlay.Left, _timerOverlay.Top);
-                _settings.SetTimerWidgetVisible(_timerOverlay.Visibility == Visibility.Visible);
-                DebugLogger.Log($"Window_Closing: Saved timer position: ({_timerOverlay.Left}, {_timerOverlay.Top}), visible: {_timerOverlay.Visibility == Visibility.Visible}");
-            }
-            else
-            {
-                _settings.SetTimerWidgetVisible(false);
-            }
-            
-            // Save quick tasks widget position and visibility
-            if (_quickTasksOverlay != null)
-            {
-                _settings.SetQuickTasksWidgetPosition(_quickTasksOverlay.Left, _quickTasksOverlay.Top);
-                _settings.SetQuickTasksWidgetVisible(_quickTasksOverlay.Visibility == Visibility.Visible);
-                DebugLogger.Log($"Window_Closing: Saved quick tasks position: ({_quickTasksOverlay.Left}, {_quickTasksOverlay.Top}), visible: {_quickTasksOverlay.Visibility == Visibility.Visible}");
-            }
-            else
-            {
-                _settings.SetQuickTasksWidgetVisible(false);
-            }
-            
-            // Save doc quick open widget position and visibility
-            if (_docOverlay != null)
-            {
-                _settings.SetDocWidgetPosition(_docOverlay.Left, _docOverlay.Top);
-                _settings.SetDocWidgetVisible(_docOverlay.Visibility == Visibility.Visible);
-                DebugLogger.Log($"Window_Closing: Saved doc overlay position: ({_docOverlay.Left}, {_docOverlay.Top}), visible: {_docOverlay.Visibility == Visibility.Visible}");
-            }
-            else
-            {
-                _settings.SetDocWidgetVisible(false);
-            }
-            
-            // Save async but don't await (app is closing)
-            _ = _settings.SaveAsync();
-            DebugLogger.Log("Window_Closing: Saved widget positions and visibility state");
         }
+        
+        // Always save individual widget positions and visibility (regardless of Living Widgets Mode)
+        if (_timerOverlay != null)
+        {
+            _settings.SetTimerWidgetPosition(_timerOverlay.Left, _timerOverlay.Top);
+            _settings.SetTimerWidgetVisible(_timerOverlay.Visibility == Visibility.Visible);
+            DebugLogger.Log($"Window_Closing: Saved timer position: ({_timerOverlay.Left}, {_timerOverlay.Top}), visible: {_timerOverlay.Visibility == Visibility.Visible}");
+        }
+        else
+        {
+            _settings.SetTimerWidgetVisible(false);
+        }
+        
+        if (_quickTasksOverlay != null)
+        {
+            _settings.SetQuickTasksWidgetPosition(_quickTasksOverlay.Left, _quickTasksOverlay.Top);
+            _settings.SetQuickTasksWidgetVisible(_quickTasksOverlay.Visibility == Visibility.Visible);
+            DebugLogger.Log($"Window_Closing: Saved quick tasks position: ({_quickTasksOverlay.Left}, {_quickTasksOverlay.Top}), visible: {_quickTasksOverlay.Visibility == Visibility.Visible}");
+        }
+        else
+        {
+            _settings.SetQuickTasksWidgetVisible(false);
+        }
+        
+        if (_docOverlay != null)
+        {
+            _settings.SetDocWidgetPosition(_docOverlay.Left, _docOverlay.Top);
+            _settings.SetDocWidgetVisible(_docOverlay.Visibility == Visibility.Visible);
+            DebugLogger.Log($"Window_Closing: Saved doc overlay position: ({_docOverlay.Left}, {_docOverlay.Top}), visible: {_docOverlay.Visibility == Visibility.Visible}");
+        }
+        else
+        {
+            _settings.SetDocWidgetVisible(false);
+        }
+        
+        // Save async but don't await (app is closing)
+        _ = _settings.SaveAsync();
+        DebugLogger.Log("Window_Closing: Saved widget positions and visibility state");
     }
 
     private void ShowLoading(bool show)

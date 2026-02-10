@@ -1618,11 +1618,11 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Max Scan Depth" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
-                                    <TextBlock x:Name="DQ_MaxDepthValue" Grid.Column="1" Text="3" FontSize="13" Foreground="{StaticResource AccentBrush}"/>
+                                    <TextBlock x:Name="DQ_MaxDepthValue" Grid.Column="1" Text="3" FontSize="13" Foreground="{StaticResource PrimaryBrush}"/>
                                 </Grid>
                                 <TextBlock Text="How many subfolder levels deep to scan (1-5)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
                                 <Slider x:Name="DQ_MaxDepthSlider" Minimum="1" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True"
-                                        ValueChanged="DQ_MaxDepthSlider_Changed" Foreground="{StaticResource AccentBrush}"/>
+                                        ValueChanged="DQ_MaxDepthSlider_Changed" Foreground="{StaticResource PrimaryBrush}"/>
                             </StackPanel>
                             
                             <!-- Max Files -->
@@ -1633,11 +1633,11 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Max Files" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
-                                    <TextBlock x:Name="DQ_MaxFilesValue" Grid.Column="1" Text="200" FontSize="13" Foreground="{StaticResource AccentBrush}"/>
+                                    <TextBlock x:Name="DQ_MaxFilesValue" Grid.Column="1" Text="200" FontSize="13" Foreground="{StaticResource PrimaryBrush}"/>
                                 </Grid>
                                 <TextBlock Text="Maximum number of files to display (50-500)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
                                 <Slider x:Name="DQ_MaxFilesSlider" Minimum="50" Maximum="500" TickFrequency="50" IsSnapToTickEnabled="True"
-                                        ValueChanged="DQ_MaxFilesSlider_Changed" Foreground="{StaticResource AccentBrush}"/>
+                                        ValueChanged="DQ_MaxFilesSlider_Changed" Foreground="{StaticResource PrimaryBrush}"/>
                             </StackPanel>
                             
                             <!-- File Extensions -->
@@ -1724,11 +1724,11 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Recent Files Count" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
-                                    <TextBlock x:Name="DQ_RecentCountValue" Grid.Column="1" Text="10" FontSize="13" Foreground="{StaticResource AccentBrush}"/>
+                                    <TextBlock x:Name="DQ_RecentCountValue" Grid.Column="1" Text="10" FontSize="13" Foreground="{StaticResource PrimaryBrush}"/>
                                 </Grid>
                                 <TextBlock Text="Number of recently opened files to remember (0 = disabled)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
                                 <Slider x:Name="DQ_RecentCountSlider" Minimum="0" Maximum="20" TickFrequency="1" IsSnapToTickEnabled="True"
-                                        ValueChanged="DQ_RecentCountSlider_Changed" Foreground="{StaticResource AccentBrush}"/>
+                                        ValueChanged="DQ_RecentCountSlider_Changed" Foreground="{StaticResource PrimaryBrush}"/>
                             </StackPanel>
                             
                             <!-- Transparency -->
@@ -1739,11 +1739,11 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Widget Transparency" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
-                                    <TextBlock x:Name="DQ_TransparencyValue" Grid.Column="1" Text="78%" FontSize="13" Foreground="{StaticResource AccentBrush}"/>
+                                    <TextBlock x:Name="DQ_TransparencyValue" Grid.Column="1" Text="78%" FontSize="13" Foreground="{StaticResource PrimaryBrush}"/>
                                 </Grid>
                                 <TextBlock Text="Adjust the widget background transparency" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
                                 <Slider x:Name="DQ_TransparencySlider" Minimum="0.3" Maximum="1.0" TickFrequency="0.01" IsSnapToTickEnabled="True"
-                                        ValueChanged="DQ_TransparencySlider_Changed" Foreground="{StaticResource AccentBrush}"/>
+                                        ValueChanged="DQ_TransparencySlider_Changed" Foreground="{StaticResource PrimaryBrush}"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

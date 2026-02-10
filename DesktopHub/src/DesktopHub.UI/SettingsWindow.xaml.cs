@@ -31,7 +31,6 @@ public partial class SettingsWindow : Window
 
     public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null)
     {
-        InitializeComponent();
         _settings = settings;
         _taskService = taskService;
         _docService = docService;
@@ -40,6 +39,8 @@ public partial class SettingsWindow : Window
         _onLivingWidgetsModeChanged = onLivingWidgetsModeChanged;
         _onDriveSettingsChanged = onDriveSettingsChanged;
         _onTransparencyChanged = onTransparencyChanged;
+
+        InitializeComponent();
 
         // Setup transparency when window handle is available
         SourceInitialized += (s, e) =>
