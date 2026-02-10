@@ -148,6 +148,15 @@ public class SettingsService : ISettingsService
     public bool GetDocWidgetVisible() => _settings.DocWidgetVisible;
     public void SetDocWidgetVisible(bool visible) => _settings.DocWidgetVisible = visible;
 
+    public bool GetTimerWidgetEnabled() => _settings.TimerWidgetEnabled;
+    public void SetTimerWidgetEnabled(bool enabled) => _settings.TimerWidgetEnabled = enabled;
+
+    public bool GetQuickTasksWidgetEnabled() => _settings.QuickTasksWidgetEnabled;
+    public void SetQuickTasksWidgetEnabled(bool enabled) => _settings.QuickTasksWidgetEnabled = enabled;
+
+    public bool GetDocWidgetEnabled() => _settings.DocWidgetEnabled;
+    public void SetDocWidgetEnabled(bool enabled) => _settings.DocWidgetEnabled = enabled;
+
     public (int modifiers, int key) GetCloseShortcut() => (_settings.CloseShortcutModifiers, _settings.CloseShortcutKey);
     public void SetCloseShortcut(int modifiers, int key)
     {
@@ -237,6 +246,11 @@ public class SettingsService : ISettingsService
         public double? DocWidgetLeft { get; set; } = null;
         public double? DocWidgetTop { get; set; } = null;
         public bool DocWidgetVisible { get; set; } = false;
+
+        // Widget enabled states (for widget launcher)
+        public bool TimerWidgetEnabled { get; set; } = true;
+        public bool QuickTasksWidgetEnabled { get; set; } = true;
+        public bool DocWidgetEnabled { get; set; } = true;
 
         // Close shortcut for closing widgets (ESC by default)
         public int CloseShortcutModifiers { get; set; } = DefaultCloseShortcutModifiers;

@@ -407,6 +407,24 @@ public partial class SearchOverlay : Window
                             NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
                         DebugLogger.Log("OnHotkeyPressed: Sent timer overlay to back too");
                     }
+                    
+                    // Also send quick tasks overlay to back if visible
+                    if (_quickTasksOverlay != null && _quickTasksOverlay.Visibility == Visibility.Visible)
+                    {
+                        var qtHwnd = new System.Windows.Interop.WindowInteropHelper(_quickTasksOverlay).Handle;
+                        NativeMethods.SetWindowPos(qtHwnd, NativeMethods.HWND_BOTTOM, 0, 0, 0, 0, 
+                            NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
+                        DebugLogger.Log("OnHotkeyPressed: Sent quick tasks overlay to back too");
+                    }
+                    
+                    // Also send doc overlay to back if visible
+                    if (_docOverlay != null && _docOverlay.Visibility == Visibility.Visible)
+                    {
+                        var docHwnd = new System.Windows.Interop.WindowInteropHelper(_docOverlay).Handle;
+                        NativeMethods.SetWindowPos(docHwnd, NativeMethods.HWND_BOTTOM, 0, 0, 0, 0, 
+                            NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
+                        DebugLogger.Log("OnHotkeyPressed: Sent doc overlay to back too");
+                    }
                 }
                 else
                 {
@@ -427,6 +445,20 @@ public partial class SearchOverlay : Window
                     {
                         _timerOverlay.Activate();
                         DebugLogger.Log("OnHotkeyPressed: Brought timer overlay forward too");
+                    }
+                    
+                    // Also bring quick tasks overlay forward if visible
+                    if (_quickTasksOverlay != null && _quickTasksOverlay.Visibility == Visibility.Visible)
+                    {
+                        _quickTasksOverlay.Activate();
+                        DebugLogger.Log("OnHotkeyPressed: Brought quick tasks overlay forward too");
+                    }
+                    
+                    // Also bring doc overlay forward if visible
+                    if (_docOverlay != null && _docOverlay.Visibility == Visibility.Visible)
+                    {
+                        _docOverlay.Activate();
+                        DebugLogger.Log("OnHotkeyPressed: Brought doc overlay forward too");
                     }
                 }
             }

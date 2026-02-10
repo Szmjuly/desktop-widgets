@@ -326,6 +326,36 @@ public interface ISettingsService
     void SetDocWidgetVisible(bool visible);
 
     /// <summary>
+    /// Get whether timer widget is enabled in the widget launcher
+    /// </summary>
+    bool GetTimerWidgetEnabled();
+
+    /// <summary>
+    /// Set whether timer widget is enabled in the widget launcher
+    /// </summary>
+    void SetTimerWidgetEnabled(bool enabled);
+
+    /// <summary>
+    /// Get whether quick tasks widget is enabled in the widget launcher
+    /// </summary>
+    bool GetQuickTasksWidgetEnabled();
+
+    /// <summary>
+    /// Set whether quick tasks widget is enabled in the widget launcher
+    /// </summary>
+    void SetQuickTasksWidgetEnabled(bool enabled);
+
+    /// <summary>
+    /// Get whether doc widget is enabled in the widget launcher
+    /// </summary>
+    bool GetDocWidgetEnabled();
+
+    /// <summary>
+    /// Set whether doc widget is enabled in the widget launcher
+    /// </summary>
+    void SetDocWidgetEnabled(bool enabled);
+
+    /// <summary>
     /// Get close shortcut configuration for closing widgets
     /// </summary>
     (int modifiers, int key) GetCloseShortcut();

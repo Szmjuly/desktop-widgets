@@ -40,7 +40,17 @@ public partial class SettingsWindow : Window
         _onDriveSettingsChanged = onDriveSettingsChanged;
         _onTransparencyChanged = onTransparencyChanged;
 
+        // Suppress all slider/control events during XAML initialization
+        _isUpdatingSliders = true;
+        _isLoadingQTSettings = true;
+        _isLoadingDQSettings = true;
+
         InitializeComponent();
+
+        // Re-enable event handlers now that all XAML elements exist
+        _isUpdatingSliders = false;
+        _isLoadingQTSettings = false;
+        _isLoadingDQSettings = false;
 
         // Setup transparency when window handle is available
         SourceInitialized += (s, e) =>
@@ -171,7 +181,14 @@ public partial class SettingsWindow : Window
             OverlayTransparencySlider.Value = _settings.GetOverlayTransparency();
             WidgetLauncherTransparencySlider.Value = _settings.GetWidgetLauncherTransparency();
             TimerWidgetTransparencySlider.Value = _settings.GetTimerWidgetTransparency();
+            QuickTasksTransparencySlider.Value = _settings.GetQuickTasksWidgetTransparency();
+            DocTransparencySlider.Value = _settings.GetDocWidgetTransparency();
             _isUpdatingSliders = false;
+            
+            // Load widget enabled toggles
+            TimerWidgetEnabledToggle.IsChecked = _settings.GetTimerWidgetEnabled();
+            QuickTasksWidgetEnabledToggle.IsChecked = _settings.GetQuickTasksWidgetEnabled();
+            DocWidgetEnabledToggle.IsChecked = _settings.GetDocWidgetEnabled();
             
             // Load notification duration setting
             LoadNotificationDurationSetting();
@@ -797,6 +814,18 @@ public partial class SettingsWindow : Window
             _settings.SetTimerWidgetTransparency(value);
         }
         
+        if (_settings.GetQuickTasksTransparencyLinked())
+        {
+            QuickTasksTransparencySlider.Value = value;
+            _settings.SetQuickTasksWidgetTransparency(value);
+        }
+        
+        if (_settings.GetDocTransparencyLinked())
+        {
+            DocTransparencySlider.Value = value;
+            _settings.SetDocWidgetTransparency(value);
+        }
+        
         _isUpdatingSliders = false;
     }
 
@@ -835,6 +864,8 @@ public partial class SettingsWindow : Window
         UpdateLinkButton(LinkOverlayButton, _settings.GetOverlayTransparencyLinked());
         UpdateLinkButton(LinkLauncherButton, _settings.GetLauncherTransparencyLinked());
         UpdateLinkButton(LinkTimerButton, _settings.GetTimerTransparencyLinked());
+        UpdateLinkButton(LinkQuickTasksButton, _settings.GetQuickTasksTransparencyLinked());
+        UpdateLinkButton(LinkDocButton, _settings.GetDocTransparencyLinked());
     }
 
     private void LoadNotificationDurationSetting()
@@ -1132,10 +1163,7 @@ public partial class SettingsWindow : Window
                 default: DQ_GroupNone.IsChecked = true; break;
             }
 
-            // Transparency
-            var transparency = _settings.GetDocWidgetTransparency();
-            DQ_TransparencySlider.Value = transparency;
-            DQ_TransparencyValue.Text = $"{(int)(transparency * 100)}%";
+            // Transparency is now loaded in the Appearance tab
         }
         finally
         {
@@ -1250,14 +1278,105 @@ public partial class SettingsWindow : Window
         StatusText.Text = $"Recent files count: {val}";
     }
 
-    private async void DQ_TransparencySlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+
+    // ===== Appearance Tab - Quick Tasks & Doc Transparency =====
+
+    private void QuickTasksTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        if (_isLoadingDQSettings) return;
-        var val = DQ_TransparencySlider.Value;
-        DQ_TransparencyValue.Text = $"{(int)(val * 100)}%";
-        _settings.SetDocWidgetTransparency(val);
-        await _settings.SaveAsync();
+        if (_isUpdatingSliders || _settings == null) return;
+        
+        _settings.SetQuickTasksWidgetTransparency(e.NewValue);
+        _ = _settings.SaveAsync();
+        StatusText.Text = "Quick Tasks widget transparency updated";
+        
+        if (_settings.GetQuickTasksTransparencyLinked())
+        {
+            SyncLinkedSliders(e.NewValue);
+        }
+        
         _onTransparencyChanged?.Invoke();
-        StatusText.Text = $"Doc widget transparency: {(int)(val * 100)}%";
+    }
+
+    private void DocTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isUpdatingSliders || _settings == null) return;
+        
+        _settings.SetDocWidgetTransparency(e.NewValue);
+        _ = _settings.SaveAsync();
+        StatusText.Text = "Doc Quick Open widget transparency updated";
+        
+        if (_settings.GetDocTransparencyLinked())
+        {
+            SyncLinkedSliders(e.NewValue);
+        }
+        
+        _onTransparencyChanged?.Invoke();
+    }
+
+    private void LinkQuickTasksButton_Click(object sender, RoutedEventArgs e)
+    {
+        var isLinked = _settings.GetQuickTasksTransparencyLinked();
+        _settings.SetQuickTasksTransparencyLinked(!isLinked);
+        _ = _settings.SaveAsync();
+        
+        UpdateLinkButton(LinkQuickTasksButton, !isLinked);
+        
+        if (!isLinked)
+        {
+            SyncLinkedSliders(QuickTasksTransparencySlider.Value);
+        }
+        
+        StatusText.Text = !isLinked ? "Quick Tasks transparency linked" : "Quick Tasks transparency unlinked";
+    }
+
+    private void LinkDocButton_Click(object sender, RoutedEventArgs e)
+    {
+        var isLinked = _settings.GetDocTransparencyLinked();
+        _settings.SetDocTransparencyLinked(!isLinked);
+        _ = _settings.SaveAsync();
+        
+        UpdateLinkButton(LinkDocButton, !isLinked);
+        
+        if (!isLinked)
+        {
+            SyncLinkedSliders(DocTransparencySlider.Value);
+        }
+        
+        StatusText.Text = !isLinked ? "Doc transparency linked" : "Doc transparency unlinked";
+    }
+
+    // ===== General Tab - Widget Enable/Disable Toggles =====
+
+    private void TimerWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null) return;
+        var enabled = TimerWidgetEnabledToggle.IsChecked == true;
+        _settings.SetTimerWidgetEnabled(enabled);
+        _ = _settings.SaveAsync();
+        StatusText.Text = enabled ? "Timer widget enabled" : "Timer widget disabled";
+    }
+
+    private void QuickTasksWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null) return;
+        var enabled = QuickTasksWidgetEnabledToggle.IsChecked == true;
+        _settings.SetQuickTasksWidgetEnabled(enabled);
+        _ = _settings.SaveAsync();
+        StatusText.Text = enabled ? "Quick Tasks widget enabled" : "Quick Tasks widget disabled";
+    }
+
+    private void DocWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null) return;
+        var enabled = DocWidgetEnabledToggle.IsChecked == true;
+        _settings.SetDocWidgetEnabled(enabled);
+        _ = _settings.SaveAsync();
+        StatusText.Text = enabled ? "Doc Quick Open widget enabled" : "Doc Quick Open widget disabled";
+    }
+
+    private void ToggleSearchOverlayButton_Click(object sender, RoutedEventArgs e)
+    {
+        _onLivingWidgetsModeChanged?.Invoke();
+        StatusText.Text = "Search overlay toggled";
     }
 }
