@@ -55,7 +55,12 @@ public class DocWidgetConfig
     /// <summary>
     /// Maximum subfolder depth to recurse (1-5)
     /// </summary>
-    public int MaxDepth { get; set; } = 3;
+    public int MaxDepth { get; set; } = 0;
+
+    /// <summary>
+    /// Folder names to exclude from scanning (case-insensitive)
+    /// </summary>
+    public List<string> ExcludedFolders { get; set; } = new() { "Archive" };
 
     /// <summary>
     /// Maximum files to return per scan (50-500)

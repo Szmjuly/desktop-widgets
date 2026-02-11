@@ -23,5 +23,8 @@ public interface IDocumentScanner
     Task<ProjectFileInfo> ScanProjectAsync(
         string projectPath,
         string? projectName = null,
+        int maxDepth = 0,
+        IReadOnlyList<string>? excludedFolders = null,
+        int maxFiles = 200,
         CancellationToken cancellationToken = default);
 }

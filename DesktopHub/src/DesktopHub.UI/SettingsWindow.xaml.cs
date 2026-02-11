@@ -1164,6 +1164,7 @@ public partial class SettingsWindow : Window
             DQ_MaxFilesSlider.Value = cfg.MaxFiles;
             DQ_MaxFilesValue.Text = cfg.MaxFiles.ToString();
             DQ_ExtensionsInput.Text = string.Join(", ", cfg.Extensions);
+            DQ_ExcludedFoldersInput.Text = string.Join(", ", cfg.ExcludedFolders);
             DQ_AutoOpenToggle.IsChecked = cfg.AutoOpenLastProject;
             DQ_RecentCountSlider.Value = cfg.RecentFilesCount;
             DQ_RecentCountValue.Text = cfg.RecentFilesCount.ToString();
@@ -1244,6 +1245,21 @@ public partial class SettingsWindow : Window
         _docService.Config.MaxFiles = val;
         await _docService.ApplyConfigAsync();
         StatusText.Text = $"Max files: {val}";
+    }
+
+    private async void DQ_ExcludedFoldersInput_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingDQSettings || _docService == null) return;
+        var text = DQ_ExcludedFoldersInput.Text;
+        var folders = text.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                         .Select(x => x.Trim())
+                         .Where(x => !string.IsNullOrEmpty(x))
+                         .Distinct(StringComparer.OrdinalIgnoreCase)
+                         .ToList();
+        _docService.Config.ExcludedFolders = folders;
+        DQ_ExcludedFoldersInput.Text = string.Join(", ", folders);
+        await _docService.ApplyConfigAsync();
+        StatusText.Text = $"Excluded folders updated ({folders.Count} folders)";
     }
 
     private async void DQ_ExtensionsInput_LostFocus(object sender, RoutedEventArgs e)

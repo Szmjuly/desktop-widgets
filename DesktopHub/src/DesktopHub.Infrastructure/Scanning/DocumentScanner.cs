@@ -48,6 +48,9 @@ public class DocumentScanner : IDocumentScanner
     public async Task<ProjectFileInfo> ScanProjectAsync(
         string projectPath,
         string? projectName = null,
+        int maxDepth = 0,
+        IReadOnlyList<string>? excludedFolders = null,
+        int maxFiles = 200,
         CancellationToken cancellationToken = default)
     {
         var info = new ProjectFileInfo
@@ -68,7 +71,7 @@ public class DocumentScanner : IDocumentScanner
                 if (Directory.Exists(discPath))
                 {
                     info.AvailableDisciplines.Add(discipline);
-                    var dwgFiles = ScanDisciplineFolder(discPath, projectPath, cancellationToken);
+                    var dwgFiles = ScanDisciplineFolder(discPath, projectPath, maxDepth, excludedFolders, maxFiles, cancellationToken);
                     info.DisciplineFiles[discipline] = dwgFiles;
                 }
             }
@@ -109,14 +112,16 @@ public class DocumentScanner : IDocumentScanner
     /// <summary>
     /// Scan a discipline folder (Electrical/Mechanical/Plumbing) for .dwg files
     /// </summary>
-    private List<DocumentItem> ScanDisciplineFolder(string folderPath, string projectRoot, CancellationToken ct)
+    private List<DocumentItem> ScanDisciplineFolder(string folderPath, string projectRoot, int maxDepth, IReadOnlyList<string>? excludedFolders, int maxFiles, CancellationToken ct)
     {
         var results = new List<DocumentItem>();
+        var excludeSet = excludedFolders != null && excludedFolders.Count > 0
+            ? new HashSet<string>(excludedFolders, StringComparer.OrdinalIgnoreCase)
+            : null;
         try
         {
-            // Scan .dwg files in discipline folder and immediate subfolders (depth 2)
             ScanForExtensions(folderPath, projectRoot, new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "dwg", "dxf" },
-                2, 0, 500, results, ct);
+                maxDepth, 0, maxFiles, results, ct, excludeSet);
         }
         catch { }
         return results;
@@ -269,7 +274,7 @@ public class DocumentScanner : IDocumentScanner
     private void ScanForExtensions(
         string rootPath, string projectRoot,
         HashSet<string> extensions, int maxDepth, int currentDepth, int maxFiles,
-        List<DocumentItem> results, CancellationToken ct)
+        List<DocumentItem> results, CancellationToken ct, HashSet<string>? excludedFolders = null)
     {
         if (ct.IsCancellationRequested || results.Count >= maxFiles) return;
 
@@ -307,7 +312,8 @@ public class DocumentScanner : IDocumentScanner
                     if (ct.IsCancellationRequested || results.Count >= maxFiles) return;
                     var dirName = Path.GetFileName(dir);
                     if (dirName.StartsWith('.') || dirName.StartsWith('_')) continue;
-                    ScanForExtensions(dir, projectRoot, extensions, maxDepth, currentDepth + 1, maxFiles, results, ct);
+                    if (excludedFolders != null && excludedFolders.Contains(dirName)) continue;
+                    ScanForExtensions(dir, projectRoot, extensions, maxDepth, currentDepth + 1, maxFiles, results, ct, excludedFolders);
                 }
             }
         }

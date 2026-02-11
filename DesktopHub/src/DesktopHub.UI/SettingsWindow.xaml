@@ -2183,9 +2183,20 @@
                                     <TextBlock Grid.Column="0" Text="Max Scan Depth" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
                                     <TextBlock x:Name="DQ_MaxDepthValue" Grid.Column="1" Text="3" FontSize="13" Foreground="{StaticResource PrimaryBrush}"/>
                                 </Grid>
-                                <TextBlock Text="How many subfolder levels deep to scan (1-5)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
-                                <Slider x:Name="DQ_MaxDepthSlider" Minimum="1" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True"
+                                <TextBlock Text="0 = discipline folder only, 1+ = include subfolders" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
+                                <Slider x:Name="DQ_MaxDepthSlider" Minimum="0" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True"
                                         ValueChanged="DQ_MaxDepthSlider_Changed" Foreground="{StaticResource PrimaryBrush}"/>
+                            </StackPanel>
+                            
+                            <!-- Excluded Folders -->
+                            <StackPanel Margin="0,0,0,12">
+                                <TextBlock Text="Excluded Folders" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                                <TextBlock Text="Comma-separated folder names to skip (e.g. Archive, Backup)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                                <TextBox x:Name="DQ_ExcludedFoldersInput" FontSize="12" Padding="8,6" TextWrapping="Wrap" MinHeight="36"
+                                         Background="#22FFFFFF" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                         LostFocus="DQ_ExcludedFoldersInput_LostFocus">
+                                    <TextBox.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></TextBox.Resources>
+                                </TextBox>
                             </StackPanel>
                             
                             <!-- Max Files -->

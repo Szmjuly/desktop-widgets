@@ -89,7 +89,9 @@ public class DocOpenService
 
         try
         {
-            _projectInfo = await _scanner.ScanProjectAsync(projectPath, projectName, token);
+            _projectInfo = await _scanner.ScanProjectAsync(
+                projectPath, projectName,
+                _config.MaxDepth, _config.ExcludedFolders, _config.MaxFiles, token);
             RefreshCurrentFiles();
         }
         catch (OperationCanceledException) { }
