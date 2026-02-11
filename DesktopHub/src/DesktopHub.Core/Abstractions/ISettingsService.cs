@@ -366,6 +366,36 @@ public interface ISettingsService
     void SetSearchWidgetEnabled(bool enabled);
 
     /// <summary>
+    /// Get whether automatic update checking is enabled
+    /// </summary>
+    bool GetAutoUpdateCheckEnabled();
+
+    /// <summary>
+    /// Set whether automatic update checking is enabled
+    /// </summary>
+    void SetAutoUpdateCheckEnabled(bool enabled);
+
+    /// <summary>
+    /// Get whether automatic update installation is enabled
+    /// </summary>
+    bool GetAutoUpdateInstallEnabled();
+
+    /// <summary>
+    /// Set whether automatic update installation is enabled
+    /// </summary>
+    void SetAutoUpdateInstallEnabled(bool enabled);
+
+    /// <summary>
+    /// Get update check frequency in minutes
+    /// </summary>
+    int GetUpdateCheckFrequencyMinutes();
+
+    /// <summary>
+    /// Set update check frequency in minutes
+    /// </summary>
+    void SetUpdateCheckFrequencyMinutes(int minutes);
+
+    /// <summary>
     /// Get close shortcut configuration for closing widgets
     /// </summary>
     (int modifiers, int key) GetCloseShortcut();

@@ -93,6 +93,12 @@ public partial class WidgetLauncher : Window
         if (DocQuickOpenButton != null)
             DocQuickOpenButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
     }
+
+    public void SetUpdateIndicatorVisible(bool visible)
+    {
+        if (UpdateIndicator != null)
+            UpdateIndicator.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    }
     
     private void Window_Deactivated(object sender, EventArgs e)
     {

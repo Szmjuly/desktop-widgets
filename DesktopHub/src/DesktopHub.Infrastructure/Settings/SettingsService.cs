@@ -160,6 +160,15 @@ public class SettingsService : ISettingsService
     public bool GetSearchWidgetEnabled() => _settings.SearchWidgetEnabled;
     public void SetSearchWidgetEnabled(bool enabled) => _settings.SearchWidgetEnabled = enabled;
 
+    public bool GetAutoUpdateCheckEnabled() => _settings.AutoUpdateCheckEnabled;
+    public void SetAutoUpdateCheckEnabled(bool enabled) => _settings.AutoUpdateCheckEnabled = enabled;
+
+    public bool GetAutoUpdateInstallEnabled() => _settings.AutoUpdateInstallEnabled;
+    public void SetAutoUpdateInstallEnabled(bool enabled) => _settings.AutoUpdateInstallEnabled = enabled;
+
+    public int GetUpdateCheckFrequencyMinutes() => _settings.UpdateCheckFrequencyMinutes;
+    public void SetUpdateCheckFrequencyMinutes(int minutes) => _settings.UpdateCheckFrequencyMinutes = minutes;
+
     public (int modifiers, int key) GetCloseShortcut() => (_settings.CloseShortcutModifiers, _settings.CloseShortcutKey);
     public void SetCloseShortcut(int modifiers, int key)
     {
@@ -259,5 +268,10 @@ public class SettingsService : ISettingsService
         // Close shortcut for closing widgets (ESC by default)
         public int CloseShortcutModifiers { get; set; } = DefaultCloseShortcutModifiers;
         public int CloseShortcutKey { get; set; } = DefaultCloseShortcutKey;
+
+        // Update check settings
+        public bool AutoUpdateCheckEnabled { get; set; } = true;
+        public bool AutoUpdateInstallEnabled { get; set; } = false;
+        public int UpdateCheckFrequencyMinutes { get; set; } = 360; // 6 hours
     }
 }

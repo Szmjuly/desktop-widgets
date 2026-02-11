@@ -48,6 +48,8 @@ public partial class SearchOverlay : Window
     private bool _isDragging = false;
     private System.Windows.Point _dragStartPoint;
     private Helpers.DesktopFollower? _desktopFollower;
+    private UpdateCheckService? _updateCheckService;
+    private UpdateIndicatorManager? _updateIndicatorManager;
 
     public bool IsClosing => _isClosing;
     public TaskService? TaskService => _taskService;
@@ -306,6 +308,26 @@ public partial class SearchOverlay : Window
             {
                 StartDesktopFollower();
             }
+            
+            // Initialize update indicator manager and register widgets
+            _updateIndicatorManager = new UpdateIndicatorManager();
+            _updateIndicatorManager.RegisterWidget("SearchOverlay", 1, this, 
+                visible => Dispatcher.Invoke(() => SetUpdateIndicatorVisible(visible)));
+            if (_widgetLauncher != null)
+                _updateIndicatorManager.RegisterWidget("WidgetLauncher", 2, _widgetLauncher, 
+                    visible => Dispatcher.Invoke(() => _widgetLauncher.SetUpdateIndicatorVisible(visible)));
+            if (_timerOverlay != null)
+                _updateIndicatorManager.RegisterWidget("TimerOverlay", 3, _timerOverlay, 
+                    visible => Dispatcher.Invoke(() => _timerOverlay.SetUpdateIndicatorVisible(visible)));
+            if (_quickTasksOverlay != null)
+                _updateIndicatorManager.RegisterWidget("QuickTasksOverlay", 4, _quickTasksOverlay, 
+                    visible => Dispatcher.Invoke(() => _quickTasksOverlay.SetUpdateIndicatorVisible(visible)));
+            if (_docOverlay != null)
+                _updateIndicatorManager.RegisterWidget("DocQuickOpenOverlay", 5, _docOverlay, 
+                    visible => Dispatcher.Invoke(() => _docOverlay.SetUpdateIndicatorVisible(visible)));
+
+            // Initialize periodic update checking
+            InitializeUpdateCheckService();
             
             // Load transparency setting
             // ...
@@ -2087,6 +2109,11 @@ public partial class SearchOverlay : Window
             _desktopFollower.TrackWindow(_timerOverlay);
         }
 
+        // Register with update indicator manager
+        var timerRef = _timerOverlay;
+        _updateIndicatorManager?.RegisterWidget("TimerOverlay", 3, _timerOverlay,
+            visible => Dispatcher.Invoke(() => timerRef.SetUpdateIndicatorVisible(visible)));
+
         DebugLogger.Log($"CreateTimerOverlay: Timer overlay created at ({_timerOverlay.Left}, {_timerOverlay.Top}), Topmost={_timerOverlay.Topmost}");
     }
 
@@ -2164,6 +2191,11 @@ public partial class SearchOverlay : Window
             _desktopFollower.TrackWindow(_quickTasksOverlay);
         }
 
+        // Register with update indicator manager
+        var qtRef = _quickTasksOverlay;
+        _updateIndicatorManager?.RegisterWidget("QuickTasksOverlay", 4, _quickTasksOverlay,
+            visible => Dispatcher.Invoke(() => qtRef.SetUpdateIndicatorVisible(visible)));
+
         DebugLogger.Log($"CreateQuickTasksOverlay: Quick Tasks overlay created at ({_quickTasksOverlay.Left}, {_quickTasksOverlay.Top}), Topmost={_quickTasksOverlay.Topmost}");
     }
 
@@ -2218,6 +2250,11 @@ public partial class SearchOverlay : Window
         {
             _desktopFollower.TrackWindow(_docOverlay);
         }
+
+        // Register with update indicator manager
+        var docRef = _docOverlay;
+        _updateIndicatorManager?.RegisterWidget("DocQuickOpenOverlay", 5, _docOverlay,
+            visible => Dispatcher.Invoke(() => docRef.SetUpdateIndicatorVisible(visible)));
 
         DebugLogger.Log($"CreateDocOverlay: Doc overlay created at ({_docOverlay.Left}, {_docOverlay.Top}), Topmost={_docOverlay.Topmost}");
     }
@@ -2638,6 +2675,56 @@ public partial class SearchOverlay : Window
             _widgetLauncher.UpdateDocButtonVisibility(enabled);
             DebugLogger.Log($"UpdateDocWidgetButton: Doc button visibility set to {enabled}");
         }
+    }
+
+    public void SetUpdateIndicatorVisible(bool visible)
+    {
+        if (UpdateIndicator != null)
+            UpdateIndicator.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    public UpdateCheckService? UpdateCheckService => _updateCheckService;
+    public UpdateIndicatorManager? UpdateIndicatorManager => _updateIndicatorManager;
+
+    private void InitializeUpdateCheckService()
+    {
+        try
+        {
+            var app = System.Windows.Application.Current as App;
+            var firebaseManager = app?.FirebaseManager;
+
+            if (firebaseManager == null)
+            {
+                DebugLogger.Log("InitializeUpdateCheckService: FirebaseManager not available, skipping");
+                return;
+            }
+
+            _updateCheckService = new UpdateCheckService(_settings, () => firebaseManager.CheckForUpdatesAsync());
+            _updateCheckService.UpdateAvailable += (sender, updateInfo) =>
+            {
+                DebugLogger.Log($"Update notification received: v{updateInfo.LatestVersion} available");
+                _updateIndicatorManager?.SetUpdateAvailable(true);
+            };
+            _updateCheckService.UpdateDismissed += (sender, _) =>
+            {
+                _updateIndicatorManager?.SetUpdateAvailable(false);
+            };
+            _updateCheckService.Start();
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"InitializeUpdateCheckService: Error: {ex.Message}");
+        }
+    }
+
+    public void RefreshUpdateIndicator()
+    {
+        _updateIndicatorManager?.Refresh();
+    }
+
+    public void RestartUpdateCheckService()
+    {
+        _updateCheckService?.Restart();
     }
 
     public void UpdateTransparency()

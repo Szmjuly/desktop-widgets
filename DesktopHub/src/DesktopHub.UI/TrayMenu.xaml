@@ -84,9 +84,23 @@
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
-                <TextBlock Text="Check for Updates"
-                          FontSize="13"
-                          Foreground="{StaticResource TextBrush}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                              Text="Check for Updates"
+                              FontSize="13"
+                              Foreground="{StaticResource TextBrush}"/>
+                    <Ellipse x:Name="TrayUpdateIndicator"
+                             Grid.Column="1"
+                             Width="8" Height="8"
+                             Fill="#007ACC"
+                             VerticalAlignment="Center"
+                             Margin="8,0,0,0"
+                             Visibility="Collapsed"/>
+                </Grid>
             </Border>
             
             <!-- Settings -->

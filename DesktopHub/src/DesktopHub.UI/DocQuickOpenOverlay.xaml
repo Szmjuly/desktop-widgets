@@ -23,7 +23,19 @@
             <DropShadowEffect BlurRadius="16" ShadowDepth="2" Opacity="0.5" Color="Black"/>
         </Border.Effect>
         
-        <!-- Widget content -->
-        <ContentControl x:Name="WidgetHost"/>
+        <Grid>
+            <!-- Widget content -->
+            <ContentControl x:Name="WidgetHost"/>
+            
+            <!-- Update available indicator -->
+            <Ellipse x:Name="UpdateIndicator"
+                     Width="10" Height="10"
+                     Fill="#007ACC"
+                     HorizontalAlignment="Right"
+                     VerticalAlignment="Bottom"
+                     Margin="0,0,8,8"
+                     Visibility="Collapsed"
+                     IsHitTestVisible="False"/>
+        </Grid>
     </Border>
 </Window>

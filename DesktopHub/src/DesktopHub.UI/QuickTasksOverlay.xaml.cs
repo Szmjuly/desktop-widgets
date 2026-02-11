@@ -96,6 +96,12 @@ public partial class QuickTasksOverlay : Window
         Hide();
     }
 
+    public void SetUpdateIndicatorVisible(bool visible)
+    {
+        if (UpdateIndicator != null)
+            UpdateIndicator.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     public void UpdateTransparency()
     {
         try

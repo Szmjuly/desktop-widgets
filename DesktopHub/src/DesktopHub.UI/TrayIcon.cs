@@ -145,12 +145,14 @@ public class TrayIcon : IDisposable
                         _currentMenu = null;
                     }
 
+                    var isUpdateAvailable = _searchOverlay.UpdateCheckService?.IsUpdateAvailable ?? false;
                     var menu = new TrayMenu(
                         ShowSearch,
                         RescanProjects,
                         CheckForUpdates,
                         ShowSettings,
-                        Exit
+                        Exit,
+                        isUpdateAvailable
                     );
                     
                     // Track the menu and clean up when it closes
@@ -486,7 +488,8 @@ REM Delete this batch file
                 () => _searchOverlay.UpdateSearchWidgetButton(),
                 () => _searchOverlay.UpdateTimerWidgetButton(),
                 () => _searchOverlay.UpdateQuickTasksWidgetButton(),
-                () => _searchOverlay.UpdateDocWidgetButton()
+                () => _searchOverlay.UpdateDocWidgetButton(),
+                () => _searchOverlay.RestartUpdateCheckService()
             );
             settings.Show();
         }), System.Windows.Threading.DispatcherPriority.Normal);

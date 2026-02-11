@@ -29,11 +29,12 @@ public partial class SettingsWindow : Window
     private Action? _onTimerWidgetEnabledChanged;
     private Action? _onQuickTasksWidgetEnabledChanged;
     private Action? _onDocWidgetEnabledChanged;
+    private Action? _onUpdateSettingsChanged;
     private bool _isUpdatingSliders;
     private bool _isLoadingQTSettings;
     private bool _isLoadingDQSettings;
 
-    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null)
+    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null)
     {
         _settings = settings;
         _taskService = taskService;
@@ -47,6 +48,7 @@ public partial class SettingsWindow : Window
         _onTimerWidgetEnabledChanged = onTimerWidgetEnabledChanged;
         _onQuickTasksWidgetEnabledChanged = onQuickTasksWidgetEnabledChanged;
         _onDocWidgetEnabledChanged = onDocWidgetEnabledChanged;
+        _onUpdateSettingsChanged = onUpdateSettingsChanged;
 
         // Suppress all slider/control events during XAML initialization
         _isUpdatingSliders = true;
@@ -200,6 +202,11 @@ public partial class SettingsWindow : Window
             
             // Load search widget enabled toggle
             SearchWidgetEnabledToggle.IsChecked = _settings.GetSearchWidgetEnabled();
+            
+            // Load update settings
+            AutoUpdateCheckToggle.IsChecked = _settings.GetAutoUpdateCheckEnabled();
+            AutoUpdateInstallToggle.IsChecked = _settings.GetAutoUpdateInstallEnabled();
+            LoadUpdateFrequencyCombo();
             
             // Load notification duration setting
             LoadNotificationDurationSetting();
@@ -585,6 +592,7 @@ public partial class SettingsWindow : Window
             if (GeneralPanel != null) GeneralPanel.Visibility = Visibility.Collapsed;
             if (QuickTasksPanel != null) QuickTasksPanel.Visibility = Visibility.Collapsed;
             if (DocQuickOpenPanel != null) DocQuickOpenPanel.Visibility = Visibility.Collapsed;
+            if (UpdatesPanel != null) UpdatesPanel.Visibility = Visibility.Collapsed;
 
             // Show selected panel
             if (radioButton.Name == "ShortcutsMenuButton" && ShortcutsPanel != null)
@@ -607,6 +615,10 @@ public partial class SettingsWindow : Window
             {
                 DocQuickOpenPanel.Visibility = Visibility.Visible;
                 LoadDocQuickOpenSettings();
+            }
+            else if (radioButton.Name == "UpdatesMenuButton" && UpdatesPanel != null)
+            {
+                UpdatesPanel.Visibility = Visibility.Visible;
             }
         }
     }
@@ -1396,5 +1408,54 @@ public partial class SettingsWindow : Window
         _ = _settings.SaveAsync();
         _onSearchWidgetEnabledChanged?.Invoke();
         StatusText.Text = enabled ? "Search widget enabled" : "Search widget disabled";
+    }
+
+    // ===== General Tab - Update Settings =====
+
+    private void AutoUpdateCheckToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        var enabled = AutoUpdateCheckToggle.IsChecked == true;
+        _settings.SetAutoUpdateCheckEnabled(enabled);
+        _ = _settings.SaveAsync();
+        _onUpdateSettingsChanged?.Invoke();
+        StatusText.Text = enabled ? "Auto update check enabled" : "Auto update check disabled";
+    }
+
+    private void AutoUpdateInstallToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        var enabled = AutoUpdateInstallToggle.IsChecked == true;
+        _settings.SetAutoUpdateInstallEnabled(enabled);
+        _ = _settings.SaveAsync();
+        StatusText.Text = enabled ? "Auto install enabled" : "Auto install disabled";
+    }
+
+    private void UpdateFrequencyCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        if (UpdateFrequencyCombo.SelectedItem is System.Windows.Controls.ComboBoxItem item && item.Tag is string tagStr && int.TryParse(tagStr, out int minutes))
+        {
+            _settings.SetUpdateCheckFrequencyMinutes(minutes);
+            _ = _settings.SaveAsync();
+            _onUpdateSettingsChanged?.Invoke();
+            StatusText.Text = $"Update check frequency set to {minutes / 60} hour(s)";
+        }
+    }
+
+    private void LoadUpdateFrequencyCombo()
+    {
+        var currentMinutes = _settings.GetUpdateCheckFrequencyMinutes();
+        for (int i = 0; i < UpdateFrequencyCombo.Items.Count; i++)
+        {
+            if (UpdateFrequencyCombo.Items[i] is System.Windows.Controls.ComboBoxItem item && 
+                item.Tag is string tagStr && int.TryParse(tagStr, out int minutes) && minutes == currentMinutes)
+            {
+                UpdateFrequencyCombo.SelectedIndex = i;
+                return;
+            }
+        }
+        // Default to "Every 6 hours" if no match
+        UpdateFrequencyCombo.SelectedIndex = 1;
     }
 }

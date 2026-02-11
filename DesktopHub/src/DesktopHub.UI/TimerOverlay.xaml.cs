@@ -221,6 +221,12 @@ public partial class TimerOverlay : Window
         }
     }
     
+    public void SetUpdateIndicatorVisible(bool visible)
+    {
+        if (UpdateIndicator != null)
+            UpdateIndicator.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     public void UpdateTransparency()
     {
         try

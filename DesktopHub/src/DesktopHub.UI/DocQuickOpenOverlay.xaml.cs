@@ -43,6 +43,12 @@ public partial class DocQuickOpenOverlay : Window
         catch { }
     }
 
+    public void SetUpdateIndicatorVisible(bool visible)
+    {
+        if (UpdateIndicator != null)
+            UpdateIndicator.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     public void EnableDragging()
     {
         _isLivingWidgetsMode = true;

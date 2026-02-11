@@ -27,7 +27,7 @@ public partial class TrayMenu : Window
     private DispatcherTimer? _dismissTimer;
     private IntPtr _hwnd;
 
-    public TrayMenu(Action onOpenSearch, Action onRescanProjects, Action onCheckForUpdates, Action onSettings, Action onExit)
+    public TrayMenu(Action onOpenSearch, Action onRescanProjects, Action onCheckForUpdates, Action onSettings, Action onExit, bool isUpdateAvailable = false)
     {
         DebugLogger.Log("TrayMenu: Constructor called");
         InitializeComponent();
@@ -41,6 +41,9 @@ public partial class TrayMenu : Window
         var version = System.Reflection.Assembly.GetExecutingAssembly()
             .GetName().Version?.ToString(3) ?? "1.0.0";
         VersionText.Text = $"v{version}";
+
+        if (isUpdateAvailable)
+            TrayUpdateIndicator.Visibility = Visibility.Visible;
 
         // Setup transparency when window handle is available
         SourceInitialized += (s, e) =>
