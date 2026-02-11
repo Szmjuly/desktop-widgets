@@ -1086,9 +1086,9 @@ public partial class SettingsWindow : Window
     private async void QT_AutoCarryOverToggle_Changed(object sender, RoutedEventArgs e)
     {
         if (_isLoadingQTSettings || _taskService == null) return;
-        _taskService.Config.AutoCarryOver = QT_AutoCarryOverToggle.IsChecked == true;
-        await _taskService.ApplyConfigAsync();
-        StatusText.Text = _taskService.Config.AutoCarryOver ? "Auto carry-over enabled" : "Auto carry-over disabled";
+        var enabled = QT_AutoCarryOverToggle.IsChecked == true;
+        await _taskService.SetAutoCarryOverAsync(enabled);
+        StatusText.Text = enabled ? "Auto carry-over enabled" : "Auto carry-over disabled — incomplete carry-overs removed";
     }
 
     private async void QT_CompletedOpacitySlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)

@@ -154,11 +154,44 @@ public class TaskService
     }
 
     /// <summary>
-    /// Delete a task
+    /// Delete a task. If deleting a carry-over copy, un-mark the original if no other copies remain.
     /// </summary>
     public async Task DeleteTaskAsync(string taskId)
     {
+        // Check if this is a carry-over copy — if so, we may need to un-mark the original
+        var task = _currentTasks.FirstOrDefault(t => t.Id == taskId);
+        var originalId = task?.CarriedFromTaskId;
+
         await _dataStore.DeleteTaskAsync(taskId);
+
+        // Un-mark the original if no other carry-over copies remain
+        if (!string.IsNullOrEmpty(originalId))
+        {
+            var original = await _dataStore.GetTaskByIdAsync(originalId);
+            if (original != null)
+            {
+                // Check if any other copies still exist
+                var today = DateTime.Now.ToString("yyyy-MM-dd");
+                var allDates = await _dataStore.GetRecentTaskDatesAsync(365);
+                var hasOtherCopies = false;
+                foreach (var date in allDates)
+                {
+                    var copies = await _dataStore.GetCarriedOverCopiesOnDateAsync(date);
+                    if (copies.Any(c => c.CarriedFromTaskId == originalId && c.Id != taskId))
+                    {
+                        hasOtherCopies = true;
+                        break;
+                    }
+                }
+
+                if (!hasOtherCopies)
+                {
+                    original.IsCarriedOver = false;
+                    await _dataStore.UpsertTaskAsync(original);
+                }
+            }
+        }
+
         await RefreshTasksAsync();
     }
 
@@ -192,6 +225,70 @@ public class TaskService
     public async Task GoToTodayAsync()
     {
         _currentDate = DateTime.Now.ToString("yyyy-MM-dd");
+        await RefreshTasksAsync();
+    }
+
+    /// <summary>
+    /// Navigate to a specific date
+    /// </summary>
+    public async Task GoToDateAsync(DateTime date)
+    {
+        if (date > DateTime.Now.Date)
+            date = DateTime.Now.Date;
+        _currentDate = date.ToString("yyyy-MM-dd");
+        await RefreshTasksAsync();
+    }
+
+    /// <summary>
+    /// Move a task to a different date by creating a copy on the target date.
+    /// The original stays on its creation date and is marked as carried over.
+    /// </summary>
+    public async Task MoveTaskToDateAsync(string taskId, DateTime targetDate)
+    {
+        var task = _currentTasks.FirstOrDefault(t => t.Id == taskId);
+        if (task == null) return;
+
+        var targetDateStr = targetDate.ToString("yyyy-MM-dd");
+
+        // Don't create a copy on the same date
+        if (task.Date == targetDateStr) return;
+
+        // Find the original task (follow the chain if this is already a copy)
+        var originalId = task.CarriedFromTaskId ?? task.Id;
+        var originalDate = task.CarriedFromDate ?? task.Date;
+
+        // Check if a copy already exists on the target date for this original
+        var existingCopies = await _dataStore.GetCarriedOverCopiesOnDateAsync(targetDateStr);
+        if (existingCopies.Any(c => c.CarriedFromTaskId == originalId))
+            return;
+
+        var sortOrder = await _dataStore.GetNextSortOrderAsync(targetDateStr);
+
+        // Create a copy on the target date
+        var copy = new TaskItem
+        {
+            Id = Guid.NewGuid().ToString(),
+            Date = targetDateStr,
+            Title = task.Title,
+            Priority = task.Priority,
+            SortOrder = sortOrder,
+            CreatedAt = DateTime.Now,
+            Category = task.Category,
+            Notes = task.Notes,
+            CarriedFromTaskId = originalId,
+            CarriedFromDate = originalDate
+        };
+
+        await _dataStore.UpsertTaskAsync(copy);
+
+        // Mark the original as carried over
+        var original = await _dataStore.GetTaskByIdAsync(originalId);
+        if (original != null)
+        {
+            original.IsCarriedOver = true;
+            await _dataStore.UpsertTaskAsync(original);
+        }
+
         await RefreshTasksAsync();
     }
 
@@ -285,26 +382,66 @@ public class TaskService
     }
 
     /// <summary>
-    /// If autoCarryOver is on, copy yesterday's incomplete tasks into today
+    /// Toggle auto carry-over: when enabled, carry over incomplete tasks to today.
+    /// When disabled, remove incomplete carry-over copies.
+    /// </summary>
+    public async Task SetAutoCarryOverAsync(bool enabled)
+    {
+        _config.AutoCarryOver = enabled;
+        await _config.SaveAsync();
+
+        if (enabled)
+        {
+            await PerformCarryOverAsync();
+        }
+        else
+        {
+            await RemoveCarryOverTasksAsync();
+        }
+
+        await RefreshTasksAsync();
+        ConfigChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Remove all incomplete carry-over copies and un-mark their originals.
+    /// Completed carry-over copies are preserved (user completed the task on that date).
+    /// </summary>
+    private async Task RemoveCarryOverTasksAsync()
+    {
+        await _dataStore.DeleteIncompleteCarriedOverCopiesAsync();
+    }
+
+    /// <summary>
+    /// Carry over all incomplete original tasks from past dates to today.
+    /// Skips tasks that already have a copy on today.
     /// </summary>
     private async Task PerformCarryOverAsync()
     {
         var today = DateTime.Now.ToString("yyyy-MM-dd");
-        var yesterday = DateTime.Now.AddDays(-1).ToString("yyyy-MM-dd");
 
-        // Only carry over if today has zero tasks
-        var todayTasks = await _dataStore.GetTasksByDateAsync(today);
-        if (todayTasks.Count > 0)
+        // Get all incomplete original tasks from any past date
+        var incompletePastTasks = await _dataStore.GetAllIncompleteOriginalTasksBeforeDateAsync(today);
+        if (incompletePastTasks.Count == 0)
             return;
 
-        var incomplete = await _dataStore.GetIncompleteTasksAsync(yesterday);
-        if (incomplete.Count == 0)
-            return;
+        // Get existing carry-over copies on today to avoid duplicates
+        var existingCopies = await _dataStore.GetCarriedOverCopiesOnDateAsync(today);
+        var alreadyCarriedOriginalIds = new HashSet<string>(
+            existingCopies
+                .Where(c => !string.IsNullOrEmpty(c.CarriedFromTaskId))
+                .Select(c => c.CarriedFromTaskId!)
+        );
 
-        var sortOrder = 0;
-        foreach (var oldTask in incomplete)
+        var sortOrder = await _dataStore.GetNextSortOrderAsync(today);
+
+        foreach (var oldTask in incompletePastTasks)
         {
-            var newTask = new TaskItem
+            // Skip if a copy already exists on today for this original
+            if (alreadyCarriedOriginalIds.Contains(oldTask.Id))
+                continue;
+
+            var copy = new TaskItem
             {
                 Id = Guid.NewGuid().ToString(),
                 Date = today,
@@ -313,10 +450,16 @@ public class TaskService
                 SortOrder = sortOrder++,
                 CreatedAt = DateTime.Now,
                 Category = oldTask.Category,
-                Notes = oldTask.Notes
+                Notes = oldTask.Notes,
+                CarriedFromTaskId = oldTask.Id,
+                CarriedFromDate = oldTask.Date
             };
 
-            await _dataStore.UpsertTaskAsync(newTask);
+            await _dataStore.UpsertTaskAsync(copy);
+
+            // Mark the original as carried over
+            oldTask.IsCarriedOver = true;
+            await _dataStore.UpsertTaskAsync(oldTask);
         }
     }
 }

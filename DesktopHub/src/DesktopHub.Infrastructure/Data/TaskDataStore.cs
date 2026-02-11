@@ -42,7 +42,10 @@ public class TaskDataStore : ITaskDataStore
                 created_at TEXT NOT NULL,
                 completed_at TEXT,
                 category TEXT,
-                notes TEXT
+                notes TEXT,
+                carried_from_task_id TEXT,
+                carried_from_date TEXT,
+                is_carried_over INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE INDEX IF NOT EXISTS idx_tasks_date ON tasks(date);
@@ -52,6 +55,9 @@ public class TaskDataStore : ITaskDataStore
 
         using var command = new SqliteCommand(createTablesSql, connection);
         await command.ExecuteNonQueryAsync();
+
+        // Migrate existing databases: add carry-over columns if missing
+        await MigrateCarryOverColumnsAsync(connection);
     }
 
     public async Task<List<TaskItem>> GetTasksByDateAsync(string date)
@@ -121,8 +127,8 @@ public class TaskDataStore : ITaskDataStore
         await connection.OpenAsync();
 
         var sql = @"
-            INSERT INTO tasks (id, date, title, is_completed, priority, sort_order, created_at, completed_at, category, notes)
-            VALUES (@id, @date, @title, @isCompleted, @priority, @sortOrder, @createdAt, @completedAt, @category, @notes)
+            INSERT INTO tasks (id, date, title, is_completed, priority, sort_order, created_at, completed_at, category, notes, carried_from_task_id, carried_from_date, is_carried_over)
+            VALUES (@id, @date, @title, @isCompleted, @priority, @sortOrder, @createdAt, @completedAt, @category, @notes, @carriedFromTaskId, @carriedFromDate, @isCarriedOver)
             ON CONFLICT(id) DO UPDATE SET
                 date = @date,
                 title = @title,
@@ -131,7 +137,10 @@ public class TaskDataStore : ITaskDataStore
                 sort_order = @sortOrder,
                 completed_at = @completedAt,
                 category = @category,
-                notes = @notes
+                notes = @notes,
+                carried_from_task_id = @carriedFromTaskId,
+                carried_from_date = @carriedFromDate,
+                is_carried_over = @isCarriedOver
         ";
 
         using var command = new SqliteCommand(sql, connection);
@@ -145,6 +154,9 @@ public class TaskDataStore : ITaskDataStore
         command.Parameters.AddWithValue("@completedAt", task.CompletedAt?.ToString("O") ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@category", (object?)task.Category ?? DBNull.Value);
         command.Parameters.AddWithValue("@notes", (object?)task.Notes ?? DBNull.Value);
+        command.Parameters.AddWithValue("@carriedFromTaskId", (object?)task.CarriedFromTaskId ?? DBNull.Value);
+        command.Parameters.AddWithValue("@carriedFromDate", (object?)task.CarriedFromDate ?? DBNull.Value);
+        command.Parameters.AddWithValue("@isCarriedOver", task.IsCarriedOver ? 1 : 0);
 
         await command.ExecuteNonQueryAsync();
     }
@@ -241,9 +253,158 @@ public class TaskDataStore : ITaskDataStore
         return Convert.ToInt32(result);
     }
 
+    public async Task<TaskItem?> GetTaskByIdAsync(string taskId)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        var sql = "SELECT * FROM tasks WHERE id = @id";
+        using var command = new SqliteCommand(sql, connection);
+        command.Parameters.AddWithValue("@id", taskId);
+
+        using var reader = await command.ExecuteReaderAsync();
+        if (await reader.ReadAsync())
+        {
+            return ReadTaskFromReader(reader);
+        }
+        return null;
+    }
+
+    public async Task<List<TaskItem>> GetAllIncompleteOriginalTasksBeforeDateAsync(string beforeDate)
+    {
+        var tasks = new List<TaskItem>();
+
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        var sql = @"SELECT * FROM tasks 
+                    WHERE date < @beforeDate 
+                      AND is_completed = 0 
+                      AND (carried_from_task_id IS NULL OR carried_from_task_id = '')
+                    ORDER BY date DESC, sort_order";
+        using var command = new SqliteCommand(sql, connection);
+        command.Parameters.AddWithValue("@beforeDate", beforeDate);
+
+        using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            tasks.Add(ReadTaskFromReader(reader));
+        }
+
+        return tasks;
+    }
+
+    public async Task<List<TaskItem>> GetCarriedOverCopiesOnDateAsync(string date)
+    {
+        var tasks = new List<TaskItem>();
+
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        var sql = @"SELECT * FROM tasks 
+                    WHERE date = @date 
+                      AND carried_from_task_id IS NOT NULL 
+                      AND carried_from_task_id != ''
+                    ORDER BY sort_order";
+        using var command = new SqliteCommand(sql, connection);
+        command.Parameters.AddWithValue("@date", date);
+
+        using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            tasks.Add(ReadTaskFromReader(reader));
+        }
+
+        return tasks;
+    }
+
+    public async Task<List<string>> DeleteIncompleteCarriedOverCopiesAsync()
+    {
+        var originalTaskIds = new List<string>();
+
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        // First, get the original task IDs for copies we're about to delete
+        var selectSql = @"SELECT carried_from_task_id FROM tasks 
+                          WHERE carried_from_task_id IS NOT NULL 
+                            AND carried_from_task_id != '' 
+                            AND is_completed = 0";
+        using (var selectCmd = new SqliteCommand(selectSql, connection))
+        using (var reader = await selectCmd.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                originalTaskIds.Add(reader.GetString(0));
+            }
+        }
+
+        // Delete incomplete carry-over copies
+        var deleteSql = @"DELETE FROM tasks 
+                          WHERE carried_from_task_id IS NOT NULL 
+                            AND carried_from_task_id != '' 
+                            AND is_completed = 0";
+        using (var deleteCmd = new SqliteCommand(deleteSql, connection))
+        {
+            await deleteCmd.ExecuteNonQueryAsync();
+        }
+
+        // Un-mark originals as carried over
+        foreach (var origId in originalTaskIds)
+        {
+            // Only un-mark if there are no other carry-over copies remaining for this original
+            var checkSql = @"SELECT COUNT(*) FROM tasks 
+                             WHERE carried_from_task_id = @origId";
+            using var checkCmd = new SqliteCommand(checkSql, connection);
+            checkCmd.Parameters.AddWithValue("@origId", origId);
+            var remaining = Convert.ToInt32(await checkCmd.ExecuteScalarAsync());
+
+            if (remaining == 0)
+            {
+                var updateSql = "UPDATE tasks SET is_carried_over = 0 WHERE id = @id";
+                using var updateCmd = new SqliteCommand(updateSql, connection);
+                updateCmd.Parameters.AddWithValue("@id", origId);
+                await updateCmd.ExecuteNonQueryAsync();
+            }
+        }
+
+        return originalTaskIds;
+    }
+
+    private async Task MigrateCarryOverColumnsAsync(SqliteConnection connection)
+    {
+        // Check if columns exist by querying table_info
+        var pragmaSql = "PRAGMA table_info(tasks)";
+        using var pragmaCmd = new SqliteCommand(pragmaSql, connection);
+        using var reader = await pragmaCmd.ExecuteReaderAsync();
+
+        var columns = new HashSet<string>();
+        while (await reader.ReadAsync())
+        {
+            columns.Add(reader.GetString(1)); // column name is at index 1
+        }
+        reader.Close();
+
+        if (!columns.Contains("carried_from_task_id"))
+        {
+            using var cmd = new SqliteCommand("ALTER TABLE tasks ADD COLUMN carried_from_task_id TEXT", connection);
+            await cmd.ExecuteNonQueryAsync();
+        }
+        if (!columns.Contains("carried_from_date"))
+        {
+            using var cmd = new SqliteCommand("ALTER TABLE tasks ADD COLUMN carried_from_date TEXT", connection);
+            await cmd.ExecuteNonQueryAsync();
+        }
+        if (!columns.Contains("is_carried_over"))
+        {
+            using var cmd = new SqliteCommand("ALTER TABLE tasks ADD COLUMN is_carried_over INTEGER NOT NULL DEFAULT 0", connection);
+            await cmd.ExecuteNonQueryAsync();
+        }
+    }
+
     private static TaskItem ReadTaskFromReader(SqliteDataReader reader)
     {
-        return new TaskItem
+        var task = new TaskItem
         {
             Id = reader.GetString(reader.GetOrdinal("id")),
             Date = reader.GetString(reader.GetOrdinal("date")),
@@ -262,5 +423,21 @@ public class TaskDataStore : ITaskDataStore
                 ? null
                 : reader.GetString(reader.GetOrdinal("notes"))
         };
+
+        // Read carry-over fields (may not exist in older DBs before migration runs)
+        try
+        {
+            var carriedFromIdOrd = reader.GetOrdinal("carried_from_task_id");
+            task.CarriedFromTaskId = reader.IsDBNull(carriedFromIdOrd) ? null : reader.GetString(carriedFromIdOrd);
+
+            var carriedFromDateOrd = reader.GetOrdinal("carried_from_date");
+            task.CarriedFromDate = reader.IsDBNull(carriedFromDateOrd) ? null : reader.GetString(carriedFromDateOrd);
+
+            var isCarriedOverOrd = reader.GetOrdinal("is_carried_over");
+            task.IsCarriedOver = reader.GetInt32(isCarriedOverOrd) == 1;
+        }
+        catch { }
+
+        return task;
     }
 }

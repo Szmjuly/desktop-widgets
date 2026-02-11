@@ -56,4 +56,24 @@ public interface ITaskDataStore
     /// Get the next sort order value for a date
     /// </summary>
     Task<int> GetNextSortOrderAsync(string date);
+
+    /// <summary>
+    /// Get a single task by ID
+    /// </summary>
+    Task<TaskItem?> GetTaskByIdAsync(string taskId);
+
+    /// <summary>
+    /// Get all incomplete original tasks (not carry-over copies) from dates before the given date
+    /// </summary>
+    Task<List<TaskItem>> GetAllIncompleteOriginalTasksBeforeDateAsync(string beforeDate);
+
+    /// <summary>
+    /// Get all carry-over copies on a specific date (tasks where carried_from_task_id is not null)
+    /// </summary>
+    Task<List<TaskItem>> GetCarriedOverCopiesOnDateAsync(string date);
+
+    /// <summary>
+    /// Delete all incomplete carry-over copies and return the original task IDs that were un-carried
+    /// </summary>
+    Task<List<string>> DeleteIncompleteCarriedOverCopiesAsync();
 }

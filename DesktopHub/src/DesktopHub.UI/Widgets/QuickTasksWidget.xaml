@@ -35,7 +35,20 @@
                           Text="Feb 9, 2026"
                           FontSize="11"
                           Foreground="{StaticResource DimTextBrush}"
-                          VerticalAlignment="Center"/>
+                          VerticalAlignment="Center"
+                          Cursor="Hand"
+                          MouseLeftButtonDown="DateLabel_Click"
+                          ToolTip="Click to pick a date">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
             </Grid>
             
             <!-- Date Navigation + Add Button -->
@@ -65,7 +78,7 @@
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
-                    <TextBlock Text="&#9664;" FontSize="10" Foreground="{StaticResource DimTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="&lt;" FontSize="12" FontWeight="Bold" Foreground="{StaticResource DimTextBrush}" VerticalAlignment="Center"/>
                 </Border>
                 
                 <!-- Today Button -->
@@ -106,7 +119,7 @@
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
-                    <TextBlock Text="&#9654;" FontSize="10" Foreground="{StaticResource DimTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="&gt;" FontSize="12" FontWeight="Bold" Foreground="{StaticResource DimTextBrush}" VerticalAlignment="Center"/>
                 </Border>
                 
                 <!-- Spacer -->

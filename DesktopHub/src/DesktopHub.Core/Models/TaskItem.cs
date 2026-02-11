@@ -54,4 +54,19 @@ public class TaskItem
     /// Optional short note
     /// </summary>
     public string? Notes { get; set; }
+
+    /// <summary>
+    /// If this task is a carry-over copy, the ID of the original task it was carried from
+    /// </summary>
+    public string? CarriedFromTaskId { get; set; }
+
+    /// <summary>
+    /// If this task is a carry-over copy, the date of the original task
+    /// </summary>
+    public string? CarriedFromDate { get; set; }
+
+    /// <summary>
+    /// Whether this original task has been carried over to another date
+    /// </summary>
+    public bool IsCarriedOver { get; set; } = false;
 }
