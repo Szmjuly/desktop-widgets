@@ -38,8 +38,8 @@ public class UpdateCheckService
         var frequencyMinutes = _settings.GetUpdateCheckFrequencyMinutes();
         var interval = TimeSpan.FromMinutes(Math.Max(frequencyMinutes, 30)); // Minimum 30 minutes
 
-        // Initial delay: 2 minutes after app start to avoid impacting startup performance
-        var initialDelay = TimeSpan.FromMinutes(2);
+        // Initial delay: 15 seconds after app start — quick enough to notify on boot
+        var initialDelay = TimeSpan.FromSeconds(15);
 
         _timer?.Dispose();
         _timer = new System.Threading.Timer(async _ => await PerformCheckAsync(), null, initialDelay, interval);
