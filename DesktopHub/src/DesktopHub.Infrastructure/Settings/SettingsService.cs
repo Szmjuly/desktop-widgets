@@ -157,6 +157,9 @@ public class SettingsService : ISettingsService
     public bool GetDocWidgetEnabled() => _settings.DocWidgetEnabled;
     public void SetDocWidgetEnabled(bool enabled) => _settings.DocWidgetEnabled = enabled;
 
+    public bool GetSearchWidgetEnabled() => _settings.SearchWidgetEnabled;
+    public void SetSearchWidgetEnabled(bool enabled) => _settings.SearchWidgetEnabled = enabled;
+
     public (int modifiers, int key) GetCloseShortcut() => (_settings.CloseShortcutModifiers, _settings.CloseShortcutKey);
     public void SetCloseShortcut(int modifiers, int key)
     {
@@ -251,6 +254,7 @@ public class SettingsService : ISettingsService
         public bool TimerWidgetEnabled { get; set; } = true;
         public bool QuickTasksWidgetEnabled { get; set; } = true;
         public bool DocWidgetEnabled { get; set; } = true;
+        public bool SearchWidgetEnabled { get; set; } = true;
 
         // Close shortcut for closing widgets (ESC by default)
         public int CloseShortcutModifiers { get; set; } = DefaultCloseShortcutModifiers;

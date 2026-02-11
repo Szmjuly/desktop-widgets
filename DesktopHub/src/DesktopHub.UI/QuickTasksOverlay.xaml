@@ -15,7 +15,7 @@
         KeyDown="Window_KeyDown">
     
     <Border x:Name="RootBorder"
-            Background="#C8121212"
+            Background="#A8121212"
             CornerRadius="12"
             BorderBrush="#3A2A2A2A"
             BorderThickness="1">

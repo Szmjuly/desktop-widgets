@@ -1487,7 +1487,7 @@
                             </Grid>
                             
                             <!-- Doc Quick Open Widget Toggle -->
-                            <Grid Margin="0,0,0,0">
+                            <Grid Margin="0,0,0,12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
@@ -1520,50 +1520,42 @@
                                     </ToggleButton.Style>
                                 </ToggleButton>
                             </Grid>
+                            
+                            <!-- Search Widget Toggle -->
+                            <Grid Margin="0,0,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Search Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Search button in the Widget Launcher" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                                <ToggleButton x:Name="SearchWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
+                                              Checked="SearchWidgetEnabledToggle_Changed" Unchecked="SearchWidgetEnabledToggle_Changed" Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
+                            </Grid>
                         </StackPanel>
-                    </Border>
-                    
-                    <!-- Toggle Search Overlay -->
-                    <Border Background="#18FFFFFF" 
-                            BorderBrush="#22FFFFFF"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="16">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="Search Overlay" 
-                                           FontSize="16" 
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource TextBrush}"
-                                           Margin="0,0,0,4"/>
-                                <TextBlock Text="Show or hide the search overlay widget on your desktop" 
-                                           FontSize="12" 
-                                           Foreground="{StaticResource TextSecondaryBrush}"
-                                           TextWrapping="Wrap"/>
-                            </StackPanel>
-                            
-                            <Button x:Name="ToggleSearchOverlayButton"
-                                    Grid.Column="1"
-                                    Content="Show"
-                                    Padding="16,8"
-                                    Background="#007ACC"
-                                    Foreground="White"
-                                    BorderBrush="#007ACC"
-                                    Click="ToggleSearchOverlayButton_Click"
-                                    VerticalAlignment="Center"
-                                    Cursor="Hand">
-                                <Button.Resources>
-                                    <Style TargetType="Border">
-                                        <Setter Property="CornerRadius" Value="6"/>
-                                    </Style>
-                                </Button.Resources>
-                            </Button>
-                        </Grid>
                     </Border>
                             </StackPanel>
                         </ScrollViewer>

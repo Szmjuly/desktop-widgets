@@ -24,6 +24,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
                 <!-- Favorite indicator -->
@@ -62,6 +63,19 @@
                                Margin="0,2,0,0"
                                TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
+                
+                <!-- Inline copy path button -->
+                <Border Grid.Column="2" 
+                        Background="Transparent" CornerRadius="4"
+                        Cursor="Hand" ToolTip="Copy project path"
+                        Padding="6,4" Margin="4,0,0,0"
+                        VerticalAlignment="Center" Opacity="0.6"
+                        MouseLeftButtonDown="CopyPathBorder_Click"
+                        MouseEnter="CopyPathBorder_MouseEnter"
+                        MouseLeave="CopyPathBorder_MouseLeave">
+                    <TextBlock Text="📋" FontSize="12" Foreground="White"
+                               VerticalAlignment="Center"/>
+                </Border>
             </Grid>
         </DataTemplate>
     </Window.Resources>
@@ -566,7 +580,8 @@
                              ItemTemplate="{StaticResource ResultItemTemplate}"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              SelectionChanged="ResultsList_SelectionChanged"
-                             MouseDoubleClick="ResultsList_MouseDoubleClick"/>
+                             MouseDoubleClick="ResultsList_MouseDoubleClick"
+                             PreviewMouseRightButtonUp="ResultsList_PreviewMouseRightButtonUp"/>
             </Border>
             
             </Grid>

@@ -278,6 +278,7 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
         // Icon
         var icon = new TextBlock
@@ -323,6 +324,36 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
         Grid.SetColumn(infoStack, 1);
         grid.Children.Add(infoStack);
 
+        // Inline copy button
+        var copyBtn = new Border
+        {
+            Background = WpfBrushes.Transparent,
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(4, 2, 4, 2),
+            Margin = new Thickness(4, 0, 0, 0),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = "Copy path",
+            Opacity = 0.6
+        };
+        copyBtn.Child = new TextBlock
+        {
+            Text = "📋",
+            FontSize = 11,
+            Foreground = WpfBrushes.White,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        copyBtn.MouseEnter += (s, e) => { copyBtn.Background = (WpfBrush)FindResource("HoverBrush"); copyBtn.Opacity = 1.0; };
+        copyBtn.MouseLeave += (s, e) => { copyBtn.Background = WpfBrushes.Transparent; copyBtn.Opacity = 0.6; };
+        var docPath = doc.Path;
+        copyBtn.MouseLeftButtonDown += (s, e) =>
+        {
+            e.Handled = true;
+            CopyToClipboard(docPath);
+        };
+        Grid.SetColumn(copyBtn, 2);
+        grid.Children.Add(copyBtn);
+
         row.Child = grid;
         return row;
     }
@@ -359,13 +390,55 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
                 if (e.ClickCount == 2) await OpenFileAsync(path);
             };
 
-            row.Child = new TextBlock
+            // Context menu for recent files
+            var recentPath = filePath;
+            row.MouseRightButtonDown += (s, e) => ShowRecentFileContextMenu(recentPath, row);
+
+            var recentGrid = new Grid();
+            recentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            recentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var nameText = new TextBlock
             {
                 Text = fileName,
                 FontSize = 11,
                 Foreground = (WpfBrush)FindResource("TextSecondaryBrush"),
-                TextTrimming = TextTrimming.CharacterEllipsis
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                VerticalAlignment = VerticalAlignment.Center
             };
+            Grid.SetColumn(nameText, 0);
+            recentGrid.Children.Add(nameText);
+
+            // Inline copy button for recent files
+            var recentCopyBtn = new Border
+            {
+                Background = WpfBrushes.Transparent,
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(4, 1, 4, 1),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Copy path",
+                Opacity = 0.6
+            };
+            recentCopyBtn.Child = new TextBlock
+            {
+                Text = "📋",
+                FontSize = 10,
+                Foreground = WpfBrushes.White,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            recentCopyBtn.MouseEnter += (s, e) => { recentCopyBtn.Background = (WpfBrush)FindResource("HoverBrush"); recentCopyBtn.Opacity = 1.0; };
+            recentCopyBtn.MouseLeave += (s, e) => { recentCopyBtn.Background = WpfBrushes.Transparent; recentCopyBtn.Opacity = 0.6; };
+            var copyPath = filePath;
+            recentCopyBtn.MouseLeftButtonDown += (s, e) =>
+            {
+                e.Handled = true;
+                CopyToClipboard(copyPath);
+            };
+            Grid.SetColumn(recentCopyBtn, 1);
+            recentGrid.Children.Add(recentCopyBtn);
+
+            row.Child = recentGrid;
             RecentFilesPanel.Children.Add(row);
         }
     }
@@ -387,14 +460,7 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
 
     private void ShowFileContextMenu(DocumentItem doc, Border row)
     {
-        var menuItemStyle = CreateDarkMenuItemStyle();
-        var menu = new ContextMenu
-        {
-            Background = new WpfSolidColorBrush(WpfColor.FromRgb(0x1E, 0x1E, 0x1E)),
-            BorderBrush = new WpfSolidColorBrush(WpfColor.FromArgb(0x40, 0xFF, 0xFF, 0xFF)),
-            Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(0xE0, 0xE0, 0xE0))
-        };
-        menu.Resources[typeof(MenuItem)] = menuItemStyle;
+        var menu = CreateDarkContextMenu();
 
         var openItem = new MenuItem { Header = "Open" };
         openItem.Click += async (s, e) => await OpenFileAsync(doc.Path);
@@ -409,34 +475,77 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
         menu.Items.Add(folderItem);
 
         var copyItem = new MenuItem { Header = "Copy Path" };
-        copyItem.Click += (s, e) =>
-        {
-            try
-            {
-                System.Windows.Clipboard.SetText(doc.Path);
-                StatusText.Text = "Path copied";
-            }
-            catch { }
-        };
+        copyItem.Click += (s, e) => CopyToClipboard(doc.Path);
         menu.Items.Add(copyItem);
 
         row.ContextMenu = menu;
         menu.IsOpen = true;
     }
 
-    private Style CreateDarkMenuItemStyle()
+    private static ContextMenu CreateDarkContextMenu()
     {
-        var style = new Style(typeof(MenuItem));
-        style.Setters.Add(new Setter(MenuItem.ForegroundProperty, new WpfSolidColorBrush(WpfColor.FromRgb(0xE0, 0xE0, 0xE0))));
-        style.Setters.Add(new Setter(MenuItem.BackgroundProperty, new WpfSolidColorBrush(WpfColor.FromRgb(0x1E, 0x1E, 0x1E))));
-        style.Setters.Add(new Setter(MenuItem.BorderBrushProperty, WpfBrushes.Transparent));
-        style.Setters.Add(new Setter(MenuItem.PaddingProperty, new Thickness(8, 4, 8, 4)));
+        var menuBg = new WpfSolidColorBrush(WpfColor.FromRgb(0x1E, 0x1E, 0x1E));
+        var menuBorder = new WpfSolidColorBrush(WpfColor.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
+        var itemFg = new WpfSolidColorBrush(WpfColor.FromRgb(0xE0, 0xE0, 0xE0));
+        var hoverBg = new WpfSolidColorBrush(WpfColor.FromArgb(0x30, 0x4F, 0xC3, 0xF7));
+        var transparentBrush = WpfBrushes.Transparent;
 
-        var hover = new Trigger { Property = MenuItem.IsHighlightedProperty, Value = true };
-        hover.Setters.Add(new Setter(MenuItem.BackgroundProperty, new WpfSolidColorBrush(WpfColor.FromArgb(0x30, 0x4F, 0xC3, 0xF7))));
-        style.Triggers.Add(hover);
+        // Build a MenuItem ControlTemplate that fully replaces WPF default chrome
+        var itemTemplate = new ControlTemplate(typeof(MenuItem));
+        var borderFactory = new FrameworkElementFactory(typeof(Border));
+        borderFactory.Name = "Bd";
+        borderFactory.SetValue(Border.BackgroundProperty, transparentBrush);
+        borderFactory.SetValue(Border.PaddingProperty, new Thickness(10, 6, 10, 6));
+        borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
+        borderFactory.SetValue(Border.MarginProperty, new Thickness(2, 1, 2, 1));
 
-        return style;
+        var contentFactory = new FrameworkElementFactory(typeof(ContentPresenter));
+        contentFactory.SetValue(ContentPresenter.ContentSourceProperty, "Header");
+        contentFactory.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+        borderFactory.AppendChild(contentFactory);
+        itemTemplate.VisualTree = borderFactory;
+
+        // Hover trigger
+        var hoverTrigger = new Trigger { Property = MenuItem.IsHighlightedProperty, Value = true };
+        hoverTrigger.Setters.Add(new Setter(Border.BackgroundProperty, hoverBg, "Bd"));
+        itemTemplate.Triggers.Add(hoverTrigger);
+
+        // MenuItem style using the custom template
+        var itemStyle = new Style(typeof(MenuItem));
+        itemStyle.Setters.Add(new Setter(MenuItem.ForegroundProperty, itemFg));
+        itemStyle.Setters.Add(new Setter(MenuItem.TemplateProperty, itemTemplate));
+        itemStyle.Setters.Add(new Setter(MenuItem.CursorProperty, System.Windows.Input.Cursors.Hand));
+
+        // ContextMenu with custom template to remove system chrome
+        var contextMenuTemplate = new ControlTemplate(typeof(ContextMenu));
+        var menuBorderFactory = new FrameworkElementFactory(typeof(Border));
+        menuBorderFactory.SetValue(Border.BackgroundProperty, menuBg);
+        menuBorderFactory.SetValue(Border.BorderBrushProperty, menuBorder);
+        menuBorderFactory.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        menuBorderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
+        menuBorderFactory.SetValue(Border.PaddingProperty, new Thickness(2, 4, 2, 4));
+
+        var shadowEffect = new System.Windows.Media.Effects.DropShadowEffect
+        {
+            BlurRadius = 12,
+            ShadowDepth = 2,
+            Opacity = 0.5,
+            Color = WpfColor.FromRgb(0, 0, 0)
+        };
+        menuBorderFactory.SetValue(Border.EffectProperty, shadowEffect);
+
+        var itemsPresenter = new FrameworkElementFactory(typeof(ItemsPresenter));
+        menuBorderFactory.AppendChild(itemsPresenter);
+        contextMenuTemplate.VisualTree = menuBorderFactory;
+
+        var menu = new ContextMenu
+        {
+            Template = contextMenuTemplate,
+            HasDropShadow = false // We handle shadow ourselves
+        };
+        menu.Resources[typeof(MenuItem)] = itemStyle;
+
+        return menu;
     }
 
     // ---- Revit detection & launch ----
@@ -587,6 +696,42 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
         }
     }
 
+    // ---- Clipboard helpers ----
+
+    private void CopyToClipboard(string text)
+    {
+        try
+        {
+            System.Windows.Clipboard.SetText(text);
+            StatusText.Text = "Path copied";
+        }
+        catch { }
+    }
+
+    private void ShowRecentFileContextMenu(string filePath, Border row)
+    {
+        var menu = CreateDarkContextMenu();
+
+        var openItem = new MenuItem { Header = "Open" };
+        openItem.Click += async (s, e) => await OpenFileAsync(filePath);
+        menu.Items.Add(openItem);
+
+        var folderItem = new MenuItem { Header = "Open Folder" };
+        folderItem.Click += (s, e) =>
+        {
+            try { Process.Start("explorer.exe", $"/select,\"{filePath}\""); }
+            catch { }
+        };
+        menu.Items.Add(folderItem);
+
+        var copyItem = new MenuItem { Header = "Copy Path" };
+        copyItem.Click += (s, e) => CopyToClipboard(filePath);
+        menu.Items.Add(copyItem);
+
+        row.ContextMenu = menu;
+        menu.IsOpen = true;
+    }
+
     // ---- Event handlers ----
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -604,9 +749,41 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
     {
         if (sender is Border btn && btn.Tag is string tag)
         {
+            if (e.ClickCount == 2)
+            {
+                // Double-click: copy discipline folder path
+                var info = _docService.ProjectInfo;
+                if (info != null)
+                {
+                    var disciplinePath = Path.Combine(info.ProjectPath, tag);
+                    if (Directory.Exists(disciplinePath))
+                    {
+                        CopyToClipboard(disciplinePath);
+                    }
+                    else
+                    {
+                        CopyToClipboard(info.ProjectPath);
+                        StatusText.Text = $"{tag} folder not found, copied project path";
+                    }
+                }
+                return;
+            }
+
             if (Enum.TryParse<Discipline>(tag, true, out var disc))
             {
                 await _docService.SetDisciplineAsync(disc);
+            }
+        }
+    }
+
+    private void ProjectNameHeader_DoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2)
+        {
+            var info = _docService.ProjectInfo;
+            if (info != null && !string.IsNullOrEmpty(info.ProjectPath))
+            {
+                CopyToClipboard(info.ProjectPath);
             }
         }
     }

@@ -57,7 +57,9 @@
             
             <!-- Project Name (auto-populated from search selection) -->
             <Border Background="{StaticResource InputBgBrush}" BorderBrush="{StaticResource BorderBrush}" 
-                    BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="0,0,0,6">
+                    BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="0,0,0,6"
+                    MouseLeftButtonDown="ProjectNameHeader_DoubleClick" Cursor="Hand"
+                    ToolTip="Double-click to copy project path">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -86,19 +88,22 @@
                     </Grid.ColumnDefinitions>
                     <Border x:Name="BtnElectrical" Grid.Column="0" Background="#10F5F7FA" CornerRadius="6,0,0,6" 
                             Padding="8,7" Cursor="Hand" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1,1,0,1"
-                            MouseLeftButtonDown="Discipline_Click" Tag="Electrical">
+                            MouseLeftButtonDown="Discipline_Click" Tag="Electrical"
+                            ToolTip="Click to switch · Double-click to copy path">
                         <TextBlock Text="⚡ Electrical" FontSize="11" FontWeight="Medium" Foreground="{StaticResource TextSecondaryBrush}" 
                                    HorizontalAlignment="Center" IsHitTestVisible="False"/>
                     </Border>
                     <Border x:Name="BtnMechanical" Grid.Column="1" Background="#10F5F7FA" CornerRadius="0" 
                             Padding="8,7" Cursor="Hand" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                            MouseLeftButtonDown="Discipline_Click" Tag="Mechanical">
+                            MouseLeftButtonDown="Discipline_Click" Tag="Mechanical"
+                            ToolTip="Click to switch · Double-click to copy path">
                         <TextBlock Text="🔧 Mechanical" FontSize="11" FontWeight="Medium" Foreground="{StaticResource TextSecondaryBrush}" 
                                    HorizontalAlignment="Center" IsHitTestVisible="False"/>
                     </Border>
                     <Border x:Name="BtnPlumbing" Grid.Column="2" Background="#10F5F7FA" CornerRadius="0,6,6,0" 
                             Padding="8,7" Cursor="Hand" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,1,1"
-                            MouseLeftButtonDown="Discipline_Click" Tag="Plumbing">
+                            MouseLeftButtonDown="Discipline_Click" Tag="Plumbing"
+                            ToolTip="Click to switch · Double-click to copy path">
                         <TextBlock Text="🚿 Plumbing" FontSize="11" FontWeight="Medium" Foreground="{StaticResource TextSecondaryBrush}" 
                                    HorizontalAlignment="Center" IsHitTestVisible="False"/>
                     </Border>

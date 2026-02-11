@@ -25,11 +25,15 @@ public partial class SettingsWindow : Window
     private Action? _onLivingWidgetsModeChanged;
     private Action? _onDriveSettingsChanged;
     private Action? _onTransparencyChanged;
+    private Action? _onSearchWidgetEnabledChanged;
+    private Action? _onTimerWidgetEnabledChanged;
+    private Action? _onQuickTasksWidgetEnabledChanged;
+    private Action? _onDocWidgetEnabledChanged;
     private bool _isUpdatingSliders;
     private bool _isLoadingQTSettings;
     private bool _isLoadingDQSettings;
 
-    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null)
+    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null)
     {
         _settings = settings;
         _taskService = taskService;
@@ -39,6 +43,10 @@ public partial class SettingsWindow : Window
         _onLivingWidgetsModeChanged = onLivingWidgetsModeChanged;
         _onDriveSettingsChanged = onDriveSettingsChanged;
         _onTransparencyChanged = onTransparencyChanged;
+        _onSearchWidgetEnabledChanged = onSearchWidgetEnabledChanged;
+        _onTimerWidgetEnabledChanged = onTimerWidgetEnabledChanged;
+        _onQuickTasksWidgetEnabledChanged = onQuickTasksWidgetEnabledChanged;
+        _onDocWidgetEnabledChanged = onDocWidgetEnabledChanged;
 
         // Suppress all slider/control events during XAML initialization
         _isUpdatingSliders = true;
@@ -189,6 +197,9 @@ public partial class SettingsWindow : Window
             TimerWidgetEnabledToggle.IsChecked = _settings.GetTimerWidgetEnabled();
             QuickTasksWidgetEnabledToggle.IsChecked = _settings.GetQuickTasksWidgetEnabled();
             DocWidgetEnabledToggle.IsChecked = _settings.GetDocWidgetEnabled();
+            
+            // Load search widget enabled toggle
+            SearchWidgetEnabledToggle.IsChecked = _settings.GetSearchWidgetEnabled();
             
             // Load notification duration setting
             LoadNotificationDurationSetting();
@@ -1349,34 +1360,41 @@ public partial class SettingsWindow : Window
 
     private void TimerWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
     {
-        if (_settings == null) return;
+        if (_settings == null || !IsLoaded) return;
         var enabled = TimerWidgetEnabledToggle.IsChecked == true;
         _settings.SetTimerWidgetEnabled(enabled);
         _ = _settings.SaveAsync();
+        _onTimerWidgetEnabledChanged?.Invoke();
         StatusText.Text = enabled ? "Timer widget enabled" : "Timer widget disabled";
     }
 
     private void QuickTasksWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
     {
-        if (_settings == null) return;
+        if (_settings == null || !IsLoaded) return;
         var enabled = QuickTasksWidgetEnabledToggle.IsChecked == true;
         _settings.SetQuickTasksWidgetEnabled(enabled);
         _ = _settings.SaveAsync();
+        _onQuickTasksWidgetEnabledChanged?.Invoke();
         StatusText.Text = enabled ? "Quick Tasks widget enabled" : "Quick Tasks widget disabled";
     }
 
     private void DocWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
     {
-        if (_settings == null) return;
+        if (_settings == null || !IsLoaded) return;
         var enabled = DocWidgetEnabledToggle.IsChecked == true;
         _settings.SetDocWidgetEnabled(enabled);
         _ = _settings.SaveAsync();
+        _onDocWidgetEnabledChanged?.Invoke();
         StatusText.Text = enabled ? "Doc Quick Open widget enabled" : "Doc Quick Open widget disabled";
     }
 
-    private void ToggleSearchOverlayButton_Click(object sender, RoutedEventArgs e)
+    private void SearchWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
     {
-        _onLivingWidgetsModeChanged?.Invoke();
-        StatusText.Text = "Search overlay toggled";
+        if (_settings == null || !IsLoaded) return;
+        var enabled = SearchWidgetEnabledToggle.IsChecked == true;
+        _settings.SetSearchWidgetEnabled(enabled);
+        _ = _settings.SaveAsync();
+        _onSearchWidgetEnabledChanged?.Invoke();
+        StatusText.Text = enabled ? "Search widget enabled" : "Search widget disabled";
     }
 }

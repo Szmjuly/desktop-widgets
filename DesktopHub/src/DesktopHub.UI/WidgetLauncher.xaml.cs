@@ -9,6 +9,7 @@ namespace DesktopHub.UI;
 
 public partial class WidgetLauncher : Window
 {
+    public event EventHandler? SearchWidgetRequested;
     public event EventHandler? TimerWidgetRequested;
     public event EventHandler? QuickTasksWidgetRequested;
     public event EventHandler? DocQuickOpenRequested;
@@ -21,6 +22,12 @@ public partial class WidgetLauncher : Window
     {
         InitializeComponent();
         _settings = settings;
+        
+        // Apply initial button visibility from settings
+        UpdateSearchButtonVisibility(_settings.GetSearchWidgetEnabled());
+        UpdateTimerButtonVisibility(_settings.GetTimerWidgetEnabled());
+        UpdateQuickTasksButtonVisibility(_settings.GetQuickTasksWidgetEnabled());
+        UpdateDocButtonVisibility(_settings.GetDocWidgetEnabled());
     }
     
     public void UpdateTransparency()
@@ -32,7 +39,7 @@ public partial class WidgetLauncher : Window
             
             if (RootBorder != null)
             {
-                RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, 0x18, 0x18, 0x18));
+                RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, 0x12, 0x12, 0x12));
             }
             
             DebugLogger.Log($"WidgetLauncher: Transparency updated to {transparency:F2}");
@@ -41,6 +48,11 @@ public partial class WidgetLauncher : Window
         {
             DebugLogger.Log($"WidgetLauncher: UpdateTransparency error: {ex.Message}");
         }
+    }
+    
+    private void SearchWidgetButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        SearchWidgetRequested?.Invoke(this, EventArgs.Empty);
     }
     
     private void TimerWidgetButton_Click(object sender, MouseButtonEventArgs e)
@@ -56,6 +68,30 @@ public partial class WidgetLauncher : Window
     private void DocQuickOpenButton_Click(object sender, MouseButtonEventArgs e)
     {
         DocQuickOpenRequested?.Invoke(this, EventArgs.Empty);
+    }
+    
+    public void UpdateSearchButtonVisibility(bool visible)
+    {
+        if (SearchWidgetButton != null)
+            SearchWidgetButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    public void UpdateTimerButtonVisibility(bool visible)
+    {
+        if (TimerWidgetButton != null)
+            TimerWidgetButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    public void UpdateQuickTasksButtonVisibility(bool visible)
+    {
+        if (QuickTasksWidgetButton != null)
+            QuickTasksWidgetButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    public void UpdateDocButtonVisibility(bool visible)
+    {
+        if (DocQuickOpenButton != null)
+            DocQuickOpenButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
     }
     
     private void Window_Deactivated(object sender, EventArgs e)

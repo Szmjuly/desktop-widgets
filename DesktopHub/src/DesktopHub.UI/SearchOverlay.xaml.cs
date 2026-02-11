@@ -196,6 +196,7 @@ public partial class SearchOverlay : Window
 
             // Initialize widget launcher
             _widgetLauncher = new WidgetLauncher(_settings);
+            _widgetLauncher.SearchWidgetRequested += OnSearchWidgetRequested;
             _widgetLauncher.TimerWidgetRequested += OnTimerWidgetRequested;
             _widgetLauncher.QuickTasksWidgetRequested += OnQuickTasksWidgetRequested;
             _widgetLauncher.DocQuickOpenRequested += OnDocQuickOpenRequested;
@@ -802,7 +803,7 @@ public partial class SearchOverlay : Window
             var alpha = (byte)(transparency * 255);
             
             // Apple Spotlight style: neutral colors, no accent tinting
-            RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, 0x18, 0x18, 0x18));
+            RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, 0x12, 0x12, 0x12));
             RootBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x40, 0x3A, 0x3A, 0x3A));
             
             GlassOverlay.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
@@ -1584,6 +1585,152 @@ public partial class SearchOverlay : Window
         }
     }
 
+    private void CopyPathBorder_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is Border border && border.DataContext is ProjectViewModel vm)
+        {
+            e.Handled = true;
+            try
+            {
+                System.Windows.Clipboard.SetText(vm.Path);
+                StatusText.Text = "Path copied to clipboard";
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Failed to copy: {ex.Message}";
+            }
+        }
+    }
+
+    private void CopyPathBorder_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (sender is Border border)
+        {
+            border.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF));
+            border.Opacity = 1.0;
+        }
+    }
+
+    private void CopyPathBorder_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (sender is Border border)
+        {
+            border.Background = System.Windows.Media.Brushes.Transparent;
+            border.Opacity = 0.6;
+        }
+    }
+
+    private void ResultsList_PreviewMouseRightButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        // Find the ListBoxItem that was right-clicked
+        // Note: OriginalSource can be a Run (ContentElement), not a Visual,
+        // so we must use LogicalTreeHelper for non-Visual elements first.
+        var element = e.OriginalSource as DependencyObject;
+        while (element != null && element is not System.Windows.Controls.ListBoxItem)
+        {
+            element = element is System.Windows.Media.Visual
+                ? System.Windows.Media.VisualTreeHelper.GetParent(element)
+                : LogicalTreeHelper.GetParent(element);
+        }
+
+        if (element is System.Windows.Controls.ListBoxItem item && item.DataContext is ProjectViewModel vm)
+        {
+            ResultsList.SelectedItem = vm;
+
+            var menu = CreateDarkContextMenu();
+
+            var openItem = new MenuItem { Header = "Open Folder" };
+            openItem.Click += (s, args) =>
+            {
+                try { Process.Start("explorer.exe", vm.Path); }
+                catch { }
+            };
+            menu.Items.Add(openItem);
+
+            var copyItem = new MenuItem { Header = "Copy Path" };
+            copyItem.Click += (s, args) =>
+            {
+                try
+                {
+                    System.Windows.Clipboard.SetText(vm.Path);
+                    StatusText.Text = "Path copied to clipboard";
+                }
+                catch { }
+            };
+            menu.Items.Add(copyItem);
+
+            ResultsList.ContextMenu = menu;
+            menu.IsOpen = true;
+            e.Handled = true;
+        }
+    }
+
+    private static ContextMenu CreateDarkContextMenu()
+    {
+        var menuBg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1E, 0x1E, 0x1E));
+        var menuBorder = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
+        var itemFg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE0, 0xE0, 0xE0));
+        var hoverBg = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, 0x4F, 0xC3, 0xF7));
+        var transparentBrush = System.Windows.Media.Brushes.Transparent;
+
+        // Build a MenuItem ControlTemplate that fully replaces WPF default chrome
+        var itemTemplate = new ControlTemplate(typeof(MenuItem));
+        var borderFactory = new FrameworkElementFactory(typeof(Border));
+        borderFactory.Name = "Bd";
+        borderFactory.SetValue(Border.BackgroundProperty, transparentBrush);
+        borderFactory.SetValue(Border.PaddingProperty, new Thickness(10, 6, 10, 6));
+        borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
+        borderFactory.SetValue(Border.MarginProperty, new Thickness(2, 1, 2, 1));
+
+        var contentFactory = new FrameworkElementFactory(typeof(ContentPresenter));
+        contentFactory.SetValue(ContentPresenter.ContentSourceProperty, "Header");
+        contentFactory.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+        borderFactory.AppendChild(contentFactory);
+        itemTemplate.VisualTree = borderFactory;
+
+        // Hover trigger
+        var hoverTrigger = new Trigger { Property = MenuItem.IsHighlightedProperty, Value = true };
+        hoverTrigger.Setters.Add(new Setter(Border.BackgroundProperty, hoverBg, "Bd"));
+        itemTemplate.Triggers.Add(hoverTrigger);
+
+        // MenuItem style using the custom template
+        var itemStyle = new Style(typeof(MenuItem));
+        itemStyle.Setters.Add(new Setter(MenuItem.ForegroundProperty, itemFg));
+        itemStyle.Setters.Add(new Setter(MenuItem.TemplateProperty, itemTemplate));
+        itemStyle.Setters.Add(new Setter(MenuItem.CursorProperty, System.Windows.Input.Cursors.Hand));
+
+        // ContextMenu with custom template to remove system chrome
+        var contextMenuTemplate = new ControlTemplate(typeof(ContextMenu));
+        var menuBorderFactory = new FrameworkElementFactory(typeof(Border));
+        menuBorderFactory.SetValue(Border.BackgroundProperty, menuBg);
+        menuBorderFactory.SetValue(Border.BorderBrushProperty, menuBorder);
+        menuBorderFactory.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        menuBorderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
+        menuBorderFactory.SetValue(Border.PaddingProperty, new Thickness(2, 4, 2, 4));
+
+        var shadowEffect = new System.Windows.Media.Effects.DropShadowEffect
+        {
+            BlurRadius = 12,
+            ShadowDepth = 2,
+            Opacity = 0.5,
+            Color = System.Windows.Media.Color.FromRgb(0, 0, 0)
+        };
+        menuBorderFactory.SetValue(Border.EffectProperty, shadowEffect);
+
+        var itemsPresenter = new FrameworkElementFactory(typeof(ItemsPresenter));
+        menuBorderFactory.AppendChild(itemsPresenter);
+        contextMenuTemplate.VisualTree = menuBorderFactory;
+
+        var menu = new ContextMenu
+        {
+            Template = contextMenuTemplate,
+            HasDropShadow = false
+        };
+        menu.Resources[typeof(MenuItem)] = itemStyle;
+
+        return menu;
+    }
+
     private void Window_Deactivated(object sender, EventArgs e)
     {
         DebugLogger.LogSeparator("WINDOW DEACTIVATED");
@@ -1941,6 +2088,27 @@ public partial class SearchOverlay : Window
         }
 
         DebugLogger.Log($"CreateTimerOverlay: Timer overlay created at ({_timerOverlay.Left}, {_timerOverlay.Top}), Topmost={_timerOverlay.Topmost}");
+    }
+
+    private void OnSearchWidgetRequested(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (this.Visibility == Visibility.Visible && this.IsVisible)
+            {
+                HideOverlay();
+                DebugLogger.Log("OnSearchWidgetRequested: Search overlay hidden");
+            }
+            else
+            {
+                ShowOverlay();
+                DebugLogger.Log("OnSearchWidgetRequested: Search overlay shown");
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"OnSearchWidgetRequested: Error: {ex}");
+        }
     }
 
     private void OnTimerWidgetRequested(object? sender, EventArgs e)
@@ -2432,6 +2600,46 @@ public partial class SearchOverlay : Window
         }
     }
 
+    public void UpdateSearchWidgetButton()
+    {
+        if (_widgetLauncher != null)
+        {
+            var enabled = _settings.GetSearchWidgetEnabled();
+            _widgetLauncher.UpdateSearchButtonVisibility(enabled);
+            DebugLogger.Log($"UpdateSearchWidgetButton: Search button visibility set to {enabled}");
+        }
+    }
+
+    public void UpdateTimerWidgetButton()
+    {
+        if (_widgetLauncher != null)
+        {
+            var enabled = _settings.GetTimerWidgetEnabled();
+            _widgetLauncher.UpdateTimerButtonVisibility(enabled);
+            DebugLogger.Log($"UpdateTimerWidgetButton: Timer button visibility set to {enabled}");
+        }
+    }
+
+    public void UpdateQuickTasksWidgetButton()
+    {
+        if (_widgetLauncher != null)
+        {
+            var enabled = _settings.GetQuickTasksWidgetEnabled();
+            _widgetLauncher.UpdateQuickTasksButtonVisibility(enabled);
+            DebugLogger.Log($"UpdateQuickTasksWidgetButton: QuickTasks button visibility set to {enabled}");
+        }
+    }
+
+    public void UpdateDocWidgetButton()
+    {
+        if (_widgetLauncher != null)
+        {
+            var enabled = _settings.GetDocWidgetEnabled();
+            _widgetLauncher.UpdateDocButtonVisibility(enabled);
+            DebugLogger.Log($"UpdateDocWidgetButton: Doc button visibility set to {enabled}");
+        }
+    }
+
     public void UpdateTransparency()
     {
         try
@@ -2441,7 +2649,7 @@ public partial class SearchOverlay : Window
                 // Update search overlay transparency
                 var overlayTransparency = _settings.GetOverlayTransparency();
                 var overlayAlpha = (byte)(overlayTransparency * 255);
-                RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(overlayAlpha, 0x18, 0x18, 0x18));
+                RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(overlayAlpha, 0x12, 0x12, 0x12));
                 
                 DebugLogger.Log($"UpdateTransparency: SearchOverlay transparency updated to {overlayTransparency:F2}");
                 

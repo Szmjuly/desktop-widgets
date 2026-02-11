@@ -356,6 +356,16 @@ public interface ISettingsService
     void SetDocWidgetEnabled(bool enabled);
 
     /// <summary>
+    /// Get whether search widget button is enabled in the widget launcher
+    /// </summary>
+    bool GetSearchWidgetEnabled();
+
+    /// <summary>
+    /// Set whether search widget button is enabled in the widget launcher
+    /// </summary>
+    void SetSearchWidgetEnabled(bool enabled);
+
+    /// <summary>
     /// Get close shortcut configuration for closing widgets
     /// </summary>
     (int modifiers, int key) GetCloseShortcut();
