@@ -1,0 +1,3 @@
+# BulkPrinter dependencies
+PySide6>=6.5.0
+pywin32>=305
