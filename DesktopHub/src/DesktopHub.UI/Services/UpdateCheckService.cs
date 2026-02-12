@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using DesktopHub.Core.Abstractions;
 using DesktopHub.Infrastructure.Firebase.Models;
+using DesktopHub.Infrastructure.Logging;
 
 namespace DesktopHub.UI.Services;
 
@@ -31,7 +32,7 @@ public class UpdateCheckService
     {
         if (!_settings.GetAutoUpdateCheckEnabled())
         {
-            DebugLogger.Log("UpdateCheckService: Auto update check is disabled, not starting timer");
+            InfraLogger.Log("UpdateCheckService: Auto update check is disabled, not starting timer");
             return;
         }
 
@@ -44,7 +45,7 @@ public class UpdateCheckService
         _timer?.Dispose();
         _timer = new System.Threading.Timer(async _ => await PerformCheckAsync(), null, initialDelay, interval);
 
-        DebugLogger.Log($"UpdateCheckService: Started with initial delay {initialDelay.TotalMinutes}min, interval {interval.TotalMinutes}min");
+        InfraLogger.Log($"UpdateCheckService: Started with initial delay {initialDelay.TotalSeconds}s, interval {interval.TotalMinutes}min");
     }
 
     public void Stop()
@@ -84,14 +85,14 @@ public class UpdateCheckService
                 return;
             }
 
-            DebugLogger.Log("UpdateCheckService: Performing update check...");
+            InfraLogger.Log("UpdateCheckService: Performing update check...");
             var updateInfo = await _checkForUpdatesFunc();
 
             if (updateInfo != null && updateInfo.UpdateAvailable)
             {
                 _isUpdateAvailable = true;
                 _latestUpdateInfo = updateInfo;
-                DebugLogger.Log($"UpdateCheckService: Update available! Current={updateInfo.CurrentVersion}, Latest={updateInfo.LatestVersion}");
+                InfraLogger.Log($"UpdateCheckService: Update available! Current={updateInfo.CurrentVersion}, Latest={updateInfo.LatestVersion}");
 
                 System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
                 {
@@ -102,12 +103,12 @@ public class UpdateCheckService
             {
                 _isUpdateAvailable = false;
                 _latestUpdateInfo = updateInfo;
-                DebugLogger.Log("UpdateCheckService: No update available");
+                InfraLogger.Log($"UpdateCheckService: No update available (current={updateInfo?.CurrentVersion})");
             }
         }
         catch (Exception ex)
         {
-            DebugLogger.Log($"UpdateCheckService: Check failed: {ex.Message}");
+            InfraLogger.Log($"UpdateCheckService: Check failed: {ex.Message}");
         }
     }
 }

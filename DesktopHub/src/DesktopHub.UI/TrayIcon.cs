@@ -265,6 +265,12 @@ public class TrayIcon : IDisposable
 
                 if (updateInfo.UpdateAvailable)
                 {
+                    // Notify the indicator system so green dots appear on widgets/tray
+                    _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        _searchOverlay.UpdateIndicatorManager?.SetUpdateAvailable(true);
+                    }));
+
                     var message = $"Version {FormatVersion(updateInfo.LatestVersion)} is available!\n\nCurrent: {FormatVersion(updateInfo.CurrentVersion)}";
                     if (!string.IsNullOrEmpty(updateInfo.ReleaseNotes))
                     {

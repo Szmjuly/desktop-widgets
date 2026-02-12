@@ -306,7 +306,7 @@
             <!-- Update available indicator -->
             <Ellipse x:Name="UpdateIndicator"
                      Width="10" Height="10"
-                     Fill="#007ACC"
+                     Fill="#4CAF50"
                      HorizontalAlignment="Right"
                      VerticalAlignment="Bottom"
                      Margin="0,0,8,8"

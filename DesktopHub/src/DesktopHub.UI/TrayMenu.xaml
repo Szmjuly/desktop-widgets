@@ -96,7 +96,7 @@
                     <Ellipse x:Name="TrayUpdateIndicator"
                              Grid.Column="1"
                              Width="8" Height="8"
-                             Fill="#007ACC"
+                             Fill="#4CAF50"
                              VerticalAlignment="Center"
                              Margin="8,0,0,0"
                              Visibility="Collapsed"/>
