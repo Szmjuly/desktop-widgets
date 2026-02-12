@@ -1,7 +1,7 @@
 <UserControl x:Class="DesktopHub.UI.Widgets.DocQuickOpenWidget"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             MinWidth="360" MaxWidth="420">
+             Width="380">
     
     <UserControl.Resources>
         <SolidColorBrush x:Key="TextBrush" Color="#F5F7FA"/>

@@ -31,9 +31,12 @@ public partial class SearchOverlay : Window
     private TimerOverlay? _timerOverlay;
     private QuickTasksOverlay? _quickTasksOverlay;
     private DocQuickOpenOverlay? _docOverlay;
+    private FrequentProjectsOverlay? _frequentProjectsOverlay;
+    private QuickLaunchOverlay? _quickLaunchOverlay;
     private WidgetLauncher? _widgetLauncher;
     private TaskService? _taskService;
     private DocOpenService? _docService;
+    private IProjectLaunchDataStore? _launchDataStore;
     private List<Project> _allProjects = new();
     private List<Project> _filteredProjects = new();
     private CancellationTokenSource? _searchCts;
@@ -54,6 +57,7 @@ public partial class SearchOverlay : Window
     public bool IsClosing => _isClosing;
     public TaskService? TaskService => _taskService;
     public DocOpenService? DocService => _docService;
+    public IProjectLaunchDataStore? LaunchDataStore => _launchDataStore;
 
     public SearchOverlay()
     {
@@ -176,6 +180,11 @@ public partial class SearchOverlay : Window
                 DebugLogger.Log("SearchOverlay: Starting database initialization");
                 await _dataStore.InitializeAsync();
                 DebugLogger.Log("SearchOverlay: Database initialized successfully");
+
+                // Initialize launch tracking data store (same DB)
+                _launchDataStore = new ProjectLaunchDataStore();
+                await _launchDataStore.InitializeAsync();
+                DebugLogger.Log("SearchOverlay: Launch tracking data store initialized");
             }
             catch (Exception dbEx)
             {
@@ -202,6 +211,8 @@ public partial class SearchOverlay : Window
             _widgetLauncher.TimerWidgetRequested += OnTimerWidgetRequested;
             _widgetLauncher.QuickTasksWidgetRequested += OnQuickTasksWidgetRequested;
             _widgetLauncher.DocQuickOpenRequested += OnDocQuickOpenRequested;
+            _widgetLauncher.FrequentProjectsRequested += OnFrequentProjectsRequested;
+            _widgetLauncher.QuickLaunchRequested += OnQuickLaunchRequested;
 
             // Register global hotkey (Ctrl+Alt+Space by default)
             try
@@ -292,6 +303,20 @@ public partial class SearchOverlay : Window
             {
                 CreateDocOverlay();
                 DebugLogger.Log("Restored doc quick open widget from previous session");
+            }
+            
+            var frequentProjectsVisible = _settings.GetFrequentProjectsWidgetVisible();
+            if (frequentProjectsVisible)
+            {
+                CreateFrequentProjectsOverlay();
+                DebugLogger.Log("Restored frequent projects widget from previous session");
+            }
+            
+            var quickLaunchVisible = _settings.GetQuickLaunchWidgetVisible();
+            if (quickLaunchVisible)
+            {
+                CreateQuickLaunchOverlay();
+                DebugLogger.Log("Restored quick launch widget from previous session");
             }
 
             // Load projects in the background
@@ -1248,6 +1273,13 @@ public partial class SearchOverlay : Window
             // Show all projects when search is blank
             LoadAllProjects();
             UpdateHistoryVisibility();
+
+            // Clear Doc Quick Open widget when search is cleared
+            if (_docOverlay?.Widget != null)
+            {
+                try { await _docOverlay.Widget.SetProjectAsync("", null); }
+                catch { }
+            }
             
             // Auto-collapse when search cleared (only if user hasn't manually toggled)
             if (!_userManuallySizedResults && !_isResultsCollapsed)
@@ -1262,6 +1294,23 @@ public partial class SearchOverlay : Window
 
         // Update history visibility (hide horizontal pills when typing)
         UpdateHistoryVisibility();
+
+        // Detect path-like input and perform directory listing if path search is enabled
+        if (query.Contains(":\\") || query.Contains(":/") || query.StartsWith("\\\\"))
+        {
+            if (_settings.GetPathSearchEnabled())
+            {
+                await PerformPathSearch(query, token);
+            }
+            else
+            {
+                ResultsList.ItemsSource = null;
+                StatusText.Text = "Path detected — enable Path Search in General settings to browse directories";
+                UpdateResultsHeader();
+                ShowLoading(false);
+            }
+            return;
+        }
 
         try
         {
@@ -1557,47 +1606,87 @@ public partial class SearchOverlay : Window
         OpenSelectedProject();
     }
 
-    private void OpenSelectedProject()
+    private async void OpenSelectedProject()
     {
+        string? itemPath = null;
+        string? itemNumber = null;
+        string? itemName = null;
+
         if (ResultsList.SelectedItem is ProjectViewModel vm)
         {
-            try
+            itemPath = vm.Path;
+            itemNumber = vm.FullNumber;
+            itemName = vm.Name;
+        }
+        else if (ResultsList.SelectedItem is PathSearchResultViewModel psvm)
+        {
+            itemPath = psvm.Path;
+        }
+
+        if (itemPath == null) return;
+
+        try
+        {
+            // Track search query when project is actually opened
+            var query = SearchBox.Text;
+            if (!string.IsNullOrWhiteSpace(query))
             {
-                // Track search query when project is actually opened
-                var query = SearchBox.Text;
-                if (!string.IsNullOrWhiteSpace(query))
+                AddToSearchHistory(query);
+            }
+            
+            Process.Start("explorer.exe", itemPath);
+
+            // Record the launch for frequency tracking (only for project results)
+            if (_launchDataStore != null && itemNumber != null && itemName != null)
+            {
+                try
                 {
-                    AddToSearchHistory(query);
+                    await _launchDataStore.RecordLaunchAsync(itemPath, itemNumber, itemName);
+                    DebugLogger.Log($"OpenSelectedProject: Recorded launch for {itemNumber}");
+
+                    // Refresh the frequent projects widget if it's open
+                    if (_frequentProjectsOverlay?.Widget != null)
+                    {
+                        await _frequentProjectsOverlay.Widget.RefreshAsync();
+                    }
                 }
-                
-                Process.Start("explorer.exe", vm.Path);
-                
-                // Only hide overlay if NOT in Living Widgets Mode (live widget mode keeps it open)
-                var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
-                if (!isLivingWidgetsMode)
+                catch (Exception trackEx)
                 {
-                    HideOverlay();
+                    DebugLogger.Log($"OpenSelectedProject: Failed to record launch: {trackEx.Message}");
                 }
             }
-            catch (Exception ex)
+            
+            // Only hide overlay if NOT in Living Widgets Mode (live widget mode keeps it open)
+            var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+            if (!isLivingWidgetsMode)
             {
-                System.Windows.MessageBox.Show(
-                    $"Failed to open project folder: {ex.Message}",
-                    "Error",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Error
-                );
+                HideOverlay();
             }
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"Failed to open: {ex.Message}",
+                "Error",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error
+            );
         }
     }
 
     private void CopySelectedProjectPath()
     {
+        string? path = null;
         if (ResultsList.SelectedItem is ProjectViewModel vm)
+            path = vm.Path;
+        else if (ResultsList.SelectedItem is PathSearchResultViewModel psvm)
+            path = psvm.Path;
+
+        if (path != null)
         {
             try
             {
-                System.Windows.Clipboard.SetText(vm.Path);
+                System.Windows.Clipboard.SetText(path);
                 StatusText.Text = "Path copied to clipboard";
             }
             catch (Exception ex)
@@ -1609,12 +1698,18 @@ public partial class SearchOverlay : Window
 
     private void CopyPathBorder_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
+        string? path = null;
         if (sender is Border border && border.DataContext is ProjectViewModel vm)
+            path = vm.Path;
+        else if (sender is Border border2 && border2.DataContext is PathSearchResultViewModel psvm)
+            path = psvm.Path;
+
+        if (path != null)
         {
             e.Handled = true;
             try
             {
-                System.Windows.Clipboard.SetText(vm.Path);
+                System.Windows.Clipboard.SetText(path);
                 StatusText.Text = "Path copied to clipboard";
             }
             catch (Exception ex)
@@ -1655,35 +1750,49 @@ public partial class SearchOverlay : Window
                 : LogicalTreeHelper.GetParent(element);
         }
 
-        if (element is System.Windows.Controls.ListBoxItem item && item.DataContext is ProjectViewModel vm)
+        if (element is System.Windows.Controls.ListBoxItem item)
         {
-            ResultsList.SelectedItem = vm;
-
-            var menu = CreateDarkContextMenu();
-
-            var openItem = new MenuItem { Header = "Open Folder" };
-            openItem.Click += (s, args) =>
+            string? itemPath = null;
+            if (item.DataContext is ProjectViewModel vm)
             {
-                try { Process.Start("explorer.exe", vm.Path); }
-                catch { }
-            };
-            menu.Items.Add(openItem);
-
-            var copyItem = new MenuItem { Header = "Copy Path" };
-            copyItem.Click += (s, args) =>
+                ResultsList.SelectedItem = vm;
+                itemPath = vm.Path;
+            }
+            else if (item.DataContext is PathSearchResultViewModel psvm)
             {
-                try
+                ResultsList.SelectedItem = psvm;
+                itemPath = psvm.Path;
+            }
+
+            if (itemPath != null)
+            {
+                var capturedPath = itemPath;
+                var menu = CreateDarkContextMenu();
+
+                var openItem = new MenuItem { Header = "Open Folder" };
+                openItem.Click += (s, args) =>
                 {
-                    System.Windows.Clipboard.SetText(vm.Path);
-                    StatusText.Text = "Path copied to clipboard";
-                }
-                catch { }
-            };
-            menu.Items.Add(copyItem);
+                    try { Process.Start("explorer.exe", capturedPath); }
+                    catch { }
+                };
+                menu.Items.Add(openItem);
 
-            ResultsList.ContextMenu = menu;
-            menu.IsOpen = true;
-            e.Handled = true;
+                var copyItem = new MenuItem { Header = "Copy Path" };
+                copyItem.Click += (s, args) =>
+                {
+                    try
+                    {
+                        System.Windows.Clipboard.SetText(capturedPath);
+                        StatusText.Text = "Path copied to clipboard";
+                    }
+                    catch { }
+                };
+                menu.Items.Add(copyItem);
+
+                ResultsList.ContextMenu = menu;
+                menu.IsOpen = true;
+                e.Handled = true;
+            }
         }
     }
 
@@ -1902,6 +2011,28 @@ public partial class SearchOverlay : Window
             _settings.SetDocWidgetVisible(false);
         }
         
+        if (_frequentProjectsOverlay != null)
+        {
+            _settings.SetFrequentProjectsWidgetPosition(_frequentProjectsOverlay.Left, _frequentProjectsOverlay.Top);
+            _settings.SetFrequentProjectsWidgetVisible(_frequentProjectsOverlay.Visibility == Visibility.Visible);
+            DebugLogger.Log($"Window_Closing: Saved frequent projects overlay position: ({_frequentProjectsOverlay.Left}, {_frequentProjectsOverlay.Top})");
+        }
+        else
+        {
+            _settings.SetFrequentProjectsWidgetVisible(false);
+        }
+        
+        if (_quickLaunchOverlay != null)
+        {
+            _settings.SetQuickLaunchWidgetPosition(_quickLaunchOverlay.Left, _quickLaunchOverlay.Top);
+            _settings.SetQuickLaunchWidgetVisible(_quickLaunchOverlay.Visibility == Visibility.Visible);
+            DebugLogger.Log($"Window_Closing: Saved quick launch overlay position: ({_quickLaunchOverlay.Left}, {_quickLaunchOverlay.Top})");
+        }
+        else
+        {
+            _settings.SetQuickLaunchWidgetVisible(false);
+        }
+        
         // Save async but don't await (app is closing)
         _ = _settings.SaveAsync();
         DebugLogger.Log("Window_Closing: Saved widget positions and visibility state");
@@ -2063,6 +2194,177 @@ public partial class SearchOverlay : Window
         catch (Exception ex)
         {
             DebugLogger.Log($"UpdateRootClip: EXCEPTION - {ex}");
+        }
+    }
+
+    // Path search result that reuses the same DataTemplate bindings as ProjectViewModel
+    private class PathSearchResultViewModel
+    {
+        public string FullNumber { get; }
+        public string Name { get; }
+        public string Path { get; }
+        public string? Location { get; }
+        public string? Status { get; }
+        public bool IsFavorite { get; } = false;
+
+        public PathSearchResultViewModel(string fullPath, bool isDirectory)
+        {
+            Path = fullPath;
+            Name = System.IO.Path.GetFileName(fullPath);
+            if (string.IsNullOrEmpty(Name))
+                Name = fullPath; // root paths like C:\
+            FullNumber = isDirectory ? "📁" : GetFileIcon(fullPath);
+            Location = isDirectory ? "Directory" : GetFileSize(fullPath);
+            Status = null;
+        }
+
+        private static string GetFileIcon(string path)
+        {
+            var ext = System.IO.Path.GetExtension(path)?.ToLowerInvariant();
+            return ext switch
+            {
+                ".exe" or ".msi" => "⚙️",
+                ".pdf" => "📄",
+                ".doc" or ".docx" => "📝",
+                ".xls" or ".xlsx" => "📊",
+                ".jpg" or ".jpeg" or ".png" or ".gif" or ".bmp" or ".svg" => "🖼️",
+                ".zip" or ".rar" or ".7z" => "📦",
+                ".txt" or ".log" or ".csv" => "📃",
+                ".dwg" or ".dxf" => "📐",
+                _ => "📄"
+            };
+        }
+
+        private static string? GetFileSize(string path)
+        {
+            try
+            {
+                var info = new System.IO.FileInfo(path);
+                if (!info.Exists) return null;
+                var bytes = info.Length;
+                if (bytes < 1024) return $"{bytes} B";
+                if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+                if (bytes < 1024 * 1024 * 1024) return $"{bytes / (1024.0 * 1024):F1} MB";
+                return $"{bytes / (1024.0 * 1024 * 1024):F1} GB";
+            }
+            catch { return null; }
+        }
+    }
+
+    private async Task PerformPathSearch(string query, CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(200, token);
+            if (token.IsCancellationRequested) return;
+
+            ShowLoading(true);
+
+            var path = query.TrimEnd();
+            if (!System.IO.Directory.Exists(path))
+            {
+                ResultsList.ItemsSource = null;
+                StatusText.Text = "Directory not found";
+                UpdateResultsHeader();
+                ShowLoading(false);
+                return;
+            }
+
+            var showDirs = _settings.GetPathSearchShowSubDirs();
+            var showFiles = _settings.GetPathSearchShowSubFiles();
+            var showHidden = _settings.GetPathSearchShowHidden();
+            var results = new List<PathSearchResultViewModel>();
+
+            await Task.Run(() =>
+            {
+                try
+                {
+                    if (showDirs)
+                    {
+                        foreach (var dir in System.IO.Directory.GetDirectories(path))
+                        {
+                            if (token.IsCancellationRequested) return;
+                            if (!showHidden)
+                            {
+                                try
+                                {
+                                    var attr = System.IO.File.GetAttributes(dir);
+                                    if ((attr & System.IO.FileAttributes.Hidden) != 0 ||
+                                        (attr & System.IO.FileAttributes.System) != 0)
+                                        continue;
+                                }
+                                catch { continue; }
+                            }
+                            results.Add(new PathSearchResultViewModel(dir, true));
+                        }
+                    }
+
+                    if (showFiles)
+                    {
+                        foreach (var file in System.IO.Directory.GetFiles(path))
+                        {
+                            if (token.IsCancellationRequested) return;
+                            if (!showHidden)
+                            {
+                                try
+                                {
+                                    var attr = System.IO.File.GetAttributes(file);
+                                    if ((attr & System.IO.FileAttributes.Hidden) != 0 ||
+                                        (attr & System.IO.FileAttributes.System) != 0)
+                                        continue;
+                                }
+                                catch { continue; }
+                            }
+                            results.Add(new PathSearchResultViewModel(file, false));
+                        }
+                    }
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // Silently skip inaccessible directories
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"PerformPathSearch: Error enumerating {path}: {ex.Message}");
+                }
+            }, token);
+
+            if (token.IsCancellationRequested) return;
+
+            ResultsList.ItemsSource = results;
+
+            if (results.Count > 0)
+            {
+                ResultsList.SelectedIndex = 0;
+                var dirCount = results.Count(r => r.Location == "Directory");
+                var fileCount = results.Count - dirCount;
+                var parts = new List<string>();
+                if (dirCount > 0) parts.Add($"{dirCount} folder{(dirCount == 1 ? "" : "s")}");
+                if (fileCount > 0) parts.Add($"{fileCount} file{(fileCount == 1 ? "" : "s")}");
+                StatusText.Text = $"Path: {string.Join(", ", parts)}";
+
+                if (!_userManuallySizedResults && _isResultsCollapsed)
+                {
+                    _isResultsCollapsed = false;
+                    ResultsContainer.Visibility = Visibility.Visible;
+                    CollapseIconRotation.Angle = 0;
+                    this.Height = 500;
+                }
+            }
+            else
+            {
+                StatusText.Text = "Directory is empty";
+            }
+
+            UpdateResultsHeader();
+            ShowLoading(false);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"PerformPathSearch: Error: {ex.Message}");
+            StatusText.Text = $"Path search error: {ex.Message}";
+            ShowLoading(false);
         }
     }
 
@@ -2287,6 +2589,136 @@ public partial class SearchOverlay : Window
         {
             DebugLogger.Log($"OnDocQuickOpenRequested: Error with doc overlay: {ex}");
             System.Windows.MessageBox.Show($"Error with doc overlay: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void CreateFrequentProjectsOverlay(double? left = null, double? top = null)
+    {
+        _frequentProjectsOverlay = new FrequentProjectsOverlay(_launchDataStore!, _settings);
+        _frequentProjectsOverlay.OnProjectSelectedForSearch += (path) =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                SearchBox.Text = path;
+                SearchBox.Focus();
+                SearchBox.CaretIndex = path.Length;
+                DebugLogger.Log($"FrequentProjectsOverlay: Loaded project path into search field: {path}");
+            });
+        };
+        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+        _frequentProjectsOverlay.Topmost = !isLivingWidgetsMode;
+
+        var (savedLeft, savedTop) = _settings.GetFrequentProjectsWidgetPosition();
+        _frequentProjectsOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + 12);
+        _frequentProjectsOverlay.Top = top ?? savedTop ?? (this.Top + 200);
+
+        if (isLivingWidgetsMode)
+            _frequentProjectsOverlay.EnableDragging();
+
+        _frequentProjectsOverlay.Show();
+        _frequentProjectsOverlay.UpdateTransparency();
+        _frequentProjectsOverlay.Tag = "WasVisible";
+
+        if (isLivingWidgetsMode && _desktopFollower != null)
+        {
+            _desktopFollower.TrackWindow(_frequentProjectsOverlay);
+        }
+
+        var fpRef = _frequentProjectsOverlay;
+        _updateIndicatorManager?.RegisterWidget("FrequentProjectsOverlay", 6, _frequentProjectsOverlay,
+            visible => Dispatcher.Invoke(() => fpRef.SetUpdateIndicatorVisible(visible)));
+
+        DebugLogger.Log($"CreateFrequentProjectsOverlay: Created at ({_frequentProjectsOverlay.Left}, {_frequentProjectsOverlay.Top})");
+    }
+
+    private void OnFrequentProjectsRequested(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (_frequentProjectsOverlay == null)
+            {
+                CreateFrequentProjectsOverlay();
+            }
+            else
+            {
+                if (_frequentProjectsOverlay.Visibility == Visibility.Visible)
+                {
+                    _frequentProjectsOverlay.Visibility = Visibility.Hidden;
+                    _frequentProjectsOverlay.Tag = null;
+                    DebugLogger.Log("OnFrequentProjectsRequested: Frequent projects overlay hidden");
+                }
+                else
+                {
+                    _frequentProjectsOverlay.Visibility = Visibility.Visible;
+                    _frequentProjectsOverlay.Tag = "WasVisible";
+                    DebugLogger.Log("OnFrequentProjectsRequested: Frequent projects overlay shown");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"OnFrequentProjectsRequested: Error: {ex}");
+            System.Windows.MessageBox.Show($"Error with frequent projects overlay: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void CreateQuickLaunchOverlay(double? left = null, double? top = null)
+    {
+        _quickLaunchOverlay = new QuickLaunchOverlay(_settings);
+        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+        _quickLaunchOverlay.Topmost = !isLivingWidgetsMode;
+
+        var (savedLeft, savedTop) = _settings.GetQuickLaunchWidgetPosition();
+        _quickLaunchOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + 12);
+        _quickLaunchOverlay.Top = top ?? savedTop ?? (this.Top + 300);
+
+        if (isLivingWidgetsMode)
+            _quickLaunchOverlay.EnableDragging();
+
+        _quickLaunchOverlay.Show();
+        _quickLaunchOverlay.UpdateTransparency();
+        _quickLaunchOverlay.Tag = "WasVisible";
+
+        if (isLivingWidgetsMode && _desktopFollower != null)
+        {
+            _desktopFollower.TrackWindow(_quickLaunchOverlay);
+        }
+
+        var qlRef = _quickLaunchOverlay;
+        _updateIndicatorManager?.RegisterWidget("QuickLaunchOverlay", 7, _quickLaunchOverlay,
+            visible => Dispatcher.Invoke(() => qlRef.SetUpdateIndicatorVisible(visible)));
+
+        DebugLogger.Log($"CreateQuickLaunchOverlay: Created at ({_quickLaunchOverlay.Left}, {_quickLaunchOverlay.Top})");
+    }
+
+    private void OnQuickLaunchRequested(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (_quickLaunchOverlay == null)
+            {
+                CreateQuickLaunchOverlay();
+            }
+            else
+            {
+                if (_quickLaunchOverlay.Visibility == Visibility.Visible)
+                {
+                    _quickLaunchOverlay.Visibility = Visibility.Hidden;
+                    _quickLaunchOverlay.Tag = null;
+                    DebugLogger.Log("OnQuickLaunchRequested: Quick launch overlay hidden");
+                }
+                else
+                {
+                    _quickLaunchOverlay.Visibility = Visibility.Visible;
+                    _quickLaunchOverlay.Tag = "WasVisible";
+                    DebugLogger.Log("OnQuickLaunchRequested: Quick launch overlay shown");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"OnQuickLaunchRequested: Error: {ex}");
+            System.Windows.MessageBox.Show($"Error with quick launch overlay: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -2520,6 +2952,16 @@ public partial class SearchOverlay : Window
             _desktopFollower.TrackWindow(_docOverlay);
         }
         
+        if (_frequentProjectsOverlay != null)
+        {
+            _desktopFollower.TrackWindow(_frequentProjectsOverlay);
+        }
+        
+        if (_quickLaunchOverlay != null)
+        {
+            _desktopFollower.TrackWindow(_quickLaunchOverlay);
+        }
+        
         _desktopFollower.Start();
     }
     
@@ -2571,6 +3013,18 @@ public partial class SearchOverlay : Window
                 _docOverlay.Topmost = false;
             }
             
+            if (_frequentProjectsOverlay != null)
+            {
+                _frequentProjectsOverlay.EnableDragging();
+                _frequentProjectsOverlay.Topmost = false;
+            }
+            
+            if (_quickLaunchOverlay != null)
+            {
+                _quickLaunchOverlay.EnableDragging();
+                _quickLaunchOverlay.Topmost = false;
+            }
+            
             // Start following desktop switches
             StartDesktopFollower();
             
@@ -2607,6 +3061,18 @@ public partial class SearchOverlay : Window
             {
                 _docOverlay.DisableDragging();
                 _docOverlay.Topmost = true;
+            }
+            
+            if (_frequentProjectsOverlay != null)
+            {
+                _frequentProjectsOverlay.DisableDragging();
+                _frequentProjectsOverlay.Topmost = true;
+            }
+            
+            if (_quickLaunchOverlay != null)
+            {
+                _quickLaunchOverlay.DisableDragging();
+                _quickLaunchOverlay.Topmost = true;
             }
             
             // Stop following desktop switches
@@ -2674,6 +3140,58 @@ public partial class SearchOverlay : Window
             var enabled = _settings.GetDocWidgetEnabled();
             _widgetLauncher.UpdateDocButtonVisibility(enabled);
             DebugLogger.Log($"UpdateDocWidgetButton: Doc button visibility set to {enabled}");
+        }
+    }
+
+    public void UpdateFrequentProjectsWidgetButton()
+    {
+        if (_widgetLauncher != null)
+        {
+            var enabled = _settings.GetFrequentProjectsWidgetEnabled();
+            _widgetLauncher.UpdateFrequentProjectsButtonVisibility(enabled);
+            DebugLogger.Log($"UpdateFrequentProjectsWidgetButton: visibility set to {enabled}");
+        }
+    }
+
+    public void UpdateFrequentProjectsLayout()
+    {
+        if (_frequentProjectsOverlay != null && _frequentProjectsOverlay.IsVisible)
+        {
+            var left = _frequentProjectsOverlay.Left;
+            var top = _frequentProjectsOverlay.Top;
+            _frequentProjectsOverlay.Close();
+            _frequentProjectsOverlay = null;
+
+            CreateFrequentProjectsOverlay(left, top);
+            _frequentProjectsOverlay?.Show();
+            DebugLogger.Log("UpdateFrequentProjectsLayout: Recreated Frequent Projects overlay with new layout");
+        }
+    }
+
+    public void UpdateQuickLaunchWidgetButton()
+    {
+        if (_widgetLauncher != null)
+        {
+            var enabled = _settings.GetQuickLaunchWidgetEnabled();
+            _widgetLauncher.UpdateQuickLaunchButtonVisibility(enabled);
+            DebugLogger.Log($"UpdateQuickLaunchWidgetButton: visibility set to {enabled}");
+        }
+    }
+
+    public void UpdateQuickLaunchLayout()
+    {
+        if (_quickLaunchOverlay != null && _quickLaunchOverlay.IsVisible)
+        {
+            // Get current position before closing
+            var left = _quickLaunchOverlay.Left;
+            var top = _quickLaunchOverlay.Top;
+            _quickLaunchOverlay.Close();
+            _quickLaunchOverlay = null;
+
+            // Recreate with new layout
+            CreateQuickLaunchOverlay(left, top);
+            _quickLaunchOverlay?.Show();
+            DebugLogger.Log("UpdateQuickLaunchLayout: Recreated Quick Launch overlay with new layout");
         }
     }
 
@@ -2762,6 +3280,18 @@ public partial class SearchOverlay : Window
                 if (_docOverlay != null)
                 {
                     _docOverlay.UpdateTransparency();
+                }
+                
+                // Update frequent projects overlay transparency if it exists
+                if (_frequentProjectsOverlay != null)
+                {
+                    _frequentProjectsOverlay.UpdateTransparency();
+                }
+                
+                // Update quick launch overlay transparency if it exists
+                if (_quickLaunchOverlay != null)
+                {
+                    _quickLaunchOverlay.UpdateTransparency();
                 }
             });
         }

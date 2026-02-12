@@ -495,7 +495,12 @@ REM Delete this batch file
                 () => _searchOverlay.UpdateTimerWidgetButton(),
                 () => _searchOverlay.UpdateQuickTasksWidgetButton(),
                 () => _searchOverlay.UpdateDocWidgetButton(),
-                () => _searchOverlay.RestartUpdateCheckService()
+                () => _searchOverlay.RestartUpdateCheckService(),
+                () => _searchOverlay.UpdateFrequentProjectsWidgetButton(),
+                () => _searchOverlay.UpdateFrequentProjectsLayout(),
+                () => _searchOverlay.UpdateQuickLaunchWidgetButton(),
+                _searchOverlay.LaunchDataStore,
+                () => _searchOverlay.UpdateQuickLaunchLayout()
             );
             settings.Show();
         }), System.Windows.Threading.DispatcherPriority.Normal);

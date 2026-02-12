@@ -13,6 +13,8 @@ public partial class WidgetLauncher : Window
     public event EventHandler? TimerWidgetRequested;
     public event EventHandler? QuickTasksWidgetRequested;
     public event EventHandler? DocQuickOpenRequested;
+    public event EventHandler? FrequentProjectsRequested;
+    public event EventHandler? QuickLaunchRequested;
     private bool _isDragging = false;
     private System.Windows.Point _dragStartPoint;
     private bool _isLivingWidgetsMode = false;
@@ -28,6 +30,8 @@ public partial class WidgetLauncher : Window
         UpdateTimerButtonVisibility(_settings.GetTimerWidgetEnabled());
         UpdateQuickTasksButtonVisibility(_settings.GetQuickTasksWidgetEnabled());
         UpdateDocButtonVisibility(_settings.GetDocWidgetEnabled());
+        UpdateFrequentProjectsButtonVisibility(_settings.GetFrequentProjectsWidgetEnabled());
+        UpdateQuickLaunchButtonVisibility(_settings.GetQuickLaunchWidgetEnabled());
     }
     
     public void UpdateTransparency()
@@ -69,6 +73,16 @@ public partial class WidgetLauncher : Window
     {
         DocQuickOpenRequested?.Invoke(this, EventArgs.Empty);
     }
+
+    private void FrequentProjectsButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        FrequentProjectsRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void QuickLaunchButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        QuickLaunchRequested?.Invoke(this, EventArgs.Empty);
+    }
     
     public void UpdateSearchButtonVisibility(bool visible)
     {
@@ -92,6 +106,18 @@ public partial class WidgetLauncher : Window
     {
         if (DocQuickOpenButton != null)
             DocQuickOpenButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    public void UpdateFrequentProjectsButtonVisibility(bool visible)
+    {
+        if (FrequentProjectsButton != null)
+            FrequentProjectsButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    public void UpdateQuickLaunchButtonVisibility(bool visible)
+    {
+        if (QuickLaunchButton != null)
+            QuickLaunchButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
     }
 
     public void SetUpdateIndicatorVisible(bool visible)

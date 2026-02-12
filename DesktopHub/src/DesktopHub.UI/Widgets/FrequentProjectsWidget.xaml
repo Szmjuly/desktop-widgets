@@ -1,0 +1,92 @@
+<UserControl x:Class="DesktopHub.UI.Widgets.FrequentProjectsWidget"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="380">
+    
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="AccentBrush" Color="#4FC3F7"/>
+        <SolidColorBrush x:Key="TextBrush" Color="#F5F7FA"/>
+        <SolidColorBrush x:Key="DimTextBrush" Color="#90A4AE"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#10F5F7FA"/>
+        <SolidColorBrush x:Key="HoverBrush" Color="#20F5F7FA"/>
+    </UserControl.Resources>
+    
+    <Grid>
+        <StackPanel>
+            <!-- Header -->
+            <Grid Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <TextBlock Grid.Column="0"
+                          Text="Frequent Projects"
+                          FontSize="14"
+                          FontWeight="SemiBold"
+                          Foreground="{StaticResource TextBrush}"/>
+                
+                <!-- Refresh button -->
+                <Border Grid.Column="1"
+                        Background="Transparent"
+                        CornerRadius="4"
+                        Padding="6,3"
+                        Cursor="Hand"
+                        MouseLeftButtonDown="RefreshButton_Click"
+                        ToolTip="Refresh">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="&#8635;" FontSize="14" Foreground="{StaticResource DimTextBrush}" VerticalAlignment="Center"/>
+                </Border>
+            </Grid>
+            
+            <!-- Project Tiles (List Mode) -->
+            <StackPanel x:Name="ProjectTilesPanel"/>
+            
+            <!-- Project Tiles (Grid Mode) -->
+            <ScrollViewer x:Name="GridScrollViewer"
+                          Visibility="Collapsed"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          MaxHeight="216">
+                <WrapPanel x:Name="ProjectTilesGrid"/>
+            </ScrollViewer>
+            
+            <!-- Empty State -->
+            <Border x:Name="EmptyState"
+                    Visibility="Collapsed"
+                    Padding="0,20">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="No project history yet"
+                              FontSize="12"
+                              Foreground="#40F5F7FA"
+                              HorizontalAlignment="Center"/>
+                    <TextBlock Text="Open projects from Search to track them"
+                              FontSize="10"
+                              Foreground="#30F5F7FA"
+                              HorizontalAlignment="Center"
+                              Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+            
+            <!-- Footer -->
+            <Border Margin="0,10,0,0"
+                    BorderBrush="#15F5F7FA"
+                    BorderThickness="0,1,0,0"
+                    Padding="0,8,0,0">
+                <TextBlock x:Name="StatusText"
+                          Text="Top 5 launched projects"
+                          FontSize="10"
+                          Foreground="#50F5F7FA"
+                          VerticalAlignment="Center"/>
+            </Border>
+        </StackPanel>
+    </Grid>
+</UserControl>

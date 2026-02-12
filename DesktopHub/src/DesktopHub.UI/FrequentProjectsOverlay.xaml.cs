@@ -4,46 +4,49 @@ using System.Windows.Input;
 using System.Windows.Media;
 using DesktopHub.Core.Abstractions;
 using DesktopHub.UI.Helpers;
-using DesktopHub.UI.Services;
 using DesktopHub.UI.Widgets;
 
 namespace DesktopHub.UI;
 
-public partial class QuickTasksOverlay : Window
+public partial class FrequentProjectsOverlay : Window
 {
-    private readonly TaskService _taskService;
+    private readonly IProjectLaunchDataStore _launchStore;
     private readonly ISettingsService _settings;
     private bool _isDragging = false;
     private System.Windows.Point _dragStartPoint;
     private bool _isLivingWidgetsMode = false;
 
-    public QuickTasksOverlay(TaskService taskService, ISettingsService settings)
+    public FrequentProjectsWidget? Widget { get; private set; }
+
+    public event Action<string>? OnProjectSelectedForSearch;
+
+    public FrequentProjectsOverlay(IProjectLaunchDataStore launchStore, ISettingsService settings)
     {
-        if (taskService == null) throw new ArgumentNullException(nameof(taskService));
+        if (launchStore == null) throw new ArgumentNullException(nameof(launchStore));
         if (settings == null) throw new ArgumentNullException(nameof(settings));
 
         InitializeComponent();
-        _taskService = taskService;
+        _launchStore = launchStore;
         _settings = settings;
 
-        // Embed the QuickTasksWidget UserControl
-        var widget = new QuickTasksWidget(_taskService);
-        WidgetHost.Content = widget;
+        Widget = new FrequentProjectsWidget(_launchStore, _settings);
+        Widget.OnProjectSelectedForSearch += (path) => OnProjectSelectedForSearch?.Invoke(path);
+        WidgetHost.Content = Widget;
     }
 
     public void EnableDragging()
     {
         _isLivingWidgetsMode = true;
-        
+
         this.MouseLeftButtonDown -= Overlay_MouseLeftButtonDown;
         this.MouseLeftButtonUp -= Overlay_MouseLeftButtonUp;
         this.MouseMove -= Overlay_MouseMove;
-        
+
         this.MouseLeftButtonDown += Overlay_MouseLeftButtonDown;
         this.MouseLeftButtonUp += Overlay_MouseLeftButtonUp;
         this.MouseMove += Overlay_MouseMove;
     }
-    
+
     public void DisableDragging()
     {
         _isLivingWidgetsMode = false;
@@ -51,11 +54,11 @@ public partial class QuickTasksOverlay : Window
         this.MouseLeftButtonUp -= Overlay_MouseLeftButtonUp;
         this.MouseMove -= Overlay_MouseMove;
     }
-    
+
     private void Overlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (!_isLivingWidgetsMode) return;
-        
+
         var element = e.OriginalSource as FrameworkElement;
         if (element != null)
         {
@@ -64,12 +67,12 @@ public partial class QuickTasksOverlay : Window
                 clickedType == "ComboBox" || clickedType == "ScrollBar" || clickedType == "Thumb")
                 return;
         }
-        
+
         _isDragging = true;
         _dragStartPoint = e.GetPosition(this);
         this.CaptureMouse();
     }
-    
+
     private void Overlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (_isDragging)
@@ -78,10 +81,10 @@ public partial class QuickTasksOverlay : Window
             this.ReleaseMouseCapture();
         }
     }
-    
+
     private void Overlay_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
     {
-        if (_isDragging && e.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
+        if (_isDragging && e.LeftButton == MouseButtonState.Pressed)
         {
             var currentPosition = e.GetPosition(this);
             var offset = currentPosition - _dragStartPoint;
@@ -106,7 +109,7 @@ public partial class QuickTasksOverlay : Window
     {
         try
         {
-            var transparency = _settings.GetQuickTasksWidgetTransparency();
+            var transparency = _settings.GetFrequentProjectsWidgetTransparency();
             var alpha = (byte)(transparency * 255);
 
             if (RootBorder != null)
@@ -114,11 +117,11 @@ public partial class QuickTasksOverlay : Window
                 RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, 0x12, 0x12, 0x12));
             }
 
-            DebugLogger.Log($"QuickTasksOverlay: Transparency updated to {transparency:F2}");
+            DebugLogger.Log($"FrequentProjectsOverlay: Transparency updated to {transparency:F2}");
         }
         catch (Exception ex)
         {
-            DebugLogger.Log($"QuickTasksOverlay: UpdateTransparency error: {ex.Message}");
+            DebugLogger.Log($"FrequentProjectsOverlay: UpdateTransparency error: {ex.Message}");
         }
     }
 
@@ -139,7 +142,7 @@ public partial class QuickTasksOverlay : Window
 
         if (currentModifiers == closeModifiers && currentKey == closeKey)
         {
-            DebugLogger.Log("QuickTasksOverlay: Close shortcut pressed -> Hiding");
+            DebugLogger.Log("FrequentProjectsOverlay: Close shortcut pressed -> Hiding");
             this.Visibility = Visibility.Hidden;
             e.Handled = true;
         }
@@ -147,15 +150,13 @@ public partial class QuickTasksOverlay : Window
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
-        // If application is shutting down, allow the close
         var app = System.Windows.Application.Current;
-        if (app == null || app.ShutdownMode == System.Windows.ShutdownMode.OnExplicitShutdown)
+        if (app == null || app.ShutdownMode == ShutdownMode.OnExplicitShutdown)
         {
             base.OnClosing(e);
             return;
         }
 
-        // User clicked X - just hide instead of closing
         e.Cancel = true;
         Hide();
     }

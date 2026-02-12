@@ -83,6 +83,16 @@ public class SettingsService : ISettingsService
     public int GetNotificationDurationMs() => _settings.NotificationDurationMs;
     public void SetNotificationDurationMs(int durationMs) => _settings.NotificationDurationMs = durationMs;
 
+    // --- Path Search ---
+    public bool GetPathSearchEnabled() => _settings.PathSearchEnabled;
+    public void SetPathSearchEnabled(bool enabled) => _settings.PathSearchEnabled = enabled;
+    public bool GetPathSearchShowSubDirs() => _settings.PathSearchShowSubDirs;
+    public void SetPathSearchShowSubDirs(bool enabled) => _settings.PathSearchShowSubDirs = enabled;
+    public bool GetPathSearchShowSubFiles() => _settings.PathSearchShowSubFiles;
+    public void SetPathSearchShowSubFiles(bool enabled) => _settings.PathSearchShowSubFiles = enabled;
+    public bool GetPathSearchShowHidden() => _settings.PathSearchShowHidden;
+    public void SetPathSearchShowHidden(bool enabled) => _settings.PathSearchShowHidden = enabled;
+
     public bool GetLivingWidgetsMode() => _settings.LivingWidgetsMode;
     public void SetLivingWidgetsMode(bool enabled) => _settings.LivingWidgetsMode = enabled;
     
@@ -169,6 +179,46 @@ public class SettingsService : ISettingsService
     public int GetUpdateCheckFrequencyMinutes() => _settings.UpdateCheckFrequencyMinutes;
     public void SetUpdateCheckFrequencyMinutes(int minutes) => _settings.UpdateCheckFrequencyMinutes = minutes;
 
+    // --- Frequent Projects Widget ---
+    public double GetFrequentProjectsWidgetTransparency() => _settings.FrequentProjectsWidgetTransparency;
+    public void SetFrequentProjectsWidgetTransparency(double transparency) => _settings.FrequentProjectsWidgetTransparency = transparency;
+    public bool GetFrequentProjectsTransparencyLinked() => _settings.FrequentProjectsTransparencyLinked;
+    public void SetFrequentProjectsTransparencyLinked(bool linked) => _settings.FrequentProjectsTransparencyLinked = linked;
+    public (double? left, double? top) GetFrequentProjectsWidgetPosition() => (_settings.FrequentProjectsWidgetLeft, _settings.FrequentProjectsWidgetTop);
+    public void SetFrequentProjectsWidgetPosition(double left, double top)
+    {
+        _settings.FrequentProjectsWidgetLeft = left;
+        _settings.FrequentProjectsWidgetTop = top;
+    }
+    public bool GetFrequentProjectsWidgetVisible() => _settings.FrequentProjectsWidgetVisible;
+    public void SetFrequentProjectsWidgetVisible(bool visible) => _settings.FrequentProjectsWidgetVisible = visible;
+    public bool GetFrequentProjectsWidgetEnabled() => _settings.FrequentProjectsWidgetEnabled;
+    public void SetFrequentProjectsWidgetEnabled(bool enabled) => _settings.FrequentProjectsWidgetEnabled = enabled;
+    public int GetMaxFrequentProjectsShown() => _settings.MaxFrequentProjectsShown;
+    public void SetMaxFrequentProjectsShown(int count) => _settings.MaxFrequentProjectsShown = count;
+    public int GetMaxFrequentProjectsSaved() => _settings.MaxFrequentProjectsSaved;
+    public void SetMaxFrequentProjectsSaved(int count) => _settings.MaxFrequentProjectsSaved = count;
+    public bool GetFrequentProjectsGridMode() => _settings.FrequentProjectsGridMode;
+    public void SetFrequentProjectsGridMode(bool gridMode) => _settings.FrequentProjectsGridMode = gridMode;
+
+    // --- Quick Launch Widget ---
+    public double GetQuickLaunchWidgetTransparency() => _settings.QuickLaunchWidgetTransparency;
+    public void SetQuickLaunchWidgetTransparency(double transparency) => _settings.QuickLaunchWidgetTransparency = transparency;
+    public bool GetQuickLaunchTransparencyLinked() => _settings.QuickLaunchTransparencyLinked;
+    public void SetQuickLaunchTransparencyLinked(bool linked) => _settings.QuickLaunchTransparencyLinked = linked;
+    public (double? left, double? top) GetQuickLaunchWidgetPosition() => (_settings.QuickLaunchWidgetLeft, _settings.QuickLaunchWidgetTop);
+    public void SetQuickLaunchWidgetPosition(double left, double top)
+    {
+        _settings.QuickLaunchWidgetLeft = left;
+        _settings.QuickLaunchWidgetTop = top;
+    }
+    public bool GetQuickLaunchWidgetVisible() => _settings.QuickLaunchWidgetVisible;
+    public void SetQuickLaunchWidgetVisible(bool visible) => _settings.QuickLaunchWidgetVisible = visible;
+    public bool GetQuickLaunchWidgetEnabled() => _settings.QuickLaunchWidgetEnabled;
+    public void SetQuickLaunchWidgetEnabled(bool enabled) => _settings.QuickLaunchWidgetEnabled = enabled;
+    public bool GetQuickLaunchHorizontalMode() => _settings.QuickLaunchHorizontalMode;
+    public void SetQuickLaunchHorizontalMode(bool horizontal) => _settings.QuickLaunchHorizontalMode = horizontal;
+
     public (int modifiers, int key) GetCloseShortcut() => (_settings.CloseShortcutModifiers, _settings.CloseShortcutKey);
     public void SetCloseShortcut(int modifiers, int key)
     {
@@ -226,6 +276,10 @@ public class SettingsService : ISettingsService
         public bool LauncherTransparencyLinked { get; set; } = false;
         public bool TimerTransparencyLinked { get; set; } = false;
         public int NotificationDurationMs { get; set; } = 3000; // 3 seconds
+        public bool PathSearchEnabled { get; set; } = false;
+        public bool PathSearchShowSubDirs { get; set; } = true;
+        public bool PathSearchShowSubFiles { get; set; } = true;
+        public bool PathSearchShowHidden { get; set; } = false;
         public bool LivingWidgetsMode { get; set; } = false; // False = legacy overlay mode (auto-hide)
         
         // Widget positions for Living Widgets Mode (null = use default positioning)
@@ -273,5 +327,25 @@ public class SettingsService : ISettingsService
         public bool AutoUpdateCheckEnabled { get; set; } = true;
         public bool AutoUpdateInstallEnabled { get; set; } = false;
         public int UpdateCheckFrequencyMinutes { get; set; } = 360; // 6 hours
+
+        // Frequent Projects widget
+        public double FrequentProjectsWidgetTransparency { get; set; } = 0.78;
+        public bool FrequentProjectsTransparencyLinked { get; set; } = false;
+        public double? FrequentProjectsWidgetLeft { get; set; } = null;
+        public double? FrequentProjectsWidgetTop { get; set; } = null;
+        public bool FrequentProjectsWidgetVisible { get; set; } = false;
+        public bool FrequentProjectsWidgetEnabled { get; set; } = true;
+        public int MaxFrequentProjectsShown { get; set; } = 5;
+        public int MaxFrequentProjectsSaved { get; set; } = 20;
+        public bool FrequentProjectsGridMode { get; set; } = false;
+
+        // Quick Launch widget
+        public double QuickLaunchWidgetTransparency { get; set; } = 0.78;
+        public bool QuickLaunchTransparencyLinked { get; set; } = false;
+        public double? QuickLaunchWidgetLeft { get; set; } = null;
+        public double? QuickLaunchWidgetTop { get; set; } = null;
+        public bool QuickLaunchWidgetVisible { get; set; } = false;
+        public bool QuickLaunchWidgetEnabled { get; set; } = true;
+        public bool QuickLaunchHorizontalMode { get; set; } = false;
     }
 }

@@ -273,6 +273,15 @@ public partial class TimerOverlay : Window
     
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
+        // If application is shutting down, allow the close
+        var app = System.Windows.Application.Current;
+        if (app == null || app.ShutdownMode == System.Windows.ShutdownMode.OnExplicitShutdown)
+        {
+            base.OnClosing(e);
+            return;
+        }
+
+        // User clicked X - just hide instead of closing
         e.Cancel = true;
         Hide();
     }

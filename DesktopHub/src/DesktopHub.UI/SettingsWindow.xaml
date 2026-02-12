@@ -271,6 +271,58 @@
                             </RadioButton.Style>
                         </RadioButton>
                         
+                        <RadioButton x:Name="FrequentProjectsMenuButton" Content="⭐ Frequent Projects" Checked="MenuButton_Checked"
+                                     GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
+                                     Foreground="{StaticResource TextBrush}" Cursor="Hand">
+                            <RadioButton.Style>
+                                <Style TargetType="RadioButton">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="RadioButton">
+                                                <Border x:Name="Border" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryBrush}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="#33FFFFFF"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </RadioButton.Style>
+                        </RadioButton>
+                        
+                        <RadioButton x:Name="QuickLaunchMenuButton" Content="🚀 Quick Launch" Checked="MenuButton_Checked"
+                                     GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
+                                     Foreground="{StaticResource TextBrush}" Cursor="Hand">
+                            <RadioButton.Style>
+                                <Style TargetType="RadioButton">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="RadioButton">
+                                                <Border x:Name="Border" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryBrush}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="#33FFFFFF"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </RadioButton.Style>
+                        </RadioButton>
+                        
                         <RadioButton x:Name="UpdatesMenuButton" Content="🔄 Updates" Checked="MenuButton_Checked"
                                      GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
                                      Foreground="{StaticResource TextBrush}" Cursor="Hand">
@@ -1142,6 +1194,148 @@
                         </Grid>
                     </Border>
                     
+                    <!-- Path Search Section -->
+                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Path Search" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                            <TextBlock Text="When enabled, typing a valid directory path into the search bar will list its contents" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                            
+                            <!-- Enable Path Search -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Enable Path Search" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Browse directories by entering a path in the search field" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <ToggleButton x:Name="PathSearchEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
+                                              Checked="PathSearchToggle_Changed" Unchecked="PathSearchToggle_Changed" Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
+                            </Grid>
+                            
+                            <!-- Show Sub-Directories -->
+                            <Grid Margin="16,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Show sub-directories" FontSize="13" Foreground="{StaticResource TextBrush}"/>
+                                <ToggleButton x:Name="PathSearchSubDirsToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
+                                              Checked="PathSearchToggle_Changed" Unchecked="PathSearchToggle_Changed" Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
+                            </Grid>
+                            
+                            <!-- Show Sub-Files -->
+                            <Grid Margin="16,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Show sub-files" FontSize="13" Foreground="{StaticResource TextBrush}"/>
+                                <ToggleButton x:Name="PathSearchSubFilesToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
+                                              Checked="PathSearchToggle_Changed" Unchecked="PathSearchToggle_Changed" Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
+                            </Grid>
+                            
+                            <!-- Show Hidden Files -->
+                            <Grid Margin="16,0,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Show hidden/system files" FontSize="13" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Include files like Thumbs.db, desktop.ini, etc." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <ToggleButton x:Name="PathSearchShowHiddenToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
+                                              Checked="PathSearchToggle_Changed" Unchecked="PathSearchToggle_Changed" Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    
                     <!-- Network Drives Section -->
                     <Border Background="{StaticResource SurfaceBrush}" 
                             BorderBrush="{StaticResource BorderBrush}"
@@ -1548,7 +1742,7 @@
                             </Grid>
                             
                             <!-- Search Widget Toggle -->
-                            <Grid Margin="0,0,0,0">
+                            <Grid Margin="0,0,0,12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
@@ -1559,6 +1753,76 @@
                                 </StackPanel>
                                 <ToggleButton x:Name="SearchWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
                                               Checked="SearchWidgetEnabledToggle_Changed" Unchecked="SearchWidgetEnabledToggle_Changed" Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
+                            </Grid>
+                            
+                            <!-- Frequent Projects Widget Toggle -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Frequent Projects Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Shows your most frequently launched projects" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                                <ToggleButton x:Name="FrequentProjectsWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
+                                              Checked="FrequentProjectsWidgetEnabledToggle_Changed" Unchecked="FrequentProjectsWidgetEnabledToggle_Changed" Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
+                            </Grid>
+                            
+                            <!-- Quick Launch Widget Toggle -->
+                            <Grid Margin="0,0,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Quick Launch Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Customizable folder and file launcher" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                                <ToggleButton x:Name="QuickLaunchWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
+                                              Checked="QuickLaunchWidgetEnabledToggle_Changed" Unchecked="QuickLaunchWidgetEnabledToggle_Changed" Cursor="Hand">
                                     <ToggleButton.Style>
                                         <Style TargetType="ToggleButton">
                                             <Setter Property="Template">
@@ -2310,6 +2574,327 @@
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
+                    
+                    <!-- Frequent Projects Panel -->
+                    <Border x:Name="FrequentProjectsPanel" Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
+                            <StackPanel>
+                    
+                    <!-- Display Settings -->
+                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Display" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                            
+                            <!-- Max Projects Shown -->
+                            <StackPanel Margin="0,0,0,12">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Projects Shown" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBlock x:Name="FP_MaxShownValue" Grid.Column="1" Text="5" FontSize="13" Foreground="{StaticResource PrimaryBrush}"/>
+                                </Grid>
+                                <TextBlock Text="Number of top projects displayed in the widget (1-10)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
+                                <Slider x:Name="FP_MaxShownSlider" Minimum="1" Maximum="10" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        ValueChanged="FP_MaxShownSlider_Changed">
+                                    <Slider.Template>
+                                        <ControlTemplate TargetType="Slider">
+                                            <Grid>
+                                                <Border Background="#40FFFFFF" Height="4" CornerRadius="2" VerticalAlignment="Center"/>
+                                                <Track x:Name="PART_Track">
+                                                    <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.DecreaseRepeatButton>
+                                                    <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.IncreaseRepeatButton>
+                                                    <Track.Thumb>
+                                                        <Thumb>
+                                                            <Thumb.Template>
+                                                                <ControlTemplate>
+                                                                    <Ellipse Fill="{StaticResource PrimaryBrush}" Width="16" Height="16" Stroke="White" StrokeThickness="2"/>
+                                                                </ControlTemplate>
+                                                            </Thumb.Template>
+                                                        </Thumb>
+                                                    </Track.Thumb>
+                                                </Track>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Slider.Template>
+                                </Slider>
+                            </StackPanel>
+                            
+                            <!-- Max Projects Saved -->
+                            <StackPanel Margin="0,0,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Projects Tracked" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBlock x:Name="FP_MaxSavedValue" Grid.Column="1" Text="20" FontSize="13" Foreground="{StaticResource PrimaryBrush}"/>
+                                </Grid>
+                                <TextBlock Text="Maximum number of projects to track launch counts for (5-50)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
+                                <Slider x:Name="FP_MaxSavedSlider" Minimum="5" Maximum="50" TickFrequency="5" IsSnapToTickEnabled="True"
+                                        ValueChanged="FP_MaxSavedSlider_Changed">
+                                    <Slider.Template>
+                                        <ControlTemplate TargetType="Slider">
+                                            <Grid>
+                                                <Border Background="#40FFFFFF" Height="4" CornerRadius="2" VerticalAlignment="Center"/>
+                                                <Track x:Name="PART_Track">
+                                                    <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.DecreaseRepeatButton>
+                                                    <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.IncreaseRepeatButton>
+                                                    <Track.Thumb>
+                                                        <Thumb>
+                                                            <Thumb.Template>
+                                                                <ControlTemplate>
+                                                                    <Ellipse Fill="{StaticResource PrimaryBrush}" Width="16" Height="16" Stroke="White" StrokeThickness="2"/>
+                                                                </ControlTemplate>
+                                                            </Thumb.Template>
+                                                        </Thumb>
+                                                    </Track.Thumb>
+                                                </Track>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Slider.Template>
+                                </Slider>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- Layout -->
+                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Layout" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                            
+                            <!-- Grid Mode Toggle -->
+                            <Grid Margin="0,0,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Grid Mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Display projects in a compact grid instead of a vertical list" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <ToggleButton x:Name="FP_GridModeToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
+                                              Checked="FP_GridModeToggle_Changed" Unchecked="FP_GridModeToggle_Changed" Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- Data Management -->
+                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Data Management" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                            <TextBlock Text="Manage your project launch history" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
+                            
+                            <TextBlock x:Name="FP_StatsText" Text="Loading stats..." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
+                            
+                            <!-- Reset Launch Data -->
+                            <Button x:Name="FP_ResetDataButton" Content="Reset All Launch Data" Padding="16,8" Cursor="Hand"
+                                    Click="FP_ResetData_Click"
+                                    Background="#30FF5252" Foreground="#FF5252" BorderBrush="#40FF5252">
+                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- Transparency -->
+                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Transparency" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Transparent" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <Slider x:Name="FP_TransparencySlider" Grid.Column="1" Minimum="0.3" Maximum="1.0" Value="0.78"
+                                        TickFrequency="0.02" IsSnapToTickEnabled="True" ValueChanged="FP_TransparencySlider_Changed" VerticalAlignment="Center">
+                                    <Slider.Template>
+                                        <ControlTemplate TargetType="Slider">
+                                            <Grid>
+                                                <Border Background="#40FFFFFF" Height="4" CornerRadius="2" VerticalAlignment="Center"/>
+                                                <Track x:Name="PART_Track">
+                                                    <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.DecreaseRepeatButton>
+                                                    <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.IncreaseRepeatButton>
+                                                    <Track.Thumb>
+                                                        <Thumb>
+                                                            <Thumb.Template>
+                                                                <ControlTemplate>
+                                                                    <Ellipse Fill="{StaticResource PrimaryBrush}" Width="16" Height="16" Stroke="White" StrokeThickness="2"/>
+                                                                </ControlTemplate>
+                                                            </Thumb.Template>
+                                                        </Thumb>
+                                                    </Track.Thumb>
+                                                </Track>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Slider.Template>
+                                </Slider>
+                                <TextBlock Grid.Column="2" Text="Solid" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                    
+                    <!-- Quick Launch Panel -->
+                    <Border x:Name="QuickLaunchPanel" Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
+                            <StackPanel>
+                    
+                    <!-- Layout -->
+                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Layout" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                            
+                            <!-- Horizontal Mode Toggle -->
+                            <Grid Margin="0,0,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Horizontal Mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Display items in a horizontal row instead of a vertical list (max 5 visible before scrolling)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <ToggleButton x:Name="QL_HorizontalModeToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
+                                              Checked="QL_HorizontalModeToggle_Changed" Unchecked="QL_HorizontalModeToggle_Changed" Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- Drag and Drop Info -->
+                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Adding Items" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                            <TextBlock Text="You can add items to Quick Launch in several ways:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
+                            
+                            <StackPanel Margin="0,0,0,4">
+                                <TextBlock FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6" TextWrapping="Wrap">
+                                    <Run FontWeight="SemiBold" Text="Drag &amp; Drop:"/> 
+                                    <Run Text="Drag files or folders from File Explorer directly onto the Quick Launch widget"/>
+                                </TextBlock>
+                                <TextBlock FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6" TextWrapping="Wrap">
+                                    <Run FontWeight="SemiBold" Text="Browse:"/>
+                                    <Run Text="Click the + button in the widget, then use the Browse button to pick a folder"/>
+                                </TextBlock>
+                                <TextBlock FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,0" TextWrapping="Wrap">
+                                    <Run FontWeight="SemiBold" Text="Manual:"/>
+                                    <Run Text="Type or paste any file path, folder path, or URL into the path field"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- Current Items -->
+                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Current Items" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="QL_ItemCountText" Text="Loading..." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
+                            
+                            <StackPanel x:Name="QL_ItemsList" Margin="0,0,0,8"/>
+                            
+                            <!-- Clear All -->
+                            <Button x:Name="QL_ClearAllButton" Content="Clear All Items" Padding="16,8" Cursor="Hand"
+                                    Click="QL_ClearAll_Click"
+                                    Background="#30FF5252" Foreground="#FF5252" BorderBrush="#40FF5252">
+                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- Transparency -->
+                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Transparency" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Transparent" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <Slider x:Name="QL_TransparencySlider" Grid.Column="1" Minimum="0.3" Maximum="1.0" Value="0.78"
+                                        TickFrequency="0.02" IsSnapToTickEnabled="True" ValueChanged="QL_TransparencySlider_Changed" VerticalAlignment="Center">
+                                    <Slider.Template>
+                                        <ControlTemplate TargetType="Slider">
+                                            <Grid>
+                                                <Border Background="#40FFFFFF" Height="4" CornerRadius="2" VerticalAlignment="Center"/>
+                                                <Track x:Name="PART_Track">
+                                                    <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.DecreaseRepeatButton>
+                                                    <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.IncreaseRepeatButton>
+                                                    <Track.Thumb>
+                                                        <Thumb>
+                                                            <Thumb.Template>
+                                                                <ControlTemplate>
+                                                                    <Ellipse Fill="{StaticResource PrimaryBrush}" Width="16" Height="16" Stroke="White" StrokeThickness="2"/>
+                                                                </ControlTemplate>
+                                                            </Thumb.Template>
+                                                        </Thumb>
+                                                    </Track.Thumb>
+                                                </Track>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Slider.Template>
+                                </Slider>
+                                <TextBlock Grid.Column="2" Text="Solid" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                    
                 </Grid>
             </Grid>
             

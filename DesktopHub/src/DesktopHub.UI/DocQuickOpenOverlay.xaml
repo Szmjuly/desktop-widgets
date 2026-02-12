@@ -7,7 +7,7 @@
         Background="Transparent"
         ShowInTaskbar="False"
         ResizeMode="NoResize"
-        Width="400"
+        Width="420"
         SizeToContent="Height"
         MaxHeight="700"
         Topmost="True"

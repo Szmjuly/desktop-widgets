@@ -175,6 +175,16 @@ public interface ISettingsService
     /// </summary>
     void SetNotificationDurationMs(int durationMs);
 
+    // --- Path Search ---
+    bool GetPathSearchEnabled();
+    void SetPathSearchEnabled(bool enabled);
+    bool GetPathSearchShowSubDirs();
+    void SetPathSearchShowSubDirs(bool enabled);
+    bool GetPathSearchShowSubFiles();
+    void SetPathSearchShowSubFiles(bool enabled);
+    bool GetPathSearchShowHidden();
+    void SetPathSearchShowHidden(bool enabled);
+
     /// <summary>
     /// Get whether Living Widgets Mode is enabled (draggable, snappable, pinnable)
     /// </summary>
@@ -394,6 +404,40 @@ public interface ISettingsService
     /// Set update check frequency in minutes
     /// </summary>
     void SetUpdateCheckFrequencyMinutes(int minutes);
+
+    // --- Frequent Projects Widget ---
+
+    double GetFrequentProjectsWidgetTransparency();
+    void SetFrequentProjectsWidgetTransparency(double transparency);
+    bool GetFrequentProjectsTransparencyLinked();
+    void SetFrequentProjectsTransparencyLinked(bool linked);
+    (double? left, double? top) GetFrequentProjectsWidgetPosition();
+    void SetFrequentProjectsWidgetPosition(double left, double top);
+    bool GetFrequentProjectsWidgetVisible();
+    void SetFrequentProjectsWidgetVisible(bool visible);
+    bool GetFrequentProjectsWidgetEnabled();
+    void SetFrequentProjectsWidgetEnabled(bool enabled);
+    int GetMaxFrequentProjectsShown();
+    void SetMaxFrequentProjectsShown(int count);
+    int GetMaxFrequentProjectsSaved();
+    void SetMaxFrequentProjectsSaved(int count);
+    bool GetFrequentProjectsGridMode();
+    void SetFrequentProjectsGridMode(bool gridMode);
+
+    // --- Quick Launch Widget ---
+
+    double GetQuickLaunchWidgetTransparency();
+    void SetQuickLaunchWidgetTransparency(double transparency);
+    bool GetQuickLaunchTransparencyLinked();
+    void SetQuickLaunchTransparencyLinked(bool linked);
+    (double? left, double? top) GetQuickLaunchWidgetPosition();
+    void SetQuickLaunchWidgetPosition(double left, double top);
+    bool GetQuickLaunchWidgetVisible();
+    void SetQuickLaunchWidgetVisible(bool visible);
+    bool GetQuickLaunchWidgetEnabled();
+    void SetQuickLaunchWidgetEnabled(bool enabled);
+    bool GetQuickLaunchHorizontalMode();
+    void SetQuickLaunchHorizontalMode(bool horizontal);
 
     /// <summary>
     /// Get close shortcut configuration for closing widgets

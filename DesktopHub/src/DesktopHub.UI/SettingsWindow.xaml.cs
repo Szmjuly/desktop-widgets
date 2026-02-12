@@ -30,11 +30,18 @@ public partial class SettingsWindow : Window
     private Action? _onQuickTasksWidgetEnabledChanged;
     private Action? _onDocWidgetEnabledChanged;
     private Action? _onUpdateSettingsChanged;
+    private Action? _onFrequentProjectsWidgetEnabledChanged;
+    private Action? _onFrequentProjectsLayoutChanged;
+    private Action? _onQuickLaunchWidgetEnabledChanged;
+    private Action? _onQuickLaunchLayoutChanged;
+    private IProjectLaunchDataStore? _launchDataStore;
     private bool _isUpdatingSliders;
     private bool _isLoadingQTSettings;
     private bool _isLoadingDQSettings;
+    private bool _isLoadingFPSettings;
+    private bool _isLoadingQLSettings;
 
-    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null)
+    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null, Action? onFrequentProjectsWidgetEnabledChanged = null, Action? onFrequentProjectsLayoutChanged = null, Action? onQuickLaunchWidgetEnabledChanged = null, IProjectLaunchDataStore? launchDataStore = null, Action? onQuickLaunchLayoutChanged = null)
     {
         _settings = settings;
         _taskService = taskService;
@@ -49,11 +56,18 @@ public partial class SettingsWindow : Window
         _onQuickTasksWidgetEnabledChanged = onQuickTasksWidgetEnabledChanged;
         _onDocWidgetEnabledChanged = onDocWidgetEnabledChanged;
         _onUpdateSettingsChanged = onUpdateSettingsChanged;
+        _onFrequentProjectsWidgetEnabledChanged = onFrequentProjectsWidgetEnabledChanged;
+        _onFrequentProjectsLayoutChanged = onFrequentProjectsLayoutChanged;
+        _onQuickLaunchWidgetEnabledChanged = onQuickLaunchWidgetEnabledChanged;
+        _onQuickLaunchLayoutChanged = onQuickLaunchLayoutChanged;
+        _launchDataStore = launchDataStore;
 
         // Suppress all slider/control events during XAML initialization
         _isUpdatingSliders = true;
         _isLoadingQTSettings = true;
         _isLoadingDQSettings = true;
+        _isLoadingFPSettings = true;
+        _isLoadingQLSettings = true;
 
         InitializeComponent();
 
@@ -61,6 +75,8 @@ public partial class SettingsWindow : Window
         _isUpdatingSliders = false;
         _isLoadingQTSettings = false;
         _isLoadingDQSettings = false;
+        _isLoadingFPSettings = false;
+        _isLoadingQLSettings = false;
 
         // Setup transparency when window handle is available
         SourceInitialized += (s, e) =>
@@ -175,6 +191,10 @@ public partial class SettingsWindow : Window
 
             AutoStartToggle.IsChecked = _settings.GetAutoStart();
             LivingWidgetsModeToggle.IsChecked = _settings.GetLivingWidgetsMode();
+            PathSearchEnabledToggle.IsChecked = _settings.GetPathSearchEnabled();
+            PathSearchSubDirsToggle.IsChecked = _settings.GetPathSearchShowSubDirs();
+            PathSearchSubFilesToggle.IsChecked = _settings.GetPathSearchShowSubFiles();
+            PathSearchShowHiddenToggle.IsChecked = _settings.GetPathSearchShowHidden();
             
             // Load drive settings
             QDriveEnabledToggle.IsChecked = _settings.GetQDriveEnabled();
@@ -213,6 +233,22 @@ public partial class SettingsWindow : Window
             
             // Load Quick Tasks config
             LoadQuickTasksSettings();
+            
+            // Load new widget enabled toggles
+            FrequentProjectsWidgetEnabledToggle.IsChecked = _settings.GetFrequentProjectsWidgetEnabled();
+            QuickLaunchWidgetEnabledToggle.IsChecked = _settings.GetQuickLaunchWidgetEnabled();
+            
+            // Load Frequent Projects sliders
+            _isLoadingFPSettings = true;
+            FP_MaxShownSlider.Value = _settings.GetMaxFrequentProjectsShown();
+            FP_MaxSavedSlider.Value = _settings.GetMaxFrequentProjectsSaved();
+            FP_TransparencySlider.Value = _settings.GetFrequentProjectsWidgetTransparency();
+            _isLoadingFPSettings = false;
+            
+            // Load Quick Launch transparency slider
+            _isLoadingQLSettings = true;
+            QL_TransparencySlider.Value = _settings.GetQuickLaunchWidgetTransparency();
+            _isLoadingQLSettings = false;
             
             UpdateAllLinkButtons();
         }
@@ -593,6 +629,8 @@ public partial class SettingsWindow : Window
             if (QuickTasksPanel != null) QuickTasksPanel.Visibility = Visibility.Collapsed;
             if (DocQuickOpenPanel != null) DocQuickOpenPanel.Visibility = Visibility.Collapsed;
             if (UpdatesPanel != null) UpdatesPanel.Visibility = Visibility.Collapsed;
+            if (FrequentProjectsPanel != null) FrequentProjectsPanel.Visibility = Visibility.Collapsed;
+            if (QuickLaunchPanel != null) QuickLaunchPanel.Visibility = Visibility.Collapsed;
 
             // Show selected panel
             if (radioButton.Name == "ShortcutsMenuButton" && ShortcutsPanel != null)
@@ -615,6 +653,16 @@ public partial class SettingsWindow : Window
             {
                 DocQuickOpenPanel.Visibility = Visibility.Visible;
                 LoadDocQuickOpenSettings();
+            }
+            else if (radioButton.Name == "FrequentProjectsMenuButton" && FrequentProjectsPanel != null)
+            {
+                FrequentProjectsPanel.Visibility = Visibility.Visible;
+                LoadFrequentProjectsSettings();
+            }
+            else if (radioButton.Name == "QuickLaunchMenuButton" && QuickLaunchPanel != null)
+            {
+                QuickLaunchPanel.Visibility = Visibility.Visible;
+                LoadQuickLaunchSettings();
             }
             else if (radioButton.Name == "UpdatesMenuButton" && UpdatesPanel != null)
             {
@@ -972,6 +1020,18 @@ public partial class SettingsWindow : Window
         await _settings.SaveAsync();
         StatusText.Text = "Living Widgets Mode disabled - widgets will auto-hide when clicking away";
         _onLivingWidgetsModeChanged?.Invoke();
+    }
+
+    private void PathSearchToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        _settings.SetPathSearchEnabled(PathSearchEnabledToggle.IsChecked == true);
+        _settings.SetPathSearchShowSubDirs(PathSearchSubDirsToggle.IsChecked == true);
+        _settings.SetPathSearchShowSubFiles(PathSearchSubFilesToggle.IsChecked == true);
+        _settings.SetPathSearchShowHidden(PathSearchShowHiddenToggle.IsChecked == true);
+        _ = _settings.SaveAsync();
+        var enabled = PathSearchEnabledToggle.IsChecked == true;
+        StatusText.Text = enabled ? "Path search enabled" : "Path search disabled";
     }
 
     // ===== Quick Tasks Settings =====
@@ -1426,6 +1486,26 @@ public partial class SettingsWindow : Window
         StatusText.Text = enabled ? "Search widget enabled" : "Search widget disabled";
     }
 
+    private void FrequentProjectsWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        var enabled = FrequentProjectsWidgetEnabledToggle.IsChecked == true;
+        _settings.SetFrequentProjectsWidgetEnabled(enabled);
+        _ = _settings.SaveAsync();
+        _onFrequentProjectsWidgetEnabledChanged?.Invoke();
+        StatusText.Text = enabled ? "Frequent Projects widget enabled" : "Frequent Projects widget disabled";
+    }
+
+    private void QuickLaunchWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        var enabled = QuickLaunchWidgetEnabledToggle.IsChecked == true;
+        _settings.SetQuickLaunchWidgetEnabled(enabled);
+        _ = _settings.SaveAsync();
+        _onQuickLaunchWidgetEnabledChanged?.Invoke();
+        StatusText.Text = enabled ? "Quick Launch widget enabled" : "Quick Launch widget disabled";
+    }
+
     // ===== General Tab - Update Settings =====
 
     private void AutoUpdateCheckToggle_Changed(object sender, RoutedEventArgs e)
@@ -1473,5 +1553,223 @@ public partial class SettingsWindow : Window
         }
         // Default to "Every 6 hours" if no match
         UpdateFrequencyCombo.SelectedIndex = 1;
+    }
+
+    // ===== Frequent Projects Tab =====
+
+    private async void LoadFrequentProjectsSettings()
+    {
+        _isLoadingFPSettings = true;
+        try
+        {
+            FP_MaxShownSlider.Value = _settings.GetMaxFrequentProjectsShown();
+            FP_MaxShownValue.Text = _settings.GetMaxFrequentProjectsShown().ToString();
+            FP_MaxSavedSlider.Value = _settings.GetMaxFrequentProjectsSaved();
+            FP_MaxSavedValue.Text = _settings.GetMaxFrequentProjectsSaved().ToString();
+            FP_TransparencySlider.Value = _settings.GetFrequentProjectsWidgetTransparency();
+            FP_GridModeToggle.IsChecked = _settings.GetFrequentProjectsGridMode();
+
+            // Load stats
+            if (_launchDataStore != null)
+            {
+                var topProjects = await _launchDataStore.GetTopProjectsAsync(100);
+                var totalLaunches = topProjects.Sum(p => p.LaunchCount);
+                FP_StatsText.Text = $"Tracking {topProjects.Count} project{(topProjects.Count == 1 ? "" : "s")} with {totalLaunches} total launch{(totalLaunches == 1 ? "" : "es")}";
+            }
+            else
+            {
+                FP_StatsText.Text = "Launch tracking not available";
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"LoadFrequentProjectsSettings error: {ex.Message}");
+        }
+        finally
+        {
+            _isLoadingFPSettings = false;
+        }
+    }
+
+    private void FP_MaxShownSlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isLoadingFPSettings || _settings == null || !IsLoaded) return;
+        var value = (int)e.NewValue;
+        _settings.SetMaxFrequentProjectsShown(value);
+        _ = _settings.SaveAsync();
+        if (FP_MaxShownValue != null) FP_MaxShownValue.Text = value.ToString();
+        StatusText.Text = $"Max projects shown: {value}";
+    }
+
+    private void FP_MaxSavedSlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isLoadingFPSettings || _settings == null || !IsLoaded) return;
+        var value = (int)e.NewValue;
+        _settings.SetMaxFrequentProjectsSaved(value);
+        _ = _settings.SaveAsync();
+        if (FP_MaxSavedValue != null) FP_MaxSavedValue.Text = value.ToString();
+        StatusText.Text = $"Max projects tracked: {value}";
+    }
+
+    private void FP_TransparencySlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isLoadingFPSettings || _settings == null || !IsLoaded) return;
+        _settings.SetFrequentProjectsWidgetTransparency(e.NewValue);
+        _ = _settings.SaveAsync();
+        _onTransparencyChanged?.Invoke();
+        StatusText.Text = $"Frequent Projects transparency: {e.NewValue:P0}";
+    }
+
+    private void FP_GridModeToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingFPSettings || _settings == null || !IsLoaded) return;
+        var gridMode = FP_GridModeToggle.IsChecked == true;
+        _settings.SetFrequentProjectsGridMode(gridMode);
+        _ = _settings.SaveAsync();
+        _onFrequentProjectsLayoutChanged?.Invoke();
+        StatusText.Text = gridMode ? "Frequent Projects: grid mode" : "Frequent Projects: list mode";
+    }
+
+    private async void FP_ResetData_Click(object sender, RoutedEventArgs e)
+    {
+        var result = System.Windows.MessageBox.Show(
+            "Are you sure you want to reset all project launch data?\n\nThis will clear all launch counts and cannot be undone.",
+            "Reset Launch Data",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (result == MessageBoxResult.Yes && _launchDataStore != null)
+        {
+            try
+            {
+                await _launchDataStore.ClearAllAsync();
+                FP_StatsText.Text = "Tracking 0 projects with 0 total launches";
+                StatusText.Text = "All launch data has been reset";
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"FP_ResetData_Click error: {ex.Message}");
+                StatusText.Text = $"Failed to reset data: {ex.Message}";
+            }
+        }
+    }
+
+    // ===== Quick Launch Tab =====
+
+    private async void LoadQuickLaunchSettings()
+    {
+        _isLoadingQLSettings = true;
+        try
+        {
+            QL_TransparencySlider.Value = _settings.GetQuickLaunchWidgetTransparency();
+            QL_HorizontalModeToggle.IsChecked = _settings.GetQuickLaunchHorizontalMode();
+
+            // Load current items
+            var config = await Infrastructure.Settings.QuickLaunchConfig.LoadAsync();
+            var items = config.Items.OrderBy(i => i.SortOrder).ToList();
+            QL_ItemCountText.Text = $"{items.Count} item{(items.Count == 1 ? "" : "s")} configured";
+
+            QL_ItemsList.Children.Clear();
+            foreach (var item in items)
+            {
+                var row = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                var icon = new TextBlock
+                {
+                    Text = item.Icon,
+                    FontSize = 14,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 8, 0)
+                };
+
+                var info = new StackPanel();
+                info.Children.Add(new TextBlock
+                {
+                    Text = item.Name,
+                    FontSize = 12,
+                    FontWeight = FontWeights.Medium,
+                    Foreground = FindResource("TextBrush") as System.Windows.Media.Brush
+                });
+                info.Children.Add(new TextBlock
+                {
+                    Text = item.Path,
+                    FontSize = 10,
+                    Foreground = FindResource("TextSecondaryBrush") as System.Windows.Media.Brush,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                });
+
+                Grid.SetColumn(icon, 0);
+                Grid.SetColumn(info, 1);
+                row.Children.Add(icon);
+                row.Children.Add(info);
+
+                var border = new Border
+                {
+                    Background = new System.Windows.Media.SolidColorBrush(
+                        (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#10F5F7FA")),
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(8, 6, 8, 6),
+                    Child = row
+                };
+
+                QL_ItemsList.Children.Add(border);
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"LoadQuickLaunchSettings error: {ex.Message}");
+        }
+        finally
+        {
+            _isLoadingQLSettings = false;
+        }
+    }
+
+    private void QL_HorizontalModeToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingQLSettings || _settings == null || !IsLoaded) return;
+        var horizontal = QL_HorizontalModeToggle.IsChecked == true;
+        _settings.SetQuickLaunchHorizontalMode(horizontal);
+        _ = _settings.SaveAsync();
+        _onQuickLaunchLayoutChanged?.Invoke();
+        StatusText.Text = horizontal ? "Quick Launch: horizontal mode" : "Quick Launch: vertical mode";
+    }
+
+    private void QL_TransparencySlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isLoadingQLSettings || _settings == null || !IsLoaded) return;
+        _settings.SetQuickLaunchWidgetTransparency(e.NewValue);
+        _ = _settings.SaveAsync();
+        _onTransparencyChanged?.Invoke();
+        StatusText.Text = $"Quick Launch transparency: {e.NewValue:P0}";
+    }
+
+    private async void QL_ClearAll_Click(object sender, RoutedEventArgs e)
+    {
+        var result = System.Windows.MessageBox.Show(
+            "Are you sure you want to remove all Quick Launch items?\n\nThis cannot be undone.",
+            "Clear All Items",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (result == MessageBoxResult.Yes)
+        {
+            try
+            {
+                var config = await Infrastructure.Settings.QuickLaunchConfig.LoadAsync();
+                config.Items.Clear();
+                await config.SaveAsync();
+                QL_ItemsList.Children.Clear();
+                QL_ItemCountText.Text = "0 items configured";
+                StatusText.Text = "All Quick Launch items cleared";
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"QL_ClearAll_Click error: {ex.Message}");
+                StatusText.Text = $"Failed to clear items: {ex.Message}";
+            }
+        }
     }
 }
