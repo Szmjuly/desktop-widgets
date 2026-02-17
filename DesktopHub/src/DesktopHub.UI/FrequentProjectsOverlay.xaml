@@ -9,7 +9,6 @@
         ShowInTaskbar="False"
         WindowStartupLocation="Manual"
         ResizeMode="NoResize"
-        Width="420"
         SizeToContent="Height"
         MaxHeight="500"
         KeyDown="Window_KeyDown">

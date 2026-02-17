@@ -7,7 +7,6 @@
         Background="Transparent"
         ShowInTaskbar="False"
         ResizeMode="NoResize"
-        Width="420"
         SizeToContent="Height"
         MaxHeight="700"
         Topmost="True"
@@ -17,15 +16,20 @@
             Background="#A8121212"
             CornerRadius="12"
             BorderBrush="#3A2A2A2A"
-            BorderThickness="1"
-            Margin="8">
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="16" ShadowDepth="2" Opacity="0.5" Color="Black"/>
-        </Border.Effect>
-        
-        <Grid>
-            <!-- Widget content -->
-            <ContentControl x:Name="WidgetHost"/>
+            BorderThickness="1">
+        <Grid HorizontalAlignment="Stretch">
+            <!-- Glass overlay effect -->
+            <Border Margin="2"
+                    CornerRadius="10"
+                    BorderThickness="1"
+                    BorderBrush="#33FFFFFF"
+                    Background="#14000000"
+                    IsHitTestVisible="False"/>
+            
+            <!-- Content -->
+            <Border Background="Transparent" Padding="12">
+                <ContentControl x:Name="WidgetHost" HorizontalAlignment="Stretch"/>
+            </Border>
             
             <!-- Update available indicator -->
             <Ellipse x:Name="UpdateIndicator"

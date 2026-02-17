@@ -17,7 +17,6 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
     private readonly IProjectLaunchDataStore _launchStore;
     private readonly ISettingsService? _settings;
     private bool _isGridMode;
-    private const double GridTileWidth = 110;
     private const double GridTileMargin = 10;
     private const int GridColumns = 3;
     private DateTime _lastClickTime = DateTime.MinValue;
@@ -63,14 +62,26 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
                 ProjectTilesPanel.Visibility = Visibility.Collapsed;
                 GridScrollViewer.Visibility = Visibility.Visible;
 
-                // Fixed 3-column grid; WrapPanel constrained to fit exactly 3 tiles per row
-                var gridWidth = GridColumns * (GridTileWidth + GridTileMargin);
-                ProjectTilesGrid.MaxWidth = gridWidth;
+                var gridViewportWidth = GridScrollViewer.ViewportWidth;
+                if (double.IsNaN(gridViewportWidth) || gridViewportWidth <= 0)
+                    gridViewportWidth = GridScrollViewer.ActualWidth;
+                if (double.IsNaN(gridViewportWidth) || gridViewportWidth <= 0)
+                    gridViewportWidth = ActualWidth;
+                if (double.IsNaN(gridViewportWidth) || gridViewportWidth <= 0)
+                    gridViewportWidth = 360;
+
+                // Keep 3 columns but size tiles to available width.
+                // Reserve a little space for the vertical scrollbar/padding to prevent right-edge clipping.
+                var availableGridWidth = Math.Max(300, gridViewportWidth - 12);
+                var tileWidth = Math.Floor((availableGridWidth - ((GridColumns - 1) * GridTileMargin)) / GridColumns);
+                tileWidth = Math.Clamp(tileWidth, 92, 118);
+                ProjectTilesGrid.Width = (GridColumns * tileWidth) + ((GridColumns - 1) * GridTileMargin);
 
                 for (int i = 0; i < topProjects.Count; i++)
                 {
                     var record = topProjects[i];
-                    var tile = CreateProjectGridTile(record, i + 1);
+                    var column = i % GridColumns;
+                    var tile = CreateProjectGridTile(record, i + 1, tileWidth, column == GridColumns - 1);
                     ProjectTilesGrid.Children.Add(tile);
                 }
             }
@@ -95,7 +106,7 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
         }
     }
 
-    private Border CreateProjectGridTile(ProjectLaunchRecord record, int rank)
+    private Border CreateProjectGridTile(ProjectLaunchRecord record, int rank, double tileWidth, bool isLastInRow)
     {
         // Rank badge (top-right corner)
         var rankBadge = new Border
@@ -176,10 +187,10 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
         {
             Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#10F5F7FA")),
             CornerRadius = new CornerRadius(10),
-            Width = GridTileWidth,
+            Width = tileWidth,
             Height = 92,
             Padding = new Thickness(8, 6, 8, 6),
-            Margin = new Thickness(0, 0, 10, 10),
+            Margin = new Thickness(0, 0, isLastInRow ? 0 : GridTileMargin, 10),
             Cursor = System.Windows.Input.Cursors.Hand,
             Child = grid,
             Tag = (record.Path, $"{record.FullNumber} {record.Name}", record.FullNumber, record.Name),

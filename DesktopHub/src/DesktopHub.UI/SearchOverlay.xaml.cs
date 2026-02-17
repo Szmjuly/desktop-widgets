@@ -50,6 +50,10 @@ public partial class SearchOverlay : Window
     private bool _isClosing = false;
     private bool _isDragging = false;
     private System.Windows.Point _dragStartPoint;
+    private bool _isAutoArrangingWidgets = false;
+    private const double WidgetSnapThreshold = 16;
+    private readonly Dictionary<Window, Rect> _lastWidgetBounds = new();
+    private readonly Dictionary<Window, Window> _verticalAttachments = new();
     private Helpers.DesktopFollower? _desktopFollower;
     private UpdateCheckService? _updateCheckService;
     private UpdateIndicatorManager? _updateIndicatorManager;
@@ -214,6 +218,9 @@ public partial class SearchOverlay : Window
             _widgetLauncher.FrequentProjectsRequested += OnFrequentProjectsRequested;
             _widgetLauncher.QuickLaunchRequested += OnQuickLaunchRequested;
 
+            RegisterWidgetWindow(this);
+            RegisterWidgetWindow(_widgetLauncher);
+
             // Register global hotkey (Ctrl+Alt+Space by default)
             try
             {
@@ -319,6 +326,12 @@ public partial class SearchOverlay : Window
                 DebugLogger.Log("Restored quick launch widget from previous session");
             }
 
+            if (isLivingWidgetsMode)
+            {
+                RefreshAttachmentMappings();
+                TrackVisibleWindowBounds();
+            }
+
             // Load projects in the background
             _ = LoadProjectsAsync();
 
@@ -415,115 +428,11 @@ public partial class SearchOverlay : Window
                 DebugLogger.Log("OnHotkeyPressed: Stopping deactivate timer");
                 _deactivateTimer.Stop();
             }
-            
-            var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
-            DebugLogger.LogVariable("Living Widgets Mode", isLivingWidgetsMode);
-            
-            if (isLivingWidgetsMode)
-            {
-                // Living Widgets Mode: bring forward or send to back
-                if (this.Visibility != Visibility.Visible)
-                {
-                    DebugLogger.Log("OnHotkeyPressed: Window hidden -> SHOWING overlay");
-                    ShowOverlay();
-                }
-                else if (this.IsActive)
-                {
-                    // Window is visible and active -> send to back
-                    DebugLogger.Log("OnHotkeyPressed: Window active -> SENDING TO BACK");
-                    this.Topmost = false;
-                    
-                    // Use Win32 API to send window to bottom of Z-order
-                    var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
-                    NativeMethods.SetWindowPos(hwnd, NativeMethods.HWND_BOTTOM, 0, 0, 0, 0, 
-                        NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
-                    
-                    // Also send widget launcher to back if visible
-                    if (_widgetLauncher != null && _widgetLauncher.Visibility == Visibility.Visible)
-                    {
-                        var launcherHwnd = new System.Windows.Interop.WindowInteropHelper(_widgetLauncher).Handle;
-                        NativeMethods.SetWindowPos(launcherHwnd, NativeMethods.HWND_BOTTOM, 0, 0, 0, 0, 
-                            NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
-                        DebugLogger.Log("OnHotkeyPressed: Sent widget launcher to back too");
-                    }
-                    
-                    // Also send timer overlay to back if visible
-                    if (_timerOverlay != null && _timerOverlay.Visibility == Visibility.Visible)
-                    {
-                        var timerHwnd = new System.Windows.Interop.WindowInteropHelper(_timerOverlay).Handle;
-                        NativeMethods.SetWindowPos(timerHwnd, NativeMethods.HWND_BOTTOM, 0, 0, 0, 0, 
-                            NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
-                        DebugLogger.Log("OnHotkeyPressed: Sent timer overlay to back too");
-                    }
-                    
-                    // Also send quick tasks overlay to back if visible
-                    if (_quickTasksOverlay != null && _quickTasksOverlay.Visibility == Visibility.Visible)
-                    {
-                        var qtHwnd = new System.Windows.Interop.WindowInteropHelper(_quickTasksOverlay).Handle;
-                        NativeMethods.SetWindowPos(qtHwnd, NativeMethods.HWND_BOTTOM, 0, 0, 0, 0, 
-                            NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
-                        DebugLogger.Log("OnHotkeyPressed: Sent quick tasks overlay to back too");
-                    }
-                    
-                    // Also send doc overlay to back if visible
-                    if (_docOverlay != null && _docOverlay.Visibility == Visibility.Visible)
-                    {
-                        var docHwnd = new System.Windows.Interop.WindowInteropHelper(_docOverlay).Handle;
-                        NativeMethods.SetWindowPos(docHwnd, NativeMethods.HWND_BOTTOM, 0, 0, 0, 0, 
-                            NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
-                        DebugLogger.Log("OnHotkeyPressed: Sent doc overlay to back too");
-                    }
-                }
-                else
-                {
-                    // Window is visible but not active -> bring to front
-                    DebugLogger.Log("OnHotkeyPressed: Window not active -> BRINGING TO FRONT");
-                    this.Activate();
-                    SearchBox.Focus();
-                    
-                    // Also bring widget launcher forward if visible
-                    if (_widgetLauncher != null && _widgetLauncher.Visibility == Visibility.Visible)
-                    {
-                        _widgetLauncher.Activate();
-                        DebugLogger.Log("OnHotkeyPressed: Brought widget launcher forward too");
-                    }
-                    
-                    // Also bring timer overlay forward if visible
-                    if (_timerOverlay != null && _timerOverlay.Visibility == Visibility.Visible)
-                    {
-                        _timerOverlay.Activate();
-                        DebugLogger.Log("OnHotkeyPressed: Brought timer overlay forward too");
-                    }
-                    
-                    // Also bring quick tasks overlay forward if visible
-                    if (_quickTasksOverlay != null && _quickTasksOverlay.Visibility == Visibility.Visible)
-                    {
-                        _quickTasksOverlay.Activate();
-                        DebugLogger.Log("OnHotkeyPressed: Brought quick tasks overlay forward too");
-                    }
-                    
-                    // Also bring doc overlay forward if visible
-                    if (_docOverlay != null && _docOverlay.Visibility == Visibility.Visible)
-                    {
-                        _docOverlay.Activate();
-                        DebugLogger.Log("OnHotkeyPressed: Brought doc overlay forward too");
-                    }
-                }
-            }
-            else
-            {
-                // Legacy overlay mode: show/hide behavior
-                if (this.Visibility == Visibility.Visible)
-                {
-                    DebugLogger.Log("OnHotkeyPressed: Window visible -> HIDING overlay");
-                    HideOverlay();
-                }
-                else
-                {
-                    DebugLogger.Log("OnHotkeyPressed: Window hidden -> SHOWING overlay");
-                    ShowOverlay();
-                }
-            }
+
+            // Hotkey behavior: always bring up search, clear query, and focus typing.
+            // ShowOverlay() already handles clear + focus and safely works when already visible.
+            DebugLogger.Log("OnHotkeyPressed: FORCING overlay open + focus");
+            ShowOverlay();
             
             // Reset toggle flag after a short delay
             DebugLogger.Log("OnHotkeyPressed: Scheduling _isTogglingViaHotkey reset (300ms delay)");
@@ -542,20 +451,11 @@ public partial class SearchOverlay : Window
         DebugLogger.LogVariable("Key", key);
         DebugLogger.LogVariable("Hotkey", FormatHotkey(modifiers, key));
         DebugLogger.LogVariable("Window.Visibility", this.Visibility);
-        
-        bool isCurrentlyVisible = this.Visibility == Visibility.Visible;
-        
-        // If overlay is visible, DON'T suppress - let the hotkey close it
-        if (isCurrentlyVisible)
-        {
-            DebugLogger.Log("ShouldSuppressHotkey: NOT suppressing - overlay is visible, allow toggle to close");
-            return false;
-        }
-        
-        // If overlay is not visible, check if we should suppress due to text field focus
-        var result = ShouldSuppressHotkeyForTyping(modifiers, key, isCurrentlyVisible);
-        DebugLogger.LogVariable("ShouldSuppressHotkeyForTyping returned", result);
-        return result;
+
+        // Feature requirement: Ctrl+Alt+Space should always bring up search.
+        // Never suppress the hotkey.
+        DebugLogger.Log("ShouldSuppressHotkey: NOT suppressing - hotkey should always trigger");
+        return false;
     }
     
     private static bool ShouldSuppressHotkeyForTyping(int modifiers, int key, bool isCurrentlyVisible)
@@ -727,7 +627,7 @@ public partial class SearchOverlay : Window
             if (!isLivingWidgetsMode)
             {
                 var windowWidth = this.ActualWidth > 0 ? this.ActualWidth : this.Width;
-                _widgetLauncher.Left = this.Left + windowWidth + 12;
+                _widgetLauncher.Left = this.Left + windowWidth + GetConfiguredWidgetGap();
                 _widgetLauncher.Top = this.Top;
             }
             
@@ -2388,16 +2288,796 @@ public partial class SearchOverlay : Window
             IsFavorite = project.Metadata?.IsFavorite ?? false;
         }
     }
+
+    private void RegisterWidgetWindow(Window? window)
+    {
+        if (window == null)
+            return;
+
+        window.LocationChanged -= WidgetWindow_LocationChanged;
+        window.SizeChanged -= WidgetWindow_SizeChanged;
+        window.IsVisibleChanged -= WidgetWindow_IsVisibleChanged;
+        window.Closed -= WidgetWindow_Closed;
+        window.MouseLeftButtonUp -= WidgetWindow_MouseLeftButtonUp;
+        window.LostMouseCapture -= WidgetWindow_LostMouseCapture;
+
+        window.LocationChanged += WidgetWindow_LocationChanged;
+        window.SizeChanged += WidgetWindow_SizeChanged;
+        window.IsVisibleChanged += WidgetWindow_IsVisibleChanged;
+        window.Closed += WidgetWindow_Closed;
+        window.MouseLeftButtonUp += WidgetWindow_MouseLeftButtonUp;
+        window.LostMouseCapture += WidgetWindow_LostMouseCapture;
+    }
+
+    private void UnregisterWidgetWindow(Window? window)
+    {
+        if (window == null)
+            return;
+
+        window.LocationChanged -= WidgetWindow_LocationChanged;
+        window.SizeChanged -= WidgetWindow_SizeChanged;
+        window.IsVisibleChanged -= WidgetWindow_IsVisibleChanged;
+        window.Closed -= WidgetWindow_Closed;
+        window.MouseLeftButtonUp -= WidgetWindow_MouseLeftButtonUp;
+        window.LostMouseCapture -= WidgetWindow_LostMouseCapture;
+    }
+
+    private void WidgetWindow_LocationChanged(object? sender, EventArgs e)
+    {
+        if (sender is not Window window)
+            return;
+
+        if (_isAutoArrangingWidgets || !_settings.GetLivingWidgetsMode())
+        {
+            TrackVisibleWindowBounds();
+            return;
+        }
+
+        HandleWindowMoved(window);
+    }
+
+    private void WidgetWindow_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (sender is not Window window)
+            return;
+
+        if (_isAutoArrangingWidgets || !_settings.GetLivingWidgetsMode())
+        {
+            TrackVisibleWindowBounds();
+            return;
+        }
+
+        HandleWindowResized(window);
+    }
+
+    private void WidgetWindow_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (sender is not Window window)
+            return;
+
+        if (!_settings.GetLivingWidgetsMode())
+            return;
+
+        if (window.Visibility == Visibility.Visible)
+        {
+            ApplyLiveLayoutForWindow(window);
+        }
+        else
+        {
+            DetachWindowFromAttachments(window);
+        }
+
+        RefreshAttachmentMappings();
+        TrackVisibleWindowBounds();
+    }
+
+    private void WidgetWindow_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not Window window)
+            return;
+
+        FinalizeWindowDragLayout(window);
+    }
+
+    private void WidgetWindow_LostMouseCapture(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (sender is not Window window)
+            return;
+
+        FinalizeWindowDragLayout(window);
+    }
+
+    private void FinalizeWindowDragLayout(Window window)
+    {
+        if (_isAutoArrangingWidgets || !_settings.GetLivingWidgetsMode())
+            return;
+
+        if (window == this)
+            return;
+
+        if (window.Visibility != Visibility.Visible || !window.IsLoaded)
+            return;
+
+        var gap = GetConfiguredWidgetGap();
+        var currentRect = GetWindowRect(window);
+
+        void Finalize()
+        {
+            UpdateDynamicOverlayMaxHeight(window);
+            RecalculateDocOverlayConstraints();
+            MoveAttachedFollowers(window);
+            RefreshAttachmentMappings();
+            TrackVisibleWindowBounds();
+        }
+
+        // Check if drop position causes overlap
+        if (CountRectOverlaps(currentRect, window) > 0)
+        {
+            // Invalid drop - animate back to pre-drag position, but only if that position is itself clean
+            if (_lastWidgetBounds.TryGetValue(window, out var originalRect) && CountRectOverlaps(originalRect, window) == 0)
+            {
+                AnimateWindowToPosition(window, originalRect.Left, originalRect.Top, Finalize);
+            }
+            else
+            {
+                // Pre-drag position was also overlapping (e.g. search overlay grew after placement),
+                // so resolve to a genuinely clear position
+                var resolvedRect = ResolveWindowOverlaps(window, currentRect, gap);
+                AnimateWindowToPosition(window, resolvedRect.Left, resolvedRect.Top, Finalize);
+            }
+        }
+        else
+        {
+            // Valid drop - apply live layout (snap to edges, etc.)
+            ApplyLiveLayoutForWindow(window);
+            Finalize();
+        }
+    }
+
+    private void AnimateWindowToPosition(Window window, double targetLeft, double targetTop, Action? onComplete = null)
+    {
+        const int animationDurationMs = 200;
+        const int animationSteps = 12;
+        var startLeft = window.Left;
+        var startTop = window.Top;
+        var currentStep = 0;
+
+        var timer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds((double)animationDurationMs / animationSteps)
+        };
+
+        timer.Tick += (s, e) =>
+        {
+            currentStep++;
+            var isDone = currentStep >= animationSteps;
+
+            // Ease-out: t goes 0→1, eased position avoids abrupt stop
+            var t = isDone ? 1.0 : 1.0 - Math.Pow(1.0 - (double)currentStep / animationSteps, 2);
+            var newLeft = startLeft + (targetLeft - startLeft) * t;
+            var newTop = startTop + (targetTop - startTop) * t;
+
+            var previousAutoArrange = _isAutoArrangingWidgets;
+            _isAutoArrangingWidgets = true;
+            try
+            {
+                window.Left = newLeft;
+                window.Top = newTop;
+            }
+            finally
+            {
+                _isAutoArrangingWidgets = previousAutoArrange;
+            }
+
+            if (isDone)
+            {
+                timer.Stop();
+                onComplete?.Invoke();
+            }
+        };
+
+        timer.Start();
+    }
+
+    private void WidgetWindow_Closed(object? sender, EventArgs e)
+    {
+        if (sender is not Window window)
+            return;
+
+        UnregisterWidgetWindow(window);
+        DetachWindowFromAttachments(window);
+        _lastWidgetBounds.Remove(window);
+        RefreshAttachmentMappings();
+        TrackVisibleWindowBounds();
+    }
+
+    private IEnumerable<Window> GetManagedWidgetWindows(bool includeHidden = false)
+    {
+        var windows = new Window?[]
+        {
+            this,
+            _widgetLauncher,
+            _timerOverlay,
+            _quickTasksOverlay,
+            _docOverlay,
+            _frequentProjectsOverlay,
+            _quickLaunchOverlay
+        };
+
+        var seen = new HashSet<Window>();
+        foreach (var window in windows)
+        {
+            if (window == null)
+                continue;
+
+            if (!seen.Add(window))
+                continue;
+
+            if (!window.IsLoaded)
+                continue;
+
+            if (!includeHidden && window.Visibility != Visibility.Visible)
+                continue;
+
+            yield return window;
+        }
+    }
+
+    private static bool IsWindowBeingDragged(Window window)
+    {
+        return window.IsMouseCaptured && System.Windows.Input.Mouse.LeftButton == MouseButtonState.Pressed;
+    }
+
+    private static Rect GetWindowRect(Window window)
+    {
+        var width = window.ActualWidth;
+        if (width <= 1 || double.IsNaN(width))
+            width = window.Width;
+        if (width <= 1 || double.IsNaN(width))
+            width = window.RenderSize.Width;
+
+        var height = window.ActualHeight;
+        if (height <= 1 || double.IsNaN(height))
+            height = window.Height;
+        if (height <= 1 || double.IsNaN(height))
+            height = window.RenderSize.Height;
+
+        return new Rect(window.Left, window.Top, Math.Max(1, width), Math.Max(1, height));
+    }
+
+    private Rect GetScreenWorkArea(Rect rect)
+    {
+        var center = new System.Drawing.Point(
+            (int)Math.Round(rect.Left + rect.Width / 2.0),
+            (int)Math.Round(rect.Top + rect.Height / 2.0)
+        );
+        var screen = Screen.FromPoint(center);
+        return new Rect(screen.WorkingArea.Left, screen.WorkingArea.Top, screen.WorkingArea.Width, screen.WorkingArea.Height);
+    }
+
+    private double GetConfiguredWidgetGap()
+    {
+        return Math.Max(4, _settings.GetWidgetSnapGap());
+    }
+
+    private double GetResponsiveColumnWidgetWidth()
+    {
+        var referenceRect = GetWindowRect(this);
+        var workArea = GetScreenWorkArea(referenceRect);
+        var targetWidth = workArea.Width * 0.22;
+        return Math.Round(Math.Clamp(targetWidth, 400.0, 460.0));
+    }
+
+    private void ApplyResponsiveWidgetWidth(Window window)
+    {
+        if (window is QuickTasksOverlay or DocQuickOpenOverlay or FrequentProjectsOverlay or QuickLaunchOverlay)
+        {
+            window.Width = GetResponsiveColumnWidgetWidth();
+        }
+    }
+
+    private static double HorizontalOverlap(Rect a, Rect b)
+    {
+        return Math.Max(0, Math.Min(a.Right, b.Right) - Math.Max(a.Left, b.Left));
+    }
+
+    private static double VerticalOverlap(Rect a, Rect b)
+    {
+        return Math.Max(0, Math.Min(a.Bottom, b.Bottom) - Math.Max(a.Top, b.Top));
+    }
+
+    private static bool RectsOverlap(Rect a, Rect b)
+    {
+        return HorizontalOverlap(a, b) > 0.5 && VerticalOverlap(a, b) > 0.5;
+    }
+
+    private void MoveWindowTo(Window window, double left, double top)
+    {
+        if (Math.Abs(window.Left - left) < 0.5 && Math.Abs(window.Top - top) < 0.5)
+            return;
+
+        var previousAutoArrange = _isAutoArrangingWidgets;
+        _isAutoArrangingWidgets = true;
+        try
+        {
+            window.Left = left;
+            window.Top = top;
+        }
+        finally
+        {
+            _isAutoArrangingWidgets = previousAutoArrange;
+        }
+    }
+
+    private Rect ClampRectToScreen(Rect rect, double gap)
+    {
+        var workArea = GetScreenWorkArea(rect);
+
+        var minLeft = workArea.Left + gap;
+        var maxLeft = workArea.Right - gap - rect.Width;
+        if (maxLeft < minLeft)
+        {
+            minLeft = workArea.Left;
+            maxLeft = workArea.Right - rect.Width;
+        }
+
+        var minTop = workArea.Top + gap;
+        var maxTop = workArea.Bottom - gap - rect.Height;
+        if (maxTop < minTop)
+        {
+            minTop = workArea.Top;
+            maxTop = workArea.Bottom - rect.Height;
+        }
+
+        var clampedLeft = Math.Max(minLeft, Math.Min(rect.Left, maxLeft));
+        var clampedTop = Math.Max(minTop, Math.Min(rect.Top, maxTop));
+        return new Rect(clampedLeft, clampedTop, rect.Width, rect.Height);
+    }
+
+    private Rect SnapRectToScreenEdges(Rect rect, double gap)
+    {
+        var workArea = GetScreenWorkArea(rect);
+
+        var leftSnap = workArea.Left + gap;
+        var rightSnap = workArea.Right - gap - rect.Width;
+        var topSnap = workArea.Top + gap;
+        var bottomSnap = workArea.Bottom - gap - rect.Height;
+
+        if (Math.Abs(rect.Left - leftSnap) <= WidgetSnapThreshold)
+            rect.X = leftSnap;
+        else if (Math.Abs(rect.Left - rightSnap) <= WidgetSnapThreshold)
+            rect.X = rightSnap;
+
+        if (Math.Abs(rect.Top - topSnap) <= WidgetSnapThreshold)
+            rect.Y = topSnap;
+        else if (Math.Abs(rect.Top - bottomSnap) <= WidgetSnapThreshold)
+            rect.Y = bottomSnap;
+
+        return ClampRectToScreen(rect, gap);
+    }
+
+    private Rect SnapRectToOtherWindows(Window movingWindow, Rect rect, double gap)
+    {
+        var bestXDistance = WidgetSnapThreshold + 1;
+        var bestYDistance = WidgetSnapThreshold + 1;
+        double? snappedX = null;
+        double? snappedY = null;
+
+        void ConsiderX(double candidate)
+        {
+            var distance = Math.Abs(rect.Left - candidate);
+            if (distance <= WidgetSnapThreshold && distance < bestXDistance)
+            {
+                bestXDistance = distance;
+                snappedX = candidate;
+            }
+        }
+
+        void ConsiderY(double candidate)
+        {
+            var distance = Math.Abs(rect.Top - candidate);
+            if (distance <= WidgetSnapThreshold && distance < bestYDistance)
+            {
+                bestYDistance = distance;
+                snappedY = candidate;
+            }
+        }
+
+        foreach (var otherWindow in GetManagedWidgetWindows())
+        {
+            if (otherWindow == movingWindow)
+                continue;
+
+            var otherRect = GetWindowRect(otherWindow);
+            var hasVerticalOverlap = VerticalOverlap(rect, otherRect) > 24;
+            var hasHorizontalOverlap = HorizontalOverlap(rect, otherRect) > 24;
+
+            if (hasVerticalOverlap)
+            {
+                ConsiderX(otherRect.Left);
+                ConsiderX(otherRect.Right - rect.Width);
+                ConsiderX(otherRect.Right + gap);
+                ConsiderX(otherRect.Left - rect.Width - gap);
+            }
+
+            if (hasHorizontalOverlap)
+            {
+                ConsiderY(otherRect.Top);
+                ConsiderY(otherRect.Bottom - rect.Height);
+                ConsiderY(otherRect.Bottom + gap);
+                ConsiderY(otherRect.Top - rect.Height - gap);
+            }
+        }
+
+        if (snappedX.HasValue)
+            rect.X = snappedX.Value;
+        if (snappedY.HasValue)
+            rect.Y = snappedY.Value;
+
+        return rect;
+    }
+
+    private int CountRectOverlaps(Rect rect, Window movingWindow)
+    {
+        var overlapCount = 0;
+        foreach (var otherWindow in GetManagedWidgetWindows())
+        {
+            if (otherWindow == movingWindow)
+                continue;
+
+            if (RectsOverlap(rect, GetWindowRect(otherWindow)))
+                overlapCount++;
+        }
+
+        return overlapCount;
+    }
+
+    private Rect ResolveWindowOverlaps(Window movingWindow, Rect rect, double gap)
+    {
+        for (var attempt = 0; attempt < 8; attempt++)
+        {
+            Rect? overlap = null;
+            foreach (var otherWindow in GetManagedWidgetWindows())
+            {
+                if (otherWindow == movingWindow)
+                    continue;
+
+                var otherRect = GetWindowRect(otherWindow);
+                if (RectsOverlap(rect, otherRect))
+                {
+                    overlap = otherRect;
+                    break;
+                }
+            }
+
+            if (!overlap.HasValue)
+                break;
+
+            var overlapRect = overlap.Value;
+            var candidates = new List<Rect>
+            {
+                new Rect(overlapRect.Left - rect.Width - gap, rect.Top, rect.Width, rect.Height),
+                new Rect(overlapRect.Right + gap, rect.Top, rect.Width, rect.Height),
+                new Rect(rect.Left, overlapRect.Top - rect.Height - gap, rect.Width, rect.Height),
+                new Rect(rect.Left, overlapRect.Bottom + gap, rect.Width, rect.Height)
+            };
+
+            var bestCandidate = rect;
+            var bestOverlapCount = int.MaxValue;
+            var bestDistance = double.MaxValue;
+
+            foreach (var candidate in candidates)
+            {
+                var clamped = ClampRectToScreen(candidate, gap);
+                var overlapCount = CountRectOverlaps(clamped, movingWindow);
+                var distance = Math.Abs(clamped.Left - rect.Left) + Math.Abs(clamped.Top - rect.Top);
+
+                if (overlapCount < bestOverlapCount || (overlapCount == bestOverlapCount && distance < bestDistance))
+                {
+                    bestCandidate = clamped;
+                    bestOverlapCount = overlapCount;
+                    bestDistance = distance;
+                }
+            }
+
+            if (Math.Abs(bestCandidate.Left - rect.Left) < 0.5 && Math.Abs(bestCandidate.Top - rect.Top) < 0.5)
+                break;
+
+            rect = bestCandidate;
+        }
+
+        return ClampRectToScreen(rect, gap);
+    }
+
+    private void ApplyLiveLayoutForWindow(Window window)
+    {
+        if (!_settings.GetLivingWidgetsMode())
+            return;
+
+        if (window.Visibility != Visibility.Visible || !window.IsLoaded)
+            return;
+
+        var gap = GetConfiguredWidgetGap();
+        var rect = GetWindowRect(window);
+        rect = SnapRectToScreenEdges(rect, gap);
+        rect = SnapRectToOtherWindows(window, rect, gap);
+        rect = ResolveWindowOverlaps(window, rect, gap);
+        MoveWindowTo(window, rect.Left, rect.Top);
+        UpdateDynamicOverlayMaxHeight(window);
+    }
+
+    private void RecalculateDocOverlayConstraints()
+    {
+        if (_docOverlay != null && _docOverlay.IsLoaded && _docOverlay.Visibility == Visibility.Visible)
+            UpdateDynamicOverlayMaxHeight(_docOverlay);
+    }
+
+    private void UpdateDynamicOverlayMaxHeight(Window window)
+    {
+        if (window is not DocQuickOpenOverlay)
+            return;
+
+        var rect = GetWindowRect(window);
+        var workArea = GetScreenWorkArea(rect);
+        var gap = GetConfiguredWidgetGap();
+
+        // Default ceiling: screen work area bottom
+        var limitY = workArea.Bottom - gap;
+
+        // For any widget directly below us (significant horizontal overlap), calculate how far
+        // Doc can grow while keeping that widget on-screen when pushed down.
+        // Formula: if Doc.Bottom = limitY, the widget below lands at limitY+gap,
+        // its bottom = limitY + gap + widget.Height <= screenBottom - gap
+        // => limitY <= screenBottom - widget.Height - 2*gap
+        foreach (var other in GetManagedWidgetWindows())
+        {
+            if (other == window)
+                continue;
+
+            var otherRect = GetWindowRect(other);
+
+            // Only widgets whose top is below our top position
+            if (otherRect.Top <= window.Top)
+                continue;
+
+            // Must have at least 30% horizontal overlap to be considered "below" us
+            var overlapAmount = HorizontalOverlap(rect, otherRect);
+            var requiredOverlap = Math.Min(rect.Width, otherRect.Width) * 0.3;
+            if (overlapAmount < requiredOverlap)
+                continue;
+
+            // Maximum bottom Doc can reach while the widget below still fits on screen after being pushed
+            var pushLimit = workArea.Bottom - otherRect.Height - 2 * gap;
+            limitY = Math.Min(limitY, pushLimit);
+        }
+
+        window.MaxHeight = Math.Max(200, limitY - window.Top);
+    }
+
+    private void DetachWindowFromAttachments(Window window)
+    {
+        _verticalAttachments.Remove(window);
+
+        var dependents = _verticalAttachments
+            .Where(kvp => kvp.Value == window)
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        foreach (var dependent in dependents)
+        {
+            _verticalAttachments.Remove(dependent);
+        }
+    }
+
+    private void AttachNearestWindowBelow(Window anchor, Rect previousAnchorBounds)
+    {
+        var anchorRect = GetWindowRect(anchor);
+        var maxAttachDistance = GetConfiguredWidgetGap() + 48;
+        Window? bestFollower = null;
+        var bestDistance = double.MaxValue;
+
+        foreach (var candidate in GetManagedWidgetWindows())
+        {
+            if (candidate == anchor)
+                continue;
+
+            var candidateRect = GetWindowRect(candidate);
+            if (candidateRect.Top < previousAnchorBounds.Bottom - WidgetSnapThreshold)
+                continue;
+
+            var overlapAmount = HorizontalOverlap(anchorRect, candidateRect);
+            var requiredOverlap = Math.Min(anchorRect.Width, candidateRect.Width) * 0.25;
+            if (overlapAmount < requiredOverlap)
+                continue;
+
+            var distance = candidateRect.Top - previousAnchorBounds.Bottom;
+            if (distance > maxAttachDistance)
+                continue;
+
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestFollower = candidate;
+            }
+        }
+
+        if (bestFollower != null)
+        {
+            _verticalAttachments[bestFollower] = anchor;
+        }
+    }
+
+    private void MoveAttachedFollowers(Window anchor)
+    {
+        MoveAttachedFollowers(anchor, new HashSet<Window>());
+    }
+
+    private void MoveAttachedFollowers(Window anchor, HashSet<Window> visited)
+    {
+        if (!visited.Add(anchor))
+            return;
+
+        var anchorRect = GetWindowRect(anchor);
+        var gap = GetConfiguredWidgetGap();
+
+        var followers = _verticalAttachments
+            .Where(kvp => kvp.Value == anchor)
+            .Select(kvp => kvp.Key)
+            .Where(w => w.Visibility == Visibility.Visible && w.IsLoaded)
+            .OrderBy(w => GetWindowRect(w).Top)
+            .ToList();
+
+        foreach (var follower in followers)
+        {
+            var followerRect = GetWindowRect(follower);
+            var desiredTop = anchorRect.Bottom + gap;
+            MoveWindowTo(follower, followerRect.Left, desiredTop);
+            ApplyLiveLayoutForWindow(follower);
+            MoveAttachedFollowers(follower, visited);
+        }
+    }
+
+    private void RefreshAttachmentMappings()
+    {
+        if (!_settings.GetLivingWidgetsMode())
+        {
+            _verticalAttachments.Clear();
+            return;
+        }
+
+        var windows = GetManagedWidgetWindows().ToList();
+        _verticalAttachments.Clear();
+
+        var targetGap = GetConfiguredWidgetGap();
+        foreach (var follower in windows)
+        {
+            var followerRect = GetWindowRect(follower);
+            Window? bestAnchor = null;
+            var bestScore = double.MaxValue;
+
+            foreach (var anchor in windows)
+            {
+                if (anchor == follower)
+                    continue;
+
+                var anchorRect = GetWindowRect(anchor);
+                var verticalGap = followerRect.Top - anchorRect.Bottom;
+                if (verticalGap < -WidgetSnapThreshold || verticalGap > targetGap + (WidgetSnapThreshold * 2))
+                    continue;
+
+                var overlapAmount = HorizontalOverlap(anchorRect, followerRect);
+                var requiredOverlap = Math.Min(anchorRect.Width, followerRect.Width) * 0.25;
+                if (overlapAmount < requiredOverlap)
+                    continue;
+
+                var score = Math.Abs(verticalGap - targetGap);
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    bestAnchor = anchor;
+                }
+            }
+
+            if (bestAnchor != null)
+            {
+                _verticalAttachments[follower] = bestAnchor;
+            }
+        }
+    }
+
+    private void TrackVisibleWindowBounds()
+    {
+        var visibleWindows = GetManagedWidgetWindows().ToHashSet();
+
+        foreach (var window in visibleWindows)
+        {
+            _lastWidgetBounds[window] = GetWindowRect(window);
+        }
+
+        var staleWindows = _lastWidgetBounds.Keys
+            .Where(w => !visibleWindows.Contains(w))
+            .ToList();
+
+        foreach (var staleWindow in staleWindows)
+        {
+            _lastWidgetBounds.Remove(staleWindow);
+        }
+    }
+
+    private void HandleWindowMoved(Window window)
+    {
+        if (window.Visibility != Visibility.Visible || !window.IsLoaded)
+        {
+            TrackVisibleWindowBounds();
+            return;
+        }
+
+        if (_verticalAttachments.ContainsKey(window))
+        {
+            _verticalAttachments.Remove(window);
+        }
+
+        var gap = GetConfiguredWidgetGap();
+        var currentRect = GetWindowRect(window);
+        
+        if (IsWindowBeingDragged(window))
+        {
+            // During active drag, only clamp to screen edges - don't prevent overlap
+            // This eliminates jitter by allowing free movement during drag
+            var clampedRect = ClampRectToScreen(currentRect, gap);
+            if (Math.Abs(clampedRect.Left - currentRect.Left) > 0.5 || Math.Abs(clampedRect.Top - currentRect.Top) > 0.5)
+            {
+                MoveWindowTo(window, clampedRect.Left, clampedRect.Top);
+                currentRect = clampedRect;
+            }
+
+            // Don't update _lastWidgetBounds during drag - preserve pre-drag position for snap-back
+            return;
+        }
+
+        ApplyLiveLayoutForWindow(window);
+        RecalculateDocOverlayConstraints();
+        MoveAttachedFollowers(window);
+        RefreshAttachmentMappings();
+        TrackVisibleWindowBounds();
+    }
+
+    private void HandleWindowResized(Window window)
+    {
+        if (window.Visibility != Visibility.Visible || !window.IsLoaded)
+        {
+            TrackVisibleWindowBounds();
+            return;
+        }
+
+        if (_lastWidgetBounds.TryGetValue(window, out var previousBounds))
+        {
+            var currentBounds = GetWindowRect(window);
+            var grewDownward = currentBounds.Height > previousBounds.Height + 0.5;
+            var shrankDownward = currentBounds.Height < previousBounds.Height - 0.5;
+
+            if (grewDownward || shrankDownward)
+            {
+                AttachNearestWindowBelow(window, previousBounds);
+                MoveAttachedFollowers(window);
+            }
+        }
+
+        ApplyLiveLayoutForWindow(window);
+        RefreshAttachmentMappings();
+        TrackVisibleWindowBounds();
+    }
     
     private void CreateTimerOverlay(double? left = null, double? top = null)
     {
         _timerOverlay = new TimerOverlay(_timerService, _settings);
+        RegisterWidgetWindow(_timerOverlay);
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
         _timerOverlay.Topmost = !isLivingWidgetsMode;
 
         // Use provided position, then saved position, then default
         var (savedLeft, savedTop) = _settings.GetTimerWidgetPosition();
-        _timerOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + 12);
+        _timerOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
         _timerOverlay.Top = top ?? savedTop ?? this.Top;
 
         if (isLivingWidgetsMode)
@@ -2405,6 +3085,13 @@ public partial class SearchOverlay : Window
 
         _timerOverlay.Show();
         _timerOverlay.Tag = "WasVisible";
+
+        if (isLivingWidgetsMode)
+        {
+            ApplyLiveLayoutForWindow(_timerOverlay);
+            RefreshAttachmentMappings();
+            TrackVisibleWindowBounds();
+        }
 
         if (isLivingWidgetsMode && _desktopFollower != null)
         {
@@ -2474,12 +3161,14 @@ public partial class SearchOverlay : Window
     private void CreateQuickTasksOverlay(double? left = null, double? top = null)
     {
         _quickTasksOverlay = new QuickTasksOverlay(_taskService!, _settings);
+        ApplyResponsiveWidgetWidth(_quickTasksOverlay);
+        RegisterWidgetWindow(_quickTasksOverlay);
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
         _quickTasksOverlay.Topmost = !isLivingWidgetsMode;
 
         // Use provided position, then saved position, then default
         var (savedLeft, savedTop) = _settings.GetQuickTasksWidgetPosition();
-        _quickTasksOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + 12);
+        _quickTasksOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
         _quickTasksOverlay.Top = top ?? savedTop ?? this.Top;
 
         if (isLivingWidgetsMode)
@@ -2487,6 +3176,13 @@ public partial class SearchOverlay : Window
 
         _quickTasksOverlay.Show();
         _quickTasksOverlay.Tag = "WasVisible";
+
+        if (isLivingWidgetsMode)
+        {
+            ApplyLiveLayoutForWindow(_quickTasksOverlay);
+            RefreshAttachmentMappings();
+            TrackVisibleWindowBounds();
+        }
 
         if (isLivingWidgetsMode && _desktopFollower != null)
         {
@@ -2535,11 +3231,13 @@ public partial class SearchOverlay : Window
     private void CreateDocOverlay(double? left = null, double? top = null)
     {
         _docOverlay = new DocQuickOpenOverlay(_docService!, _settings);
+        ApplyResponsiveWidgetWidth(_docOverlay);
+        RegisterWidgetWindow(_docOverlay);
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
         _docOverlay.Topmost = !isLivingWidgetsMode;
 
         var (savedLeft, savedTop) = _settings.GetDocWidgetPosition();
-        _docOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + 12);
+        _docOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
         _docOverlay.Top = top ?? savedTop ?? (this.Top + 100);
 
         if (isLivingWidgetsMode)
@@ -2547,6 +3245,14 @@ public partial class SearchOverlay : Window
 
         _docOverlay.Show();
         _docOverlay.Tag = "WasVisible";
+        UpdateDynamicOverlayMaxHeight(_docOverlay);
+
+        if (isLivingWidgetsMode)
+        {
+            ApplyLiveLayoutForWindow(_docOverlay);
+            RefreshAttachmentMappings();
+            TrackVisibleWindowBounds();
+        }
 
         if (isLivingWidgetsMode && _desktopFollower != null)
         {
@@ -2595,6 +3301,8 @@ public partial class SearchOverlay : Window
     private void CreateFrequentProjectsOverlay(double? left = null, double? top = null)
     {
         _frequentProjectsOverlay = new FrequentProjectsOverlay(_launchDataStore!, _settings);
+        ApplyResponsiveWidgetWidth(_frequentProjectsOverlay);
+        RegisterWidgetWindow(_frequentProjectsOverlay);
         _frequentProjectsOverlay.OnProjectSelectedForSearch += (path) =>
         {
             Dispatcher.Invoke(() =>
@@ -2609,7 +3317,7 @@ public partial class SearchOverlay : Window
         _frequentProjectsOverlay.Topmost = !isLivingWidgetsMode;
 
         var (savedLeft, savedTop) = _settings.GetFrequentProjectsWidgetPosition();
-        _frequentProjectsOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + 12);
+        _frequentProjectsOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
         _frequentProjectsOverlay.Top = top ?? savedTop ?? (this.Top + 200);
 
         if (isLivingWidgetsMode)
@@ -2618,6 +3326,13 @@ public partial class SearchOverlay : Window
         _frequentProjectsOverlay.Show();
         _frequentProjectsOverlay.UpdateTransparency();
         _frequentProjectsOverlay.Tag = "WasVisible";
+
+        if (isLivingWidgetsMode)
+        {
+            ApplyLiveLayoutForWindow(_frequentProjectsOverlay);
+            RefreshAttachmentMappings();
+            TrackVisibleWindowBounds();
+        }
 
         if (isLivingWidgetsMode && _desktopFollower != null)
         {
@@ -2665,11 +3380,13 @@ public partial class SearchOverlay : Window
     private void CreateQuickLaunchOverlay(double? left = null, double? top = null)
     {
         _quickLaunchOverlay = new QuickLaunchOverlay(_settings);
+        ApplyResponsiveWidgetWidth(_quickLaunchOverlay);
+        RegisterWidgetWindow(_quickLaunchOverlay);
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
         _quickLaunchOverlay.Topmost = !isLivingWidgetsMode;
 
         var (savedLeft, savedTop) = _settings.GetQuickLaunchWidgetPosition();
-        _quickLaunchOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + 12);
+        _quickLaunchOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
         _quickLaunchOverlay.Top = top ?? savedTop ?? (this.Top + 300);
 
         if (isLivingWidgetsMode)
@@ -2678,6 +3395,13 @@ public partial class SearchOverlay : Window
         _quickLaunchOverlay.Show();
         _quickLaunchOverlay.UpdateTransparency();
         _quickLaunchOverlay.Tag = "WasVisible";
+
+        if (isLivingWidgetsMode)
+        {
+            ApplyLiveLayoutForWindow(_quickLaunchOverlay);
+            RefreshAttachmentMappings();
+            TrackVisibleWindowBounds();
+        }
 
         if (isLivingWidgetsMode && _desktopFollower != null)
         {
@@ -2801,9 +3525,20 @@ public partial class SearchOverlay : Window
         {
             _isDragging = false;
             this.ReleaseMouseCapture();
-            
-            // Apply snap to screen edges if close
-            SnapToScreenEdges();
+
+            if (_settings.GetLivingWidgetsMode())
+            {
+                ApplyLiveLayoutForWindow(this);
+                MoveAttachedFollowers(this);
+                RefreshAttachmentMappings();
+                TrackVisibleWindowBounds();
+            }
+            else
+            {
+                // Apply snap to screen edges if close
+                SnapToScreenEdges();
+            }
+
             DebugLogger.Log("Window dragging ended");
         }
     }
@@ -2917,7 +3652,7 @@ public partial class SearchOverlay : Window
         if (_widgetLauncher != null && _widgetLauncher.Visibility == Visibility.Visible)
         {
             var windowWidth = this.ActualWidth > 0 ? this.ActualWidth : this.Width;
-            _widgetLauncher.Left = this.Left + windowWidth + 12;
+            _widgetLauncher.Left = this.Left + windowWidth + GetConfiguredWidgetGap();
             _widgetLauncher.Top = this.Top;
         }
     }
@@ -3027,6 +3762,9 @@ public partial class SearchOverlay : Window
             
             // Start following desktop switches
             StartDesktopFollower();
+
+            RefreshAttachmentMappings();
+            TrackVisibleWindowBounds();
             
             DebugLogger.Log("Window dragging enabled (Living Widgets Mode ON) - Topmost disabled");
         }
@@ -3077,6 +3815,9 @@ public partial class SearchOverlay : Window
             
             // Stop following desktop switches
             StopDesktopFollower();
+
+            _verticalAttachments.Clear();
+            _lastWidgetBounds.Clear();
             
             DebugLogger.Log("Window dragging disabled (Living Widgets Mode OFF) - Topmost enabled");
         }
@@ -3193,6 +3934,20 @@ public partial class SearchOverlay : Window
             _quickLaunchOverlay?.Show();
             DebugLogger.Log("UpdateQuickLaunchLayout: Recreated Quick Launch overlay with new layout");
         }
+    }
+
+    public void RefreshLiveWidgetLayout()
+    {
+        if (!_settings.GetLivingWidgetsMode())
+            return;
+
+        foreach (var window in GetManagedWidgetWindows().ToList())
+        {
+            ApplyLiveLayoutForWindow(window);
+        }
+
+        RefreshAttachmentMappings();
+        TrackVisibleWindowBounds();
     }
 
     public void SetUpdateIndicatorVisible(bool visible)

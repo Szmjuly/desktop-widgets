@@ -34,6 +34,7 @@ public partial class SettingsWindow : Window
     private Action? _onFrequentProjectsLayoutChanged;
     private Action? _onQuickLaunchWidgetEnabledChanged;
     private Action? _onQuickLaunchLayoutChanged;
+    private Action? _onWidgetSnapGapChanged;
     private IProjectLaunchDataStore? _launchDataStore;
     private bool _isUpdatingSliders;
     private bool _isLoadingQTSettings;
@@ -41,7 +42,7 @@ public partial class SettingsWindow : Window
     private bool _isLoadingFPSettings;
     private bool _isLoadingQLSettings;
 
-    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null, Action? onFrequentProjectsWidgetEnabledChanged = null, Action? onFrequentProjectsLayoutChanged = null, Action? onQuickLaunchWidgetEnabledChanged = null, IProjectLaunchDataStore? launchDataStore = null, Action? onQuickLaunchLayoutChanged = null)
+    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null, Action? onFrequentProjectsWidgetEnabledChanged = null, Action? onFrequentProjectsLayoutChanged = null, Action? onQuickLaunchWidgetEnabledChanged = null, IProjectLaunchDataStore? launchDataStore = null, Action? onQuickLaunchLayoutChanged = null, Action? onWidgetSnapGapChanged = null)
     {
         _settings = settings;
         _taskService = taskService;
@@ -60,6 +61,7 @@ public partial class SettingsWindow : Window
         _onFrequentProjectsLayoutChanged = onFrequentProjectsLayoutChanged;
         _onQuickLaunchWidgetEnabledChanged = onQuickLaunchWidgetEnabledChanged;
         _onQuickLaunchLayoutChanged = onQuickLaunchLayoutChanged;
+        _onWidgetSnapGapChanged = onWidgetSnapGapChanged;
         _launchDataStore = launchDataStore;
 
         // Suppress all slider/control events during XAML initialization
@@ -213,6 +215,8 @@ public partial class SettingsWindow : Window
             TimerWidgetTransparencySlider.Value = _settings.GetTimerWidgetTransparency();
             QuickTasksTransparencySlider.Value = _settings.GetQuickTasksWidgetTransparency();
             DocTransparencySlider.Value = _settings.GetDocWidgetTransparency();
+            WidgetSnapGapSlider.Value = _settings.GetWidgetSnapGap();
+            UpdateWidgetSnapGapValueText(_settings.GetWidgetSnapGap());
             _isUpdatingSliders = false;
             
             // Load widget enabled toggles
@@ -1004,6 +1008,31 @@ public partial class SettingsWindow : Window
             
             StatusText.Text = statusText;
         }
+    }
+
+    private void UpdateWidgetSnapGapValueText(int gapPixels)
+    {
+        if (WidgetSnapGapValueText != null)
+        {
+            WidgetSnapGapValueText.Text = $"{gapPixels} px";
+        }
+    }
+
+    private void WidgetSnapGapSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        var gap = (int)e.NewValue;
+        UpdateWidgetSnapGapValueText(gap);
+
+        if (_isUpdatingSliders || _settings == null || !IsLoaded)
+            return;
+
+        _settings.SetWidgetSnapGap(gap);
+        _ = _settings.SaveAsync();
+
+        var appliedGap = _settings.GetWidgetSnapGap();
+        UpdateWidgetSnapGapValueText(appliedGap);
+        StatusText.Text = $"Widget snap gap: {appliedGap} px";
+        _onWidgetSnapGapChanged?.Invoke();
     }
 
     private async void LivingWidgetsModeToggle_Checked(object sender, RoutedEventArgs e)

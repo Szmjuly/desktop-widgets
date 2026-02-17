@@ -59,11 +59,12 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
         if (info == null)
         {
             // No project selected
-            ProjectNameText.Text = "Click a project in search to begin";
+            ProjectNameText.Text = "Click a project in search results to begin";
             ProjectNameText.Foreground = (WpfBrush)FindResource("TextSecondaryBrush");
             ProjectTypeBadge.Visibility = Visibility.Collapsed;
             DisciplinePanel.Visibility = Visibility.Collapsed;
             RevitInfoPanel.Visibility = Visibility.Collapsed;
+            RevitLaunchPanel.Visibility = Visibility.Collapsed;
             SearchPanel.Visibility = Visibility.Collapsed;
             FileScrollViewer.Visibility = Visibility.Collapsed;
             EmptyState.Visibility = Visibility.Visible;
@@ -739,10 +740,14 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
         _docService.SetSearchQuery(SearchBox.Text);
     }
 
-    private async void RefreshButton_Click(object sender, RoutedEventArgs e)
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
-        await _docService.RescanAsync();
-        StatusText.Text = "Rescanned";
+        var parentWindow = System.Windows.Window.GetWindow(this);
+        if (parentWindow != null)
+        {
+            parentWindow.Visibility = Visibility.Hidden;
+            parentWindow.Tag = null;
+        }
     }
 
     private async void Discipline_Click(object sender, MouseButtonEventArgs e)

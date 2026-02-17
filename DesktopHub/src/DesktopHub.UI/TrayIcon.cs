@@ -39,7 +39,7 @@ public class TrayIcon : IDisposable
         _notifyIcon.DoubleClick += (s, e) => ShowSearch();
 
         // Show balloon tip on first run
-        ShowBalloonTip("DesktopHub", $"Press {_hotkeyLabel} to search projects", System.Windows.Forms.ToolTipIcon.Info);
+        ShowCustomToast("DesktopHub", $"Press {_hotkeyLabel} to search projects");
     }
 
     private static System.Drawing.Icon LoadCustomIcon()
@@ -120,13 +120,24 @@ public class TrayIcon : IDisposable
         return source.Clone(cropRect, source.PixelFormat);
     }
 
-    private void ShowBalloonTip(string title, string text, System.Windows.Forms.ToolTipIcon icon)
+    private void ShowCustomToast(string title, string message)
     {
         var duration = _settings.GetNotificationDurationMs();
-        if (duration > 0)
+        if (duration <= 0)
+            return;
+
+        _searchOverlay.Dispatcher.BeginInvoke(new Action(() =>
         {
-            _notifyIcon.ShowBalloonTip(duration, title, text, icon);
-        }
+            try
+            {
+                var toast = new ToastNotification(title, message, duration);
+                toast.Show();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"TrayIcon: Toast error: {ex.Message}");
+            }
+        }), System.Windows.Threading.DispatcherPriority.Background);
     }
 
     private void ShowCustomMenu()
@@ -194,7 +205,7 @@ public class TrayIcon : IDisposable
 
     private void RescanProjects()
     {
-        ShowBalloonTip("DesktopHub", "Rescanning Q: drive...", System.Windows.Forms.ToolTipIcon.Info);
+        ShowCustomToast("DesktopHub", "Rescanning Q: drive...");
 
         // Trigger rescan
         Task.Run(async () =>
@@ -208,11 +219,11 @@ public class TrayIcon : IDisposable
                     // Trigger background scan
                 });
 
-                ShowBalloonTip("DesktopHub", "Rescan complete", System.Windows.Forms.ToolTipIcon.Info);
+                ShowCustomToast("DesktopHub", "Rescan complete");
             }
             catch (Exception ex)
             {
-                ShowBalloonTip("DesktopHub", $"Rescan failed: {ex.Message}", System.Windows.Forms.ToolTipIcon.Error);
+                ShowCustomToast("DesktopHub", $"Rescan failed: {ex.Message}");
             }
         });
     }
@@ -245,7 +256,7 @@ public class TrayIcon : IDisposable
                 if (firebaseManager == null)
                 {
                     DebugLogger.Log("Update: FirebaseManager is null - offline mode");
-                    ShowBalloonTip("DesktopHub", "Update checking unavailable (offline mode)", System.Windows.Forms.ToolTipIcon.Warning);
+                    ShowCustomToast("DesktopHub", "Update checking unavailable (offline mode)");
                     return;
                 }
 
@@ -255,7 +266,7 @@ public class TrayIcon : IDisposable
                 if (updateInfo == null)
                 {
                     DebugLogger.Log("Update: CheckForUpdatesAsync returned null");
-                    ShowBalloonTip("DesktopHub", "Could not check for updates", System.Windows.Forms.ToolTipIcon.Warning);
+                    ShowCustomToast("DesktopHub", "Could not check for updates");
                     return;
                 }
 
@@ -300,14 +311,14 @@ public class TrayIcon : IDisposable
                 }
                 else
                 {
-                    ShowBalloonTip("DesktopHub", $"You're up to date! (v{FormatVersion(updateInfo.CurrentVersion)})", System.Windows.Forms.ToolTipIcon.Info);
+                    ShowCustomToast("DesktopHub", $"You're up to date! (v{FormatVersion(updateInfo.CurrentVersion)})");
                 }
             }
             catch (Exception ex)
             {
                 DebugLogger.Log($"Update: EXCEPTION in CheckForUpdates: {ex.Message}");
                 DebugLogger.Log($"Update: Stack trace: {ex.StackTrace}");
-                ShowBalloonTip("DesktopHub", "Update check failed", System.Windows.Forms.ToolTipIcon.Error);
+                ShowCustomToast("DesktopHub", "Update check failed");
             }
         });
     }
@@ -323,12 +334,12 @@ public class TrayIcon : IDisposable
             if (string.IsNullOrEmpty(updateInfo.DownloadUrl))
             {
                 DebugLogger.Log("Update: ERROR - Download URL is empty");
-                ShowBalloonTip("DesktopHub", "Update download URL is missing", System.Windows.Forms.ToolTipIcon.Error);
+                ShowCustomToast("DesktopHub", "Update download URL is missing");
                 return;
             }
 
             DebugLogger.Log($"Update: Starting download from {updateInfo.DownloadUrl}");
-            ShowBalloonTip("DesktopHub", $"Downloading v{FormatVersion(updateInfo.LatestVersion)}...", System.Windows.Forms.ToolTipIcon.Info);
+            ShowCustomToast("DesktopHub", $"Downloading v{FormatVersion(updateInfo.LatestVersion)}...");
 
             var tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"DesktopHub-{updateInfo.LatestVersion}.exe");
 
@@ -373,7 +384,7 @@ public class TrayIcon : IDisposable
             }
 
             DebugLogger.Log("Update: Download complete, preparing to install");
-            ShowBalloonTip("DesktopHub", "Installing update...", System.Windows.Forms.ToolTipIcon.Info);
+            ShowCustomToast("DesktopHub", "Installing update...");
 
             // For single-file apps, use AppContext.BaseDirectory instead of Assembly.Location
             var currentExePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
@@ -466,7 +477,7 @@ REM Delete this batch file
                 else
                 {
                     DebugLogger.Log("Update: User cancelled installation");
-                    ShowBalloonTip("DesktopHub", "Update cancelled", System.Windows.Forms.ToolTipIcon.Info);
+                    ShowCustomToast("DesktopHub", "Update cancelled");
                 }
             });
         }
@@ -474,7 +485,7 @@ REM Delete this batch file
         {
             DebugLogger.Log($"Update: Failed to download/install: {ex.Message}");
             DebugLogger.Log($"Update: Stack trace: {ex.StackTrace}");
-            ShowBalloonTip("DesktopHub", "Update failed. Please try again later.", System.Windows.Forms.ToolTipIcon.Error);
+            ShowCustomToast("DesktopHub", "Update failed. Please try again later.");
         }
     }
 
@@ -500,7 +511,8 @@ REM Delete this batch file
                 () => _searchOverlay.UpdateFrequentProjectsLayout(),
                 () => _searchOverlay.UpdateQuickLaunchWidgetButton(),
                 _searchOverlay.LaunchDataStore,
-                () => _searchOverlay.UpdateQuickLaunchLayout()
+                () => _searchOverlay.UpdateQuickLaunchLayout(),
+                () => _searchOverlay.RefreshLiveWidgetLayout()
             );
             settings.Show();
         }), System.Windows.Threading.DispatcherPriority.Normal);

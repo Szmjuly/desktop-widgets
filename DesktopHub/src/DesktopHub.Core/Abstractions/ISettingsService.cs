@@ -196,6 +196,16 @@ public interface ISettingsService
     void SetLivingWidgetsMode(bool enabled);
 
     /// <summary>
+    /// Get spacing in pixels used for widget snap/attachment gap in Living Widgets Mode
+    /// </summary>
+    int GetWidgetSnapGap();
+
+    /// <summary>
+    /// Set spacing in pixels used for widget snap/attachment gap in Living Widgets Mode
+    /// </summary>
+    void SetWidgetSnapGap(int gapPixels);
+
+    /// <summary>
     /// Get saved search overlay position for Living Widgets Mode
     /// </summary>
     (double? left, double? top) GetSearchOverlayPosition();
