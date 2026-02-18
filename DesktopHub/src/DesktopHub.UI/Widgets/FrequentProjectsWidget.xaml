@@ -6,9 +6,9 @@
     <UserControl.Resources>
         <SolidColorBrush x:Key="AccentBrush" Color="#4FC3F7"/>
         <SolidColorBrush x:Key="TextBrush" Color="#F5F7FA"/>
-        <SolidColorBrush x:Key="DimTextBrush" Color="#90A4AE"/>
-        <SolidColorBrush x:Key="SurfaceBrush" Color="#10F5F7FA"/>
-        <SolidColorBrush x:Key="HoverBrush" Color="#20F5F7FA"/>
+        <SolidColorBrush x:Key="DimTextBrush" Color="#B6C3CA"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#26F5F7FA"/>
+        <SolidColorBrush x:Key="HoverBrush" Color="#36F5F7FA"/>
     </UserControl.Resources>
     
     <Grid>
@@ -66,11 +66,11 @@
                 <StackPanel HorizontalAlignment="Center">
                     <TextBlock Text="No project history yet"
                               FontSize="12"
-                              Foreground="#40F5F7FA"
+                              Foreground="#A0F5F7FA"
                               HorizontalAlignment="Center"/>
                     <TextBlock Text="Open projects from Search to track them"
                               FontSize="10"
-                              Foreground="#30F5F7FA"
+                              Foreground="#88F5F7FA"
                               HorizontalAlignment="Center"
                               Margin="0,4,0,0"/>
                 </StackPanel>
@@ -84,7 +84,7 @@
                 <TextBlock x:Name="StatusText"
                           Text="Top 5 launched projects"
                           FontSize="10"
-                          Foreground="#50F5F7FA"
+                          Foreground="#A0F5F7FA"
                           VerticalAlignment="Center"/>
             </Border>
         </StackPanel>

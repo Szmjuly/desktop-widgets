@@ -1655,12 +1655,14 @@ public partial class SearchOverlay : Window
             string? itemPath = null;
             string? itemProjectNumber = null;
             string? itemProjectName = null;
+            bool isProjectResult = false;
             if (item.DataContext is ProjectViewModel vm)
             {
                 ResultsList.SelectedItem = vm;
                 itemPath = vm.Path;
                 itemProjectNumber = vm.FullNumber;
                 itemProjectName = vm.Name;
+                isProjectResult = true;
             }
             else if (item.DataContext is PathSearchResultViewModel psvm)
             {
@@ -1677,6 +1679,10 @@ public partial class SearchOverlay : Window
                 var capturedProjectName = itemProjectName?.Trim() ?? string.Empty;
                 var capturedNumberAndName = string.Join(" ", new[] { capturedProjectNumber, capturedProjectName }
                     .Where(part => !string.IsNullOrWhiteSpace(part)));
+                var isDirectoryPath = Directory.Exists(capturedPath);
+                var isFilePath = !isDirectoryPath && File.Exists(capturedPath);
+                var fileExtension = Path.GetExtension(capturedPath)?.TrimStart('.').ToUpperInvariant();
+                var openFileHeader = string.IsNullOrWhiteSpace(fileExtension) ? "Open File" : $"Open {fileExtension}";
 
                 void CopyText(string text, string statusMessage)
                 {
@@ -1690,31 +1696,70 @@ public partial class SearchOverlay : Window
 
                 var menu = CreateDarkContextMenu();
 
-                var copyNumberItem = new MenuItem { Header = "Copy Project Number", IsEnabled = !string.IsNullOrWhiteSpace(capturedProjectNumber) };
-                copyNumberItem.Click += (s, args) => CopyText(capturedProjectNumber, "Project number copied to clipboard");
-                menu.Items.Add(copyNumberItem);
-
-                var copyNameItem = new MenuItem { Header = "Copy Project Name", IsEnabled = !string.IsNullOrWhiteSpace(capturedProjectName) };
-                copyNameItem.Click += (s, args) => CopyText(capturedProjectName, "Project name copied to clipboard");
-                menu.Items.Add(copyNameItem);
-
-                var copyNumberAndNameItem = new MenuItem { Header = "Copy Number + Name", IsEnabled = !string.IsNullOrWhiteSpace(capturedNumberAndName) };
-                copyNumberAndNameItem.Click += (s, args) => CopyText(capturedNumberAndName, "Project number + name copied to clipboard");
-                menu.Items.Add(copyNumberAndNameItem);
-
-                menu.Items.Add(new Separator());
-
-                var openItem = new MenuItem { Header = "Open Folder" };
-                openItem.Click += (s, args) =>
+                if (isProjectResult)
                 {
-                    try { Process.Start("explorer.exe", capturedPath); }
-                    catch { }
-                };
-                menu.Items.Add(openItem);
+                    var copyNumberItem = new MenuItem { Header = "Copy Project Number", IsEnabled = !string.IsNullOrWhiteSpace(capturedProjectNumber) };
+                    copyNumberItem.Click += (s, args) => CopyText(capturedProjectNumber, "Project number copied to clipboard");
+                    menu.Items.Add(copyNumberItem);
 
-                var copyItem = new MenuItem { Header = "Copy Path" };
-                copyItem.Click += (s, args) => CopyText(capturedPath, "Path copied to clipboard");
-                menu.Items.Add(copyItem);
+                    var copyNameItem = new MenuItem { Header = "Copy Project Name", IsEnabled = !string.IsNullOrWhiteSpace(capturedProjectName) };
+                    copyNameItem.Click += (s, args) => CopyText(capturedProjectName, "Project name copied to clipboard");
+                    menu.Items.Add(copyNameItem);
+
+                    var copyNumberAndNameItem = new MenuItem { Header = "Copy Number + Name", IsEnabled = !string.IsNullOrWhiteSpace(capturedNumberAndName) };
+                    copyNumberAndNameItem.Click += (s, args) => CopyText(capturedNumberAndName, "Project number + name copied to clipboard");
+                    menu.Items.Add(copyNumberAndNameItem);
+
+                    menu.Items.Add(new Separator());
+
+                    var openItem = new MenuItem { Header = "Open Folder" };
+                    openItem.Click += (s, args) =>
+                    {
+                        try { Process.Start("explorer.exe", capturedPath); }
+                        catch { }
+                    };
+                    menu.Items.Add(openItem);
+
+                    var copyItem = new MenuItem { Header = "Copy Path" };
+                    copyItem.Click += (s, args) => CopyText(capturedPath, "Path copied to clipboard");
+                    menu.Items.Add(copyItem);
+                }
+                else if (isFilePath)
+                {
+                    var openFileItem = new MenuItem { Header = openFileHeader };
+                    openFileItem.Click += (s, args) =>
+                    {
+                        try { Process.Start(new ProcessStartInfo(capturedPath) { UseShellExecute = true }); }
+                        catch { }
+                    };
+                    menu.Items.Add(openFileItem);
+
+                    var copyItem = new MenuItem { Header = "Copy Path" };
+                    copyItem.Click += (s, args) => CopyText(capturedPath, "Path copied to clipboard");
+                    menu.Items.Add(copyItem);
+
+                    var openParentItem = new MenuItem { Header = "Open Parent Directory" };
+                    openParentItem.Click += (s, args) =>
+                    {
+                        try { Process.Start("explorer.exe", $"/select,\"{capturedPath}\""); }
+                        catch { }
+                    };
+                    menu.Items.Add(openParentItem);
+                }
+                else
+                {
+                    var openItem = new MenuItem { Header = "Open Folder" };
+                    openItem.Click += (s, args) =>
+                    {
+                        try { Process.Start("explorer.exe", capturedPath); }
+                        catch { }
+                    };
+                    menu.Items.Add(openItem);
+
+                    var copyItem = new MenuItem { Header = "Copy Path" };
+                    copyItem.Click += (s, args) => CopyText(capturedPath, "Path copied to clipboard");
+                    menu.Items.Add(copyItem);
+                }
 
                 ResultsList.ContextMenu = menu;
                 menu.IsOpen = true;

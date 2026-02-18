@@ -116,7 +116,7 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
             CornerRadius = new CornerRadius(9),
             Background = rank <= 3
                 ? new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#304FC3F7"))
-                : new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#10F5F7FA")),
+                : new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#26F5F7FA")),
             HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Top,
             Margin = new Thickness(0, 0, 0, 0),
@@ -127,7 +127,7 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
                 FontWeight = FontWeights.Bold,
                 Foreground = rank <= 3
                     ? new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#4FC3F7"))
-                    : new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#90A4AE")),
+                    : new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#B6C3CA")),
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             }
@@ -150,7 +150,7 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
         {
             Text = record.Name,
             FontSize = 9,
-            Foreground = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#C0F5F7FA")),
+            Foreground = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#E0F5F7FA")),
             TextTrimming = TextTrimming.CharacterEllipsis,
             TextWrapping = TextWrapping.Wrap,
             MaxHeight = 28,
@@ -164,7 +164,7 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
         {
             Text = $"⚡{record.LaunchCount}",
             FontSize = 9,
-            Foreground = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#90A4AE")),
+            Foreground = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#B6C3CA")),
             HorizontalAlignment = System.Windows.HorizontalAlignment.Center
         };
 
@@ -185,7 +185,9 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
         // Tile border
         var tile = new Border
         {
-            Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#10F5F7FA")),
+            Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#2AF5F7FA")),
+            BorderBrush = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#40FFFFFF")),
+            BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(10),
             Width = tileWidth,
             Height = 92,
@@ -200,11 +202,11 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
         tile.MouseLeftButtonDown += Tile_Click;
         tile.MouseEnter += (s, _) =>
         {
-            if (s is Border b) b.Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#25F5F7FA"));
+            if (s is Border b) b.Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#3AF5F7FA"));
         };
         tile.MouseLeave += (s, _) =>
         {
-            if (s is Border b) b.Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#10F5F7FA"));
+            if (s is Border b) b.Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#2AF5F7FA"));
         };
 
         return tile;
@@ -220,7 +222,7 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
             CornerRadius = new CornerRadius(11),
             Background = rank <= 3
                 ? new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#304FC3F7"))
-                : new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#10F5F7FA")),
+                : new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#26F5F7FA")),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 10, 0),
             Child = new TextBlock
@@ -230,7 +232,7 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
                 FontWeight = FontWeights.Bold,
                 Foreground = rank <= 3
                     ? new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#4FC3F7"))
-                    : new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#90A4AE")),
+                    : new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#B6C3CA")),
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             }
@@ -265,13 +267,13 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
         {
             Text = record.LaunchCount.ToString(),
             FontSize = 10,
-            Foreground = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#90A4AE")),
+            Foreground = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#B6C3CA")),
             VerticalAlignment = VerticalAlignment.Center
         };
 
         var countBadge = new Border
         {
-            Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#10F5F7FA")),
+            Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#26F5F7FA")),
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(6, 2, 6, 2),
             VerticalAlignment = VerticalAlignment.Center,
@@ -296,7 +298,9 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
         // Tile border
         var tile = new Border
         {
-            Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#10F5F7FA")),
+            Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#2AF5F7FA")),
+            BorderBrush = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#40FFFFFF")),
+            BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(10, 8, 10, 8),
             Margin = new Thickness(0, 0, 0, 6),
@@ -309,11 +313,11 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
         tile.MouseLeftButtonDown += Tile_Click;
         tile.MouseEnter += (s, _) =>
         {
-            if (s is Border b) b.Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#25F5F7FA"));
+            if (s is Border b) b.Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#3AF5F7FA"));
         };
         tile.MouseLeave += (s, _) =>
         {
-            if (s is Border b) b.Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#10F5F7FA"));
+            if (s is Border b) b.Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#2AF5F7FA"));
         };
 
         return tile;
