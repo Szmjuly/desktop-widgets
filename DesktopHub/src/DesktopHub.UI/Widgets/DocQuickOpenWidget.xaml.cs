@@ -700,13 +700,36 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
     // ---- Clipboard helpers ----
 
     private void CopyToClipboard(string text)
+        => CopyToClipboard(text, "Path copied");
+
+    private void CopyToClipboard(string text, string statusMessage)
     {
         try
         {
             System.Windows.Clipboard.SetText(text);
-            StatusText.Text = "Path copied";
+            StatusText.Text = statusMessage;
         }
         catch { }
+    }
+
+    private static (string projectNumber, string projectName, string projectNumberAndName) GetProjectHeaderCopyValues(ProjectFileInfo info)
+    {
+        var display = (info.ProjectName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(display))
+        {
+            return (string.Empty, string.Empty, string.Empty);
+        }
+
+        var firstSpace = display.IndexOf(' ');
+        if (firstSpace <= 0 || firstSpace >= display.Length - 1)
+        {
+            // Fallback when scanner only provides a single display token
+            return (display, display, display);
+        }
+
+        var number = display[..firstSpace].Trim();
+        var name = display[(firstSpace + 1)..].Trim();
+        return (number, name, $"{number} {name}".Trim());
     }
 
     private void ShowRecentFileContextMenu(string filePath, Border row)
@@ -791,6 +814,66 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
                 CopyToClipboard(info.ProjectPath);
             }
         }
+    }
+
+    private void ProjectNameHeader_RightClick(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+
+        var info = _docService.ProjectInfo;
+        if (info == null)
+            return;
+
+        var (projectNumber, projectName, projectNumberAndName) = GetProjectHeaderCopyValues(info);
+        var menu = CreateDarkContextMenu();
+
+        var copyNumber = new MenuItem { Header = "Copy Project Number" };
+        copyNumber.Click += (s, args) =>
+        {
+            if (!string.IsNullOrWhiteSpace(projectNumber))
+            {
+                CopyToClipboard(projectNumber, "Project number copied");
+            }
+        };
+        menu.Items.Add(copyNumber);
+
+        var copyName = new MenuItem { Header = "Copy Project Name" };
+        copyName.Click += (s, args) =>
+        {
+            if (!string.IsNullOrWhiteSpace(projectName))
+            {
+                CopyToClipboard(projectName, "Project name copied");
+            }
+        };
+        menu.Items.Add(copyName);
+
+        var copyPath = new MenuItem { Header = "Copy Path" };
+        copyPath.Click += (s, args) =>
+        {
+            if (!string.IsNullOrWhiteSpace(info.ProjectPath))
+            {
+                CopyToClipboard(info.ProjectPath, "Project path copied");
+            }
+        };
+        menu.Items.Add(copyPath);
+
+        var copyNumberAndName = new MenuItem { Header = "Copy Number + Name" };
+        copyNumberAndName.Click += (s, args) =>
+        {
+            if (!string.IsNullOrWhiteSpace(projectNumberAndName))
+            {
+                CopyToClipboard(projectNumberAndName, "Project number + name copied");
+            }
+        };
+        menu.Items.Add(copyNumberAndName);
+
+        if (sender is FrameworkElement anchor)
+        {
+            anchor.ContextMenu = menu;
+            menu.PlacementTarget = anchor;
+        }
+
+        menu.IsOpen = true;
     }
 
     private static string GetFileIcon(string ext)

@@ -1653,21 +1653,56 @@ public partial class SearchOverlay : Window
         if (element is System.Windows.Controls.ListBoxItem item)
         {
             string? itemPath = null;
+            string? itemProjectNumber = null;
+            string? itemProjectName = null;
             if (item.DataContext is ProjectViewModel vm)
             {
                 ResultsList.SelectedItem = vm;
                 itemPath = vm.Path;
+                itemProjectNumber = vm.FullNumber;
+                itemProjectName = vm.Name;
             }
             else if (item.DataContext is PathSearchResultViewModel psvm)
             {
                 ResultsList.SelectedItem = psvm;
                 itemPath = psvm.Path;
+                itemProjectNumber = psvm.FullNumber;
+                itemProjectName = psvm.Name;
             }
 
             if (itemPath != null)
             {
                 var capturedPath = itemPath;
+                var capturedProjectNumber = itemProjectNumber?.Trim() ?? string.Empty;
+                var capturedProjectName = itemProjectName?.Trim() ?? string.Empty;
+                var capturedNumberAndName = string.Join(" ", new[] { capturedProjectNumber, capturedProjectName }
+                    .Where(part => !string.IsNullOrWhiteSpace(part)));
+
+                void CopyText(string text, string statusMessage)
+                {
+                    try
+                    {
+                        System.Windows.Clipboard.SetText(text);
+                        StatusText.Text = statusMessage;
+                    }
+                    catch { }
+                }
+
                 var menu = CreateDarkContextMenu();
+
+                var copyNumberItem = new MenuItem { Header = "Copy Project Number", IsEnabled = !string.IsNullOrWhiteSpace(capturedProjectNumber) };
+                copyNumberItem.Click += (s, args) => CopyText(capturedProjectNumber, "Project number copied to clipboard");
+                menu.Items.Add(copyNumberItem);
+
+                var copyNameItem = new MenuItem { Header = "Copy Project Name", IsEnabled = !string.IsNullOrWhiteSpace(capturedProjectName) };
+                copyNameItem.Click += (s, args) => CopyText(capturedProjectName, "Project name copied to clipboard");
+                menu.Items.Add(copyNameItem);
+
+                var copyNumberAndNameItem = new MenuItem { Header = "Copy Number + Name", IsEnabled = !string.IsNullOrWhiteSpace(capturedNumberAndName) };
+                copyNumberAndNameItem.Click += (s, args) => CopyText(capturedNumberAndName, "Project number + name copied to clipboard");
+                menu.Items.Add(copyNumberAndNameItem);
+
+                menu.Items.Add(new Separator());
 
                 var openItem = new MenuItem { Header = "Open Folder" };
                 openItem.Click += (s, args) =>
@@ -1678,15 +1713,7 @@ public partial class SearchOverlay : Window
                 menu.Items.Add(openItem);
 
                 var copyItem = new MenuItem { Header = "Copy Path" };
-                copyItem.Click += (s, args) =>
-                {
-                    try
-                    {
-                        System.Windows.Clipboard.SetText(capturedPath);
-                        StatusText.Text = "Path copied to clipboard";
-                    }
-                    catch { }
-                };
+                copyItem.Click += (s, args) => CopyText(capturedPath, "Path copied to clipboard");
                 menu.Items.Add(copyItem);
 
                 ResultsList.ContextMenu = menu;

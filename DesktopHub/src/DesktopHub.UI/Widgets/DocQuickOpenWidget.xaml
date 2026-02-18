@@ -58,8 +58,10 @@
             <!-- Project Name (auto-populated from search selection) -->
             <Border Background="{StaticResource InputBgBrush}" BorderBrush="{StaticResource BorderBrush}" 
                     BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="0,0,0,6"
-                    MouseLeftButtonDown="ProjectNameHeader_DoubleClick" Cursor="Hand"
-                    ToolTip="Double-click to copy project path">
+                    MouseLeftButtonDown="ProjectNameHeader_DoubleClick"
+                    MouseRightButtonDown="ProjectNameHeader_RightClick"
+                    Cursor="Hand"
+                    ToolTip="Double-click to copy project path · Right-click for copy options">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
