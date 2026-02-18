@@ -246,12 +246,10 @@ public partial class SettingsWindow : Window
             _isLoadingFPSettings = true;
             FP_MaxShownSlider.Value = _settings.GetMaxFrequentProjectsShown();
             FP_MaxSavedSlider.Value = _settings.GetMaxFrequentProjectsSaved();
-            FP_TransparencySlider.Value = _settings.GetFrequentProjectsWidgetTransparency();
             _isLoadingFPSettings = false;
             
-            // Load Quick Launch transparency slider
+            // Initialize Quick Launch section state
             _isLoadingQLSettings = true;
-            QL_TransparencySlider.Value = _settings.GetQuickLaunchWidgetTransparency();
             _isLoadingQLSettings = false;
             
             UpdateAllLinkButtons();
@@ -1595,7 +1593,6 @@ public partial class SettingsWindow : Window
             FP_MaxShownValue.Text = _settings.GetMaxFrequentProjectsShown().ToString();
             FP_MaxSavedSlider.Value = _settings.GetMaxFrequentProjectsSaved();
             FP_MaxSavedValue.Text = _settings.GetMaxFrequentProjectsSaved().ToString();
-            FP_TransparencySlider.Value = _settings.GetFrequentProjectsWidgetTransparency();
             FP_GridModeToggle.IsChecked = _settings.GetFrequentProjectsGridMode();
 
             // Load stats
@@ -1640,15 +1637,6 @@ public partial class SettingsWindow : Window
         StatusText.Text = $"Max projects tracked: {value}";
     }
 
-    private void FP_TransparencySlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_isLoadingFPSettings || _settings == null || !IsLoaded) return;
-        _settings.SetFrequentProjectsWidgetTransparency(e.NewValue);
-        _ = _settings.SaveAsync();
-        _onTransparencyChanged?.Invoke();
-        StatusText.Text = $"Frequent Projects transparency: {e.NewValue:P0}";
-    }
-
     private void FP_GridModeToggle_Changed(object sender, RoutedEventArgs e)
     {
         if (_isLoadingFPSettings || _settings == null || !IsLoaded) return;
@@ -1690,7 +1678,6 @@ public partial class SettingsWindow : Window
         _isLoadingQLSettings = true;
         try
         {
-            QL_TransparencySlider.Value = _settings.GetQuickLaunchWidgetTransparency();
             QL_HorizontalModeToggle.IsChecked = _settings.GetQuickLaunchHorizontalMode();
 
             // Load current items
@@ -1764,15 +1751,6 @@ public partial class SettingsWindow : Window
         _ = _settings.SaveAsync();
         _onQuickLaunchLayoutChanged?.Invoke();
         StatusText.Text = horizontal ? "Quick Launch: horizontal mode" : "Quick Launch: vertical mode";
-    }
-
-    private void QL_TransparencySlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_isLoadingQLSettings || _settings == null || !IsLoaded) return;
-        _settings.SetQuickLaunchWidgetTransparency(e.NewValue);
-        _ = _settings.SaveAsync();
-        _onTransparencyChanged?.Invoke();
-        StatusText.Text = $"Quick Launch transparency: {e.NewValue:P0}";
     }
 
     private async void QL_ClearAll_Click(object sender, RoutedEventArgs e)

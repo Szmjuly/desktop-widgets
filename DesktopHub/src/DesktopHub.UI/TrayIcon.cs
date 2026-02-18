@@ -14,6 +14,11 @@ public class TrayIcon : IDisposable
     private readonly DesktopHub.Core.Abstractions.ISettingsService _settings;
     private TrayMenu? _currentMenu;
     private static readonly string WhatsNewPayloadPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "DesktopHub-WhatsNew.json");
+    private static readonly string WhatsNewStateDirectory = System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "DesktopHub"
+    );
+    private static readonly string WhatsNewLastShownVersionPath = System.IO.Path.Combine(WhatsNewStateDirectory, "whatsnew-last-shown-version.txt");
 
     public TrayIcon(SearchOverlay searchOverlay, string hotkeyLabel, DesktopHub.Core.Abstractions.ISettingsService settings)
     {
@@ -40,7 +45,10 @@ public class TrayIcon : IDisposable
         
         _notifyIcon.DoubleClick += (s, e) => ShowSearch();
 
-        TryShowPendingWhatsNew();
+        if (!TryShowPendingWhatsNew())
+        {
+            TryShowWhatsNewForVersionChange();
+        }
 
         // Show balloon tip on first run
         ShowCustomToast("DesktopHub", $"Press {_hotkeyLabel} to search projects");
@@ -144,19 +152,19 @@ public class TrayIcon : IDisposable
         }), System.Windows.Threading.DispatcherPriority.Background);
     }
 
-    private void TryShowPendingWhatsNew()
+    private bool TryShowPendingWhatsNew()
     {
         try
         {
             if (!System.IO.File.Exists(WhatsNewPayloadPath))
-                return;
+                return false;
 
             var json = System.IO.File.ReadAllText(WhatsNewPayloadPath);
             var payload = JsonSerializer.Deserialize<PendingWhatsNewPayload>(json);
             if (payload == null || string.IsNullOrWhiteSpace(payload.Version))
             {
                 System.IO.File.Delete(WhatsNewPayloadPath);
-                return;
+                return false;
             }
 
             // Delete first so this shows only once even if UI creation fails.
@@ -174,6 +182,9 @@ public class TrayIcon : IDisposable
                     DebugLogger.Log($"TrayIcon: What's New window error: {ex.Message}");
                 }
             }), System.Windows.Threading.DispatcherPriority.Background);
+
+            SetLastShownWhatsNewVersion(payload.Version);
+            return true;
         }
         catch (Exception ex)
         {
@@ -184,6 +195,79 @@ public class TrayIcon : IDisposable
                     System.IO.File.Delete(WhatsNewPayloadPath);
             }
             catch { }
+
+            return false;
+        }
+    }
+
+    private void TryShowWhatsNewForVersionChange()
+    {
+        var currentVersion = GetCurrentAppVersion();
+        if (string.IsNullOrWhiteSpace(currentVersion))
+            return;
+
+        var lastShownVersion = GetLastShownWhatsNewVersion();
+        if (string.Equals(lastShownVersion, currentVersion, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        _searchOverlay.Dispatcher.BeginInvoke(new Action(() =>
+        {
+            try
+            {
+                var whatsNew = new WhatsNewNotification(currentVersion, null);
+                whatsNew.Show();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"TrayIcon: Version-change What's New window error: {ex.Message}");
+            }
+        }), System.Windows.Threading.DispatcherPriority.Background);
+
+        SetLastShownWhatsNewVersion(currentVersion);
+    }
+
+    private static string GetCurrentAppVersion()
+    {
+        try
+        {
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            if (version == null)
+                return string.Empty;
+
+            var build = version.Build < 0 ? 0 : version.Build;
+            return $"{version.Major}.{version.Minor}.{build}";
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
+    private static string? GetLastShownWhatsNewVersion()
+    {
+        try
+        {
+            if (!System.IO.File.Exists(WhatsNewLastShownVersionPath))
+                return null;
+
+            return System.IO.File.ReadAllText(WhatsNewLastShownVersionPath).Trim();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static void SetLastShownWhatsNewVersion(string version)
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(WhatsNewStateDirectory);
+            System.IO.File.WriteAllText(WhatsNewLastShownVersionPath, version);
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"TrayIcon: Failed to persist What's New shown version: {ex.Message}");
         }
     }
 

@@ -2775,45 +2775,6 @@
                         </StackPanel>
                     </Border>
                     
-                    <!-- Transparency -->
-                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
-                        <StackPanel>
-                            <TextBlock Text="Transparency" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
-                            <Grid Margin="0,0,0,4">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Transparent" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <Slider x:Name="FP_TransparencySlider" Grid.Column="1" Minimum="0.3" Maximum="1.0" Value="0.78"
-                                        TickFrequency="0.02" IsSnapToTickEnabled="True" ValueChanged="FP_TransparencySlider_Changed" VerticalAlignment="Center">
-                                    <Slider.Template>
-                                        <ControlTemplate TargetType="Slider">
-                                            <Grid>
-                                                <Border Background="#40FFFFFF" Height="4" CornerRadius="2" VerticalAlignment="Center"/>
-                                                <Track x:Name="PART_Track">
-                                                    <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.DecreaseRepeatButton>
-                                                    <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.IncreaseRepeatButton>
-                                                    <Track.Thumb>
-                                                        <Thumb>
-                                                            <Thumb.Template>
-                                                                <ControlTemplate>
-                                                                    <Ellipse Fill="{StaticResource PrimaryBrush}" Width="16" Height="16" Stroke="White" StrokeThickness="2"/>
-                                                                </ControlTemplate>
-                                                            </Thumb.Template>
-                                                        </Thumb>
-                                                    </Track.Thumb>
-                                                </Track>
-                                            </Grid>
-                                        </ControlTemplate>
-                                    </Slider.Template>
-                                </Slider>
-                                <TextBlock Grid.Column="2" Text="Solid" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-                    
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
@@ -2904,45 +2865,6 @@
                                     Background="#30FF5252" Foreground="#FF5252" BorderBrush="#40FF5252">
                                 <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
                             </Button>
-                        </StackPanel>
-                    </Border>
-                    
-                    <!-- Transparency -->
-                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
-                        <StackPanel>
-                            <TextBlock Text="Transparency" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
-                            <Grid Margin="0,0,0,4">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Transparent" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <Slider x:Name="QL_TransparencySlider" Grid.Column="1" Minimum="0.3" Maximum="1.0" Value="0.78"
-                                        TickFrequency="0.02" IsSnapToTickEnabled="True" ValueChanged="QL_TransparencySlider_Changed" VerticalAlignment="Center">
-                                    <Slider.Template>
-                                        <ControlTemplate TargetType="Slider">
-                                            <Grid>
-                                                <Border Background="#40FFFFFF" Height="4" CornerRadius="2" VerticalAlignment="Center"/>
-                                                <Track x:Name="PART_Track">
-                                                    <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.DecreaseRepeatButton>
-                                                    <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.IncreaseRepeatButton>
-                                                    <Track.Thumb>
-                                                        <Thumb>
-                                                            <Thumb.Template>
-                                                                <ControlTemplate>
-                                                                    <Ellipse Fill="{StaticResource PrimaryBrush}" Width="16" Height="16" Stroke="White" StrokeThickness="2"/>
-                                                                </ControlTemplate>
-                                                            </Thumb.Template>
-                                                        </Thumb>
-                                                    </Track.Thumb>
-                                                </Track>
-                                            </Grid>
-                                        </ControlTemplate>
-                                    </Slider.Template>
-                                </Slider>
-                                <TextBlock Grid.Column="2" Text="Solid" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                            </Grid>
                         </StackPanel>
                     </Border>
                     
