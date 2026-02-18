@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Text.Json;
 
 namespace DesktopHub.UI;
 
@@ -12,6 +13,7 @@ public class TrayIcon : IDisposable
     private readonly string _hotkeyLabel;
     private readonly DesktopHub.Core.Abstractions.ISettingsService _settings;
     private TrayMenu? _currentMenu;
+    private static readonly string WhatsNewPayloadPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "DesktopHub-WhatsNew.json");
 
     public TrayIcon(SearchOverlay searchOverlay, string hotkeyLabel, DesktopHub.Core.Abstractions.ISettingsService settings)
     {
@@ -37,6 +39,8 @@ public class TrayIcon : IDisposable
         };
         
         _notifyIcon.DoubleClick += (s, e) => ShowSearch();
+
+        TryShowPendingWhatsNew();
 
         // Show balloon tip on first run
         ShowCustomToast("DesktopHub", $"Press {_hotkeyLabel} to search projects");
@@ -138,6 +142,69 @@ public class TrayIcon : IDisposable
                 DebugLogger.Log($"TrayIcon: Toast error: {ex.Message}");
             }
         }), System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    private void TryShowPendingWhatsNew()
+    {
+        try
+        {
+            if (!System.IO.File.Exists(WhatsNewPayloadPath))
+                return;
+
+            var json = System.IO.File.ReadAllText(WhatsNewPayloadPath);
+            var payload = JsonSerializer.Deserialize<PendingWhatsNewPayload>(json);
+            if (payload == null || string.IsNullOrWhiteSpace(payload.Version))
+            {
+                System.IO.File.Delete(WhatsNewPayloadPath);
+                return;
+            }
+
+            // Delete first so this shows only once even if UI creation fails.
+            System.IO.File.Delete(WhatsNewPayloadPath);
+
+            _searchOverlay.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    var whatsNew = new WhatsNewNotification(payload.Version, payload.ReleaseNotes);
+                    whatsNew.Show();
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"TrayIcon: What's New window error: {ex.Message}");
+                }
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"TrayIcon: Failed to read What's New payload: {ex.Message}");
+            try
+            {
+                if (System.IO.File.Exists(WhatsNewPayloadPath))
+                    System.IO.File.Delete(WhatsNewPayloadPath);
+            }
+            catch { }
+        }
+    }
+
+    private static void SavePendingWhatsNew(string latestVersion, string? releaseNotes)
+    {
+        try
+        {
+            var payload = new PendingWhatsNewPayload
+            {
+                Version = latestVersion,
+                ReleaseNotes = releaseNotes,
+                CreatedAtUtc = DateTime.UtcNow
+            };
+
+            var json = JsonSerializer.Serialize(payload);
+            System.IO.File.WriteAllText(WhatsNewPayloadPath, json);
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"TrayIcon: Failed to save What's New payload: {ex.Message}");
+        }
     }
 
     private void ShowCustomMenu()
@@ -461,6 +528,7 @@ REM Delete this batch file
                 if (result == System.Windows.MessageBoxResult.OK)
                 {
                     DebugLogger.Log("Update: Starting update installer");
+                    SavePendingWhatsNew(updateInfo.LatestVersion, updateInfo.ReleaseNotes);
                     
                     var startInfo = new System.Diagnostics.ProcessStartInfo
                     {
@@ -487,6 +555,13 @@ REM Delete this batch file
             DebugLogger.Log($"Update: Stack trace: {ex.StackTrace}");
             ShowCustomToast("DesktopHub", "Update failed. Please try again later.");
         }
+    }
+
+    private sealed class PendingWhatsNewPayload
+    {
+        public string Version { get; set; } = string.Empty;
+        public string? ReleaseNotes { get; set; }
+        public DateTime CreatedAtUtc { get; set; }
     }
 
     public void ShowSettings()
