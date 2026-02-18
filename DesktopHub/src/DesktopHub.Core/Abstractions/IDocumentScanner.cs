@@ -26,5 +26,6 @@ public interface IDocumentScanner
         int maxDepth = 0,
         IReadOnlyList<string>? excludedFolders = null,
         int maxFiles = 200,
+        IReadOnlyList<string>? includeExtensions = null,
         CancellationToken cancellationToken = default);
 }

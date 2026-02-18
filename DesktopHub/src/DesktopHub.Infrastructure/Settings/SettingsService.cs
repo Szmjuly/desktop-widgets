@@ -221,6 +221,58 @@ public class SettingsService : ISettingsService
     public void SetQuickLaunchWidgetEnabled(bool enabled) => _settings.QuickLaunchWidgetEnabled = enabled;
     public bool GetQuickLaunchHorizontalMode() => _settings.QuickLaunchHorizontalMode;
     public void SetQuickLaunchHorizontalMode(bool horizontal) => _settings.QuickLaunchHorizontalMode = horizontal;
+    public int GetWidgetLauncherMaxVisibleWidgets() => Math.Clamp(_settings.WidgetLauncherMaxVisibleWidgets, 1, 12);
+    public void SetWidgetLauncherMaxVisibleWidgets(int count) => _settings.WidgetLauncherMaxVisibleWidgets = Math.Clamp(count, 1, 12);
+
+    // --- Smart Project Search Widget ---
+    public (double? left, double? top) GetSmartProjectSearchWidgetPosition() => (_settings.SmartProjectSearchWidgetLeft, _settings.SmartProjectSearchWidgetTop);
+    public void SetSmartProjectSearchWidgetPosition(double left, double top)
+    {
+        _settings.SmartProjectSearchWidgetLeft = left;
+        _settings.SmartProjectSearchWidgetTop = top;
+    }
+    public bool GetSmartProjectSearchWidgetVisible() => _settings.SmartProjectSearchWidgetVisible;
+    public void SetSmartProjectSearchWidgetVisible(bool visible) => _settings.SmartProjectSearchWidgetVisible = visible;
+    public bool GetSmartProjectSearchWidgetEnabled() => _settings.SmartProjectSearchWidgetEnabled;
+    public void SetSmartProjectSearchWidgetEnabled(bool enabled) => _settings.SmartProjectSearchWidgetEnabled = enabled;
+    public string GetSmartProjectSearchLatestMode()
+        => string.IsNullOrWhiteSpace(_settings.SmartProjectSearchLatestMode)
+            ? "list"
+            : _settings.SmartProjectSearchLatestMode;
+    public void SetSmartProjectSearchLatestMode(string mode)
+    {
+        var normalized = (mode ?? string.Empty).Trim().ToLowerInvariant();
+        _settings.SmartProjectSearchLatestMode = normalized == "single" ? "single" : "list";
+    }
+    public List<string> GetSmartProjectSearchFileTypes()
+    {
+        var values = _settings.SmartProjectSearchFileTypes ?? new List<string>();
+        var normalized = values
+            .Select(v => (v ?? string.Empty).Trim().TrimStart('.').ToLowerInvariant())
+            .Where(v => v.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (normalized.Count == 0)
+        {
+            normalized = GetDefaultSmartProjectSearchFileTypes();
+            _settings.SmartProjectSearchFileTypes = normalized;
+        }
+
+        return normalized;
+    }
+    public void SetSmartProjectSearchFileTypes(IReadOnlyList<string> fileTypes)
+    {
+        var normalized = (fileTypes ?? Array.Empty<string>())
+            .Select(v => (v ?? string.Empty).Trim().TrimStart('.').ToLowerInvariant())
+            .Where(v => v.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        _settings.SmartProjectSearchFileTypes = normalized.Count > 0
+            ? normalized
+            : GetDefaultSmartProjectSearchFileTypes();
+    }
 
     public (int modifiers, int key) GetCloseShortcut() => (_settings.CloseShortcutModifiers, _settings.CloseShortcutKey);
     public void SetCloseShortcut(int modifiers, int key)
@@ -351,5 +403,29 @@ public class SettingsService : ISettingsService
         public bool QuickLaunchWidgetVisible { get; set; } = false;
         public bool QuickLaunchWidgetEnabled { get; set; } = true;
         public bool QuickLaunchHorizontalMode { get; set; } = false;
+        public int WidgetLauncherMaxVisibleWidgets { get; set; } = 4;
+
+        // Smart Project Search widget
+        public double? SmartProjectSearchWidgetLeft { get; set; } = null;
+        public double? SmartProjectSearchWidgetTop { get; set; } = null;
+        public bool SmartProjectSearchWidgetVisible { get; set; } = false;
+        public bool SmartProjectSearchWidgetEnabled { get; set; } = true;
+        public string SmartProjectSearchLatestMode { get; set; } = "list";
+        public List<string> SmartProjectSearchFileTypes { get; set; } = GetDefaultSmartProjectSearchFileTypes();
     }
+
+    private static List<string> GetDefaultSmartProjectSearchFileTypes()
+        => new()
+        {
+            "doc",
+            "docx",
+            "pdf",
+            "txt",
+            "dwg",
+            "rvt",
+            "excel",
+            "png",
+            "jpeg",
+            "msg"
+        };
 }

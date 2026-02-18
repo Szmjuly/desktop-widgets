@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.RegularExpressions;
 using DesktopHub.Core.Abstractions;
 using DesktopHub.Core.Models;
 using DesktopHub.Infrastructure.Settings;
@@ -11,6 +12,21 @@ namespace DesktopHub.UI.Services;
 /// </summary>
 public class DocOpenService
 {
+    private static readonly HashSet<string> SearchStopWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "a", "an", "and", "or", "the", "from", "for", "to", "of", "in", "on", "at", "by", "with"
+    };
+
+    private static readonly Dictionary<string, string[]> SmartTokenAliases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["fault"] = new[] { "fault", "short", "short-circuit", "short circuit", "sc" },
+        ["current"] = new[] { "current", "amp", "amps", "amperage", "kaic", "aic" },
+        ["letter"] = new[] { "letter", "ltr", "memo", "correspondence" },
+        ["fpl"] = new[] { "fpl", "fp&l", "florida power", "florida power and light", "utility" },
+        ["utility"] = new[] { "utility", "fpl", "power" },
+        ["service"] = new[] { "service", "svc" },
+    };
+
     private readonly IDocumentScanner _scanner;
     private DocWidgetConfig _config;
     private ProjectFileInfo? _projectInfo;
@@ -91,7 +107,7 @@ public class DocOpenService
         {
             _projectInfo = await _scanner.ScanProjectAsync(
                 projectPath, projectName,
-                _config.MaxDepth, _config.ExcludedFolders, _config.MaxFiles, token);
+                _config.MaxDepth, _config.ExcludedFolders, _config.MaxFiles, _config.Extensions, token);
             RefreshCurrentFiles();
         }
         catch (OperationCanceledException) { }
@@ -153,27 +169,212 @@ public class DocOpenService
             files = Enumerable.Empty<DocumentItem>();
         }
 
+        var defaultFiles = files;
+
         // Apply search filter
         if (!string.IsNullOrWhiteSpace(_searchQuery))
         {
-            var terms = _searchQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            files = files.Where(d =>
-                terms.All(t =>
-                    d.FileName.Contains(t, StringComparison.OrdinalIgnoreCase) ||
-                    d.RelativePath.Contains(t, StringComparison.OrdinalIgnoreCase)));
+            var searchablePool = BuildSearchPool(defaultFiles);
+            files = ApplySmartSearch(searchablePool, _searchQuery);
         }
 
         // Sort
-        files = _config.SortBy switch
+        if (string.IsNullOrWhiteSpace(_searchQuery))
         {
-            "date" => files.OrderByDescending(d => d.LastModified),
-            "size" => files.OrderByDescending(d => d.SizeBytes),
-            "type" => files.OrderBy(d => d.Extension).ThenBy(d => d.FileName),
-            _ => files.OrderBy(d => d.FileName)
-        };
+            files = _config.SortBy switch
+            {
+                "date" => files.OrderByDescending(d => d.LastModified),
+                "size" => files.OrderByDescending(d => d.SizeBytes),
+                "type" => files.OrderBy(d => d.Extension).ThenBy(d => d.FileName),
+                _ => files.OrderBy(d => d.FileName)
+            };
+        }
 
         _currentFiles = files.ToList();
         ProjectChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private IEnumerable<DocumentItem> BuildSearchPool(IEnumerable<DocumentItem> defaultFiles)
+    {
+        if (_projectInfo == null)
+            return defaultFiles;
+
+        var aggregate = _projectInfo.AllFiles ?? new List<DocumentItem>();
+        var revitFiles = _projectInfo.Revit?.RvtFiles ?? Enumerable.Empty<DocumentItem>();
+
+        return aggregate
+            .Concat(defaultFiles)
+            .Concat(revitFiles)
+            .GroupBy(d => d.Path, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First());
+    }
+
+    private IEnumerable<DocumentItem> ApplySmartSearch(IEnumerable<DocumentItem> files, string query)
+    {
+        var trimmed = query.Trim();
+        if (trimmed.Length == 0)
+            return files;
+
+        if (TryParseRegexPattern(trimmed, out var regexPattern))
+        {
+            return ApplyRegexSearch(files, regexPattern);
+        }
+
+        return ApplyTokenSearch(files, trimmed);
+    }
+
+    private static bool TryParseRegexPattern(string query, out string pattern)
+    {
+        pattern = string.Empty;
+
+        if (query.StartsWith("re:", StringComparison.OrdinalIgnoreCase))
+        {
+            pattern = query[3..].Trim();
+            return pattern.Length > 0;
+        }
+
+        if (query.Length >= 3 && query[0] == '/' && query.LastIndexOf('/') > 0)
+        {
+            var lastSlash = query.LastIndexOf('/');
+            pattern = query[1..lastSlash].Trim();
+            return pattern.Length > 0;
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<DocumentItem> ApplyRegexSearch(IEnumerable<DocumentItem> files, string pattern)
+    {
+        try
+        {
+            var regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            return files.Where(d => regex.IsMatch(BuildSearchText(d)));
+        }
+        catch
+        {
+            // Invalid regex: return no results instead of throwing.
+            return Enumerable.Empty<DocumentItem>();
+        }
+    }
+
+    private static IEnumerable<DocumentItem> ApplyTokenSearch(IEnumerable<DocumentItem> files, string query)
+    {
+        var terms = ExtractSearchTerms(query);
+        if (terms.Count == 0)
+            return files;
+
+        var normalizedPhrase = query.ToLowerInvariant();
+        var minimumHits = terms.Count <= 2 ? terms.Count : terms.Count - 1;
+        var scored = new List<(DocumentItem Doc, double Score, int Hits)>();
+
+        foreach (var doc in files)
+        {
+            var score = 0.0;
+            var hits = 0;
+
+            foreach (var term in terms)
+            {
+                var termScore = ScoreTerm(doc, term);
+                if (termScore > 0)
+                {
+                    hits++;
+                    score += termScore;
+                }
+            }
+
+            var allText = BuildSearchText(doc).ToLowerInvariant();
+            var hasPhrase = allText.Contains(normalizedPhrase, StringComparison.OrdinalIgnoreCase);
+            if (hasPhrase)
+            {
+                score += 4.0;
+            }
+
+            if (hits >= minimumHits || hasPhrase)
+            {
+                scored.Add((doc, score, hits));
+            }
+        }
+
+        return scored
+            .OrderByDescending(s => s.Score)
+            .ThenByDescending(s => s.Hits)
+            .ThenBy(s => s.Doc.FileName)
+            .Select(s => s.Doc);
+    }
+
+    private static List<string> ExtractSearchTerms(string query)
+    {
+        var terms = new List<string>();
+        foreach (Match match in Regex.Matches(query, "\"([^\"]+)\"|(\\S+)"))
+        {
+            var value = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
+            var normalized = value.Trim().ToLowerInvariant();
+            if (normalized.Length == 0 || SearchStopWords.Contains(normalized))
+                continue;
+
+            terms.Add(normalized);
+        }
+
+        return terms;
+    }
+
+    private static double ScoreTerm(DocumentItem doc, string term)
+    {
+        var fileName = doc.FileName.ToLowerInvariant();
+        var relativePath = doc.RelativePath.ToLowerInvariant();
+        var subfolder = doc.Subfolder.ToLowerInvariant();
+        var category = doc.Category.ToLowerInvariant();
+        var best = 0.0;
+
+        foreach (var alias in ExpandTerm(term))
+        {
+            if (alias.Length == 0)
+                continue;
+
+            if (fileName.StartsWith(alias, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 4.0);
+            if (fileName.Contains(alias, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 3.2);
+            if (relativePath.Contains(alias, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 2.4);
+            if (subfolder.Contains(alias, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 1.5);
+            if (category.Contains(alias, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 1.2);
+            if (best == 0.0 && alias.Length >= 3 && IsSubsequence(alias, fileName)) best = Math.Max(best, 0.6);
+        }
+
+        return best;
+    }
+
+    private static IEnumerable<string> ExpandTerm(string term)
+    {
+        if (SmartTokenAliases.TryGetValue(term, out var aliases) && aliases.Length > 0)
+        {
+            return aliases
+                .Append(term)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(a => a.ToLowerInvariant());
+        }
+
+        if (term.EndsWith('s') && term.Length > 3)
+        {
+            return new[] { term, term[..^1] };
+        }
+
+        return new[] { term };
+    }
+
+    private static string BuildSearchText(DocumentItem doc)
+        => $"{doc.FileName} {doc.RelativePath} {doc.Subfolder} {doc.Category}";
+
+    private static bool IsSubsequence(string needle, string haystack)
+    {
+        var i = 0;
+        var j = 0;
+
+        while (i < needle.Length && j < haystack.Length)
+        {
+            if (needle[i] == haystack[j]) i++;
+            j++;
+        }
+
+        return i == needle.Length;
     }
 
     /// <summary>

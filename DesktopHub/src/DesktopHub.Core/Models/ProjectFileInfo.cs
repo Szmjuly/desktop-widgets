@@ -92,6 +92,12 @@ public class ProjectFileInfo
     public RevitInfo? Revit { get; set; }
 
     /// <summary>
+    /// Aggregated searchable files across the full project path.
+    /// Used for smart/regex file search beyond discipline-only views.
+    /// </summary>
+    public List<DocumentItem> AllFiles { get; set; } = new();
+
+    /// <summary>
     /// True if both CAD discipline folders AND Revit File folder exist (hybrid project)
     /// </summary>
     public bool IsHybrid { get; set; }

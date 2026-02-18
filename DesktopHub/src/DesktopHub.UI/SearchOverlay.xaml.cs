@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -33,14 +34,18 @@ public partial class SearchOverlay : Window
     private DocQuickOpenOverlay? _docOverlay;
     private FrequentProjectsOverlay? _frequentProjectsOverlay;
     private QuickLaunchOverlay? _quickLaunchOverlay;
+    private SmartProjectSearchOverlay? _smartProjectSearchOverlay;
     private WidgetLauncher? _widgetLauncher;
     private TaskService? _taskService;
     private DocOpenService? _docService;
+    private SmartProjectSearchService? _smartProjectSearchService;
     private IProjectLaunchDataStore? _launchDataStore;
     private List<Project> _allProjects = new();
     private List<Project> _filteredProjects = new();
     private CancellationTokenSource? _searchCts;
     private List<string> _searchHistory = new();
+    private bool _isPathSearchResults = false;
+    private string? _activePathSearchRootDisplay;
     private bool _isResultsCollapsed = false;
     private bool _userManuallySizedResults = false;
     private bool _isTogglingViaHotkey = false;
@@ -57,6 +62,18 @@ public partial class SearchOverlay : Window
     private Helpers.DesktopFollower? _desktopFollower;
     private UpdateCheckService? _updateCheckService;
     private UpdateIndicatorManager? _updateIndicatorManager;
+    private static readonly HashSet<string> PathSearchStopWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "a", "an", "and", "or", "the", "from", "for", "to", "of", "in", "on", "at", "by", "with"
+    };
+    private static readonly Dictionary<string, string[]> PathSearchAliases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["fault"] = new[] { "fault", "short", "short-circuit", "short circuit", "sc" },
+        ["current"] = new[] { "current", "amp", "amps", "amperage", "kaic", "aic" },
+        ["letter"] = new[] { "letter", "ltr", "memo", "correspondence" },
+        ["fpl"] = new[] { "fpl", "fp&l", "florida power", "florida power and light", "utility" },
+        ["utility"] = new[] { "utility", "fpl", "power" },
+    };
 
     public bool IsClosing => _isClosing;
     public TaskService? TaskService => _taskService;
@@ -78,6 +95,7 @@ public partial class SearchOverlay : Window
         _timerService = new TimerService();
         _taskService = new TaskService(new Infrastructure.Data.TaskDataStore());
         _docService = new DocOpenService(new Infrastructure.Scanning.DocumentScanner());
+        _smartProjectSearchService = new SmartProjectSearchService(new Infrastructure.Scanning.DocumentScanner(), _settings);
 
         // Setup transparency when window handle is available
         SourceInitialized += (s, e) =>
@@ -217,6 +235,7 @@ public partial class SearchOverlay : Window
             _widgetLauncher.DocQuickOpenRequested += OnDocQuickOpenRequested;
             _widgetLauncher.FrequentProjectsRequested += OnFrequentProjectsRequested;
             _widgetLauncher.QuickLaunchRequested += OnQuickLaunchRequested;
+            _widgetLauncher.SmartProjectSearchRequested += OnSmartProjectSearchRequested;
 
             RegisterWidgetWindow(this);
             RegisterWidgetWindow(_widgetLauncher);
@@ -326,6 +345,13 @@ public partial class SearchOverlay : Window
                 DebugLogger.Log("Restored quick launch widget from previous session");
             }
 
+            var smartProjectSearchVisible = _settings.GetSmartProjectSearchWidgetVisible();
+            if (smartProjectSearchVisible)
+            {
+                CreateSmartProjectSearchOverlay();
+                DebugLogger.Log("Restored smart project search widget from previous session");
+            }
+
             if (isLivingWidgetsMode)
             {
                 NormalizeDocStartupGapIfNeeded();
@@ -364,6 +390,9 @@ public partial class SearchOverlay : Window
             if (_docOverlay != null)
                 _updateIndicatorManager.RegisterWidget("DocQuickOpenOverlay", 5, _docOverlay, 
                     visible => Dispatcher.Invoke(() => _docOverlay.SetUpdateIndicatorVisible(visible)));
+            if (_smartProjectSearchOverlay != null)
+                _updateIndicatorManager.RegisterWidget("SmartProjectSearchOverlay", 8, _smartProjectSearchOverlay,
+                    visible => Dispatcher.Invoke(() => _smartProjectSearchOverlay.SetUpdateIndicatorVisible(visible)));
 
             // Initialize periodic update checking
             InitializeUpdateCheckService();
@@ -379,6 +408,90 @@ public partial class SearchOverlay : Window
                 System.Windows.MessageBoxButton.OK,
                 System.Windows.MessageBoxImage.Error
             );
+        }
+    }
+
+    private async void CreateSmartProjectSearchOverlay(double? left = null, double? top = null)
+    {
+        if (_smartProjectSearchService == null)
+            return;
+
+        _smartProjectSearchOverlay = new SmartProjectSearchOverlay(_smartProjectSearchService, _settings);
+        ApplyResponsiveWidgetWidth(_smartProjectSearchOverlay);
+        RegisterWidgetWindow(_smartProjectSearchOverlay);
+        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+        _smartProjectSearchOverlay.Topmost = !isLivingWidgetsMode;
+
+        var (savedLeft, savedTop) = _settings.GetSmartProjectSearchWidgetPosition();
+        _smartProjectSearchOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
+        _smartProjectSearchOverlay.Top = top ?? savedTop ?? (this.Top + 380);
+
+        if (isLivingWidgetsMode)
+            _smartProjectSearchOverlay.EnableDragging();
+
+        _smartProjectSearchOverlay.Show();
+        _smartProjectSearchOverlay.UpdateTransparency();
+        _smartProjectSearchOverlay.Tag = "WasVisible";
+
+        if (isLivingWidgetsMode)
+        {
+            ApplyLiveLayoutForWindow(_smartProjectSearchOverlay);
+            RefreshAttachmentMappings();
+            TrackVisibleWindowBounds();
+        }
+
+        if (isLivingWidgetsMode && _desktopFollower != null)
+        {
+            _desktopFollower.TrackWindow(_smartProjectSearchOverlay);
+        }
+
+        var smartRef = _smartProjectSearchOverlay;
+        _updateIndicatorManager?.RegisterWidget("SmartProjectSearchOverlay", 8, _smartProjectSearchOverlay,
+            visible => Dispatcher.Invoke(() => smartRef.SetUpdateIndicatorVisible(visible)));
+
+        if (ResultsList.SelectedItem is ProjectViewModel vm)
+        {
+            try
+            {
+                await _smartProjectSearchOverlay.Widget.SetProjectAsync(vm.Path, $"{vm.FullNumber} {vm.Name}");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"CreateSmartProjectSearchOverlay: Failed to prime selected project: {ex.Message}");
+            }
+        }
+
+        DebugLogger.Log($"CreateSmartProjectSearchOverlay: Created at ({_smartProjectSearchOverlay.Left}, {_smartProjectSearchOverlay.Top})");
+    }
+
+    private void OnSmartProjectSearchRequested(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (_smartProjectSearchOverlay == null)
+            {
+                CreateSmartProjectSearchOverlay();
+            }
+            else
+            {
+                if (_smartProjectSearchOverlay.Visibility == Visibility.Visible)
+                {
+                    _smartProjectSearchOverlay.Visibility = Visibility.Hidden;
+                    _smartProjectSearchOverlay.Tag = null;
+                    DebugLogger.Log("OnSmartProjectSearchRequested: Smart search overlay hidden");
+                }
+                else
+                {
+                    _smartProjectSearchOverlay.Visibility = Visibility.Visible;
+                    _smartProjectSearchOverlay.Tag = "WasVisible";
+                    DebugLogger.Log("OnSmartProjectSearchRequested: Smart search overlay shown");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"OnSmartProjectSearchRequested: Error: {ex}");
+            System.Windows.MessageBox.Show($"Error with smart project search overlay: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -850,6 +963,8 @@ public partial class SearchOverlay : Window
             
             DebugLogger.Log($"LoadAllProjects: Final filtered count: {_filteredProjects.Count} projects for year {selectedYear}, location {selectedLocation}");
             ResultsList.ItemsSource = _filteredProjects;
+            _isPathSearchResults = false;
+            _activePathSearchRootDisplay = null;
             UpdateResultsHeader();
             UpdateHistoryVisibility();
             ShowLoading(false);
@@ -863,6 +978,20 @@ public partial class SearchOverlay : Window
     private void UpdateResultsHeader()
     {
         var count = ResultsList.Items.Count;
+
+        if (_isPathSearchResults)
+        {
+            if (!string.IsNullOrWhiteSpace(_activePathSearchRootDisplay))
+            {
+                ResultsHeaderText.Text = $"Path: {_activePathSearchRootDisplay} ({count})";
+            }
+            else
+            {
+                ResultsHeaderText.Text = $"Path Results ({count})";
+            }
+            return;
+        }
+
         var selectedYear = YearFilter.SelectedItem?.ToString();
         
         if (selectedYear == "All Years" || string.IsNullOrEmpty(selectedYear))
@@ -1035,6 +1164,259 @@ public partial class SearchOverlay : Window
         }
     }
 
+    private static bool LooksLikePathInput(string query)
+    {
+        var trimmed = query.TrimStart();
+        return trimmed.StartsWith("\\\\") ||
+               Regex.IsMatch(trimmed, @"^[a-zA-Z]:[\\/]");
+    }
+
+    private static bool TryExtractPathAndFilter(string query, out string path, out string filter)
+    {
+        path = string.Empty;
+        filter = string.Empty;
+
+        var trimmed = query.Trim();
+        if (trimmed.Length == 0 || !LooksLikePathInput(trimmed))
+            return false;
+
+        var delimiterIndex = trimmed.IndexOf("::", StringComparison.Ordinal);
+        if (delimiterIndex >= 0)
+        {
+            path = trimmed[..delimiterIndex].Trim().Trim('"');
+            filter = trimmed[(delimiterIndex + 2)..].Trim();
+            return path.Length > 0;
+        }
+
+        if (trimmed.StartsWith('"'))
+        {
+            var closingQuote = trimmed.IndexOf('"', 1);
+            if (closingQuote > 1)
+            {
+                path = trimmed[1..closingQuote].Trim();
+                filter = trimmed[(closingQuote + 1)..].Trim();
+                return path.Length > 0;
+            }
+        }
+
+        var tokens = Regex.Split(trimmed, @"\s+")
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .ToArray();
+        if (tokens.Length == 0)
+            return false;
+
+        var candidate = tokens[0];
+        string? bestPath = System.IO.Directory.Exists(candidate) ? candidate : null;
+        var bestTokenCount = bestPath != null ? 1 : 0;
+
+        for (var i = 1; i < tokens.Length; i++)
+        {
+            candidate += " " + tokens[i];
+            if (System.IO.Directory.Exists(candidate))
+            {
+                bestPath = candidate;
+                bestTokenCount = i + 1;
+            }
+        }
+
+        if (bestPath != null)
+        {
+            path = bestPath;
+            filter = string.Join(" ", tokens.Skip(bestTokenCount));
+            return true;
+        }
+
+        path = trimmed.Trim('"');
+        filter = string.Empty;
+        return true;
+    }
+
+    private static bool IsHiddenOrSystem(string path)
+    {
+        try
+        {
+            var attr = System.IO.File.GetAttributes(path);
+            return (attr & System.IO.FileAttributes.Hidden) != 0 ||
+                   (attr & System.IO.FileAttributes.System) != 0;
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    private static IEnumerable<(string Path, bool IsDirectory)> EnumeratePathEntries(
+        string rootPath,
+        bool includeDirectories,
+        bool includeFiles,
+        CancellationToken token)
+    {
+        var stack = new Stack<string>();
+        stack.Push(rootPath);
+
+        while (stack.Count > 0)
+        {
+            if (token.IsCancellationRequested)
+                yield break;
+
+            var current = stack.Pop();
+            IEnumerable<string> subDirectories;
+            try
+            {
+                subDirectories = System.IO.Directory.EnumerateDirectories(current);
+            }
+            catch
+            {
+                continue;
+            }
+
+            foreach (var dir in subDirectories)
+            {
+                if (token.IsCancellationRequested)
+                    yield break;
+
+                if (includeDirectories)
+                    yield return (dir, true);
+
+                stack.Push(dir);
+            }
+
+            if (!includeFiles)
+                continue;
+
+            IEnumerable<string> files;
+            try
+            {
+                files = System.IO.Directory.EnumerateFiles(current);
+            }
+            catch
+            {
+                continue;
+            }
+
+            foreach (var file in files)
+            {
+                if (token.IsCancellationRequested)
+                    yield break;
+                yield return (file, false);
+            }
+        }
+    }
+
+    private static bool IsRegexQuery(string query, out string pattern)
+    {
+        pattern = string.Empty;
+
+        if (query.StartsWith("re:", StringComparison.OrdinalIgnoreCase))
+        {
+            pattern = query[3..].Trim();
+            return pattern.Length > 0;
+        }
+
+        if (query.Length >= 3 && query[0] == '/' && query.LastIndexOf('/') > 0)
+        {
+            var lastSlash = query.LastIndexOf('/');
+            pattern = query[1..lastSlash].Trim();
+            return pattern.Length > 0;
+        }
+
+        return false;
+    }
+
+    private static List<string> ExtractPathSearchTerms(string query)
+    {
+        var terms = new List<string>();
+        foreach (Match match in Regex.Matches(query, "\"([^\"]+)\"|(\\S+)"))
+        {
+            var value = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
+            var normalized = value.Trim().ToLowerInvariant();
+            if (normalized.Length == 0 || PathSearchStopWords.Contains(normalized))
+                continue;
+
+            terms.Add(normalized);
+        }
+
+        return terms;
+    }
+
+    private static IEnumerable<string> ExpandPathSearchAliases(string term)
+    {
+        if (PathSearchAliases.TryGetValue(term, out var aliases) && aliases.Length > 0)
+        {
+            return aliases
+                .Append(term)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(a => a.ToLowerInvariant());
+        }
+
+        if (term.EndsWith('s') && term.Length > 3)
+        {
+            return new[] { term, term[..^1] };
+        }
+
+        return new[] { term };
+    }
+
+    private static double ScorePathEntry(string fullPath, string normalizedQuery, IReadOnlyList<string> terms, Regex? regex)
+    {
+        if (regex != null)
+            return regex.IsMatch(fullPath) ? 10.0 : 0.0;
+
+        var normalizedPath = fullPath.ToLowerInvariant();
+        var fileName = System.IO.Path.GetFileName(fullPath).ToLowerInvariant();
+
+        if (terms.Count == 0)
+        {
+            return normalizedPath.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase) ? 1.0 : 0.0;
+        }
+
+        var minimumHits = terms.Count <= 2 ? terms.Count : terms.Count - 1;
+        var hits = 0;
+        var score = 0.0;
+
+        foreach (var term in terms)
+        {
+            var best = 0.0;
+            foreach (var alias in ExpandPathSearchAliases(term))
+            {
+                if (fileName.StartsWith(alias, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 4.0);
+                if (fileName.Contains(alias, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 3.0);
+                if (normalizedPath.Contains(alias, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 1.5);
+            }
+
+            if (best > 0)
+            {
+                hits++;
+                score += best;
+            }
+        }
+
+        var hasPhrase = normalizedPath.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase);
+        if (hasPhrase)
+            score += 4.0;
+
+        if (hits < minimumHits && !hasPhrase)
+            return 0.0;
+
+        return score;
+    }
+
+    private static string? BuildPathMatchStatus(string rootPath, string fullPath)
+    {
+        try
+        {
+            var relative = System.IO.Path.GetRelativePath(rootPath, fullPath);
+            var parent = System.IO.Path.GetDirectoryName(relative);
+            if (string.IsNullOrWhiteSpace(parent) || parent == ".")
+                return null;
+            return parent;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private void PopulateYearFilter()
     {
         var years = _allProjects
@@ -1172,6 +1554,8 @@ public partial class SearchOverlay : Window
         if (string.IsNullOrWhiteSpace(query))
         {
             // Show all projects when search is blank
+            _isPathSearchResults = false;
+            _activePathSearchRootDisplay = null;
             LoadAllProjects();
             UpdateHistoryVisibility();
 
@@ -1196,8 +1580,8 @@ public partial class SearchOverlay : Window
         // Update history visibility (hide horizontal pills when typing)
         UpdateHistoryVisibility();
 
-        // Detect path-like input and perform directory listing if path search is enabled
-        if (query.Contains(":\\") || query.Contains(":/") || query.StartsWith("\\\\"))
+        // Detect path-like input and perform directory listing/path-scoped search if enabled
+        if (LooksLikePathInput(query))
         {
             if (_settings.GetPathSearchEnabled())
             {
@@ -1205,8 +1589,10 @@ public partial class SearchOverlay : Window
             }
             else
             {
+                _isPathSearchResults = false;
+                _activePathSearchRootDisplay = null;
                 ResultsList.ItemsSource = null;
-                StatusText.Text = "Path detected — enable Path Search in General settings to browse directories";
+                StatusText.Text = "Path detected — enable Path Search in General settings (supports C:\\Path :: terms)";
                 UpdateResultsHeader();
                 ShowLoading(false);
             }
@@ -1222,6 +1608,9 @@ public partial class SearchOverlay : Window
                 return;
 
             ShowLoading(true);
+
+            _isPathSearchResults = false;
+            _activePathSearchRootDisplay = null;
 
             // Apply filters before searching
             var selectedYear = YearFilter.SelectedItem?.ToString();
@@ -1500,6 +1889,18 @@ public partial class SearchOverlay : Window
                 DebugLogger.Log($"ResultsList_SelectionChanged: Error feeding project to doc widget: {ex.Message}");
             }
         }
+
+        if (ResultsList.SelectedItem is ProjectViewModel smartVm && _smartProjectSearchService != null)
+        {
+            try
+            {
+                await _smartProjectSearchService.SetProjectAsync(smartVm.Path, $"{smartVm.FullNumber} {smartVm.Name}");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"ResultsList_SelectionChanged: Error feeding project to smart search service: {ex.Message}");
+            }
+        }
     }
 
     private void ResultsList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -1512,6 +1913,7 @@ public partial class SearchOverlay : Window
         string? itemPath = null;
         string? itemNumber = null;
         string? itemName = null;
+        bool isDirectoryResult = true;
 
         if (ResultsList.SelectedItem is ProjectViewModel vm)
         {
@@ -1522,6 +1924,7 @@ public partial class SearchOverlay : Window
         else if (ResultsList.SelectedItem is PathSearchResultViewModel psvm)
         {
             itemPath = psvm.Path;
+            isDirectoryResult = psvm.IsDirectory;
         }
 
         if (itemPath == null) return;
@@ -1535,7 +1938,14 @@ public partial class SearchOverlay : Window
                 AddToSearchHistory(query);
             }
             
-            Process.Start("explorer.exe", itemPath);
+            if (isDirectoryResult || Directory.Exists(itemPath))
+            {
+                Process.Start("explorer.exe", itemPath);
+            }
+            else
+            {
+                Process.Start(new ProcessStartInfo(itemPath) { UseShellExecute = true });
+            }
 
             // Record the launch for frequency tracking (only for project results)
             if (_launchDataStore != null && itemNumber != null && itemName != null)
@@ -2005,6 +2415,17 @@ public partial class SearchOverlay : Window
         {
             _settings.SetQuickLaunchWidgetVisible(false);
         }
+
+        if (_smartProjectSearchOverlay != null)
+        {
+            _settings.SetSmartProjectSearchWidgetPosition(_smartProjectSearchOverlay.Left, _smartProjectSearchOverlay.Top);
+            _settings.SetSmartProjectSearchWidgetVisible(_smartProjectSearchOverlay.Visibility == Visibility.Visible);
+            DebugLogger.Log($"Window_Closing: Saved smart search overlay position: ({_smartProjectSearchOverlay.Left}, {_smartProjectSearchOverlay.Top})");
+        }
+        else
+        {
+            _settings.SetSmartProjectSearchWidgetVisible(false);
+        }
         
         // Save async but don't await (app is closing)
         _ = _settings.SaveAsync();
@@ -2178,17 +2599,19 @@ public partial class SearchOverlay : Window
         public string Path { get; }
         public string? Location { get; }
         public string? Status { get; }
+        public bool IsDirectory { get; }
         public bool IsFavorite { get; } = false;
 
-        public PathSearchResultViewModel(string fullPath, bool isDirectory)
+        public PathSearchResultViewModel(string fullPath, bool isDirectory, string? status = null)
         {
             Path = fullPath;
+            IsDirectory = isDirectory;
             Name = System.IO.Path.GetFileName(fullPath);
             if (string.IsNullOrEmpty(Name))
                 Name = fullPath; // root paths like C:\
             FullNumber = isDirectory ? "📁" : GetFileIcon(fullPath);
             Location = isDirectory ? "Directory" : GetFileSize(fullPath);
-            Status = null;
+            Status = status;
         }
 
         private static string GetFileIcon(string path)
@@ -2233,7 +2656,22 @@ public partial class SearchOverlay : Window
 
             ShowLoading(true);
 
-            var path = query.TrimEnd();
+            if (!TryExtractPathAndFilter(query, out var path, out var scopedQuery))
+            {
+                _isPathSearchResults = false;
+                _activePathSearchRootDisplay = null;
+                ResultsList.ItemsSource = null;
+                StatusText.Text = "Path format not recognized. Use C:\\Folder or C:\\Folder :: search terms";
+                UpdateResultsHeader();
+                ShowLoading(false);
+                return;
+            }
+
+            _isPathSearchResults = true;
+            _activePathSearchRootDisplay = System.IO.Path.GetFileName(path.TrimEnd('\\', '/'));
+            if (string.IsNullOrWhiteSpace(_activePathSearchRootDisplay))
+                _activePathSearchRootDisplay = path;
+
             if (!System.IO.Directory.Exists(path))
             {
                 ResultsList.ItemsSource = null;
@@ -2248,48 +2686,91 @@ public partial class SearchOverlay : Window
             var showHidden = _settings.GetPathSearchShowHidden();
             var results = new List<PathSearchResultViewModel>();
 
+            if (!showDirs && !showFiles)
+            {
+                ResultsList.ItemsSource = null;
+                StatusText.Text = "Enable folder and/or file path results in General settings";
+                UpdateResultsHeader();
+                ShowLoading(false);
+                return;
+            }
+
+            var scopedQueryNormalized = scopedQuery.Trim();
+            var isRecursiveScopedSearch = scopedQueryNormalized.Length > 0;
+
             await Task.Run(() =>
             {
                 try
                 {
-                    if (showDirs)
+                    if (!isRecursiveScopedSearch)
                     {
-                        foreach (var dir in System.IO.Directory.GetDirectories(path))
+                        if (showDirs)
                         {
-                            if (token.IsCancellationRequested) return;
-                            if (!showHidden)
+                            foreach (var dir in System.IO.Directory.GetDirectories(path))
                             {
-                                try
-                                {
-                                    var attr = System.IO.File.GetAttributes(dir);
-                                    if ((attr & System.IO.FileAttributes.Hidden) != 0 ||
-                                        (attr & System.IO.FileAttributes.System) != 0)
-                                        continue;
-                                }
-                                catch { continue; }
+                                if (token.IsCancellationRequested) return;
+                                if (!showHidden && IsHiddenOrSystem(dir))
+                                    continue;
+                                results.Add(new PathSearchResultViewModel(dir, true));
                             }
-                            results.Add(new PathSearchResultViewModel(dir, true));
+                        }
+
+                        if (showFiles)
+                        {
+                            foreach (var file in System.IO.Directory.GetFiles(path))
+                            {
+                                if (token.IsCancellationRequested) return;
+                                if (!showHidden && IsHiddenOrSystem(file))
+                                    continue;
+                                results.Add(new PathSearchResultViewModel(file, false));
+                            }
+                        }
+                        return;
+                    }
+
+                    var regexPattern = string.Empty;
+                    var isRegexQuery = IsRegexQuery(scopedQueryNormalized, out regexPattern);
+                    Regex? regex = null;
+
+                    if (isRegexQuery)
+                    {
+                        try
+                        {
+                            regex = new Regex(regexPattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+                        }
+                        catch
+                        {
+                            return;
                         }
                     }
 
-                    if (showFiles)
+                    var terms = ExtractPathSearchTerms(scopedQueryNormalized);
+                    var ranked = new List<(PathSearchResultViewModel ViewModel, double Score)>();
+                    const int maxMatches = 350;
+
+                    foreach (var (entryPath, isDir) in EnumeratePathEntries(path, showDirs, showFiles, token))
                     {
-                        foreach (var file in System.IO.Directory.GetFiles(path))
-                        {
-                            if (token.IsCancellationRequested) return;
-                            if (!showHidden)
-                            {
-                                try
-                                {
-                                    var attr = System.IO.File.GetAttributes(file);
-                                    if ((attr & System.IO.FileAttributes.Hidden) != 0 ||
-                                        (attr & System.IO.FileAttributes.System) != 0)
-                                        continue;
-                                }
-                                catch { continue; }
-                            }
-                            results.Add(new PathSearchResultViewModel(file, false));
-                        }
+                        if (token.IsCancellationRequested) return;
+                        if (!showHidden && IsHiddenOrSystem(entryPath))
+                            continue;
+
+                        var score = ScorePathEntry(entryPath, scopedQueryNormalized, terms, regex);
+                        if (score <= 0)
+                            continue;
+
+                        var status = BuildPathMatchStatus(path, entryPath);
+                        ranked.Add((new PathSearchResultViewModel(entryPath, isDir, status), score));
+
+                        if (ranked.Count >= maxMatches)
+                            break;
+                    }
+
+                    foreach (var match in ranked
+                        .OrderByDescending(r => r.Score)
+                        .ThenBy(r => r.ViewModel.Name)
+                        .Select(r => r.ViewModel))
+                    {
+                        results.Add(match);
                     }
                 }
                 catch (UnauthorizedAccessException)
@@ -2309,12 +2790,21 @@ public partial class SearchOverlay : Window
             if (results.Count > 0)
             {
                 ResultsList.SelectedIndex = 0;
-                var dirCount = results.Count(r => r.Location == "Directory");
-                var fileCount = results.Count - dirCount;
-                var parts = new List<string>();
-                if (dirCount > 0) parts.Add($"{dirCount} folder{(dirCount == 1 ? "" : "s")}");
-                if (fileCount > 0) parts.Add($"{fileCount} file{(fileCount == 1 ? "" : "s")}");
-                StatusText.Text = $"Path: {string.Join(", ", parts)}";
+
+                if (isRecursiveScopedSearch)
+                {
+                    var modeLabel = IsRegexQuery(scopedQueryNormalized, out _) ? "regex" : "smart";
+                    StatusText.Text = $"{results.Count} match{(results.Count == 1 ? "" : "es")} in {modeLabel} search";
+                }
+                else
+                {
+                    var dirCount = results.Count(r => r.IsDirectory);
+                    var fileCount = results.Count - dirCount;
+                    var parts = new List<string>();
+                    if (dirCount > 0) parts.Add($"{dirCount} folder{(dirCount == 1 ? "" : "s")}");
+                    if (fileCount > 0) parts.Add($"{fileCount} file{(fileCount == 1 ? "" : "s")}");
+                    StatusText.Text = $"Path: {string.Join(", ", parts)}";
+                }
 
                 if (!_userManuallySizedResults && _isResultsCollapsed)
                 {
@@ -2326,7 +2816,14 @@ public partial class SearchOverlay : Window
             }
             else
             {
-                StatusText.Text = "Directory is empty";
+                if (isRecursiveScopedSearch)
+                {
+                    StatusText.Text = "No path matches found";
+                }
+                else
+                {
+                    StatusText.Text = "Directory is empty";
+                }
             }
 
             UpdateResultsHeader();
@@ -2574,7 +3071,8 @@ public partial class SearchOverlay : Window
             _quickTasksOverlay,
             _docOverlay,
             _frequentProjectsOverlay,
-            _quickLaunchOverlay
+            _quickLaunchOverlay,
+            _smartProjectSearchOverlay
         };
 
         var seen = new HashSet<Window>();
@@ -2643,7 +3141,7 @@ public partial class SearchOverlay : Window
 
     private void ApplyResponsiveWidgetWidth(Window window)
     {
-        if (window is QuickTasksOverlay or DocQuickOpenOverlay or FrequentProjectsOverlay or QuickLaunchOverlay)
+        if (window is QuickTasksOverlay or DocQuickOpenOverlay or FrequentProjectsOverlay or QuickLaunchOverlay or SmartProjectSearchOverlay)
         {
             window.Width = GetResponsiveColumnWidgetWidth();
         }
@@ -3912,6 +4410,11 @@ public partial class SearchOverlay : Window
         {
             _desktopFollower.TrackWindow(_quickLaunchOverlay);
         }
+
+        if (_smartProjectSearchOverlay != null)
+        {
+            _desktopFollower.TrackWindow(_smartProjectSearchOverlay);
+        }
         
         _desktopFollower.Start();
     }
@@ -3975,6 +4478,12 @@ public partial class SearchOverlay : Window
                 _quickLaunchOverlay.EnableDragging();
                 _quickLaunchOverlay.Topmost = false;
             }
+
+            if (_smartProjectSearchOverlay != null)
+            {
+                _smartProjectSearchOverlay.EnableDragging();
+                _smartProjectSearchOverlay.Topmost = false;
+            }
             
             // Start following desktop switches
             StartDesktopFollower();
@@ -4028,6 +4537,12 @@ public partial class SearchOverlay : Window
                 _quickLaunchOverlay.DisableDragging();
                 _quickLaunchOverlay.Topmost = true;
             }
+
+            if (_smartProjectSearchOverlay != null)
+            {
+                _smartProjectSearchOverlay.DisableDragging();
+                _smartProjectSearchOverlay.Topmost = true;
+            }
             
             // Stop following desktop switches
             StopDesktopFollower();
@@ -4068,6 +4583,12 @@ public partial class SearchOverlay : Window
             _widgetLauncher.UpdateSearchButtonVisibility(enabled);
             DebugLogger.Log($"UpdateSearchWidgetButton: Search button visibility set to {enabled}");
         }
+    }
+
+    public void UpdateWidgetLauncherLayout()
+    {
+        _widgetLauncher?.RefreshLayoutFromSettings();
+        DebugLogger.Log("UpdateWidgetLauncherLayout: Launcher layout refreshed from settings");
     }
 
     public void UpdateTimerWidgetButton()
@@ -4132,6 +4653,16 @@ public partial class SearchOverlay : Window
             var enabled = _settings.GetQuickLaunchWidgetEnabled();
             _widgetLauncher.UpdateQuickLaunchButtonVisibility(enabled);
             DebugLogger.Log($"UpdateQuickLaunchWidgetButton: visibility set to {enabled}");
+        }
+    }
+
+    public void UpdateSmartProjectSearchWidgetButton()
+    {
+        if (_widgetLauncher != null)
+        {
+            var enabled = _settings.GetSmartProjectSearchWidgetEnabled();
+            _widgetLauncher.UpdateSmartProjectSearchButtonVisibility(enabled);
+            DebugLogger.Log($"UpdateSmartProjectSearchWidgetButton: visibility set to {enabled}");
         }
     }
 
@@ -4263,6 +4794,11 @@ public partial class SearchOverlay : Window
                 if (_quickLaunchOverlay != null)
                 {
                     _quickLaunchOverlay.UpdateTransparency();
+                }
+
+                if (_smartProjectSearchOverlay != null)
+                {
+                    _smartProjectSearchOverlay.UpdateTransparency();
                 }
             });
         }

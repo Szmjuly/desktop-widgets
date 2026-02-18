@@ -1333,6 +1333,43 @@
                                     </ToggleButton.Style>
                                 </ToggleButton>
                             </Grid>
+
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Smart Project Search Section -->
+                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Smart Project Search" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                            <TextBlock Text="Controls query behavior for the Smart Project Search widget." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                            <TextBlock Text="Latest query mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
+                            <StackPanel Margin="12,0,0,10">
+                                <RadioButton x:Name="SmartSearchLatestListRadio"
+                                             Content="Newest-first list"
+                                             FontSize="12"
+                                             Foreground="{StaticResource TextBrush}"
+                                             Margin="0,0,0,4"
+                                             Checked="SmartSearchLatestMode_Changed"/>
+                                <RadioButton x:Name="SmartSearchLatestSingleRadio"
+                                             Content="Single newest result"
+                                             FontSize="12"
+                                             Foreground="{StaticResource TextBrush}"
+                                             Checked="SmartSearchLatestMode_Changed"/>
+                            </StackPanel>
+
+                            <TextBlock Text="Searchable file types" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                            <TextBlock Text="Comma-separated keywords/extensions. Example: doc, docx, pdf, txt, dwg, rvt, excel, png, jpeg, msg"
+                                       FontSize="11"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,6"/>
+                            <TextBox x:Name="SmartSearchFileTypesInput"
+                                     Background="#22FFFFFF"
+                                     BorderBrush="{StaticResource BorderBrush}"
+                                     Foreground="{StaticResource TextBrush}"
+                                     Padding="8,6"
+                                     LostFocus="SmartSearchFileTypesInput_LostFocus"/>
                         </StackPanel>
                     </Border>
                     
@@ -1690,6 +1727,47 @@
                                        FontSize="12" 
                                        Foreground="{StaticResource TextSecondaryBrush}"
                                        Margin="0,0,0,16"/>
+
+                            <StackPanel Margin="0,0,0,14">
+                                <TextBlock Text="Max visible widgets before scroll"
+                                           FontSize="13"
+                                           FontWeight="Medium"
+                                           Foreground="{StaticResource TextBrush}"
+                                           Margin="0,0,0,4"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0"
+                                               Text="Few"
+                                               FontSize="10"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0"/>
+
+                                    <Slider x:Name="WidgetLauncherMaxVisibleWidgetsSlider"
+                                           Grid.Column="1"
+                                           Minimum="1"
+                                           Maximum="12"
+                                           TickFrequency="1"
+                                           IsSnapToTickEnabled="True"
+                                           Value="4"
+                                           ValueChanged="WidgetLauncherMaxVisibleWidgetsSlider_Changed"
+                                           VerticalAlignment="Center"/>
+
+                                    <TextBlock x:Name="WidgetLauncherMaxVisibleWidgetsValueText"
+                                               Grid.Column="2"
+                                               Text="4"
+                                               FontSize="11"
+                                               FontWeight="Medium"
+                                               Foreground="{StaticResource TextBrush}"
+                                               VerticalAlignment="Center"
+                                               Margin="8,0,0,0"/>
+                                </Grid>
+                            </StackPanel>
                             
                             <!-- Timer Widget Toggle -->
                             <Grid Margin="0,0,0,12">
@@ -1867,7 +1945,7 @@
                             </Grid>
                             
                             <!-- Quick Launch Widget Toggle -->
-                            <Grid Margin="0,0,0,0">
+                            <Grid Margin="0,0,0,12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
@@ -1878,6 +1956,41 @@
                                 </StackPanel>
                                 <ToggleButton x:Name="QuickLaunchWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
                                               Checked="QuickLaunchWidgetEnabledToggle_Changed" Unchecked="QuickLaunchWidgetEnabledToggle_Changed" Cursor="Hand">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
+                            </Grid>
+
+                            <!-- Smart Project Search Widget Toggle -->
+                            <Grid Margin="0,0,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Smart Project Search Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Fast semantic, regex, and extension-aware project file search" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                                <ToggleButton x:Name="SmartProjectSearchWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
+                                              Checked="SmartProjectSearchWidgetEnabledToggle_Changed" Unchecked="SmartProjectSearchWidgetEnabledToggle_Changed" Cursor="Hand">
                                     <ToggleButton.Style>
                                         <Style TargetType="ToggleButton">
                                             <Setter Property="Template">

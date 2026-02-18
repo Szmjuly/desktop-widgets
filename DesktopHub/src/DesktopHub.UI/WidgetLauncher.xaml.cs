@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using DesktopHub.Core.Abstractions;
@@ -15,6 +17,7 @@ public partial class WidgetLauncher : Window
     public event EventHandler? DocQuickOpenRequested;
     public event EventHandler? FrequentProjectsRequested;
     public event EventHandler? QuickLaunchRequested;
+    public event EventHandler? SmartProjectSearchRequested;
     private bool _isDragging = false;
     private System.Windows.Point _dragStartPoint;
     private bool _isLivingWidgetsMode = false;
@@ -32,6 +35,62 @@ public partial class WidgetLauncher : Window
         UpdateDocButtonVisibility(_settings.GetDocWidgetEnabled());
         UpdateFrequentProjectsButtonVisibility(_settings.GetFrequentProjectsWidgetEnabled());
         UpdateQuickLaunchButtonVisibility(_settings.GetQuickLaunchWidgetEnabled());
+        UpdateSmartProjectSearchButtonVisibility(_settings.GetSmartProjectSearchWidgetEnabled());
+        Loaded += (_, _) => RefreshLayoutFromSettings();
+        RefreshLayoutFromSettings();
+    }
+
+    public void RefreshLayoutFromSettings()
+    {
+        if (WidgetButtonsScroller == null)
+            return;
+
+        var maxVisible = Math.Clamp(_settings.GetWidgetLauncherMaxVisibleWidgets(), 1, 12);
+
+        var rowHeights = new List<double>();
+        var buttons = new Border?[]
+        {
+            SearchWidgetButton,
+            TimerWidgetButton,
+            QuickTasksWidgetButton,
+            FrequentProjectsButton,
+            QuickLaunchButton,
+            DocQuickOpenButton,
+            SmartProjectSearchButton
+        };
+
+        foreach (var button in buttons)
+        {
+            if (button == null || button.Visibility != Visibility.Visible)
+                continue;
+
+            var measuredHeight = button.ActualHeight;
+            if (measuredHeight <= 1 || double.IsNaN(measuredHeight))
+                measuredHeight = button.DesiredSize.Height;
+            if (measuredHeight <= 1 || double.IsNaN(measuredHeight))
+                measuredHeight = 44;
+
+            measuredHeight += button.Margin.Top + button.Margin.Bottom;
+            rowHeights.Add(measuredHeight);
+        }
+
+        var fallbackRowHeight = 52.0;
+        var rowAverage = fallbackRowHeight;
+        if (rowHeights.Count > 0)
+        {
+            var total = 0.0;
+            for (var i = 0; i < rowHeights.Count; i++)
+                total += rowHeights[i];
+            rowAverage = total / rowHeights.Count;
+        }
+
+        var targetHeight = 0.0;
+        for (var i = 0; i < maxVisible; i++)
+        {
+            targetHeight += i < rowHeights.Count ? rowHeights[i] : rowAverage;
+        }
+
+        WidgetButtonsScroller.MaxHeight = Math.Max(120, Math.Floor(targetHeight - 1));
     }
     
     public void UpdateTransparency()
@@ -83,41 +142,59 @@ public partial class WidgetLauncher : Window
     {
         QuickLaunchRequested?.Invoke(this, EventArgs.Empty);
     }
+
+    private void SmartProjectSearchButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        SmartProjectSearchRequested?.Invoke(this, EventArgs.Empty);
+    }
     
     public void UpdateSearchButtonVisibility(bool visible)
     {
         if (SearchWidgetButton != null)
             SearchWidgetButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        RefreshLayoutFromSettings();
     }
 
     public void UpdateTimerButtonVisibility(bool visible)
     {
         if (TimerWidgetButton != null)
             TimerWidgetButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        RefreshLayoutFromSettings();
     }
 
     public void UpdateQuickTasksButtonVisibility(bool visible)
     {
         if (QuickTasksWidgetButton != null)
             QuickTasksWidgetButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        RefreshLayoutFromSettings();
     }
 
     public void UpdateDocButtonVisibility(bool visible)
     {
         if (DocQuickOpenButton != null)
             DocQuickOpenButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        RefreshLayoutFromSettings();
     }
 
     public void UpdateFrequentProjectsButtonVisibility(bool visible)
     {
         if (FrequentProjectsButton != null)
             FrequentProjectsButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        RefreshLayoutFromSettings();
     }
 
     public void UpdateQuickLaunchButtonVisibility(bool visible)
     {
         if (QuickLaunchButton != null)
             QuickLaunchButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        RefreshLayoutFromSettings();
+    }
+
+    public void UpdateSmartProjectSearchButtonVisibility(bool visible)
+    {
+        if (SmartProjectSearchButton != null)
+            SmartProjectSearchButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        RefreshLayoutFromSettings();
     }
 
     public void SetUpdateIndicatorVisible(bool visible)

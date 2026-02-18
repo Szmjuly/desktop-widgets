@@ -448,6 +448,21 @@ public interface ISettingsService
     void SetQuickLaunchWidgetEnabled(bool enabled);
     bool GetQuickLaunchHorizontalMode();
     void SetQuickLaunchHorizontalMode(bool horizontal);
+    int GetWidgetLauncherMaxVisibleWidgets();
+    void SetWidgetLauncherMaxVisibleWidgets(int count);
+
+    // --- Smart Project Search Widget ---
+
+    (double? left, double? top) GetSmartProjectSearchWidgetPosition();
+    void SetSmartProjectSearchWidgetPosition(double left, double top);
+    bool GetSmartProjectSearchWidgetVisible();
+    void SetSmartProjectSearchWidgetVisible(bool visible);
+    bool GetSmartProjectSearchWidgetEnabled();
+    void SetSmartProjectSearchWidgetEnabled(bool enabled);
+    string GetSmartProjectSearchLatestMode();
+    void SetSmartProjectSearchLatestMode(string mode);
+    List<string> GetSmartProjectSearchFileTypes();
+    void SetSmartProjectSearchFileTypes(IReadOnlyList<string> fileTypes);
 
     /// <summary>
     /// Get close shortcut configuration for closing widgets

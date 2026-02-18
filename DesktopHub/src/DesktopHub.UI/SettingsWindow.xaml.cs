@@ -34,6 +34,8 @@ public partial class SettingsWindow : Window
     private Action? _onFrequentProjectsLayoutChanged;
     private Action? _onQuickLaunchWidgetEnabledChanged;
     private Action? _onQuickLaunchLayoutChanged;
+    private Action? _onWidgetLauncherLayoutChanged;
+    private Action? _onSmartProjectSearchWidgetEnabledChanged;
     private Action? _onWidgetSnapGapChanged;
     private IProjectLaunchDataStore? _launchDataStore;
     private bool _isUpdatingSliders;
@@ -41,8 +43,9 @@ public partial class SettingsWindow : Window
     private bool _isLoadingDQSettings;
     private bool _isLoadingFPSettings;
     private bool _isLoadingQLSettings;
+    private bool _isLoadingSPSettings;
 
-    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null, Action? onFrequentProjectsWidgetEnabledChanged = null, Action? onFrequentProjectsLayoutChanged = null, Action? onQuickLaunchWidgetEnabledChanged = null, IProjectLaunchDataStore? launchDataStore = null, Action? onQuickLaunchLayoutChanged = null, Action? onWidgetSnapGapChanged = null)
+    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null, Action? onFrequentProjectsWidgetEnabledChanged = null, Action? onFrequentProjectsLayoutChanged = null, Action? onQuickLaunchWidgetEnabledChanged = null, IProjectLaunchDataStore? launchDataStore = null, Action? onQuickLaunchLayoutChanged = null, Action? onWidgetSnapGapChanged = null, Action? onSmartProjectSearchWidgetEnabledChanged = null, Action? onWidgetLauncherLayoutChanged = null)
     {
         _settings = settings;
         _taskService = taskService;
@@ -61,6 +64,8 @@ public partial class SettingsWindow : Window
         _onFrequentProjectsLayoutChanged = onFrequentProjectsLayoutChanged;
         _onQuickLaunchWidgetEnabledChanged = onQuickLaunchWidgetEnabledChanged;
         _onQuickLaunchLayoutChanged = onQuickLaunchLayoutChanged;
+        _onSmartProjectSearchWidgetEnabledChanged = onSmartProjectSearchWidgetEnabledChanged;
+        _onWidgetLauncherLayoutChanged = onWidgetLauncherLayoutChanged;
         _onWidgetSnapGapChanged = onWidgetSnapGapChanged;
         _launchDataStore = launchDataStore;
 
@@ -70,6 +75,7 @@ public partial class SettingsWindow : Window
         _isLoadingDQSettings = true;
         _isLoadingFPSettings = true;
         _isLoadingQLSettings = true;
+        _isLoadingSPSettings = true;
 
         InitializeComponent();
 
@@ -79,6 +85,7 @@ public partial class SettingsWindow : Window
         _isLoadingDQSettings = false;
         _isLoadingFPSettings = false;
         _isLoadingQLSettings = false;
+        _isLoadingSPSettings = false;
 
         // Setup transparency when window handle is available
         SourceInitialized += (s, e) =>
@@ -243,6 +250,18 @@ public partial class SettingsWindow : Window
             // Load new widget enabled toggles
             FrequentProjectsWidgetEnabledToggle.IsChecked = _settings.GetFrequentProjectsWidgetEnabled();
             QuickLaunchWidgetEnabledToggle.IsChecked = _settings.GetQuickLaunchWidgetEnabled();
+            SmartProjectSearchWidgetEnabledToggle.IsChecked = _settings.GetSmartProjectSearchWidgetEnabled();
+
+            var maxVisibleWidgets = _settings.GetWidgetLauncherMaxVisibleWidgets();
+            WidgetLauncherMaxVisibleWidgetsSlider.Value = maxVisibleWidgets;
+            UpdateWidgetLauncherMaxVisibleWidgetsText(maxVisibleWidgets);
+
+            _isLoadingSPSettings = true;
+            SmartSearchFileTypesInput.Text = string.Join(", ", _settings.GetSmartProjectSearchFileTypes());
+            var latestMode = _settings.GetSmartProjectSearchLatestMode();
+            SmartSearchLatestListRadio.IsChecked = !string.Equals(latestMode, "single", StringComparison.OrdinalIgnoreCase);
+            SmartSearchLatestSingleRadio.IsChecked = string.Equals(latestMode, "single", StringComparison.OrdinalIgnoreCase);
+            _isLoadingSPSettings = false;
             
             // Load Frequent Projects sliders
             _isLoadingFPSettings = true;
@@ -1044,6 +1063,26 @@ public partial class SettingsWindow : Window
         _onWidgetSnapGapChanged?.Invoke();
     }
 
+    private void UpdateWidgetLauncherMaxVisibleWidgetsText(int value)
+    {
+        if (WidgetLauncherMaxVisibleWidgetsValueText != null)
+            WidgetLauncherMaxVisibleWidgetsValueText.Text = value.ToString();
+    }
+
+    private void WidgetLauncherMaxVisibleWidgetsSlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        var value = (int)Math.Round(e.NewValue);
+        UpdateWidgetLauncherMaxVisibleWidgetsText(value);
+
+        if (_isUpdatingSliders || _settings == null || !IsLoaded)
+            return;
+
+        _settings.SetWidgetLauncherMaxVisibleWidgets(value);
+        _ = _settings.SaveAsync();
+        StatusText.Text = $"Widget launcher max visible widgets: {_settings.GetWidgetLauncherMaxVisibleWidgets()}";
+        _onWidgetLauncherLayoutChanged?.Invoke();
+    }
+
     private async void LivingWidgetsModeToggle_Checked(object sender, RoutedEventArgs e)
     {
         _settings.SetLivingWidgetsMode(true);
@@ -1542,6 +1581,44 @@ public partial class SettingsWindow : Window
         _ = _settings.SaveAsync();
         _onQuickLaunchWidgetEnabledChanged?.Invoke();
         StatusText.Text = enabled ? "Quick Launch widget enabled" : "Quick Launch widget disabled";
+    }
+
+    private void SmartProjectSearchWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        var enabled = SmartProjectSearchWidgetEnabledToggle.IsChecked == true;
+        _settings.SetSmartProjectSearchWidgetEnabled(enabled);
+        _ = _settings.SaveAsync();
+        _onSmartProjectSearchWidgetEnabledChanged?.Invoke();
+        StatusText.Text = enabled ? "Smart Project Search widget enabled" : "Smart Project Search widget disabled";
+    }
+
+    private void SmartSearchLatestMode_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded || _isLoadingSPSettings) return;
+        var mode = SmartSearchLatestSingleRadio.IsChecked == true ? "single" : "list";
+        _settings.SetSmartProjectSearchLatestMode(mode);
+        _ = _settings.SaveAsync();
+        StatusText.Text = mode == "single"
+            ? "Smart search latest mode: single newest result"
+            : "Smart search latest mode: newest-first list";
+    }
+
+    private void SmartSearchFileTypesInput_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded || _isLoadingSPSettings) return;
+
+        var values = SmartSearchFileTypesInput.Text
+            .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(v => v.Trim().TrimStart('.').ToLowerInvariant())
+            .Where(v => v.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        _settings.SetSmartProjectSearchFileTypes(values);
+        SmartSearchFileTypesInput.Text = string.Join(", ", _settings.GetSmartProjectSearchFileTypes());
+        _ = _settings.SaveAsync();
+        StatusText.Text = $"Smart search file types updated ({_settings.GetSmartProjectSearchFileTypes().Count} entries)";
     }
 
     // ===== General Tab - Update Settings =====

@@ -51,6 +51,7 @@ public class DocumentScanner : IDocumentScanner
         int maxDepth = 0,
         IReadOnlyList<string>? excludedFolders = null,
         int maxFiles = 200,
+        IReadOnlyList<string>? includeExtensions = null,
         CancellationToken cancellationToken = default)
     {
         var info = new ProjectFileInfo
@@ -58,6 +59,7 @@ public class DocumentScanner : IDocumentScanner
             ProjectPath = projectPath,
             ProjectName = projectName ?? Path.GetFileName(projectPath)
         };
+        var includeSet = BuildIncludeExtensionSet(includeExtensions);
 
         if (!Directory.Exists(projectPath))
             return info;
@@ -75,6 +77,11 @@ public class DocumentScanner : IDocumentScanner
                     info.DisciplineFiles[discipline] = dwgFiles;
                 }
             }
+
+            // 1.5 Build a broad searchable file set across the full project directory.
+            // Keep this independent from discipline view so users can find letters/docs anywhere.
+            var fullProjectDepth = Math.Max(maxDepth, 2);
+            info.AllFiles = ScanProjectFiles(projectPath, includeSet, fullProjectDepth, excludedFolders, maxFiles, cancellationToken);
 
             // 2. Check for "Revit File" folder
             var revitFolderPath = FindRevitFolder(projectPath);
@@ -112,7 +119,13 @@ public class DocumentScanner : IDocumentScanner
     /// <summary>
     /// Scan a discipline folder (Electrical/Mechanical/Plumbing) for .dwg files
     /// </summary>
-    private List<DocumentItem> ScanDisciplineFolder(string folderPath, string projectRoot, int maxDepth, IReadOnlyList<string>? excludedFolders, int maxFiles, CancellationToken ct)
+    private List<DocumentItem> ScanDisciplineFolder(
+        string folderPath,
+        string projectRoot,
+        int maxDepth,
+        IReadOnlyList<string>? excludedFolders,
+        int maxFiles,
+        CancellationToken ct)
     {
         var results = new List<DocumentItem>();
         var excludeSet = excludedFolders != null && excludedFolders.Count > 0
@@ -125,6 +138,48 @@ public class DocumentScanner : IDocumentScanner
         }
         catch { }
         return results;
+    }
+
+    private List<DocumentItem> ScanProjectFiles(
+        string projectPath,
+        HashSet<string> includeSet,
+        int maxDepth,
+        IReadOnlyList<string>? excludedFolders,
+        int maxFiles,
+        CancellationToken ct)
+    {
+        var results = new List<DocumentItem>();
+        var excludeSet = excludedFolders != null && excludedFolders.Count > 0
+            ? new HashSet<string>(excludedFolders, StringComparer.OrdinalIgnoreCase)
+            : null;
+
+        try
+        {
+            ScanForExtensions(projectPath, projectPath, includeSet,
+                maxDepth, 0, maxFiles, results, ct, excludeSet);
+        }
+        catch { }
+
+        return results;
+    }
+
+    private static HashSet<string> BuildIncludeExtensionSet(IReadOnlyList<string>? includeExtensions)
+    {
+        if (includeExtensions != null && includeExtensions.Count > 0)
+        {
+            return includeExtensions
+                .Select(e => e.Trim().TrimStart('.'))
+                .Where(e => !string.IsNullOrWhiteSpace(e))
+                .Select(e => e.ToLowerInvariant())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        return new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "pdf", "dwg", "rvt", "dwf", "dwfx", "dxf", "dgn",
+            "doc", "docx", "xlsx", "xls", "csv", "ppt", "pptx",
+            "txt", "msg", "eml", "rtf"
+        };
     }
 
     /// <summary>

@@ -671,7 +671,9 @@ REM Delete this batch file
                 () => _searchOverlay.UpdateQuickLaunchWidgetButton(),
                 _searchOverlay.LaunchDataStore,
                 () => _searchOverlay.UpdateQuickLaunchLayout(),
-                () => _searchOverlay.RefreshLiveWidgetLayout()
+                () => _searchOverlay.RefreshLiveWidgetLayout(),
+                () => _searchOverlay.UpdateSmartProjectSearchWidgetButton(),
+                () => _searchOverlay.UpdateWidgetLauncherLayout()
             );
             settings.Show();
         }), System.Windows.Threading.DispatcherPriority.Normal);
