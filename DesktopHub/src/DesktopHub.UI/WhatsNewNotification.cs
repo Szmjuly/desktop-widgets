@@ -114,11 +114,7 @@ internal class WhatsNewNotification : Window
             Margin = new Thickness(0, 0, 0, 8)
         });
 
-        var notesPanel = new StackPanel
-        {
-            Background = new SolidColorBrush(WpfColor.FromArgb(0x24, 0xF5, 0xF7, 0xFA)),
-            Margin = new Thickness(0, 0, 0, 12)
-        };
+        var notesPanel = new StackPanel();
 
         foreach (var line in ParseReleaseNotes(releaseNotes))
         {
@@ -132,7 +128,18 @@ internal class WhatsNewNotification : Window
             });
         }
 
-        stack.Children.Add(notesPanel);
+        var notesPanelContainer = new Border
+        {
+            Background = new SolidColorBrush(WpfColor.FromArgb(0x14, 0xF5, 0xF7, 0xFA)),
+            BorderBrush = new SolidColorBrush(WpfColor.FromArgb(0x2A, 0xA2, 0xB0, 0xBA)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(0, 6, 0, 6),
+            Margin = new Thickness(0, 0, 0, 12),
+            Child = notesPanel
+        };
+
+        stack.Children.Add(notesPanelContainer);
 
         var actions = new StackPanel
         {

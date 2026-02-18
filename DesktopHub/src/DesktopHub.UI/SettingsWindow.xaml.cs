@@ -218,6 +218,8 @@ public partial class SettingsWindow : Window
             WidgetSnapGapSlider.Value = _settings.GetWidgetSnapGap();
             UpdateWidgetSnapGapValueText(_settings.GetWidgetSnapGap());
             _isUpdatingSliders = false;
+
+            ApplySettingsWindowTransparency(SettingsTransparencySlider.Value);
             
             // Load widget enabled toggles
             TimerWidgetEnabledToggle.IsChecked = _settings.GetTimerWidgetEnabled();
@@ -725,11 +727,9 @@ public partial class SettingsWindow : Window
         _settings.SetSettingsTransparency(e.NewValue);
         _ = _settings.SaveAsync();
         StatusText.Text = "Settings transparency updated";
-        
+
         // Update this window's transparency in real-time
-        var alpha = (byte)(e.NewValue * 255);
-        var color = System.Windows.Media.Color.FromArgb(alpha, 0x18, 0x18, 0x18);
-        RootBorder.Background = new System.Windows.Media.SolidColorBrush(color);
+        ApplySettingsWindowTransparency(e.NewValue);
         
         // Sync linked sliders
         if (_settings.GetSettingsTransparencyLinked())
@@ -739,6 +739,17 @@ public partial class SettingsWindow : Window
         
         // Notify windows to update their transparency
         _onTransparencyChanged?.Invoke();
+    }
+
+    private void ApplySettingsWindowTransparency(double transparency)
+    {
+        if (RootBorder == null)
+            return;
+
+        var clamped = Math.Clamp(transparency, 0.0, 1.0);
+        var alpha = (byte)(clamped * 255);
+        var color = System.Windows.Media.Color.FromArgb(alpha, 0x18, 0x18, 0x18);
+        RootBorder.Background = new System.Windows.Media.SolidColorBrush(color);
     }
 
     private void OverlayTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)

@@ -2883,11 +2883,14 @@ public partial class SearchOverlay : Window
     {
         if (_docOverlay != null && _docOverlay.IsLoaded && _docOverlay.Visibility == Visibility.Visible)
             UpdateDynamicOverlayMaxHeight(_docOverlay);
+
+        if (this.IsLoaded && this.Visibility == Visibility.Visible)
+            UpdateDynamicOverlayMaxHeight(this);
     }
 
     private void UpdateDynamicOverlayMaxHeight(Window window)
     {
-        if (window is not DocQuickOpenOverlay)
+        if (window is not DocQuickOpenOverlay && window != this)
             return;
 
         var rect = GetWindowRect(window);
@@ -2924,7 +2927,8 @@ public partial class SearchOverlay : Window
             limitY = Math.Min(limitY, pushLimit);
         }
 
-        window.MaxHeight = Math.Max(200, limitY - window.Top);
+        var minHeight = window is DocQuickOpenOverlay ? 200.0 : 140.0;
+        window.MaxHeight = Math.Max(minHeight, limitY - window.Top);
     }
 
     private void DetachWindowFromAttachments(Window window)
@@ -2980,6 +2984,62 @@ public partial class SearchOverlay : Window
         }
     }
 
+    private void AttachImpactedWindowsBelow(Window anchor, Rect previousAnchorBounds)
+    {
+        var anchorRect = GetWindowRect(anchor);
+        var bottomDelta = anchorRect.Bottom - previousAnchorBounds.Bottom;
+        if (Math.Abs(bottomDelta) <= 0.5)
+            return;
+
+        double minCaptureTop;
+        double maxCaptureTop;
+
+        if (bottomDelta > 0)
+        {
+            // Growing: capture widgets that were at/under the old bottom and now intersect the growth zone.
+            minCaptureTop = previousAnchorBounds.Bottom - WidgetSnapThreshold;
+            maxCaptureTop = anchorRect.Bottom + WidgetSnapThreshold;
+        }
+        else
+        {
+            // Shrinking: capture widgets that were likely pushed by us (around old bottom + gap)
+            // so they can be pulled back up when the anchor contracts.
+            var gap = GetConfiguredWidgetGap();
+            minCaptureTop = anchorRect.Bottom - WidgetSnapThreshold;
+            maxCaptureTop = previousAnchorBounds.Bottom + gap + WidgetSnapThreshold;
+        }
+
+        var attachedAny = false;
+
+        foreach (var candidate in GetManagedWidgetWindows())
+        {
+            if (candidate == anchor)
+                continue;
+
+            var candidateRect = GetWindowRect(candidate);
+            var isAlreadyFollower = _verticalAttachments.TryGetValue(candidate, out var existingAnchor) && existingAnchor == anchor;
+
+            if (!isAlreadyFollower)
+            {
+                if (candidateRect.Top < minCaptureTop || candidateRect.Top > maxCaptureTop)
+                    continue;
+
+                var overlapAmount = HorizontalOverlap(anchorRect, candidateRect);
+                var requiredOverlap = Math.Min(anchorRect.Width, candidateRect.Width) * 0.25;
+                if (overlapAmount < requiredOverlap)
+                    continue;
+            }
+
+            _verticalAttachments[candidate] = anchor;
+            attachedAny = true;
+        }
+
+        if (!attachedAny)
+        {
+            AttachNearestWindowBelow(anchor, previousAnchorBounds);
+        }
+    }
+
     private void MoveAttachedFollowers(Window anchor)
     {
         MoveAttachedFollowers(anchor, new HashSet<Window>());
@@ -2992,6 +3052,7 @@ public partial class SearchOverlay : Window
 
         var anchorRect = GetWindowRect(anchor);
         var gap = GetConfiguredWidgetGap();
+        var isSearchAnchor = anchor == this;
 
         var followers = _verticalAttachments
             .Where(kvp => kvp.Value == anchor)
@@ -3005,7 +3066,14 @@ public partial class SearchOverlay : Window
             var followerRect = GetWindowRect(follower);
             var desiredTop = anchorRect.Bottom + gap;
             MoveWindowTo(follower, followerRect.Left, desiredTop);
-            ApplyLiveLayoutForWindow(follower);
+
+            // Keep followers directly anchored to Search bottom during Search resize,
+            // matching Doc-style push/pull behavior instead of lateral/overlap nudges.
+            if (!isSearchAnchor)
+            {
+                ApplyLiveLayoutForWindow(follower);
+            }
+
             MoveAttachedFollowers(follower, visited);
         }
     }
@@ -3187,9 +3255,28 @@ public partial class SearchOverlay : Window
 
             if (grewDownward || shrankDownward)
             {
-                AttachNearestWindowBelow(window, previousBounds);
+                AttachImpactedWindowsBelow(window, previousBounds);
                 MoveAttachedFollowers(window);
+
+                if (window == this)
+                {
+                    var followerCount = _verticalAttachments.Count(kvp => kvp.Value == window);
+                    DebugLogger.Log($"SearchResize: bottomDelta={(currentBounds.Bottom - previousBounds.Bottom):F1}, followers={followerCount}");
+                }
             }
+        }
+
+        if (window == this)
+        {
+            // Keep Search Overlay anchored: constrain its max height like Doc Quick Open,
+            // but don't run overlap-resolution nudges that can shift it left/right.
+            UpdateDynamicOverlayMaxHeight(window);
+            var gap = GetConfiguredWidgetGap();
+            var rect = GetWindowRect(window);
+            rect = SnapRectToScreenEdges(rect, gap);
+            MoveWindowTo(window, rect.Left, rect.Top);
+            TrackVisibleWindowBounds();
+            return;
         }
 
         ApplyLiveLayoutForWindow(window);
