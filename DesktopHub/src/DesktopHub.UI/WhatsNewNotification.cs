@@ -136,8 +136,8 @@ internal class WhatsNewNotification : Window
 
         var actions = new StackPanel
         {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right
+            Orientation = System.Windows.Controls.Orientation.Horizontal,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Right
         };
 
         var gotItButton = new Border
