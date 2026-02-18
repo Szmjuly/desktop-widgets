@@ -328,6 +328,7 @@ public partial class SearchOverlay : Window
 
             if (isLivingWidgetsMode)
             {
+                NormalizeDocStartupGapIfNeeded();
                 RefreshAttachmentMappings();
                 TrackVisibleWindowBounds();
             }
@@ -3007,6 +3008,62 @@ public partial class SearchOverlay : Window
             ApplyLiveLayoutForWindow(follower);
             MoveAttachedFollowers(follower, visited);
         }
+    }
+
+    private void NormalizeDocStartupGapIfNeeded()
+    {
+        if (!_settings.GetLivingWidgetsMode())
+            return;
+
+        if (_docOverlay == null || !_docOverlay.IsLoaded || _docOverlay.Visibility != Visibility.Visible)
+            return;
+
+        // If no project is loaded, Doc Quick Open is in its compact state.
+        // Pull the nearest widget below back up so we don't preserve a stale "pushed-down" gap from a previous session.
+        if (_docService?.ProjectInfo != null)
+            return;
+
+        var docRect = GetWindowRect(_docOverlay);
+        var gap = GetConfiguredWidgetGap();
+        Window? bestFollower = null;
+        var bestDistance = double.MaxValue;
+
+        foreach (var candidate in GetManagedWidgetWindows())
+        {
+            if (candidate == _docOverlay)
+                continue;
+
+            var candidateRect = GetWindowRect(candidate);
+            if (candidateRect.Top <= docRect.Bottom + WidgetSnapThreshold)
+                continue;
+
+            var overlapAmount = HorizontalOverlap(docRect, candidateRect);
+            var requiredOverlap = Math.Min(docRect.Width, candidateRect.Width) * 0.25;
+            if (overlapAmount < requiredOverlap)
+                continue;
+
+            var distance = candidateRect.Top - docRect.Bottom;
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestFollower = candidate;
+            }
+        }
+
+        if (bestFollower == null)
+            return;
+
+        var followerRect = GetWindowRect(bestFollower);
+        var desiredTop = docRect.Bottom + gap;
+
+        if (Math.Abs(followerRect.Top - desiredTop) <= 0.5)
+            return;
+
+        MoveWindowTo(bestFollower, followerRect.Left, desiredTop);
+        RefreshAttachmentMappings();
+        MoveAttachedFollowers(_docOverlay);
+
+        DebugLogger.Log($"NormalizeDocStartupGapIfNeeded: Pulled {bestFollower.GetType().Name} from y={followerRect.Top:F1} to y={desiredTop:F1} (Doc had no project loaded)");
     }
 
     private void RefreshAttachmentMappings()

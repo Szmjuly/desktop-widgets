@@ -98,6 +98,21 @@ public class TaskService
         task.CompletedAt = task.IsCompleted ? DateTime.Now : null;
 
         await _dataStore.UpsertTaskAsync(task);
+
+        // If the user completes a carry-over copy, also complete the original task.
+        // Otherwise the original remains incomplete and keeps getting carried over.
+        if (task.IsCompleted && !string.IsNullOrWhiteSpace(task.CarriedFromTaskId))
+        {
+            var original = await _dataStore.GetTaskByIdAsync(task.CarriedFromTaskId);
+            if (original != null && !original.IsCompleted)
+            {
+                original.IsCompleted = true;
+                original.CompletedAt = task.CompletedAt;
+                original.IsCarriedOver = false;
+                await _dataStore.UpsertTaskAsync(original);
+            }
+        }
+
         await RefreshTasksAsync();
     }
 
