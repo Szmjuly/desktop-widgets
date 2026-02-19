@@ -48,3 +48,6 @@ Crash.log
 # User settings
 appsettings.local.json
 settings.json
+
+# Local backup artifacts
+*.backup
