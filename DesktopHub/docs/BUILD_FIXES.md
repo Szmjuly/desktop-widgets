@@ -1,5 +1,8 @@
 # Build Fixes Applied
 
+> Historical build-fix notes retained for reference.
+> Canonical docs index: `README.md`.
+
 ## Issue: Namespace Ambiguity Errors
 
 ### Problem
@@ -12,18 +15,19 @@ error CS0104: 'KeyEventArgs' is an ambiguous reference between
 ```
 
 ### Root Cause
-The `.csproj` file had both `UseWPF` and `UseWindowsForms` enabled, causing namespace conflicts between WPF and WinForms types.
+In a hybrid WPF + WinForms setup, ambiguous type names (for example `Application` and `MessageBox`) caused compile conflicts when references were not explicit.
 
 ### Solution Applied
 
-#### 1. Removed UseWindowsForms from ProjectSearcher.UI.csproj
+#### 1. Clarified hybrid WPF + WinForms project settings in DesktopHub.UI.csproj
 ```xml
 <!-- Before -->
 <UseWPF>true</UseWPF>
-<UseWindowsForms>true</UseWindowsForms>
 
 <!-- After -->
 <UseWPF>true</UseWPF>
+<UseWindowsForms>true</UseWindowsForms>
+
 ```
 
 #### 2. Added Explicit References for NotifyIcon
@@ -69,12 +73,11 @@ System.Windows.Application.Current.Shutdown();
 
 ## Files Modified
 
-1. **src/ProjectSearcher.UI/ProjectSearcher.UI.csproj**
-   - Removed `UseWindowsForms` property
-   - Added `System.Drawing.Common` package reference
-   - Added `System.Windows.Forms` assembly reference
+1. **src/DesktopHub.UI/DesktopHub.UI.csproj**
+   - Uses hybrid `UseWPF` + `UseWindowsForms` for tray icon integration
+   - Maintains explicit references needed by tray icon features
 
-2. **src/ProjectSearcher.UI/TrayIcon.cs**
+2. **src/DesktopHub.UI/TrayIcon.cs**
    - Fully qualified all `System.Windows.Forms` types
    - Fully qualified all `System.Windows` types
    - Removed ambiguous `using` statements
@@ -113,4 +116,4 @@ This will:
 2. Build all projects
 3. Launch the WPF search overlay
 4. Create system tray icon
-5. Register global hotkey (Ctrl+Shift+P)
+5. Register global hotkey (Ctrl+Alt+Space)

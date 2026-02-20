@@ -1,5 +1,7 @@
 # Build and Run Guide
 
+> Docs index: `README.md`
+
 ## Prerequisites
 
 ### Required
@@ -16,7 +18,7 @@
 ### 1. Clone Repository
 ```bash
 git clone <repository-url>
-cd ProjectSearcher
+cd DesktopHub
 ```
 
 ### 2. Restore Dependencies
@@ -43,17 +45,17 @@ dotnet test
 ### Development Mode
 ```bash
 # Run from source
-dotnet run --project src/ProjectSearcher.UI
+dotnet run --project src/DesktopHub.UI
 
 # Or with hot reload
-dotnet watch run --project src/ProjectSearcher.UI
+dotnet watch run --project src/DesktopHub.UI
 ```
 
 ### Release Mode
 ```bash
 # Build and run
 dotnet build -c Release
-dotnet run --project src/ProjectSearcher.UI -c Release
+dotnet run --project src/DesktopHub.UI -c Release
 ```
 
 ## Publishing
@@ -62,20 +64,20 @@ dotnet run --project src/ProjectSearcher.UI -c Release
 Creates a single executable with all dependencies included:
 
 ```bash
-dotnet publish src/ProjectSearcher.UI -c Release -r win-x64 \
+dotnet publish src/DesktopHub.UI -c Release -r win-x64 \
   --self-contained true \
   -p:PublishSingleFile=true \
   -p:IncludeNativeLibrariesForSelfExtract=true \
   -p:EnableCompressionInSingleFile=true
 ```
 
-Output: `src/ProjectSearcher.UI/bin/Release/net8.0/win-x64/publish/ProjectSearcher.exe`
+Output: `src/DesktopHub.UI/bin/Release/net8.0-windows/win-x64/publish/DesktopHub.exe`
 
 ### Framework-Dependent Executable
 Smaller size but requires .NET 8 runtime installed:
 
 ```bash
-dotnet publish src/ProjectSearcher.UI -c Release -r win-x64 \
+dotnet publish src/DesktopHub.UI -c Release -r win-x64 \
   --self-contained false \
   -p:PublishSingleFile=true
 ```
@@ -83,9 +85,9 @@ dotnet publish src/ProjectSearcher.UI -c Release -r win-x64 \
 ## First Run Setup
 
 ### 1. Launch Application
-- Double-click `ProjectSearcher.exe`
+- Double-click `DesktopHub.exe`
 - App will minimize to system tray
-- Balloon notification shows hotkey (Ctrl+Shift+P)
+- Balloon notification shows hotkey (Ctrl+Alt+Space)
 
 ### 2. Initial Scan
 - First launch triggers Q: drive scan
@@ -102,7 +104,7 @@ dotnet publish src/ProjectSearcher.UI -c Release -r win-x64 \
 ## Usage
 
 ### Opening Search
-- Press `Ctrl+Shift+P` from any application
+- Press `Ctrl+Alt+Space` from any application
 - Or double-click system tray icon
 - Or right-click tray icon → Open Search
 
@@ -136,7 +138,7 @@ palm beach; loc:Miami; status:Active
 ## Troubleshooting
 
 ### Hotkey Not Working
-**Problem:** Ctrl+Shift+P doesn't show overlay
+**Problem:** Ctrl+Alt+Space doesn't show overlay
 
 **Solutions:**
 1. Check if another app is using the hotkey
@@ -185,12 +187,12 @@ palm beach; loc:Miami; status:Active
 ### Hot Reload
 Use `dotnet watch` for automatic recompilation:
 ```bash
-dotnet watch run --project src/ProjectSearcher.UI
+dotnet watch run --project src/DesktopHub.UI
 ```
 
 ### Debugging
 1. Open solution in Visual Studio
-2. Set `ProjectSearcher.UI` as startup project
+2. Set `DesktopHub.UI` as startup project
 3. Press F5 to debug
 4. Breakpoints work in all projects
 
@@ -206,7 +208,7 @@ dotnet test --filter "FullyQualifiedName~SearchServiceTests"
 ### Database Inspection
 SQLite database location:
 ```
-%AppData%\ProjectSearcher\projects.db
+%AppData%\DesktopHub\projects.db
 ```
 
 Use [DB Browser for SQLite](https://sqlitebrowser.org/) to inspect.
@@ -214,7 +216,7 @@ Use [DB Browser for SQLite](https://sqlitebrowser.org/) to inspect.
 ### Settings File
 Settings location:
 ```
-%AppData%\ProjectSearcher\settings.json
+%AppData%\DesktopHub\settings.json
 ```
 
 Edit manually if needed (app must be closed).
@@ -244,25 +246,25 @@ Edit manually if needed (app must be closed).
 ### Manual Setup
 1. Press `Win+R`
 2. Type `shell:startup` and press Enter
-3. Create shortcut to `ProjectSearcher.exe`
+3. Create shortcut to `DesktopHub.exe`
 4. Restart Windows to test
 
 ### Disable Auto-Start
 1. Press `Win+R`
 2. Type `shell:startup` and press Enter
-3. Delete `ProjectSearcher` shortcut
+3. Delete `DesktopHub` shortcut
 
 ## Uninstallation
 
 ### Remove Application
 1. Close application (right-click tray icon → Exit)
-2. Delete `ProjectSearcher.exe`
+2. Delete `DesktopHub.exe`
 3. Remove auto-start shortcut if created
 
 ### Remove Data (Optional)
 Delete folder:
 ```
-%AppData%\ProjectSearcher
+%AppData%\DesktopHub
 ```
 
 This removes:

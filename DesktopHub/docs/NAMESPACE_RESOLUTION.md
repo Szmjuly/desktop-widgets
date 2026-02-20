@@ -1,5 +1,8 @@
 # Namespace Resolution - WPF + WinForms Hybrid
 
+> Historical namespace-resolution note retained for reference.
+> Canonical docs index: `README.md`.
+
 ## Problem
 When both `UseWPF` and `UseWindowsForms` are enabled, several types have the same name in both frameworks, causing ambiguity errors.
 
@@ -53,20 +56,20 @@ System.Windows.Application.Current.Shutdown();
 
 ## Files Modified
 
-1. **src/ProjectSearcher.UI/ProjectSearcher.UI.csproj**
+1. **src/DesktopHub.UI/DesktopHub.UI.csproj**
    - Enabled both `UseWPF` and `UseWindowsForms`
 
-2. **src/ProjectSearcher.UI/App.xaml.cs**
+2. **src/DesktopHub.UI/App.xaml.cs**
    - Qualified `Application` base class
    - Qualified `MessageBox` and related enums
 
-3. **src/ProjectSearcher.UI/SearchOverlay.xaml.cs**
+3. **src/DesktopHub.UI/Overlays/SearchOverlay*.cs**
    - Qualified `KeyEventArgs` parameter
    - Qualified `MouseButtonEventArgs` parameter
    - Qualified `Key` enum cases
    - Qualified `Keyboard` and `ModifierKeys`
 
-4. **src/ProjectSearcher.UI/TrayIcon.cs**
+4. **src/DesktopHub.UI/TrayIcon.cs**
    - Qualified all WinForms types
    - Qualified all WPF types
 
@@ -95,9 +98,9 @@ After these changes, the build should succeed:
 Expected output:
 ```
 ✅ Restoring packages...
-✅ Building ProjectSearcher.Core...
-✅ Building ProjectSearcher.Infrastructure...
-✅ Building ProjectSearcher.UI...
+✅ Building DesktopHub.Core...
+✅ Building DesktopHub.Infrastructure...
+✅ Building DesktopHub.UI...
 ✅ Build succeeded.
 ```
 
@@ -106,7 +109,7 @@ Expected output:
 After launch:
 1. ✅ System tray icon appears (WinForms NotifyIcon)
 2. ✅ Balloon notification shows (WinForms)
-3. ✅ Press Ctrl+Shift+P → Search overlay appears (WPF Window)
+3. ✅ Press Ctrl+Alt+Space → Search overlay appears (WPF Window)
 4. ✅ Type to search → Results appear (WPF ListBox)
 5. ✅ Arrow keys navigate (WPF KeyEventArgs)
 6. ✅ Enter opens folder (WPF)

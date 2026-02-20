@@ -1,5 +1,7 @@
 # DesktopHub Performance Optimizations
 
+> Canonical docs index: `../README.md`
+
 ## Overview
 This document summarizes critical performance fixes implemented to address lag issues on slower PCs, particularly affecting hotkey response, typing in the search box, and idle memory usage.
 
@@ -55,7 +57,7 @@ RegisterHotKey(handle, hotkeyId, modifiers, key)
 **Expected Impact**: **50-70% faster search**, smoother typing experience
 
 ### 3. ✅ **UI Responsiveness**
-**File**: `src/DesktopHub.UI/SearchOverlay.xaml.cs`
+**File**: `src/DesktopHub.UI/Overlays/SearchOverlay.SearchData.cs`
 
 **Change**: Increased search debounce from 150ms to 250ms
 - Reduces search frequency during fast typing
@@ -98,8 +100,6 @@ RegisterHotKey(handle, hotkeyId, modifiers, key)
 
 ### Build Release Version
 ```powershell
-cd c:\Users\smarkowitz\repos\desktop-widgets\DesktopHub
-
 # Set .NET path (if needed)
 $env:PATH = "C:\dotnet;$env:PATH"
 
@@ -148,7 +148,7 @@ To verify improvements on slower PC:
 If issues occur, all changes are contained in these files:
 - `src/DesktopHub.UI/Helpers/GlobalHotkey.cs` - Hotkey system
 - `src/DesktopHub.Infrastructure/Search/SearchService.cs` - Search algorithm
-- `src/DesktopHub.UI/SearchOverlay.xaml.cs` - Debounce timing
+- `src/DesktopHub.UI/Overlays/SearchOverlay.SearchData.cs` - Debounce timing
 - `src/DesktopHub.UI/DebugLogger.cs` - Logging system
 - `src/DesktopHub.Infrastructure/Firebase/FirebaseService.cs` - Heartbeat timing
 

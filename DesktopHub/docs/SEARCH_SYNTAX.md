@@ -1,7 +1,9 @@
 # Search Syntax Guide
 
+> Docs index: `README.md`
+
 ## Overview
-Project Searcher supports both simple text search and advanced prefix-based filters. You can combine multiple filters using semicolons.
+DesktopHub search supports both simple text search and advanced prefix-based filters. You can combine multiple filters using semicolons.
 
 ## Simple Search
 
@@ -194,7 +196,7 @@ All searches are case-insensitive:
 - Use comma-separated values for OR logic: `loc:Miami,Boca`
 
 ### Keyboard Workflow
-1. Press `Ctrl+Shift+P`
+1. Press `Ctrl+Alt+Space`
 2. Type filter: `loc:Miami; status:Active`
 3. Arrow keys to navigate
 4. `Enter` to open

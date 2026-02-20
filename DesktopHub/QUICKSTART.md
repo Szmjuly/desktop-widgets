@@ -1,5 +1,7 @@
 # DesktopHub - Quick Start Guide
 
+> Full docs index: `docs/README.md`
+
 ## First Time Setup
 
 ### 1. Run the Application
@@ -16,16 +18,16 @@ This will:
 
 ### 2. What Happens on First Launch
 - Application minimizes to system tray (look for icon in bottom-right)
-- A balloon notification appears: "Press Ctrl+Shift+P to open DesktopHub"
+- A balloon notification appears: "Press Ctrl+Alt+Space to open DesktopHub"
 - Background scan of Q: drive begins (may take 30-60 seconds)
 
 ### 3. Try the Widgets
-Press **`Ctrl+Shift+P`** from anywhere to open the DesktopHub widget overlay.
+Press **`Ctrl+Alt+Space`** from anywhere to open the DesktopHub widget overlay.
 
 ## Basic Usage
 
 ### Opening DesktopHub
-- **Hotkey**: `Ctrl+Shift+P` (works from any application)
+- **Hotkey**: `Ctrl+Alt+Space` (works from any application)
 - **Tray Icon**: Double-click the system tray icon
 - **Context Menu**: Right-click tray icon → "Open DesktopHub"
 
@@ -79,7 +81,7 @@ Project cache is stored in:
 ### Default Settings
 - **Q: Drive Path**: `Q:\`
 - **Scan Interval**: 30 minutes
-- **Hotkey**: `Ctrl+Shift+P`
+- **Hotkey**: `Ctrl+Alt+Space`
 - **Theme**: Dark
 
 ## Troubleshooting
@@ -90,7 +92,7 @@ Project cache is stored in:
 3. Try manually mapping the drive
 
 ### Hotkey doesn't work
-1. Check if another app is using `Ctrl+Shift+P`
+1. Check if another app is using `Ctrl+Alt+Space`
 2. Try closing other apps and restarting DesktopHub
 3. Use tray icon as fallback
 
@@ -129,7 +131,7 @@ dotnet test
 dotnet publish src\DesktopHub.UI -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
 ```
 
-Output: `src\DesktopHub.UI\bin\Release\net8.0\win-x64\publish\DesktopHub.exe`
+Output: `src\DesktopHub.UI\bin\Release\net8.0-windows\win-x64\publish\DesktopHub.exe`
 
 ## Tips
 
@@ -165,5 +167,5 @@ For issues or questions:
 
 ---
 
-**Version**: 2.0.0 (Migrated from ProjectSearcher)  
+**Version**: 2.0.0  
 **Last Updated**: 2026-01-27

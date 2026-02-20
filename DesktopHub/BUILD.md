@@ -2,6 +2,9 @@
 
 This guide explains how to build and package DesktopHub for distribution.
 
+> Documentation note: for local dev build/run commands, see `docs/BUILD_AND_RUN.md`.
+> For release sequencing, see `docs/RELEASE_WORKFLOW.md`.
+
 ## Quick Start
 
 ### Option 1: Single-File Executable (Easiest)
@@ -10,7 +13,7 @@ This guide explains how to build and package DesktopHub for distribution.
 # Build as single executable
 .\scripts\build-single-file.ps1
 
-# The executable will be in: publish\DesktopHub.UI.exe
+# The executable will be in: publish\DesktopHub.exe
 # You can copy this single file to any Windows machine and run it directly
 ```
 
@@ -94,7 +97,7 @@ dotnet publish src\DesktopHub.UI\DesktopHub.UI.csproj -c Release -r win-x64 --se
 ```
 DesktopHub/
 ├── publish/                    # Single-file executable
-│   └── DesktopHub.UI.exe      # ~80-100MB, self-contained
+│   └── DesktopHub.exe         # ~80-100MB, self-contained
 ├── installer-output/           # Installers
 │   ├── DesktopHub-Setup.exe    # Inno Setup installer
 │   └── DesktopHub.msi          # WiX MSI installer

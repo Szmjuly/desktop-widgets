@@ -16,6 +16,8 @@ A lightweight Windows desktop application that provides a **modular widget host 
 
 ## Quick Start
 
+- Full docs index: `docs/README.md`
+
 ### Prerequisites
 - Windows 10/11
 - .NET 8 Runtime
@@ -171,5 +173,5 @@ Internal tool for company use.
 
 ---
 
-**Version:** 2.0.0 (Migrated from ProjectSearcher)  
+**Version:** 2.0.0  
 **Last Updated:** 2026-01-27

@@ -1,7 +1,9 @@
-# Project Searcher - Architecture
+# DesktopHub - Architecture
+
+> Docs index: `README.md`
 
 ## Overview
-Project Searcher is a lightweight Windows desktop application that provides Spotlight-style instant search for project folders on the Q: drive network share. Built with C# and WPF, it runs in the background with minimal resource usage and responds to a global hotkey (Ctrl+Shift+P by default).
+DesktopHub is a lightweight Windows desktop application that provides a modular widget host with spotlight-style project search and supporting overlays. Built with C# and WPF, it runs in the background with minimal resource usage and responds to a global hotkey (`Ctrl+Alt+Space` by default).
 
 ## Design Goals
 - **Lightweight** - <50MB RAM usage when idle
@@ -12,7 +14,7 @@ Project Searcher is a lightweight Windows desktop application that provides Spot
 
 ## Architecture Layers
 
-### 1. Core Layer (`ProjectSearcher.Core`)
+### 1. Core Layer (`DesktopHub.Core`)
 Domain models and service interfaces. No external dependencies.
 
 **Models:**
@@ -27,7 +29,7 @@ Domain models and service interfaces. No external dependencies.
 - `IDataStore` - Data persistence interface
 - `ISettingsService` - Settings management interface
 
-### 2. Infrastructure Layer (`ProjectSearcher.Infrastructure`)
+### 2. Infrastructure Layer (`DesktopHub.Infrastructure`)
 Concrete implementations of core interfaces.
 
 **Components:**
@@ -48,10 +50,10 @@ Concrete implementations of core interfaces.
   - Batch upsert for performance
 
 - `SettingsService` - JSON file-based settings
-  - Stored in `%AppData%\ProjectSearcher\settings.json`
+  - Stored in `%AppData%\DesktopHub\settings.json`
   - Q: drive path, scan interval, hotkey, theme, auto-start
 
-### 3. UI Layer (`ProjectSearcher.UI`)
+### 3. UI Layer (`DesktopHub.UI`)
 WPF-based user interface with global hotkey support.
 
 **Components:**
@@ -75,20 +77,35 @@ WPF-based user interface with global hotkey support.
   - `BoolToVisibilityConverter` - Show/hide based on boolean
   - `NullToVisibilityConverter` - Show/hide based on null
 
+### SearchOverlay (Phase 3 Partial Decomposition)
+
+`SearchOverlay` has been split into focused partial classes under `src/DesktopHub.UI/Overlays/` to reduce file size and improve maintainability:
+
+- `SearchOverlay.xaml.cs` - shared fields/state and core properties
+- `SearchOverlay.Initialization.cs` - constructor and startup initialization flow
+- `SearchOverlay.SearchData.cs` - project loading, filtering, search text change flow
+- `SearchOverlay.VisibilityAndHotkey.cs` - global hotkey and overlay show/hide behavior
+- `SearchOverlay.PathSearch.cs` - path-aware search parsing and matching
+- `SearchOverlay.ResultsInteraction.cs` - result list interactions, history, context menus
+- `SearchOverlay.LifecycleAndIpc.cs` - lifecycle hooks and IPC listener handling
+- `SearchOverlay.WidgetAndUpdates.cs` - widget visibility/layout toggles and update indicators
+- `SearchOverlay.WidgetWindows.cs` - widget window creation/toggle and dragging helpers
+- `SearchOverlay.LiveLayout.cs` - live widget snapping, overlap prevention, attachments
+
 ## Data Flow
 
 ### Startup Flow
 1. App launches, initializes services
 2. Loads settings from JSON file
 3. Initializes SQLite database (creates tables if needed)
-4. Registers global hotkey (Ctrl+Shift+P)
+4. Registers global hotkey (`Ctrl+Alt+Space` by default)
 5. Creates system tray icon
 6. Loads projects from database
 7. Starts background scan if needed (based on last scan time)
 8. Hides window, waits for hotkey
 
 ### Search Flow
-1. User presses Ctrl+Shift+P
+1. User presses `Ctrl+Alt+Space`
 2. Window shows with fade-in animation
 3. User types search query
 4. Query is debounced (150ms delay)
@@ -190,7 +207,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 ```
 
 ### Output
-- Single executable: `ProjectSearcher.exe`
+- Single executable: `DesktopHub.exe`
 - Size: ~15-20MB (self-contained)
 - No dependencies required
 

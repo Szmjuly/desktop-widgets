@@ -1,11 +1,14 @@
 # Final Build Fix - Hybrid WPF + WinForms
 
+> Historical build note retained for reference.
+> Canonical docs index: `README.md`.
+
 ## Solution
 Enable both `UseWPF` and `UseWindowsForms` in the project file, then use fully qualified namespaces to avoid ambiguity.
 
 ## Changes Applied
 
-### 1. ProjectSearcher.UI.csproj
+### 1. DesktopHub.UI.csproj
 ```xml
 <PropertyGroup>
   <UseWPF>true</UseWPF>
@@ -72,16 +75,16 @@ Should now build successfully!
 ## Expected Output
 ```
 ✅ Restore packages
-✅ Build ProjectSearcher.Core
-✅ Build ProjectSearcher.Infrastructure  
-✅ Build ProjectSearcher.UI
+✅ Build DesktopHub.Core
+✅ Build DesktopHub.Infrastructure
+✅ Build DesktopHub.UI
 ✅ Launch application
 ```
 
 ## Verification
 After running, you should see:
 1. System tray icon appears
-2. Balloon notification: "Press Ctrl+Shift+P to search projects"
-3. Press Ctrl+Shift+P → Search overlay appears
+2. Balloon notification: "Press Ctrl+Alt+Space to open DesktopHub"
+3. Press Ctrl+Alt+Space → Search overlay appears
 4. Type to search → Results appear
 5. Press Escape → Overlay hides

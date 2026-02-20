@@ -1,7 +1,10 @@
-# Project Searcher - Development Checklist
+# DesktopHub - Development Checklist
+
+> Status: historical planning checklist (retained for reference).
+> Canonical docs index: `../README.md`.
 
 ## Core Concept
-Create a **lightweight background Windows application** that provides **Spotlight-style instant search** for project folders on the Q: drive network share. Users press a global hotkey (e.g., `Ctrl+Shift+P`) to instantly bring up a search overlay, type to filter projects, and press Enter to open the folder. The app runs silently in the system tray with minimal memory footprint.
+Create a **lightweight background Windows application** that provides **Spotlight-style instant search** for project folders on the Q: drive network share. Users press a global hotkey (e.g., `Ctrl+Alt+Space`) to instantly bring up a search overlay, type to filter projects, and press Enter to open the folder. The app runs silently in the system tray with minimal memory footprint.
 
 **Key Design Goals:**
 - **Lightweight** - Runs in background with <50MB RAM usage
@@ -13,20 +16,20 @@ Create a **lightweight background Windows application** that provides **Spotligh
 
 ### Project Structure
 ```
-ProjectSearcher/
+DesktopHub/
 ├── README.md
-├── ProjectSearcher.sln
+├── DesktopHub.sln
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── HOTKEY_GUIDE.md
 │   └── SEARCH_SYNTAX.md
 ├── src/
-│   ├── ProjectSearcher.Core/          # Domain models, services
-│   ├── ProjectSearcher.Infrastructure/ # SQLite, file scanning
-│   ├── ProjectSearcher.UI/            # WPF search overlay
-│   └── ProjectSearcher.DevHarness/    # Testing harness
+│   ├── DesktopHub.Core/          # Domain models, services
+│   ├── DesktopHub.Infrastructure/ # SQLite, file scanning
+│   ├── DesktopHub.UI/            # WPF search overlay
+│   └── DesktopHub.DevHarness/    # Testing harness
 └── tests/
-    └── ProjectSearcher.Tests/
+    └── DesktopHub.Tests/
 ```
 
 ## Key Features to Implement
@@ -69,7 +72,7 @@ ProjectSearcher/
 
 ### ✅ Phase 3: UI - Search Overlay (Spotlight-style)
 - [ ] **Global Hotkey Registration**
-  - [ ] Register `Ctrl+Shift+P` using Win32 API
+  - [ ] Register `Ctrl+Alt+Space` using Win32 API
   - [ ] Handle hotkey in background thread
   - [ ] Show/hide overlay on hotkey press
 
