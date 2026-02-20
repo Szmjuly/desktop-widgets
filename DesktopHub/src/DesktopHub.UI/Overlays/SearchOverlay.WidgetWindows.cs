@@ -385,6 +385,90 @@ public partial class SearchOverlay
         }
     }
 
+    private async void CreateSmartProjectSearchOverlay(double? left = null, double? top = null)
+    {
+        if (_smartProjectSearchService == null)
+            return;
+
+        _smartProjectSearchOverlay = new SmartProjectSearchOverlay(_smartProjectSearchService, _settings);
+        ApplyResponsiveWidgetWidth(_smartProjectSearchOverlay);
+        RegisterWidgetWindow(_smartProjectSearchOverlay);
+        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+        _smartProjectSearchOverlay.Topmost = !isLivingWidgetsMode;
+
+        var (savedLeft, savedTop) = _settings.GetSmartProjectSearchWidgetPosition();
+        _smartProjectSearchOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
+        _smartProjectSearchOverlay.Top = top ?? savedTop ?? (this.Top + 380);
+
+        if (isLivingWidgetsMode)
+            _smartProjectSearchOverlay.EnableDragging();
+
+        _smartProjectSearchOverlay.Show();
+        _smartProjectSearchOverlay.UpdateTransparency();
+        _smartProjectSearchOverlay.Tag = "WasVisible";
+
+        if (isLivingWidgetsMode)
+        {
+            ApplyLiveLayoutForWindow(_smartProjectSearchOverlay);
+            RefreshAttachmentMappings();
+            TrackVisibleWindowBounds();
+        }
+
+        if (isLivingWidgetsMode && _desktopFollower != null)
+        {
+            _desktopFollower.TrackWindow(_smartProjectSearchOverlay);
+        }
+
+        var smartRef = _smartProjectSearchOverlay;
+        _updateIndicatorManager?.RegisterWidget("SmartProjectSearchOverlay", 8, _smartProjectSearchOverlay,
+            visible => Dispatcher.Invoke(() => smartRef.SetUpdateIndicatorVisible(visible)));
+
+        if (ResultsList.SelectedItem is ProjectViewModel vm)
+        {
+            try
+            {
+                await _smartProjectSearchOverlay.Widget.SetProjectAsync(vm.Path, $"{vm.FullNumber} {vm.Name}");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"CreateSmartProjectSearchOverlay: Failed to prime selected project: {ex.Message}");
+            }
+        }
+
+        DebugLogger.Log($"CreateSmartProjectSearchOverlay: Created at ({_smartProjectSearchOverlay.Left}, {_smartProjectSearchOverlay.Top})");
+    }
+
+    private void OnSmartProjectSearchRequested(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (_smartProjectSearchOverlay == null)
+            {
+                CreateSmartProjectSearchOverlay();
+            }
+            else
+            {
+                if (_smartProjectSearchOverlay.Visibility == Visibility.Visible)
+                {
+                    _smartProjectSearchOverlay.Visibility = Visibility.Hidden;
+                    _smartProjectSearchOverlay.Tag = null;
+                    DebugLogger.Log("OnSmartProjectSearchRequested: Smart search overlay hidden");
+                }
+                else
+                {
+                    _smartProjectSearchOverlay.Visibility = Visibility.Visible;
+                    _smartProjectSearchOverlay.Tag = "WasVisible";
+                    DebugLogger.Log("OnSmartProjectSearchRequested: Smart search overlay shown");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"OnSmartProjectSearchRequested: Error: {ex}");
+            System.Windows.MessageBox.Show($"Error with smart project search overlay: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private void PositionTimerOverlayOnSameScreen()
     {
         if (_timerOverlay == null)
