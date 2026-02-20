@@ -235,6 +235,10 @@ public class SettingsService : ISettingsService
     public void SetSmartProjectSearchWidgetVisible(bool visible) => _settings.SmartProjectSearchWidgetVisible = visible;
     public bool GetSmartProjectSearchWidgetEnabled() => _settings.SmartProjectSearchWidgetEnabled;
     public void SetSmartProjectSearchWidgetEnabled(bool enabled) => _settings.SmartProjectSearchWidgetEnabled = enabled;
+    public bool GetSmartProjectSearchAttachToSearchOverlayMode() => _settings.SmartProjectSearchAttachToSearchOverlayMode;
+    public void SetSmartProjectSearchAttachToSearchOverlayMode(bool enabled) => _settings.SmartProjectSearchAttachToSearchOverlayMode = enabled;
+    public bool GetSmartProjectSearchWidgetEnabledBeforeAttachMode() => _settings.SmartProjectSearchWidgetEnabledBeforeAttachMode;
+    public void SetSmartProjectSearchWidgetEnabledBeforeAttachMode(bool enabled) => _settings.SmartProjectSearchWidgetEnabledBeforeAttachMode = enabled;
     public string GetSmartProjectSearchLatestMode()
         => string.IsNullOrWhiteSpace(_settings.SmartProjectSearchLatestMode)
             ? "list"
@@ -410,6 +414,8 @@ public class SettingsService : ISettingsService
         public double? SmartProjectSearchWidgetTop { get; set; } = null;
         public bool SmartProjectSearchWidgetVisible { get; set; } = false;
         public bool SmartProjectSearchWidgetEnabled { get; set; } = true;
+        public bool SmartProjectSearchAttachToSearchOverlayMode { get; set; } = false;
+        public bool SmartProjectSearchWidgetEnabledBeforeAttachMode { get; set; } = true;
         public string SmartProjectSearchLatestMode { get; set; } = "list";
         public List<string> SmartProjectSearchFileTypes { get; set; } = GetDefaultSmartProjectSearchFileTypes();
     }

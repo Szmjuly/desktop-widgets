@@ -112,12 +112,16 @@ public partial class SearchOverlay
 
     public void UpdateSmartProjectSearchWidgetButton()
     {
+        var attachModeEnabled = _settings.GetSmartProjectSearchAttachToSearchOverlayMode();
+
         if (_widgetLauncher != null)
         {
-            var enabled = _settings.GetSmartProjectSearchWidgetEnabled();
-            _widgetLauncher.UpdateSmartProjectSearchButtonVisibility(enabled);
-            DebugLogger.Log($"UpdateSmartProjectSearchWidgetButton: visibility set to {enabled}");
+            var launcherVisible = _settings.GetSmartProjectSearchWidgetEnabled() && !attachModeEnabled;
+            _widgetLauncher.UpdateSmartProjectSearchButtonVisibility(launcherVisible);
+            DebugLogger.Log($"UpdateSmartProjectSearchWidgetButton: launcher visibility set to {launcherVisible} (attach mode: {attachModeEnabled})");
         }
+
+        ApplySmartProjectSearchAttachModeState();
     }
 
     public void UpdateQuickLaunchLayout()

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mini Top-Down Creature RPG (MVP)</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="title">Mini Creature RPG MVP</div>
+      <div class="controls">
+        <button id="btnSave" title="Save to localStorage">Save</button>
+        <button id="btnLoad" title="Load from localStorage">Load</button>
+        <button id="btnReset" title="Clear save and restart">Reset</button>
+      </div>
+    </header>
+
+    <!-- Main menu (shown on launch) -->
+    <div id="mainMenu" class="main-menu">
+      <h1 class="main-menu-title">Mini Creature RPG</h1>
+      <p class="main-menu-subtitle">Choose your path</p>
+      <div class="main-menu-actions">
+        <button type="button" id="mainMenuNewGame" class="main-menu-btn">New Game</button>
+        <button type="button" id="mainMenuSlot1" class="main-menu-btn main-menu-slot">
+          <span class="slot-label">Slot 1</span>
+          <span class="slot-info" id="slot1Info">— Empty —</span>
+        </button>
+        <button type="button" id="mainMenuSlot2" class="main-menu-btn main-menu-slot">
+          <span class="slot-label">Slot 2</span>
+          <span class="slot-info" id="slot2Info">— Empty —</span>
+        </button>
+        <button type="button" id="mainMenuSlot3" class="main-menu-btn main-menu-slot">
+          <span class="slot-label">Slot 3</span>
+          <span class="slot-info" id="slot3Info">— Empty —</span>
+        </button>
+      </div>
+      <p id="mainMenuMessage" class="main-menu-msg hidden" aria-live="polite"></p>
+    </div>
+
+    <main class="gamewrap hidden" id="gamewrap">
+      <canvas id="game" width="640" height="480" aria-label="Game canvas"></canvas>
+
+      <!-- HUD -->
+      <div id="hud" class="hud">
+        <div class="hud-row">
+          <div><span class="label">Map:</span> <span id="hudMap">Town</span></div>
+          <div><span class="label">Party:</span> <span id="hudParty">0/6</span></div>
+          <div><span class="label">Storage:</span> <span id="hudStorage">0</span></div>
+          <div><span class="label">Capsules:</span> <span id="hudCapsules">0</span></div>
+        </div>
+        <div class="hud-hint">
+          Arrows to move, Enter to interact, Esc to cancel.
+        </div>
+      </div>
+
+      <!-- Dialog -->
+      <div id="dialog" class="dialog hidden">
+        <div id="dialogText" class="dialog-text"></div>
+        <div class="dialog-hint">Enter</div>
+      </div>
+
+      <!-- Menu -->
+      <div id="menu" class="menu hidden" role="menu" aria-label="Menu">
+        <div id="menuTitle" class="menu-title"></div>
+        <div id="menuItems" class="menu-items"></div>
+        <div class="menu-hint">Enter to confirm, Esc to cancel</div>
+      </div>
+
+      <!-- Name entry (new game) -->
+      <div id="namePrompt" class="name-prompt hidden">
+        <label for="nameInput" class="name-prompt-label">Your name</label>
+        <input type="text" id="nameInput" class="name-prompt-input" maxlength="20" placeholder="Player" />
+        <button type="button" id="namePromptConfirm" class="name-prompt-btn">Start</button>
+      </div>
+
+      <!-- Battle UI -->
+      <div id="battle" class="battle hidden" aria-label="Battle UI">
+        <div class="battle-top">
+          <div class="b-card">
+            <div class="b-name" id="wildName">Wild</div>
+            <div class="b-hpbar">
+              <div class="b-hpfill" id="wildHpFill"></div>
+            </div>
+            <div class="b-hptext" id="wildHpText">HP</div>
+          </div>
+
+          <div class="b-card">
+            <div class="b-name" id="playerName">You</div>
+            <div class="b-hpbar">
+              <div class="b-hpfill" id="playerHpFill"></div>
+            </div>
+            <div class="b-hptext" id="playerHpText">HP</div>
+          </div>
+        </div>
+
+        <div class="battle-log" id="battleLog"></div>
+
+        <div class="battle-actions">
+          <button id="btnFight">Fight</button>
+          <button id="btnCapture">Capture</button>
+          <button id="btnRun">Run</button>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      No copyrighted assets, all visuals are simple tiles and shapes.
+    </footer>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>

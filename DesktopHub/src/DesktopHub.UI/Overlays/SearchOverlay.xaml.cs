@@ -39,6 +39,7 @@ public partial class SearchOverlay : Window
     private TaskService? _taskService;
     private DocOpenService? _docService;
     private SmartProjectSearchService? _smartProjectSearchService;
+    private SmartProjectSearchWidget? _smartProjectSearchAttachedWidget;
     private IProjectLaunchDataStore? _launchDataStore;
     private List<Project> _allProjects = new();
     private List<Project> _filteredProjects = new();
@@ -47,6 +48,7 @@ public partial class SearchOverlay : Window
     private bool _isPathSearchResults = false;
     private string? _activePathSearchRootDisplay;
     private bool _isResultsCollapsed = false;
+    private bool _isSmartProjectSearchAttachedPanelExpanded = false;
     private bool _userManuallySizedResults = false;
     private bool _isTogglingViaHotkey = false;
     private DateTime _lastHotkeyPress = DateTime.MinValue;
@@ -62,6 +64,9 @@ public partial class SearchOverlay : Window
     private Helpers.DesktopFollower? _desktopFollower;
     private UpdateCheckService? _updateCheckService;
     private UpdateIndicatorManager? _updateIndicatorManager;
+    private const double OverlayCollapsedBaseHeight = 140;
+    private const double OverlayExpandedBaseHeight = 500;
+    private const double SmartProjectSearchAttachedPanelExpandedHeight = 255;
     private static readonly HashSet<string> PathSearchStopWords = new(StringComparer.OrdinalIgnoreCase)
     {
         "a", "an", "and", "or", "the", "from", "for", "to", "of", "in", "on", "at", "by", "with"

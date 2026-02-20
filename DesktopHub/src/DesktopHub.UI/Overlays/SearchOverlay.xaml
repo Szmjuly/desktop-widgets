@@ -116,12 +116,14 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             
             <!-- Search box, drive location filter, and year filter -->
             <Grid Grid.Row="0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
@@ -426,9 +428,53 @@
                     </ComboBox>
                 </Border>
                 
+                <!-- Smart Search Attach Panel Toggle -->
+                <Button x:Name="SmartProjectSearchAttachToggleButton"
+                        Grid.Column="3"
+                        Background="#D0121212"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        Width="50"
+                        Click="SmartProjectSearchAttachToggleButton_Click"
+                        Cursor="Hand"
+                        ToolTip="Toggle Smart Project Search Panel"
+                        VerticalAlignment="Stretch"
+                        Visibility="Collapsed">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="ButtonBorder"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="8">
+                                            <TextBlock Text="&#xE721;"
+                                                       FontFamily="Segoe MDL2 Assets"
+                                                       FontSize="16"
+                                                       Foreground="#F5F7FA"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ButtonBorder" Property="Background" Value="#E0121212"/>
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="ButtonBorder" Property="Background" Value="#F0121212"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
                 <!-- Widget Launcher Toggle Button -->
                 <Button x:Name="WidgetLauncherToggle"
-                        Grid.Column="3"
+                        Grid.Column="4"
                         Background="#D0121212"
                         BorderBrush="{StaticResource BorderBrush}"
                         BorderThickness="1"
@@ -585,9 +631,38 @@
             </Border>
             
             </Grid>
+
+            <!-- Smart Project Search attached panel -->
+            <Border Grid.Row="3"
+                    x:Name="SmartProjectSearchAttachedPanelContainer"
+                    Margin="0,8,0,0"
+                    Background="#D0121212"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Visibility="Collapsed"
+                    MaxHeight="0"
+                    ClipToBounds="True">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0"
+                              Text="Smart Project Search"
+                              FontSize="12"
+                              FontWeight="SemiBold"
+                              Foreground="#F5F7FA"
+                              Margin="0,0,0,8"/>
+
+                    <ContentControl x:Name="SmartProjectSearchAttachedHost"
+                                    Grid.Row="1"/>
+                </Grid>
+            </Border>
             
             <!-- Status bar -->
-            <Grid Grid.Row="3" Margin="0,8,0,0">
+            <Grid Grid.Row="4" Margin="0,8,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>

@@ -277,7 +277,7 @@ public partial class SearchOverlay
                 _isResultsCollapsed = true;
                 ResultsContainer.Visibility = Visibility.Collapsed;
                 CollapseIconRotation.Angle = -90;
-                this.Height = 140;
+                SetSmartProjectSearchAttachedPanelExpanded(false, true);
             }
             return;
         }
@@ -363,7 +363,7 @@ public partial class SearchOverlay
                     _isResultsCollapsed = false;
                     ResultsContainer.Visibility = Visibility.Visible;
                     CollapseIconRotation.Angle = 0;
-                    this.Height = 500;
+                    UpdateOverlayHeightForCurrentState(true);
                 }
 
                 // History tracking removed - only track on actual project launch

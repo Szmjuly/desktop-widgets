@@ -35,7 +35,9 @@ public partial class WidgetLauncher : Window
         UpdateDocButtonVisibility(_settings.GetDocWidgetEnabled());
         UpdateFrequentProjectsButtonVisibility(_settings.GetFrequentProjectsWidgetEnabled());
         UpdateQuickLaunchButtonVisibility(_settings.GetQuickLaunchWidgetEnabled());
-        UpdateSmartProjectSearchButtonVisibility(_settings.GetSmartProjectSearchWidgetEnabled());
+        var smartSearchVisible = _settings.GetSmartProjectSearchWidgetEnabled() &&
+                                 !_settings.GetSmartProjectSearchAttachToSearchOverlayMode();
+        UpdateSmartProjectSearchButtonVisibility(smartSearchVisible);
         Loaded += (_, _) => RefreshLayoutFromSettings();
         RefreshLayoutFromSettings();
     }

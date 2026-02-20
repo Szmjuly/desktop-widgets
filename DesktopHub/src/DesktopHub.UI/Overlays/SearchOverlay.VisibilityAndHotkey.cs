@@ -232,11 +232,14 @@ public partial class SearchOverlay
         // Reset manual toggle flag on new open
         _userManuallySizedResults = false;
 
+        ApplySmartProjectSearchAttachModeState();
+
         // Start with results collapsed
         _isResultsCollapsed = true;
         ResultsContainer.Visibility = Visibility.Collapsed;
         CollapseIconRotation.Angle = -90;
-        this.Height = 140; // Collapsed height
+        SetSmartProjectSearchAttachedPanelExpanded(false, false);
+        UpdateOverlayHeightForCurrentState(false);
 
         DebugLogger.LogHeader("Positioning Window");
         // Only reposition if Living Widgets Mode is disabled (legacy overlay mode)
@@ -458,14 +461,14 @@ public partial class SearchOverlay
             // Collapse results - shrink window
             ResultsContainer.Visibility = Visibility.Collapsed;
             CollapseIconRotation.Angle = -90; // Rotate arrow to point right
-            this.Height = 140; // Compact height for search bar and history pills only
+            SetSmartProjectSearchAttachedPanelExpanded(false, true);
         }
         else
         {
             // Expand results - restore full window height
             ResultsContainer.Visibility = Visibility.Visible;
             CollapseIconRotation.Angle = 0; // Arrow points down
-            this.Height = 500; // Full height with results
+            UpdateOverlayHeightForCurrentState(true);
         }
     }
 

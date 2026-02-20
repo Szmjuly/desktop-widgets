@@ -387,6 +387,12 @@ public partial class SearchOverlay
 
     private async void CreateSmartProjectSearchOverlay(double? left = null, double? top = null)
     {
+        if (_settings.GetSmartProjectSearchAttachToSearchOverlayMode())
+        {
+            DebugLogger.Log("CreateSmartProjectSearchOverlay: Skipped because attach mode is enabled");
+            return;
+        }
+
         if (_smartProjectSearchService == null)
             return;
 
@@ -442,6 +448,12 @@ public partial class SearchOverlay
     {
         try
         {
+            if (_settings.GetSmartProjectSearchAttachToSearchOverlayMode())
+            {
+                DebugLogger.Log("OnSmartProjectSearchRequested: Ignored because attach mode is enabled");
+                return;
+            }
+
             if (_smartProjectSearchOverlay == null)
             {
                 CreateSmartProjectSearchOverlay();

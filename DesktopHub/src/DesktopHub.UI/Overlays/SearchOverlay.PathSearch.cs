@@ -483,7 +483,7 @@ public partial class SearchOverlay
                     _isResultsCollapsed = false;
                     ResultsContainer.Visibility = Visibility.Visible;
                     CollapseIconRotation.Angle = 0;
-                    this.Height = 500;
+                    UpdateOverlayHeightForCurrentState(true);
                 }
             }
             else

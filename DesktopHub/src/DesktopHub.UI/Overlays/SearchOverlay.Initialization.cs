@@ -278,12 +278,15 @@ public partial class SearchOverlay
                 DebugLogger.Log("Restored quick launch widget from previous session");
             }
 
+            var smartProjectSearchAttachModeEnabled = _settings.GetSmartProjectSearchAttachToSearchOverlayMode();
             var smartProjectSearchVisible = _settings.GetSmartProjectSearchWidgetVisible();
-            if (smartProjectSearchVisible)
+            if (!smartProjectSearchAttachModeEnabled && smartProjectSearchVisible)
             {
                 CreateSmartProjectSearchOverlay();
                 DebugLogger.Log("Restored smart project search widget from previous session");
             }
+
+            ApplySmartProjectSearchAttachModeState();
 
             if (isLivingWidgetsMode)
             {
@@ -326,6 +329,9 @@ public partial class SearchOverlay
             if (_smartProjectSearchOverlay != null)
                 _updateIndicatorManager.RegisterWidget("SmartProjectSearchOverlay", 8, _smartProjectSearchOverlay,
                     visible => Dispatcher.Invoke(() => _smartProjectSearchOverlay.SetUpdateIndicatorVisible(visible)));
+
+            // Re-apply in case settings changed while startup widgets were restoring.
+            UpdateSmartProjectSearchWidgetButton();
 
             // Initialize periodic update checking
             InitializeUpdateCheckService();

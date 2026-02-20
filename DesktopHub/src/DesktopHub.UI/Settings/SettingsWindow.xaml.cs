@@ -250,13 +250,16 @@ public partial class SettingsWindow : Window
             // Load new widget enabled toggles
             FrequentProjectsWidgetEnabledToggle.IsChecked = _settings.GetFrequentProjectsWidgetEnabled();
             QuickLaunchWidgetEnabledToggle.IsChecked = _settings.GetQuickLaunchWidgetEnabled();
-            SmartProjectSearchWidgetEnabledToggle.IsChecked = _settings.GetSmartProjectSearchWidgetEnabled();
 
             var maxVisibleWidgets = _settings.GetWidgetLauncherMaxVisibleWidgets();
             WidgetLauncherMaxVisibleWidgetsSlider.Value = maxVisibleWidgets;
             UpdateWidgetLauncherMaxVisibleWidgetsText(maxVisibleWidgets);
 
             _isLoadingSPSettings = true;
+            var attachModeEnabled = _settings.GetSmartProjectSearchAttachToSearchOverlayMode();
+            SmartProjectSearchAttachModeToggle.IsChecked = attachModeEnabled;
+            SmartProjectSearchWidgetEnabledToggle.IsChecked = _settings.GetSmartProjectSearchWidgetEnabled();
+            SmartProjectSearchWidgetEnabledToggle.IsEnabled = !attachModeEnabled;
             SmartSearchFileTypesInput.Text = string.Join(", ", _settings.GetSmartProjectSearchFileTypes());
             var latestMode = _settings.GetSmartProjectSearchLatestMode();
             SmartSearchLatestListRadio.IsChecked = !string.Equals(latestMode, "single", StringComparison.OrdinalIgnoreCase);
@@ -1585,12 +1588,54 @@ public partial class SettingsWindow : Window
 
     private void SmartProjectSearchWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
     {
-        if (_settings == null || !IsLoaded) return;
+        if (_settings == null || !IsLoaded || _isLoadingSPSettings) return;
+
+        if (_settings.GetSmartProjectSearchAttachToSearchOverlayMode())
+        {
+            _isLoadingSPSettings = true;
+            SmartProjectSearchWidgetEnabledToggle.IsChecked = false;
+            SmartProjectSearchWidgetEnabledToggle.IsEnabled = false;
+            _isLoadingSPSettings = false;
+            StatusText.Text = "Smart Project Search launcher toggle is managed by Attach mode";
+            return;
+        }
+
         var enabled = SmartProjectSearchWidgetEnabledToggle.IsChecked == true;
         _settings.SetSmartProjectSearchWidgetEnabled(enabled);
         _ = _settings.SaveAsync();
         _onSmartProjectSearchWidgetEnabledChanged?.Invoke();
         StatusText.Text = enabled ? "Smart Project Search widget enabled" : "Smart Project Search widget disabled";
+    }
+
+    private void SmartProjectSearchAttachModeToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded || _isLoadingSPSettings) return;
+
+        var attachEnabled = SmartProjectSearchAttachModeToggle.IsChecked == true;
+        _settings.SetSmartProjectSearchAttachToSearchOverlayMode(attachEnabled);
+
+        _isLoadingSPSettings = true;
+        if (attachEnabled)
+        {
+            var currentLauncherEnabled = _settings.GetSmartProjectSearchWidgetEnabled();
+            _settings.SetSmartProjectSearchWidgetEnabledBeforeAttachMode(currentLauncherEnabled);
+            _settings.SetSmartProjectSearchWidgetEnabled(false);
+            SmartProjectSearchWidgetEnabledToggle.IsChecked = false;
+            SmartProjectSearchWidgetEnabledToggle.IsEnabled = false;
+            StatusText.Text = "Smart Project Search attached mode enabled";
+        }
+        else
+        {
+            var restoreLauncherEnabled = _settings.GetSmartProjectSearchWidgetEnabledBeforeAttachMode();
+            _settings.SetSmartProjectSearchWidgetEnabled(restoreLauncherEnabled);
+            SmartProjectSearchWidgetEnabledToggle.IsEnabled = true;
+            SmartProjectSearchWidgetEnabledToggle.IsChecked = restoreLauncherEnabled;
+            StatusText.Text = "Smart Project Search attached mode disabled";
+        }
+        _isLoadingSPSettings = false;
+
+        _ = _settings.SaveAsync();
+        _onSmartProjectSearchWidgetEnabledChanged?.Invoke();
     }
 
     private void SmartSearchLatestMode_Changed(object sender, RoutedEventArgs e)

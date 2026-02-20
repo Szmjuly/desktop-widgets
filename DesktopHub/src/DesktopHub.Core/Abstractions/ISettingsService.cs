@@ -459,6 +459,10 @@ public interface ISettingsService
     void SetSmartProjectSearchWidgetVisible(bool visible);
     bool GetSmartProjectSearchWidgetEnabled();
     void SetSmartProjectSearchWidgetEnabled(bool enabled);
+    bool GetSmartProjectSearchAttachToSearchOverlayMode();
+    void SetSmartProjectSearchAttachToSearchOverlayMode(bool enabled);
+    bool GetSmartProjectSearchWidgetEnabledBeforeAttachMode();
+    void SetSmartProjectSearchWidgetEnabledBeforeAttachMode(bool enabled);
     string GetSmartProjectSearchLatestMode();
     void SetSmartProjectSearchLatestMode(string mode);
     List<string> GetSmartProjectSearchFileTypes();
