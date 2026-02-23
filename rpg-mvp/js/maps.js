@@ -1,5 +1,3 @@
-import { CFG } from "./config.js";
-
 export const TILE = {
   GRASS: 1,
   PATH: 2,
@@ -10,7 +8,10 @@ export const TILE = {
   FLOOR: 7,
   WALL: 8,
   EXIT: 9,
-  LAB: 10
+  LAB: 10,
+  TALL_GRASS: 11,
+  FENCE: 12,
+  SAND: 13,
 };
 
 function idx(x, y, w){ return y * w + x; }
@@ -42,27 +43,39 @@ export function buildMaps(){
   const townW = 20, townH = 15;
   const t = fill(townW, townH, TILE.GRASS);
 
-  // —— Town: clear path layout ——
-  // Main street (horizontal): one row y=7, full width — left/right lead to warps
+  // Town roads
   rect(t, townW, 0, 7, 20, 1, TILE.PATH);
-  // North path: x=10 from y=0 to y=7 — walk north on path to Route 1 warp at (10,0)
-  rect(t, townW, 10, 0, 1, 8, TILE.PATH);
-  // South path: x=10 from y=8 to y=13 — leads down to lab door (lab is beside path, not on it)
-  rect(t, townW, 10, 8, 1, 6, TILE.PATH);
+  rect(t, townW, 10, 6, 1, 8, TILE.PATH);
 
   // Water pond (east side)
   rect(t, townW, 15, 9, 4, 3, TILE.WATER);
 
-  // House (left of main street): door at (2,8), path (2,7) is main street
+  // House (left of main street)
   rect(t, townW, 1, 8, 4, 4, TILE.HOUSE);
   rect(t, townW, 1, 8, 4, 1, TILE.ROOF);
   t[idx(2, 8, townW)] = TILE.DOOR;
 
-  // Lab (right of south path): path runs along left side; door at (11,13), path (10,13) in front
+  // Lab (right of south path)
   rect(t, townW, 11, 10, 5, 4, TILE.LAB);
   rect(t, townW, 11, 10, 5, 1, TILE.ROOF);
   rect(t, townW, 11, 11, 5, 2, TILE.HOUSE);
   t[idx(11, 13, townW)] = TILE.DOOR;
+
+  // Tall grass patch at the top of town where encounters occur.
+  // Use visible TALL_GRASS tiles so the player can see the encounter zone.
+  rect(t, townW, 0, 0, 20, 5, TILE.TALL_GRASS);
+  // Row 5 is normal grass (buffer)
+  // Add a path opening into the tall grass.
+  rect(t, townW, 9, 4, 3, 2, TILE.PATH);
+
+  // Fence along bottom edge of town (row 14) except at path exits
+  for (let x = 0; x < townW; x++) {
+    if (x === 0 || x === 19) continue; // leave edges open for route warps
+    if (t[idx(x, 14, townW)] === TILE.GRASS) t[idx(x, 14, townW)] = TILE.FENCE;
+  }
+  // Open path exits on left and right edges of main road
+  t[idx(0, 7, townW)] = TILE.PATH;
+  t[idx(19, 7, townW)] = TILE.PATH;
 
   const town = {
     id: "town",
@@ -70,20 +83,15 @@ export function buildMaps(){
     w: townW,
     h: townH,
     tiles: t,
-    collides: new Set([TILE.WATER, TILE.HOUSE, TILE.LAB, TILE.ROOF]),
+    collides: new Set([TILE.WATER, TILE.HOUSE, TILE.LAB, TILE.ROOF, TILE.FENCE]),
     triggers: [
-      { type: "warp", at: { x: 10, y: 0 }, to: { mapId: "route1", x: 5, y: 10 } },
-      { type: "warp", at: { x: 0, y: 7 }, to: { mapId: "west_gate", x: 8, y: 5 } },
-      { type: "warp", at: { x: 19, y: 7 }, to: { mapId: "east_gate", x: 2, y: 5 } },
       { type: "warp", at: { x: 2, y: 8 }, to: { mapId: "house", x: 4, y: 7 } },
       { type: "warp", at: { x: 11, y: 13 }, to: { mapId: "lab", x: 5, y: 8 } },
-      { type: "grassRegion", region: { x: 0, y: 0, w: 20, h: 6 } },
-      { type: "grassRegion", region: { x: 0, y: 9, w: 20, h: 6 } }
+      { type: "warp", at: { x: 0, y: 7 }, to: { mapId: "route_west", x: 19, y: 5 } },
+      { type: "warp", at: { x: 19, y: 7 }, to: { mapId: "route_east", x: 0, y: 5 } },
+      { type: "grassRegion", region: { x: 0, y: 0, w: 20, h: 5 } }
     ],
-    actors: [
-      { type: "rival", id: "rival_1", at: { x: 8, y: 7 }, color: "#ff6b8a",
-        text: "Hey! I heard you got a creature from the lab. Let's battle!" }
-    ]
+    actors: []
   };
 
   // Lab interior
@@ -134,72 +142,95 @@ export function buildMaps(){
     ]
   };
 
-  // Route 1 — north of town (walk up from town grass to enter)
-  const routeW = 11, routeH = 12;
-  const routeTiles = fill(routeW, routeH, TILE.GRASS);
-  rect(routeTiles, routeW, 4, 0, 3, routeH, TILE.PATH);
-  routeTiles[idx(5, routeH - 1, routeW)] = TILE.EXIT;
+  // ── Route West ──
+  const rwW = 20, rwH = 11;
+  const rw = fill(rwW, rwH, TILE.GRASS);
+  // Horizontal path through middle
+  rect(rw, rwW, 0, 5, 20, 1, TILE.PATH);
+  // Tall grass patches
+  rect(rw, rwW, 2, 1, 6, 3, TILE.TALL_GRASS);
+  rect(rw, rwW, 12, 2, 5, 3, TILE.TALL_GRASS);
+  rect(rw, rwW, 4, 7, 7, 3, TILE.TALL_GRASS);
+  // Water feature
+  rect(rw, rwW, 15, 7, 3, 3, TILE.WATER);
+  // Fences along top and bottom
+  for (let x = 0; x < rwW; x++){
+    rw[idx(x, 0, rwW)] = TILE.FENCE;
+    rw[idx(x, 10, rwW)] = TILE.FENCE;
+  }
+  // Open path exits on left and right
+  rw[idx(0, 5, rwW)] = TILE.PATH;
+  rw[idx(19, 5, rwW)] = TILE.PATH;
+  rw[idx(0, 0, rwW)] = TILE.GRASS;
+  rw[idx(0, 10, rwW)] = TILE.GRASS;
+  rw[idx(19, 0, rwW)] = TILE.GRASS;
+  rw[idx(19, 10, rwW)] = TILE.GRASS;
 
-  const route1 = {
-    id: "route1",
-    name: "Route 1",
-    w: routeW,
-    h: routeH,
-    tiles: routeTiles,
-    collides: new Set([TILE.WATER]),
+  const route_west = {
+    id: "route_west",
+    name: "Route West",
+    w: rwW,
+    h: rwH,
+    tiles: rw,
+    collides: new Set([TILE.WATER, TILE.FENCE]),
     triggers: [
-      { type: "warp", at: { x: 5, y: routeH - 1 }, to: { mapId: "town", x: 10, y: 1 } },
-      { type: "grassRegion", region: { x: 0, y: 0, w: routeW, h: routeH } }
+      { type: "warp", at: { x: 19, y: 5 }, to: { mapId: "town", x: 0, y: 7 } },
+      { type: "grassRegion", region: { x: 2, y: 1, w: 6, h: 3 } },
+      { type: "grassRegion", region: { x: 12, y: 2, w: 5, h: 3 } },
+      { type: "grassRegion", region: { x: 4, y: 7, w: 7, h: 3 } },
     ],
     actors: [
-      { type: "npc", id: "route_npc_1", at: { x: 5, y: 4 }, color: "#aab3d6",
-        text: "The town is south. Wild creatures hide in the grass!" }
+      { type: "npc", id: "npc_rw1", at: { x: 10, y: 4 }, color: "#ffb347",
+        text: "Watch out! The creatures here are tougher than in town." }
     ]
   };
 
-  // West Gate — left end of main street
-  const westW = 9, westH = 7;
-  const westTiles = fill(westW, westH, TILE.GRASS);
-  rect(westTiles, westW, 0, 3, westW, 1, TILE.PATH);
-  westTiles[idx(westW - 1, 3, westW)] = TILE.EXIT;
-  const westGate = {
-    id: "west_gate",
-    name: "West Gate",
-    w: westW,
-    h: westH,
-    tiles: westTiles,
-    collides: new Set([TILE.WATER]),
+  // ── Route East ──
+  const reW = 20, reH = 11;
+  const re = fill(reW, reH, TILE.GRASS);
+  // Horizontal path
+  rect(re, reW, 0, 5, 20, 1, TILE.PATH);
+  // Sandy area
+  rect(re, reW, 8, 7, 5, 3, TILE.SAND);
+  // Tall grass patches
+  rect(re, reW, 1, 1, 7, 3, TILE.TALL_GRASS);
+  rect(re, reW, 10, 1, 6, 3, TILE.TALL_GRASS);
+  rect(re, reW, 2, 7, 5, 3, TILE.TALL_GRASS);
+  rect(re, reW, 14, 7, 5, 3, TILE.TALL_GRASS);
+  // Water
+  rect(re, reW, 17, 1, 2, 2, TILE.WATER);
+  // Fences
+  for (let x = 0; x < reW; x++){
+    re[idx(x, 0, reW)] = TILE.FENCE;
+    re[idx(x, 10, reW)] = TILE.FENCE;
+  }
+  re[idx(0, 0, reW)] = TILE.GRASS;
+  re[idx(0, 10, reW)] = TILE.GRASS;
+  re[idx(19, 0, reW)] = TILE.FENCE;
+  re[idx(19, 10, reW)] = TILE.FENCE;
+  re[idx(0, 5, reW)] = TILE.PATH;
+
+  const route_east = {
+    id: "route_east",
+    name: "Route East",
+    w: reW,
+    h: reH,
+    tiles: re,
+    collides: new Set([TILE.WATER, TILE.FENCE]),
     triggers: [
-      { type: "warp", at: { x: westW - 1, y: 3 }, to: { mapId: "town", x: 1, y: 7 } }
+      { type: "warp", at: { x: 0, y: 5 }, to: { mapId: "town", x: 19, y: 7 } },
+      { type: "grassRegion", region: { x: 1, y: 1, w: 7, h: 3 } },
+      { type: "grassRegion", region: { x: 10, y: 1, w: 6, h: 3 } },
+      { type: "grassRegion", region: { x: 2, y: 7, w: 5, h: 3 } },
+      { type: "grassRegion", region: { x: 14, y: 7, w: 5, h: 3 } },
     ],
     actors: [
-      { type: "npc", id: "west_1", at: { x: 4, y: 3 }, color: "#c8b47e",
-        text: "The road east leads back to town." }
+      { type: "npc", id: "npc_re1", at: { x: 9, y: 4 }, color: "#c77dff",
+        text: "The creatures east of town are stronger. Be prepared!" }
     ]
   };
 
-  // East Gate — right end of main street
-  const eastW = 5, eastH = 7;
-  const eastTiles = fill(eastW, eastH, TILE.GRASS);
-  rect(eastTiles, eastW, 0, 3, eastW, 1, TILE.PATH);
-  eastTiles[idx(0, 3, eastW)] = TILE.EXIT;
-  const eastGate = {
-    id: "east_gate",
-    name: "East Gate",
-    w: eastW,
-    h: eastH,
-    tiles: eastTiles,
-    collides: new Set([TILE.WATER]),
-    triggers: [
-      { type: "warp", at: { x: 0, y: 3 }, to: { mapId: "town", x: 18, y: 7 } }
-    ],
-    actors: [
-      { type: "npc", id: "east_1", at: { x: 2, y: 3 }, color: "#c8b47e",
-        text: "Head west to return to town." }
-    ]
-  };
-
-  return { town, lab, house, route1, westGate, eastGate };
+  return { town, lab, house, route_west, route_east };
 }
 
 export function getTile(map, x, y){
@@ -247,6 +278,9 @@ export function tileColor(tileId){
     case TILE.FLOOR: return "#2a2f4a";
     case TILE.WALL: return "#0e1020";
     case TILE.EXIT: return "#aab3d6";
+    case TILE.TALL_GRASS: return "#0d5a1a";
+    case TILE.FENCE: return "#6b5b3a";
+    case TILE.SAND: return "#d4c090";
     default: return "#000";
   }
 }

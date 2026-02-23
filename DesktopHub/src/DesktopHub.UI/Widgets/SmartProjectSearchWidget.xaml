@@ -7,6 +7,62 @@
         <SolidColorBrush x:Key="TextBrush" Color="#F5F7FA"/>
         <SolidColorBrush x:Key="TextSecondaryBrush" Color="#B6C3CA"/>
         <SolidColorBrush x:Key="AccentBrush" Color="#4FC3F7"/>
+        <SolidColorBrush x:Key="HoverBrush" Color="#18FFFFFF"/>
+        <SolidColorBrush x:Key="SelectedBrush" Color="#22FFFFFF"/>
+
+        <!-- Thin rounded scrollbar -->
+        <Style x:Key="ThinScrollBarThumb" TargetType="Thumb">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border Background="#40FFFFFF" CornerRadius="3" Margin="1"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="ThinVerticalScrollBar" TargetType="ScrollBar">
+            <Setter Property="Width" Value="6"/>
+            <Setter Property="MinWidth" Value="6"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid>
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource ThinScrollBarThumb}"/>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="ThinScrollViewer" TargetType="ScrollViewer">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollViewer">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ScrollContentPresenter Grid.Column="0"/>
+                            <ScrollBar x:Name="PART_VerticalScrollBar"
+                                       Grid.Column="1"
+                                       Orientation="Vertical"
+                                       Style="{StaticResource ThinVerticalScrollBar}"
+                                       Maximum="{TemplateBinding ScrollableHeight}"
+                                       ViewportSize="{TemplateBinding ViewportHeight}"
+                                       Value="{TemplateBinding VerticalOffset}"
+                                       Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Grid>
@@ -44,9 +100,11 @@
                     Foreground="{StaticResource TextBrush}"
                     CaretBrush="{StaticResource TextBrush}"
                     BorderBrush="#33FFFFFF"
-                    TextChanged="SearchBox_TextChanged"/>
+                    TextChanged="SearchBox_TextChanged"
+                    PreviewKeyDown="SearchBox_PreviewKeyDown"/>
 
-            <TextBlock Grid.Row="1"
+            <TextBlock x:Name="HintText"
+                      Grid.Row="1"
                       Text="Try: fault current letter | fpl::pdf | fpl::pdf|word | latest fault current letter"
                       FontSize="10"
                       Foreground="{StaticResource TextSecondaryBrush}"
@@ -60,35 +118,86 @@
                 BorderBrush="#22FFFFFF"
                 BorderThickness="1"
                 Foreground="{StaticResource TextBrush}"
-                ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                ScrollViewer.VerticalScrollBarVisibility="Auto"
                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                 MouseDoubleClick="ResultsList_MouseDoubleClick"
+                PreviewMouseRightButtonUp="ResultsList_PreviewMouseRightButtonUp"
                 KeyDown="ResultsList_KeyDown">
+            <ListBox.Template>
+                <ControlTemplate TargetType="ListBox">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}">
+                        <ScrollViewer Style="{StaticResource ThinScrollViewer}" Focusable="False" Padding="{TemplateBinding Padding}">
+                            <ItemsPresenter/>
+                        </ScrollViewer>
+                    </Border>
+                </ControlTemplate>
+            </ListBox.Template>
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Margin" Value="0"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBoxItem">
+                                <Border x:Name="ItemBorder" Background="Transparent" Padding="0" Margin="0">
+                                    <ContentPresenter/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource HoverBrush}"/>
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource SelectedBrush}"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListBox.ItemContainerStyle>
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <Border Padding="8" Margin="2" CornerRadius="6" Background="#10000000">
-                        <StackPanel>
-                            <TextBlock Text="{Binding FileName}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Text="{Binding RelativePath}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                                <TextBlock Text="{Binding LastModified, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                <TextBlock Text="  •  " FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                <TextBlock Text="{Binding SizeDisplay}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                <TextBlock Text="  •  " FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                <TextBlock Text="{Binding Extension}" FontSize="10" Foreground="{StaticResource AccentBrush}"/>
+                    <Border Padding="8" Margin="2" CornerRadius="6" Background="Transparent">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding FileIcon}" FontSize="16" VerticalAlignment="Top" Margin="0,2,8,0"/>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="{Binding FileName}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding RelativePath}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                    <TextBlock Text="{Binding LastModified, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="  •  " FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="{Binding SizeDisplay}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="  •  " FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="{Binding Extension}" FontSize="10" Foreground="{StaticResource AccentBrush}"/>
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
+                        </Grid>
                     </Border>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <TextBlock x:Name="StatusText"
-                  Grid.Row="3"
-                  Text="Select a project to begin searching."
-                  FontSize="10"
-                  Foreground="{StaticResource TextSecondaryBrush}"
-                  Margin="2,8,2,0"
-                  TextWrapping="Wrap"/>
+        <StackPanel Grid.Row="3" Margin="2,8,2,0">
+            <ProgressBar x:Name="ScanningProgress"
+                         Height="3"
+                         IsIndeterminate="True"
+                         Foreground="{StaticResource AccentBrush}"
+                         Background="#22000000"
+                         Visibility="Collapsed"/>
+            <TextBlock x:Name="StatusText"
+                      Text="Select a project to begin searching."
+                      FontSize="10"
+                      Foreground="{StaticResource TextSecondaryBrush}"
+                      Margin="0,6,0,0"
+                      TextWrapping="Wrap"/>
+        </StackPanel>
     </Grid>
 </UserControl>

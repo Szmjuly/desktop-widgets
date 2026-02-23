@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Mini Top-Down Creature RPG (MVP)</title>
+  <link rel="icon" href="data:," />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -49,11 +50,15 @@
           <div><span class="label">Party:</span> <span id="hudParty">0/6</span></div>
           <div><span class="label">Storage:</span> <span id="hudStorage">0</span></div>
           <div><span class="label">Capsules:</span> <span id="hudCapsules">0</span></div>
+          <div><span class="label">Money:</span> <span id="hudMoney">$0</span></div>
         </div>
         <div class="hud-hint">
-          Arrows to move, Enter to interact, Esc to cancel.
+          Arrows/WASD to move · Enter to interact · M for menu
         </div>
       </div>
+
+      <!-- Side Menu (right panel) -->
+      <div id="sideMenu" class="side-menu hidden"></div>
 
       <!-- Dialog -->
       <div id="dialog" class="dialog hidden">
@@ -84,6 +89,7 @@
               <div class="b-hpfill" id="wildHpFill"></div>
             </div>
             <div class="b-hptext" id="wildHpText">HP</div>
+            <div class="b-status" id="wildStatus"></div>
           </div>
 
           <div class="b-card">
@@ -92,10 +98,13 @@
               <div class="b-hpfill" id="playerHpFill"></div>
             </div>
             <div class="b-hptext" id="playerHpText">HP</div>
+            <div class="b-status" id="playerStatus"></div>
           </div>
         </div>
 
         <div class="battle-log" id="battleLog"></div>
+
+        <div id="moveSelect" class="move-select hidden"></div>
 
         <div class="battle-actions">
           <button id="btnFight">Fight</button>

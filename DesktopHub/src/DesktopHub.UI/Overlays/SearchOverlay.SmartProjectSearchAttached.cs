@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using WpfMedia = System.Windows.Media;
 using System.Windows.Media.Animation;
 using DesktopHub.UI.Helpers;
 using DesktopHub.UI.Widgets;
@@ -9,6 +10,9 @@ namespace DesktopHub.UI;
 
 public partial class SearchOverlay
 {
+    private Window? _smartProjectSearchAttachedWindow;
+    private const double SmartSearchWindowGap = 8;
+
     private void ApplySmartProjectSearchAttachModeState()
     {
         var attachModeEnabled = _settings.GetSmartProjectSearchAttachToSearchOverlayMode();
@@ -18,17 +22,11 @@ public partial class SearchOverlay
 
         if (!attachModeEnabled)
         {
-            SetSmartProjectSearchAttachedPanelExpanded(false, false);
-            if (SmartProjectSearchAttachedHost != null)
-                SmartProjectSearchAttachedHost.Content = null;
-
+            HideSmartSearchAttachedWindow();
             return;
         }
 
         EnsureSmartProjectSearchAttachedWidget();
-
-        if (SmartProjectSearchAttachedHost != null && _smartProjectSearchAttachedWidget != null)
-            SmartProjectSearchAttachedHost.Content = _smartProjectSearchAttachedWidget;
 
         if (_smartProjectSearchOverlay != null)
         {
@@ -41,8 +39,6 @@ public partial class SearchOverlay
                 _ = _settings.SaveAsync();
             }
         }
-
-        UpdateOverlayHeightForCurrentState(false);
     }
 
     private void EnsureSmartProjectSearchAttachedWidget()
@@ -58,6 +54,82 @@ public partial class SearchOverlay
         }
     }
 
+    private void EnsureSmartSearchAttachedWindow()
+    {
+        if (_smartProjectSearchAttachedWindow != null)
+            return;
+
+        EnsureSmartProjectSearchAttachedWidget();
+        if (_smartProjectSearchAttachedWidget == null)
+            return;
+
+        _smartProjectSearchAttachedWindow = new Window
+        {
+            Owner = this,
+            WindowStyle = WindowStyle.None,
+            AllowsTransparency = true,
+            Background = WpfMedia.Brushes.Transparent,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.Manual,
+            ResizeMode = ResizeMode.NoResize,
+            Width = this.Width,
+            Height = SmartProjectSearchAttachedPanelExpandedHeight,
+            SizeToContent = SizeToContent.Manual,
+        };
+
+        var rootBorder = new Border
+        {
+            Background = new WpfMedia.SolidColorBrush(WpfMedia.Color.FromArgb(0xE8, 0x12, 0x12, 0x12)),
+            CornerRadius = new CornerRadius(12),
+            BorderBrush = new WpfMedia.SolidColorBrush(WpfMedia.Color.FromArgb(0x3A, 0x2A, 0x2A, 0x2A)),
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(18),
+            ClipToBounds = true,
+        };
+
+        var glassBorder = new Border
+        {
+            CornerRadius = new CornerRadius(10),
+            BorderThickness = new Thickness(1),
+            BorderBrush = new WpfMedia.SolidColorBrush(WpfMedia.Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)),
+            Background = new WpfMedia.SolidColorBrush(WpfMedia.Color.FromArgb(0x14, 0x00, 0x00, 0x00)),
+            IsHitTestVisible = false,
+            Margin = new Thickness(2),
+        };
+
+        var contentGrid = new Grid();
+        contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+        var header = new TextBlock
+        {
+            Text = "Smart Project Search",
+            FontSize = 12,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = new WpfMedia.SolidColorBrush(WpfMedia.Color.FromRgb(0xF5, 0xF7, 0xFA)),
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        Grid.SetRow(header, 0);
+        contentGrid.Children.Add(header);
+
+        var widgetHost = new ContentControl { Content = _smartProjectSearchAttachedWidget };
+        Grid.SetRow(widgetHost, 1);
+        contentGrid.Children.Add(widgetHost);
+
+        var outerGrid = new Grid();
+        outerGrid.Children.Add(glassBorder);
+        outerGrid.Children.Add(new Border { Background = WpfMedia.Brushes.Transparent, Padding = new Thickness(18), Child = contentGrid });
+
+        rootBorder.Child = outerGrid;
+        _smartProjectSearchAttachedWindow.Content = rootBorder;
+
+        // Prevent this window from causing the overlay to auto-hide
+        _smartProjectSearchAttachedWindow.Activated += (_, _) =>
+        {
+            _deactivateTimer?.Stop();
+        };
+    }
+
     private void SmartProjectSearchAttachToggleButton_Click(object sender, RoutedEventArgs e)
     {
         if (!_settings.GetSmartProjectSearchAttachToSearchOverlayMode())
@@ -71,7 +143,11 @@ public partial class SearchOverlay
         }
 
         _userManuallySizedResults = true;
-        SetSmartProjectSearchAttachedPanelExpanded(!_isSmartProjectSearchAttachedPanelExpanded, true);
+        var expanding = !_isSmartProjectSearchAttachedPanelExpanded;
+        SetSmartProjectSearchAttachedPanelExpanded(expanding, true);
+
+        if (expanding && _smartProjectSearchAttachedWidget != null)
+            _smartProjectSearchAttachedWidget.FocusSearchBox();
     }
 
     private void SetSmartProjectSearchAttachedPanelExpanded(bool expanded, bool animate)
@@ -81,57 +157,72 @@ public partial class SearchOverlay
 
         _isSmartProjectSearchAttachedPanelExpanded = expanded;
 
-        if (SmartProjectSearchAttachedPanelContainer == null)
-        {
-            UpdateOverlayHeightForCurrentState(animate);
-            return;
-        }
-
-        var targetHeight = expanded ? SmartProjectSearchAttachedPanelExpandedHeight : 0;
-
-        if (!animate || !IsLoaded)
-        {
-            SmartProjectSearchAttachedPanelContainer.MaxHeight = targetHeight;
-            SmartProjectSearchAttachedPanelContainer.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
-            UpdateOverlayHeightForCurrentState(false);
-            return;
-        }
-
-        var fromHeight = SmartProjectSearchAttachedPanelContainer.MaxHeight;
-        if (double.IsNaN(fromHeight))
-            fromHeight = expanded ? 0 : SmartProjectSearchAttachedPanelExpandedHeight;
-
         if (expanded)
-            SmartProjectSearchAttachedPanelContainer.Visibility = Visibility.Visible;
-
-        var panelAnimation = new DoubleAnimation(fromHeight, targetHeight, TimeSpan.FromMilliseconds(170))
         {
-            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
-        };
-
-        if (!expanded)
-        {
-            panelAnimation.Completed += (_, _) =>
-            {
-                if (!_isSmartProjectSearchAttachedPanelExpanded)
-                    SmartProjectSearchAttachedPanelContainer.Visibility = Visibility.Collapsed;
-            };
+            ShowSmartSearchAttachedWindow(animate);
         }
-
-        SmartProjectSearchAttachedPanelContainer.BeginAnimation(FrameworkElement.MaxHeightProperty, panelAnimation, HandoffBehavior.SnapshotAndReplace);
-        UpdateOverlayHeightForCurrentState(true);
+        else
+        {
+            HideSmartSearchAttachedWindow();
+        }
     }
+
+    private void ShowSmartSearchAttachedWindow(bool animate)
+    {
+        EnsureSmartSearchAttachedWindow();
+        if (_smartProjectSearchAttachedWindow == null)
+            return;
+
+        PositionSmartSearchAttachedWindow();
+
+        _smartProjectSearchAttachedWindow.Width = this.Width;
+        _smartProjectSearchAttachedWindow.Height = SmartProjectSearchAttachedPanelExpandedHeight;
+
+        if (animate)
+        {
+            // Start with 0 height and animate to full height (slide down effect)
+            _smartProjectSearchAttachedWindow.Height = 0;
+            _smartProjectSearchAttachedWindow.Visibility = Visibility.Visible;
+            _smartProjectSearchAttachedWindow.Show();
+
+            var slideAnimation = new DoubleAnimation(0, SmartProjectSearchAttachedPanelExpandedHeight, TimeSpan.FromMilliseconds(200))
+            {
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+            _smartProjectSearchAttachedWindow.BeginAnimation(Window.HeightProperty, slideAnimation);
+        }
+        else
+        {
+            _smartProjectSearchAttachedWindow.Visibility = Visibility.Visible;
+            _smartProjectSearchAttachedWindow.Show();
+        }
+    }
+
+    private void HideSmartSearchAttachedWindow()
+    {
+        _isSmartProjectSearchAttachedPanelExpanded = false;
+
+        if (_smartProjectSearchAttachedWindow == null)
+            return;
+
+        _smartProjectSearchAttachedWindow.Visibility = Visibility.Hidden;
+    }
+
+    private void PositionSmartSearchAttachedWindow()
+    {
+        if (_smartProjectSearchAttachedWindow == null)
+            return;
+
+        _smartProjectSearchAttachedWindow.Left = this.Left;
+        _smartProjectSearchAttachedWindow.Top = this.Top + this.ActualHeight + SmartSearchWindowGap;
+    }
+
+    internal bool IsSmartSearchAttachedWindowActive =>
+        _smartProjectSearchAttachedWindow != null && _smartProjectSearchAttachedWindow.IsActive;
 
     private void UpdateOverlayHeightForCurrentState(bool animate)
     {
-        var baseHeight = _isResultsCollapsed ? OverlayCollapsedBaseHeight : OverlayExpandedBaseHeight;
-        var attachedHeight = !_isResultsCollapsed &&
-                             _settings.GetSmartProjectSearchAttachToSearchOverlayMode() &&
-                             _isSmartProjectSearchAttachedPanelExpanded
-            ? SmartProjectSearchAttachedPanelExpandedHeight
-            : 0;
-
-        var targetHeight = baseHeight + attachedHeight;
+        var targetHeight = _isResultsCollapsed ? OverlayCollapsedBaseHeight : OverlayExpandedBaseHeight;
 
         if (!animate || !IsLoaded)
         {

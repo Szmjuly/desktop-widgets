@@ -9,7 +9,7 @@ export const CFG = {
 
   partyCap: 6,
 
-  saveVersion: 1,
+  saveVersion: 2,
   saveSlots: 3,
   saveKeyPrefix: "miniRpgSave_slot",
   saveKey(slot) {

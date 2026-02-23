@@ -1,5 +1,5 @@
 import { CFG } from "./config.js";
-import { tileColor } from "./maps.js";
+import { TILE, tileColor } from "./maps.js";
 import { SPECIES } from "./data_species.js";
 
 export class Renderer {
@@ -21,6 +21,22 @@ export class Renderer {
         const tile = map.tiles[y * map.w + x];
         ctx.fillStyle = tileColor(tile);
         ctx.fillRect(x * ts, y * ts, ts, ts);
+
+        // Draw tall grass blades overlay
+        if (tile === TILE.TALL_GRASS){
+          ctx.fillStyle = "rgba(30,120,40,0.55)";
+          const px = x * ts;
+          const py = y * ts;
+          for (let i = 0; i < 4; i++){
+            const bx = px + 4 + i * 7;
+            const by = py + ts - 4;
+            ctx.beginPath();
+            ctx.moveTo(bx, by);
+            ctx.lineTo(bx + 2, py + 8);
+            ctx.lineTo(bx + 4, by);
+            ctx.fill();
+          }
+        }
 
         // subtle grid
         ctx.strokeStyle = "rgba(255,255,255,0.03)";
@@ -53,13 +69,21 @@ export class Renderer {
         ctx.fillRect(a.at.x*ts + 8, a.at.y*ts + ts - 10, ts - 16, 3);
       }
 
-      if (a.type === "npc" || a.type === "rival"){
+      if (a.type === "npc"){
         ctx.fillStyle = a.color || "#ffd27b";
         ctx.beginPath();
         ctx.arc(cx, cy, 10, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = "rgba(0,0,0,0.35)";
         ctx.stroke();
+
+        // Label for special NPCs
+        if (a.subtype === "shop" || a.subtype === "healer"){
+          ctx.fillStyle = "rgba(255,255,255,0.85)";
+          ctx.font = "bold 8px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(a.subtype === "shop" ? "SHOP" : "HEAL", cx, cy + ts / 2 + 2);
+        }
       }
     }
   }
@@ -93,8 +117,9 @@ export class Renderer {
 
   render(game){
     this.clear();
+    if (!game.map) return;
     this.drawMap(game.map);
     this.drawActors(game.map);
-    this.drawPlayer(game.player);
+    if (game.player) this.drawPlayer(game.player);
   }
 }

@@ -363,8 +363,9 @@ public partial class SearchOverlay
                     _isResultsCollapsed = false;
                     ResultsContainer.Visibility = Visibility.Visible;
                     CollapseIconRotation.Angle = 0;
-                    UpdateOverlayHeightForCurrentState(true);
                 }
+
+                UpdateOverlayHeightForCurrentState(true);
 
                 // History tracking removed - only track on actual project launch
             }

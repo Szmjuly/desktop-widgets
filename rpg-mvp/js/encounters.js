@@ -1,6 +1,5 @@
 import { CFG } from "./config.js";
 import { chance, randInt } from "./utils.js";
-import { ENCOUNTER_TABLE_TOWN_GRASS } from "./data_species.js";
 import { createCreatureInstance } from "./models.js";
 
 function weightedPick(table){
@@ -14,13 +13,21 @@ function weightedPick(table){
 }
 
 export function maybeStartEncounter(game){
-  if (game.player.mapId !== "town" && game.player.mapId !== "route1") return false;
+  const mapId = game.player.mapId;
+  // Use game's encounter tables (may be procedurally generated)
+  const tables = game.encounterTables || {};
+  // Also check the map's encounterTableId for procedural routes
+  const map = game.map;
+  const tableId = map?.encounterTableId || mapId;
+  const table = tables[tableId] || tables[mapId];
+  if (!table) return false;
+
   const onGrass = game.mapInGrass(game.player.pos.x, game.player.pos.y);
   if (!onGrass) return false;
 
   if (!chance(CFG.encounterChancePerStep)) return false;
 
-  const entry = weightedPick(ENCOUNTER_TABLE_TOWN_GRASS);
+  const entry = weightedPick(table);
   const lv = randInt(entry.minLv, entry.maxLv);
   const wild = createCreatureInstance(entry.speciesId, lv);
 

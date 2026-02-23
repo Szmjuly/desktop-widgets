@@ -75,17 +75,19 @@ public partial class SearchOverlay
             DebugLogger.LogVariable("Window.Visibility (now)", this.Visibility);
             DebugLogger.LogVariable("_isClosing", _isClosing);
 
-            // Check if widget launcher or timer overlay is active
+            // Check if widget launcher, timer overlay, or smart search attached window is active
             var isWidgetLauncherActive = _widgetLauncher != null && _widgetLauncher.IsActive;
             var isTimerOverlayActive = _timerOverlay != null && _timerOverlay.IsActive;
+            var isSmartSearchActive = IsSmartSearchAttachedWindowActive;
 
             DebugLogger.LogVariable("WidgetLauncher.IsActive", isWidgetLauncherActive);
             DebugLogger.LogVariable("TimerOverlay.IsActive", isTimerOverlayActive);
+            DebugLogger.LogVariable("SmartSearchAttached.IsActive", isSmartSearchActive);
 
             // Double-check we're still deactivated and not toggling
-            // Don't auto-hide if widget launcher or timer overlay is active
+            // Don't auto-hide if widget launcher, timer overlay, or smart search window is active
             if (!this.IsActive && !_isTogglingViaHotkey && this.Visibility == Visibility.Visible
-                && !isWidgetLauncherActive && !isTimerOverlayActive && !_isClosing)
+                && !isWidgetLauncherActive && !isTimerOverlayActive && !isSmartSearchActive && !_isClosing)
             {
                 DebugLogger.Log("Window_Deactivated: Conditions met -> AUTO-HIDING overlay");
                 HideOverlay();

@@ -278,6 +278,22 @@ public class SettingsService : ISettingsService
             : GetDefaultSmartProjectSearchFileTypes();
     }
 
+    // --- Hotkey Focus Behavior ---
+    public bool GetHotkeyFocusWidgetLauncher() => _settings.HotkeyFocusWidgetLauncher;
+    public void SetHotkeyFocusWidgetLauncher(bool enabled) => _settings.HotkeyFocusWidgetLauncher = enabled;
+    public bool GetHotkeyFocusTimerWidget() => _settings.HotkeyFocusTimerWidget;
+    public void SetHotkeyFocusTimerWidget(bool enabled) => _settings.HotkeyFocusTimerWidget = enabled;
+    public bool GetHotkeyFocusQuickTasksWidget() => _settings.HotkeyFocusQuickTasksWidget;
+    public void SetHotkeyFocusQuickTasksWidget(bool enabled) => _settings.HotkeyFocusQuickTasksWidget = enabled;
+    public bool GetHotkeyFocusDocWidget() => _settings.HotkeyFocusDocWidget;
+    public void SetHotkeyFocusDocWidget(bool enabled) => _settings.HotkeyFocusDocWidget = enabled;
+    public bool GetHotkeyFocusFrequentProjectsWidget() => _settings.HotkeyFocusFrequentProjectsWidget;
+    public void SetHotkeyFocusFrequentProjectsWidget(bool enabled) => _settings.HotkeyFocusFrequentProjectsWidget = enabled;
+    public bool GetHotkeyFocusQuickLaunchWidget() => _settings.HotkeyFocusQuickLaunchWidget;
+    public void SetHotkeyFocusQuickLaunchWidget(bool enabled) => _settings.HotkeyFocusQuickLaunchWidget = enabled;
+    public bool GetHotkeyFocusSmartProjectSearchWidget() => _settings.HotkeyFocusSmartProjectSearchWidget;
+    public void SetHotkeyFocusSmartProjectSearchWidget(bool enabled) => _settings.HotkeyFocusSmartProjectSearchWidget = enabled;
+
     public (int modifiers, int key) GetCloseShortcut() => (_settings.CloseShortcutModifiers, _settings.CloseShortcutKey);
     public void SetCloseShortcut(int modifiers, int key)
     {
@@ -418,6 +434,15 @@ public class SettingsService : ISettingsService
         public bool SmartProjectSearchWidgetEnabledBeforeAttachMode { get; set; } = true;
         public string SmartProjectSearchLatestMode { get; set; } = "list";
         public List<string> SmartProjectSearchFileTypes { get; set; } = GetDefaultSmartProjectSearchFileTypes();
+
+        // Hotkey focus behavior — which widgets to bring to focus on hotkey press
+        public bool HotkeyFocusWidgetLauncher { get; set; } = true;
+        public bool HotkeyFocusTimerWidget { get; set; } = false;
+        public bool HotkeyFocusQuickTasksWidget { get; set; } = false;
+        public bool HotkeyFocusDocWidget { get; set; } = false;
+        public bool HotkeyFocusFrequentProjectsWidget { get; set; } = false;
+        public bool HotkeyFocusQuickLaunchWidget { get; set; } = false;
+        public bool HotkeyFocusSmartProjectSearchWidget { get; set; } = false;
     }
 
     private static List<string> GetDefaultSmartProjectSearchFileTypes()

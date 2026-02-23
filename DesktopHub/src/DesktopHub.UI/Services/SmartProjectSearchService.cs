@@ -48,14 +48,19 @@ public sealed class SmartProjectSearchService
     private string? _projectName;
     private string? _projectPath;
     private string? _query;
-    private List<SmartProjectSearchResult> _results = new();
+    private List<DocumentItem> _results = new();
     private CancellationTokenSource? _scanCts;
     private int _refreshVersion;
+    private List<IndexedDocument>? _cachedSearchPool;
+    private string? _cachedPathOverride;
+    private readonly Dictionary<string, ProjectFileInfo> _scanCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Queue<string> _scanCacheOrder = new();
+    private const int MaxScanCacheEntries = 12;
 
     public event EventHandler? StateChanged;
     public event EventHandler<bool>? ScanningChanged;
 
-    public IReadOnlyList<SmartProjectSearchResult> Results => _results;
+    public IReadOnlyList<DocumentItem> Results => _results;
     public bool IsScanning { get; private set; }
     public string StatusText { get; private set; } = "Select a project to begin searching.";
     public string ActiveProjectLabel { get; private set; } = "No project selected";
@@ -72,18 +77,23 @@ public sealed class SmartProjectSearchService
 
         if (string.IsNullOrWhiteSpace(projectPath))
         {
+            DebugLogger.Log("SmartSearch: SetProjectAsync - cleared (null/empty path)");
             _projectPath = null;
             _projectName = null;
             _projectInfo = null;
             ActiveProjectLabel = "No project selected";
             StatusText = "Select a project to begin searching.";
-            _results = new List<SmartProjectSearchResult>();
+            _results = new List<DocumentItem>();
             RaiseStateChanged();
             return;
         }
 
         var normalizedPath = projectPath.Trim();
-        var isSameProject = _projectInfo != null && string.Equals(_projectPath, normalizedPath, StringComparison.OrdinalIgnoreCase);
+        var isSameProject = string.Equals(_projectPath, normalizedPath, StringComparison.OrdinalIgnoreCase)
+                            && _projectInfo != null
+                            && _cachedSearchPool != null;
+
+        DebugLogger.Log($"SmartSearch: SetProjectAsync path='{normalizedPath}' isSameProject={isSameProject} hasInfo={_projectInfo != null} hasPool={_cachedSearchPool != null}");
 
         _projectPath = normalizedPath;
         _projectName = string.IsNullOrWhiteSpace(projectName) ? Path.GetFileName(normalizedPath) : projectName;
@@ -91,6 +101,7 @@ public sealed class SmartProjectSearchService
 
         if (!isSameProject)
         {
+            _cachedSearchPool = null;
             await ScanSelectedProjectAsync();
         }
 
@@ -114,32 +125,65 @@ public sealed class SmartProjectSearchService
         _scanCts = new CancellationTokenSource();
         var token = _scanCts.Token;
 
+        _cachedSearchPool = null;
+        _projectInfo = null;
+
+        var intendedPath = _projectPath;
+        var intendedName = _projectName;
+
         IsScanning = true;
         ScanningChanged?.Invoke(this, true);
 
         try
         {
             var extensions = ExpandConfiguredFileTypesToExtensions(_settings.GetSmartProjectSearchFileTypes());
-            _projectInfo = await _scanner.ScanProjectAsync(
-                _projectPath,
-                _projectName,
-                maxDepth: 4,
-                excludedFolders: Array.Empty<string>(),
-                maxFiles: 5000,
-                includeExtensions: extensions,
-                cancellationToken: token);
+            DebugLogger.Log($"SmartSearch: Scan starting for '{intendedPath}' extensions=[{string.Join(",", extensions)}]");
+            var cacheKey = BuildScanCacheKey(intendedPath, extensions);
 
-            var poolCount = BuildSearchPool(_projectInfo).Count;
-            StatusText = poolCount == 0
+            ProjectFileInfo scannedInfo;
+            if (_scanCache.TryGetValue(cacheKey, out var cachedProjectInfo))
+            {
+                scannedInfo = cachedProjectInfo;
+                DebugLogger.Log($"SmartSearch: Scan cache HIT — AllFiles={scannedInfo.AllFiles?.Count ?? 0}");
+            }
+            else
+            {
+                scannedInfo = await _scanner.ScanProjectAsync(
+                    intendedPath,
+                    intendedName,
+                    maxDepth: 6,
+                    excludedFolders: Array.Empty<string>(),
+                    maxFiles: 10000,
+                    includeExtensions: extensions,
+                    cancellationToken: token);
+                StoreScanCache(cacheKey, scannedInfo);
+                DebugLogger.Log($"SmartSearch: Scan complete — AllFiles={scannedInfo.AllFiles?.Count ?? 0} DisciplineFiles={scannedInfo.DisciplineFiles.Values.Sum(v => v.Count)} RvtFiles={scannedInfo.Revit?.RvtFiles?.Count ?? 0}");
+            }
+
+            token.ThrowIfCancellationRequested();
+
+            if (!string.Equals(_projectPath, intendedPath, StringComparison.OrdinalIgnoreCase))
+            {
+                DebugLogger.Log($"SmartSearch: Scan DISCARDED — project changed from '{intendedPath}' to '{_projectPath}'");
+                return;
+            }
+
+            _projectInfo = scannedInfo;
+            _cachedSearchPool = null;
+            var pool = GetOrBuildSearchPool(_projectInfo);
+            DebugLogger.Log($"SmartSearch: Search pool built — {pool.Count} unique indexed documents");
+            StatusText = pool.Count == 0
                 ? "No searchable files found in selected project."
-                : $"Indexed {poolCount} files in {_projectName}.";
+                : $"Indexed {pool.Count} files in {intendedName}.";
         }
         catch (OperationCanceledException)
         {
+            DebugLogger.Log("SmartSearch: Scan canceled");
             StatusText = "Scan canceled.";
         }
         catch (Exception ex)
         {
+            DebugLogger.Log($"SmartSearch: Scan FAILED — {ex.Message}");
             StatusText = $"Scan failed: {ex.Message}";
         }
         finally
@@ -155,7 +199,8 @@ public sealed class SmartProjectSearchService
 
         if (_projectInfo == null)
         {
-            _results = new List<SmartProjectSearchResult>();
+            DebugLogger.Log("SmartSearch: RefreshResults — no project loaded, clearing results");
+            _results = new List<DocumentItem>();
             RaiseStateChanged();
             return;
         }
@@ -163,76 +208,108 @@ public sealed class SmartProjectSearchService
         var pathOverride = TryExtractPathOverride(_query, out var overridePath, out var overrideFilter);
         var effectiveQuery = pathOverride ? overrideFilter : (_query ?? string.Empty);
 
+        DebugLogger.Log($"SmartSearch: RefreshResults query='{_query}' effectiveQuery='{effectiveQuery}' pathOverride={pathOverride}");
+
         var sourceInfo = _projectInfo;
         if (pathOverride && !string.IsNullOrWhiteSpace(overridePath) && Directory.Exists(overridePath))
         {
             var includeExtensions = ExpandConfiguredFileTypesToExtensions(_settings.GetSmartProjectSearchFileTypes());
-            sourceInfo = await _scanner.ScanProjectAsync(
-                overridePath,
-                Path.GetFileName(overridePath),
-                maxDepth: 4,
-                excludedFolders: Array.Empty<string>(),
-                maxFiles: 5000,
-                includeExtensions: includeExtensions,
-                cancellationToken: CancellationToken.None);
+            var cacheKey = BuildScanCacheKey(overridePath, includeExtensions);
+            if (!_scanCache.TryGetValue(cacheKey, out var cachedPathInfo))
+            {
+                cachedPathInfo = await _scanner.ScanProjectAsync(
+                    overridePath,
+                    Path.GetFileName(overridePath),
+                    maxDepth: 6,
+                    excludedFolders: Array.Empty<string>(),
+                    maxFiles: 10000,
+                    includeExtensions: includeExtensions,
+                    cancellationToken: CancellationToken.None);
+                StoreScanCache(cacheKey, cachedPathInfo);
+            }
+
+            sourceInfo = cachedPathInfo;
         }
 
         if (refreshVersion != Volatile.Read(ref _refreshVersion))
             return;
 
-        var pool = BuildSearchPool(sourceInfo);
+        _cachedPathOverride = pathOverride ? overridePath : null;
+        var pool = pathOverride
+            ? BuildSearchPoolRaw(sourceInfo)
+            : GetOrBuildSearchPool(sourceInfo);
         var latestMode = _settings.GetSmartProjectSearchLatestMode();
-        var ranked = ApplySearch(pool, effectiveQuery, latestMode, _settings.GetSmartProjectSearchFileTypes()).ToList();
+        var configuredFileTypes = _settings.GetSmartProjectSearchFileTypes();
+        var capturedQuery = effectiveQuery;
+        var capturedProjectPath = sourceInfo.ProjectPath;
 
-        var newResults = ranked.Select(doc => new SmartProjectSearchResult
+        DebugLogger.Log($"SmartSearch: Pool size={pool.Count} latestMode='{latestMode}'");
+
+        var newResults = await Task.Run(() =>
         {
-            Path = doc.Path,
-            FileName = doc.FileName,
-            Extension = doc.Extension,
-            RelativePath = doc.RelativePath,
-            LastModified = doc.LastModified,
-            SizeBytes = doc.SizeBytes,
-            SizeDisplay = doc.SizeDisplay,
-            Category = doc.Category
-        }).ToList();
+            var ranked = ApplySearch(pool, capturedQuery, latestMode, configuredFileTypes);
+            return ranked.Select(idx => idx.Doc).ToList();
+        });
 
         if (refreshVersion != Volatile.Read(ref _refreshVersion))
             return;
 
         _results = newResults;
 
-        StatusText = BuildStatusText(sourceInfo.ProjectPath, effectiveQuery, _results.Count, latestMode);
+        DebugLogger.Log($"SmartSearch: Results={_results.Count} for query='{capturedQuery}' projectPath='{capturedProjectPath}'");
+        for (var i = 0; i < Math.Min(_results.Count, 5); i++)
+            DebugLogger.Log($"SmartSearch:   [{i + 1}] {_results[i].RelativePath}");
+
+        StatusText = BuildStatusText(capturedProjectPath, effectiveQuery, _results.Count, latestMode);
         RaiseStateChanged();
     }
 
-    private static List<DocumentItem> BuildSearchPool(ProjectFileInfo info)
+    private List<IndexedDocument> GetOrBuildSearchPool(ProjectFileInfo info)
+    {
+        if (_cachedSearchPool != null && _cachedPathOverride == null)
+            return _cachedSearchPool;
+
+        var pool = BuildSearchPoolRaw(info);
+        if (_cachedPathOverride == null)
+            _cachedSearchPool = pool;
+        return pool;
+    }
+
+    private static List<IndexedDocument> BuildSearchPoolRaw(ProjectFileInfo info)
     {
         var disciplineFiles = info.DisciplineFiles.Values.SelectMany(v => v);
         var revitFiles = info.Revit?.RvtFiles ?? Enumerable.Empty<DocumentItem>();
         var allFiles = info.AllFiles ?? new List<DocumentItem>();
 
-        return allFiles
-            .Concat(disciplineFiles)
-            .Concat(revitFiles)
+        var allCount = allFiles.Count;
+        var discCount = disciplineFiles.Count();
+        var rvtCount = revitFiles.Count();
+
+        var pool = allFiles
+            .Concat(info.DisciplineFiles.Values.SelectMany(v => v))
+            .Concat(info.Revit?.RvtFiles ?? Enumerable.Empty<DocumentItem>())
             .GroupBy(d => d.Path, StringComparer.OrdinalIgnoreCase)
-            .Select(g => g.First())
+            .Select(g => new IndexedDocument(g.First()))
             .ToList();
+
+        DebugLogger.Log($"SmartSearch: BuildSearchPoolRaw — allFiles={allCount} disciplineFiles={discCount} rvtFiles={rvtCount} → pool={pool.Count} unique");
+        return pool;
     }
 
-    private static IEnumerable<DocumentItem> ApplySearch(List<DocumentItem> pool, string? query, string latestMode, IReadOnlyList<string> configuredFileTypes)
+    private static IEnumerable<IndexedDocument> ApplySearch(List<IndexedDocument> pool, string? query, string latestMode, IReadOnlyList<string> configuredFileTypes)
     {
         if (pool.Count == 0)
-            return Enumerable.Empty<DocumentItem>();
+            return Enumerable.Empty<IndexedDocument>();
 
         var trimmed = (query ?? string.Empty).Trim();
         if (trimmed.Length == 0)
         {
-            return Enumerable.Empty<DocumentItem>();
+            return Enumerable.Empty<IndexedDocument>();
         }
 
         var parse = ParseQuery(trimmed, configuredFileTypes);
 
-        var scored = new List<(DocumentItem Doc, double Score)>();
+        var scored = new List<(IndexedDocument Idx, double Score)>();
         Regex? regex = null;
 
         if (parse.RegexPattern != null)
@@ -243,21 +320,41 @@ public sealed class SmartProjectSearchService
             }
             catch
             {
-                return Enumerable.Empty<DocumentItem>();
+                return Enumerable.Empty<IndexedDocument>();
             }
         }
 
-        foreach (var doc in pool)
-        {
-            if (parse.AllowedExtensions.Count > 0 && !parse.AllowedExtensions.Contains(doc.Extension, StringComparer.OrdinalIgnoreCase))
-                continue;
+        var extFiltered = 0;
+        var exclFiltered = 0;
+        var clauseFiltered = 0;
 
-            var text = BuildSearchText(doc);
+        foreach (var idx in pool)
+        {
+            if (parse.AllowedExtensions.Count > 0 && !parse.AllowedExtensions.Contains(idx.Doc.Extension, StringComparer.OrdinalIgnoreCase))
+            {
+                extFiltered++;
+                continue;
+            }
+
+            if (parse.ExclusionTerms.Count > 0)
+            {
+                var excluded = false;
+                foreach (var excl in parse.ExclusionTerms)
+                {
+                    if (idx.SearchText.Contains(excl, StringComparison.OrdinalIgnoreCase))
+                    {
+                        excluded = true;
+                        break;
+                    }
+                }
+                if (excluded) { exclFiltered++; continue; }
+            }
+
             double score = 0;
 
             if (regex != null)
             {
-                if (!regex.IsMatch(text))
+                if (!regex.IsMatch(idx.SearchText))
                     continue;
 
                 score = 2.0;
@@ -267,7 +364,7 @@ public sealed class SmartProjectSearchService
                 var clauseMatchedAll = true;
                 foreach (var clause in parse.TextClauses)
                 {
-                    var (matched, clauseScore) = EvaluateClause(doc, text, clause);
+                    var (matched, clauseScore) = EvaluateClause(idx, clause);
                     if (!matched)
                     {
                         clauseMatchedAll = false;
@@ -278,49 +375,54 @@ public sealed class SmartProjectSearchService
                 }
 
                 if (!clauseMatchedAll)
+                {
+                    clauseFiltered++;
                     continue;
+                }
             }
 
             if (parse.LatestRequested)
             {
-                var ageDays = Math.Max(0.0, (DateTime.Now - doc.LastModified).TotalDays);
+                var ageDays = Math.Max(0.0, (DateTime.Now - idx.Doc.LastModified).TotalDays);
                 var freshness = Math.Max(0.0, 30.0 - ageDays) / 30.0;
                 score += freshness * 5.0;
             }
 
-            scored.Add((doc, score));
+            scored.Add((idx, score));
         }
+
+        DebugLogger.Log($"SmartSearch: ApplySearch — pool={pool.Count} extFiltered={extFiltered} exclFiltered={exclFiltered} clauseFiltered={clauseFiltered} scored={scored.Count}");
 
         if (parse.LatestRequested && string.Equals(latestMode, "single", StringComparison.OrdinalIgnoreCase))
         {
             return scored
-                .OrderByDescending(s => s.Doc.LastModified)
+                .OrderByDescending(s => s.Idx.Doc.LastModified)
                 .ThenByDescending(s => s.Score)
                 .Take(1)
-                .Select(s => s.Doc);
+                .Select(s => s.Idx);
         }
 
         return parse.LatestRequested
             ? scored
-                .OrderByDescending(s => s.Doc.LastModified)
+                .OrderByDescending(s => s.Idx.Doc.LastModified)
                 .ThenByDescending(s => s.Score)
-                .ThenBy(s => s.Doc.FileName)
-                .Select(s => s.Doc)
+                .ThenBy(s => s.Idx.Doc.FileName)
+                .Select(s => s.Idx)
             : scored
                 .OrderByDescending(s => s.Score)
-                .ThenByDescending(s => s.Doc.LastModified)
-                .ThenBy(s => s.Doc.FileName)
-                .Select(s => s.Doc);
+                .ThenByDescending(s => s.Idx.Doc.LastModified)
+                .ThenBy(s => s.Idx.Doc.FileName)
+                .Select(s => s.Idx);
     }
 
-    private static (bool Matched, double Score) EvaluateClause(DocumentItem doc, string text, ParsedClause clause)
+    private static (bool Matched, double Score) EvaluateClause(IndexedDocument idx, ParsedClause clause)
     {
         var best = 0.0;
         var matched = false;
 
         foreach (var option in clause.Options)
         {
-            var score = ScoreAlternative(doc, text, option);
+            var score = ScoreAlternative(idx, option);
             if (score > 0)
             {
                 matched = true;
@@ -334,7 +436,7 @@ public sealed class SmartProjectSearchService
         return (matched, best);
     }
 
-    private static double ScoreAlternative(DocumentItem doc, string text, string alternative)
+    private static double ScoreAlternative(IndexedDocument idx, string alternative)
     {
         var normalizedOption = alternative.Trim();
         if (normalizedOption.Length == 0)
@@ -343,7 +445,7 @@ public sealed class SmartProjectSearchService
         var terms = ExtractSearchTerms(normalizedOption);
         if (terms.Count == 0)
         {
-            return text.Contains(normalizedOption, StringComparison.OrdinalIgnoreCase) ? 1.0 : 0.0;
+            return idx.SearchText.Contains(normalizedOption, StringComparison.OrdinalIgnoreCase) ? 1.0 : 0.0;
         }
 
         var hits = 0;
@@ -351,7 +453,7 @@ public sealed class SmartProjectSearchService
 
         foreach (var term in terms)
         {
-            var termScore = ScoreTerm(doc, term);
+            var termScore = ScoreTerm(idx, term);
             if (termScore > 0)
             {
                 hits++;
@@ -359,7 +461,7 @@ public sealed class SmartProjectSearchService
             }
         }
 
-        var phraseMatch = text.Contains(normalizedOption, StringComparison.OrdinalIgnoreCase);
+        var phraseMatch = idx.SearchText.Contains(normalizedOption, StringComparison.OrdinalIgnoreCase);
         if (phraseMatch)
             score += 4.0;
 
@@ -367,15 +469,8 @@ public sealed class SmartProjectSearchService
         return hits >= minimumHits || phraseMatch ? score : 0;
     }
 
-    private static string BuildSearchText(DocumentItem doc)
-        => $"{doc.FileName} {doc.RelativePath} {doc.Subfolder} {doc.Category}";
-
-    private static double ScoreTerm(DocumentItem doc, string term)
+    private static double ScoreTerm(IndexedDocument idx, string term)
     {
-        var fileName = doc.FileName.ToLowerInvariant();
-        var relativePath = doc.RelativePath.ToLowerInvariant();
-        var subfolder = doc.Subfolder.ToLowerInvariant();
-        var category = doc.Category.ToLowerInvariant();
         var best = 0.0;
 
         foreach (var alias in ExpandTerm(term))
@@ -383,15 +478,71 @@ public sealed class SmartProjectSearchService
             if (alias.Length == 0)
                 continue;
 
-            if (fileName.StartsWith(alias, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 4.0);
-            if (fileName.Contains(alias, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 3.2);
-            if (relativePath.Contains(alias, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 2.4);
-            if (subfolder.Contains(alias, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 1.5);
-            if (category.Contains(alias, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 1.2);
-            if (best == 0.0 && alias.Length >= 3 && IsSubsequence(alias, fileName)) best = Math.Max(best, 0.6);
+            if (idx.FileNameLower.StartsWith(alias, StringComparison.Ordinal)) best = Math.Max(best, 4.0);
+            if (idx.FileNameLower.Contains(alias, StringComparison.Ordinal)) best = Math.Max(best, 3.2);
+            if (idx.RelativePathLower.Contains(alias, StringComparison.Ordinal)) best = Math.Max(best, 2.4);
+            if (idx.SubfolderLower.Contains(alias, StringComparison.Ordinal)) best = Math.Max(best, 1.5);
+            if (idx.CategoryLower.Contains(alias, StringComparison.Ordinal)) best = Math.Max(best, 1.2);
+            if (best == 0.0 && alias.Length >= 3 && IsSubsequence(alias, idx.FileNameLower)) best = Math.Max(best, 0.6);
+
+            if (best == 0.0 && alias.Length >= 4)
+            {
+                best = Math.Max(best, FuzzyMatchTokens(alias, idx.FileNameLower));
+            }
         }
 
         return best;
+    }
+
+    private static double FuzzyMatchTokens(string term, string text)
+    {
+        var maxAllowedDistance = term.Length <= 5 ? 1 : 2;
+        var tokens = text.Split(new[] { ' ', '_', '-', '.' }, StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var token in tokens)
+        {
+            if (Math.Abs(token.Length - term.Length) > maxAllowedDistance)
+                continue;
+
+            var dist = LevenshteinDistance(term, token);
+            if (dist <= maxAllowedDistance)
+            {
+                return 0.3 * (1.0 - (double)dist / term.Length);
+            }
+        }
+
+        return 0.0;
+    }
+
+    private static int LevenshteinDistance(string s, string t)
+    {
+        var n = s.Length;
+        var m = t.Length;
+
+        if (n == 0) return m;
+        if (m == 0) return n;
+
+        var prev = new int[m + 1];
+        var curr = new int[m + 1];
+
+        for (var j = 0; j <= m; j++)
+            prev[j] = j;
+
+        for (var i = 1; i <= n; i++)
+        {
+            curr[0] = i;
+            for (var j = 1; j <= m; j++)
+            {
+                var cost = s[i - 1] == t[j - 1] ? 0 : 1;
+                curr[j] = Math.Min(
+                    Math.Min(curr[j - 1] + 1, prev[j] + 1),
+                    prev[j - 1] + cost);
+            }
+
+            (prev, curr) = (curr, prev);
+        }
+
+        return prev[m];
     }
 
     private static IEnumerable<string> ExpandTerm(string term)
@@ -445,19 +596,23 @@ public sealed class SmartProjectSearchService
 
     private static ParsedQuery ParseQuery(string query, IReadOnlyList<string> configuredFileTypes)
     {
+        DebugLogger.Log($"SmartSearch: ParseQuery input='{query}'");
         var configuredTypeExtensions = ExpandConfiguredFileTypesToExtensions(configuredFileTypes)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var latestRequested = Regex.IsMatch(query, @"\blatest\b", RegexOptions.IgnoreCase);
         var withoutLatest = Regex.Replace(query, @"\blatest\b", " ", RegexOptions.IgnoreCase).Trim();
 
-        var parts = withoutLatest
+        var exclusionTerms = ExtractExclusionTerms(withoutLatest);
+        var withoutExclusions = RemoveExclusionTerms(withoutLatest).Trim();
+
+        var parts = withoutExclusions
             .Split(new[] { "::" }, StringSplitOptions.RemoveEmptyEntries)
             .Select(p => p.Trim())
             .Where(p => p.Length > 0)
             .ToList();
 
-        if (parts.Count == 0 && withoutLatest.Length > 0)
-            parts.Add(withoutLatest);
+        if (parts.Count == 0 && withoutExclusions.Length > 0)
+            parts.Add(withoutExclusions);
 
         string? regexPattern = null;
         var textClauses = new List<ParsedClause>();
@@ -497,11 +652,50 @@ public sealed class SmartProjectSearchService
                 continue;
             }
 
-            textClauses.Add(new ParsedClause(isOr, options));
+            var positiveOptions = new List<string>();
+            foreach (var opt in options)
+            {
+                if (opt.StartsWith('-') && opt.Length > 1)
+                {
+                    exclusionTerms.Add(opt[1..].ToLowerInvariant());
+                }
+                else
+                {
+                    positiveOptions.Add(opt);
+                }
+            }
+
+            if (positiveOptions.Count > 0)
+                textClauses.Add(new ParsedClause(isOr, positiveOptions));
         }
 
-        return new ParsedQuery(latestRequested, regexPattern, typeExtensions, textClauses);
+        var result = new ParsedQuery(latestRequested, regexPattern, typeExtensions, textClauses, exclusionTerms);
+        DebugLogger.Log($"SmartSearch: ParseQuery result — latest={result.LatestRequested} regex='{result.RegexPattern ?? ""}' extensions=[{string.Join(",", result.AllowedExtensions)}] exclusions=[{string.Join(",", result.ExclusionTerms)}] clauses={result.TextClauses.Count}");
+        for (var ci = 0; ci < result.TextClauses.Count; ci++)
+        {
+            var c = result.TextClauses[ci];
+            DebugLogger.Log($"SmartSearch:   clause[{ci}] isOr={c.IsOr} options=[{string.Join(" | ", c.Options)}]");
+        }
+        return result;
     }
+
+    private static List<string> ExtractExclusionTerms(string query)
+    {
+        var excluded = new List<string>();
+        foreach (Match match in Regex.Matches(query, @"(?:^|\s)-([a-z0-9._-]+)", RegexOptions.IgnoreCase))
+        {
+            var value = match.Groups[1].Value.Trim().ToLowerInvariant();
+            if (value.Length > 0)
+                excluded.Add(value);
+        }
+
+        return excluded
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static string RemoveExclusionTerms(string query)
+        => Regex.Replace(query, @"(?:^|\s)-[a-z0-9._-]+", " ", RegexOptions.IgnoreCase);
 
     private static (bool IsOr, List<string> Options) ParseClauseOptions(string clause)
     {
@@ -610,6 +804,45 @@ public sealed class SmartProjectSearchService
         return expanded.ToList();
     }
 
+    private static string BuildScanCacheKey(string path, IReadOnlyCollection<string> extensions)
+    {
+        var extKey = string.Join(",", extensions
+            .Select(e => (e ?? string.Empty).Trim().TrimStart('.').ToLowerInvariant())
+            .Where(e => e.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(e => e, StringComparer.Ordinal));
+
+        return $"{path.Trim().ToLowerInvariant()}|{extKey}";
+    }
+
+    private void InvalidateScanCacheForPath(string path)
+    {
+        var prefix = path.Trim().ToLowerInvariant();
+        var toRemove = _scanCache.Keys
+            .Where(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        foreach (var k in toRemove)
+            _scanCache.Remove(k);
+    }
+
+    private void StoreScanCache(string key, ProjectFileInfo info)
+    {
+        if (_scanCache.ContainsKey(key))
+        {
+            _scanCache[key] = info;
+            return;
+        }
+
+        _scanCache[key] = info;
+        _scanCacheOrder.Enqueue(key);
+
+        while (_scanCacheOrder.Count > MaxScanCacheEntries)
+        {
+            var oldest = _scanCacheOrder.Dequeue();
+            _scanCache.Remove(oldest);
+        }
+    }
+
     private static bool TryExtractPathOverride(string? query, out string? path, out string filter)
     {
         path = null;
@@ -654,19 +887,28 @@ public sealed class SmartProjectSearchService
         bool LatestRequested,
         string? RegexPattern,
         HashSet<string> AllowedExtensions,
-        List<ParsedClause> TextClauses);
+        List<ParsedClause> TextClauses,
+        List<string> ExclusionTerms);
 
     private sealed record ParsedClause(bool IsOr, List<string> Options);
-}
 
-public sealed class SmartProjectSearchResult
-{
-    public string Path { get; set; } = string.Empty;
-    public string FileName { get; set; } = string.Empty;
-    public string Extension { get; set; } = string.Empty;
-    public string RelativePath { get; set; } = string.Empty;
-    public long SizeBytes { get; set; }
-    public string SizeDisplay { get; set; } = string.Empty;
-    public DateTime LastModified { get; set; }
-    public string Category { get; set; } = string.Empty;
+    internal sealed class IndexedDocument
+    {
+        public DocumentItem Doc { get; }
+        public string FileNameLower { get; }
+        public string RelativePathLower { get; }
+        public string SubfolderLower { get; }
+        public string CategoryLower { get; }
+        public string SearchText { get; }
+
+        public IndexedDocument(DocumentItem doc)
+        {
+            Doc = doc;
+            FileNameLower = doc.FileName.ToLowerInvariant();
+            RelativePathLower = doc.RelativePath.ToLowerInvariant();
+            SubfolderLower = doc.Subfolder.ToLowerInvariant();
+            CategoryLower = doc.Category.ToLowerInvariant();
+            SearchText = $"{doc.FileName} {doc.RelativePath} {doc.Subfolder} {doc.Category}";
+        }
+    }
 }

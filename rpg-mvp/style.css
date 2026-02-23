@@ -339,6 +339,135 @@ canvas{
   cursor: not-allowed;
 }
 
+/* Status badges */
+.b-status{
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--danger);
+  min-height: 1em;
+  letter-spacing: 0.5px;
+}
+
+/* Move selection panel */
+.move-select{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 8px 0;
+}
+.move-select.hidden{ display: none; }
+
+.move-btn{
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.move-btn:hover:not(:disabled){ border-color: rgba(255,255,255,0.3); background: rgba(26,33,64,0.9); }
+.move-btn:disabled{ opacity: 0.4; cursor: not-allowed; }
+
+.move-btn .move-name{ font-weight: 700; font-size: 14px; }
+.move-btn .move-info{ font-size: 11px; color: var(--muted); }
+.move-btn .move-pp{ font-size: 11px; color: var(--muted); }
+
+.move-cancel{
+  grid-column: 1 / -1;
+  text-align: center;
+  font-weight: 600;
+  background: rgba(255,255,255,0.04);
+}
+
+/* Type color accents on move buttons */
+.move-type-fire{ border-left: 3px solid #ff6b35; }
+.move-type-water{ border-left: 3px solid #4cc0ff; }
+.move-type-grass{ border-left: 3px solid #5fbf6a; }
+.move-type-electric{ border-left: 3px solid #ffe14c; }
+.move-type-rock{ border-left: 3px solid #b9b0a3; }
+.move-type-poison{ border-left: 3px solid #a855c7; }
+.move-type-normal{ border-left: 3px solid #aab3d6; }
+
+/* Side Menu (right panel) */
+.side-menu{
+  position: absolute;
+  right: 18px;
+  top: 76px;
+  bottom: 18px;
+  width: 160px;
+  padding: 14px 10px;
+  border-radius: 14px;
+  background: rgba(17,22,44,0.95);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 15;
+}
+.side-menu.hidden{ display: none; }
+
+.side-menu-title{
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--text);
+  margin-bottom: 4px;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.side-menu-btn{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: border-color 0.15s, background 0.15s;
+}
+.side-menu-btn:hover{
+  border-color: rgba(255,255,255,0.25);
+  background: rgba(26,33,64,0.9);
+}
+
+.side-menu-icon{
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+.side-menu-info{
+  margin-top: auto;
+  padding: 10px 8px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+.side-menu-info div:first-child{
+  font-weight: 700;
+  color: var(--text);
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+.side-menu-detail{
+  font-size: 11px;
+  color: var(--muted);
+}
+
 .footer{
   margin-top: 10px;
   font-size: 12px;

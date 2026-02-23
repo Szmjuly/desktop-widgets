@@ -35,7 +35,15 @@ export function getSaveSlotInfo(slot) {
   if (!loaded || !loaded.player) return { exists: false, slot };
   const p = loaded.player;
   const partyCount = (p.party && p.party.length) || 0;
-  const mapName = p.mapId === "town" ? "Town" : p.mapId === "lab" ? "Lab" : p.mapId === "house" ? "House" : p.mapId === "route1" ? "Route 1" : p.mapId === "west_gate" ? "West Gate" : p.mapId === "east_gate" ? "East Gate" : p.mapId;
+  const mapNames = {
+    town: "Home Town", lab: "Lab", house: "House", shop: "Shop",
+    rw1: "Route W1", rw2_n: "Route W2 North", rw2_s: "Route W2 South",
+    re1: "Route E1", re2_n: "Route E2 North", re2_s: "Route E2 South",
+    west_town_n: "Pinegrove", west_town_s: "Dusthaven",
+    east_town_n: "Coralport", east_town_s: "Ashvale",
+    route_west: "Route West", route_east: "Route East",
+  };
+  const mapName = mapNames[p.mapId] || p.mapId;
   return {
     exists: true,
     slot,

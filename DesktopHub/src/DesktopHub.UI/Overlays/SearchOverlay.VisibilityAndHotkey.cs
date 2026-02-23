@@ -227,6 +227,36 @@ public partial class SearchOverlay
         // Reset closing state when showing overlay (app is starting up or user action)
         _isClosing = false;
 
+        // In Living Widgets Mode, if the overlay is already visible, just re-focus it
+        // without clearing search state or reloading projects (prevents results flash)
+        var isAlreadyVisible = this.Visibility == Visibility.Visible && this.Opacity > 0;
+        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+        var hasSearchContent = !string.IsNullOrEmpty(SearchBox.Text) || ResultsList.Items.Count > 0;
+        if (isAlreadyVisible && isLivingWidgetsMode && hasSearchContent)
+        {
+            DebugLogger.Log("ShowOverlay: Already visible in Living Widgets Mode — just re-focusing");
+
+            // Bring widgets to foreground
+            if (_widgetLauncher != null)
+            {
+                _widgetLauncher.Visibility = Visibility.Visible;
+                BringWidgetToForegroundIfEnabled(_widgetLauncher, _settings.GetHotkeyFocusWidgetLauncher());
+            }
+            BringWidgetToForegroundIfEnabled(_timerOverlay, _settings.GetHotkeyFocusTimerWidget());
+            BringWidgetToForegroundIfEnabled(_quickTasksOverlay, _settings.GetHotkeyFocusQuickTasksWidget());
+            BringWidgetToForegroundIfEnabled(_docOverlay, _settings.GetHotkeyFocusDocWidget());
+            BringWidgetToForegroundIfEnabled(_frequentProjectsOverlay, _settings.GetHotkeyFocusFrequentProjectsWidget());
+            BringWidgetToForegroundIfEnabled(_quickLaunchOverlay, _settings.GetHotkeyFocusQuickLaunchWidget());
+            BringWidgetToForegroundIfEnabled(_smartProjectSearchOverlay, _settings.GetHotkeyFocusSmartProjectSearchWidget());
+
+            this.Activate();
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                SearchBox.Focus();
+            }), System.Windows.Threading.DispatcherPriority.Input);
+            return;
+        }
+
         ApplyDynamicTinting();
 
         // Reset manual toggle flag on new open
@@ -234,16 +264,32 @@ public partial class SearchOverlay
 
         ApplySmartProjectSearchAttachModeState();
 
-        // Start with results collapsed
-        _isResultsCollapsed = true;
-        ResultsContainer.Visibility = Visibility.Collapsed;
-        CollapseIconRotation.Angle = -90;
-        SetSmartProjectSearchAttachedPanelExpanded(false, false);
+        // Retain smart search panel state if it was already expanded;
+        // only collapse the main results + panel on a fresh open (panel not yet expanded)
+        var retainSmartSearchState = _isSmartProjectSearchAttachedPanelExpanded
+                                     && _smartProjectSearchAttachedWidget != null;
+
+        if (retainSmartSearchState)
+        {
+            // Keep results visible so the smart search panel stays in context
+            _isResultsCollapsed = false;
+            ResultsContainer.Visibility = Visibility.Visible;
+            CollapseIconRotation.Angle = 0;
+            // Re-apply current expanded height without animation
+            SetSmartProjectSearchAttachedPanelExpanded(true, false);
+        }
+        else
+        {
+            // Start with results collapsed
+            _isResultsCollapsed = true;
+            ResultsContainer.Visibility = Visibility.Collapsed;
+            CollapseIconRotation.Angle = -90;
+            SetSmartProjectSearchAttachedPanelExpanded(false, false);
+        }
         UpdateOverlayHeightForCurrentState(false);
 
         DebugLogger.LogHeader("Positioning Window");
         // Only reposition if Living Widgets Mode is disabled (legacy overlay mode)
-        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
         if (!isLivingWidgetsMode)
         {
             PositionOnMouseScreen();
@@ -255,6 +301,10 @@ public partial class SearchOverlay
         DebugLogger.LogHeader("Making Window Visible");
         this.Visibility = Visibility.Visible;
         this.Opacity = 1;
+
+        // Reposition smart search floating window below the overlay
+        if (retainSmartSearchState)
+            PositionSmartSearchAttachedWindow();
 
         // Show widget launcher next to search overlay
         if (_widgetLauncher != null)
@@ -270,7 +320,15 @@ public partial class SearchOverlay
             _widgetLauncher.Visibility = Visibility.Visible;
         }
 
-        // Timer overlay is now independent - don't auto-show/hide with search overlay
+        // Bring widgets to foreground (without stealing focus from the search overlay)
+        // using Topmost toggle trick — Activate() would steal keyboard focus and grey out the overlay
+        BringWidgetToForegroundIfEnabled(_widgetLauncher, _settings.GetHotkeyFocusWidgetLauncher());
+        BringWidgetToForegroundIfEnabled(_timerOverlay, _settings.GetHotkeyFocusTimerWidget());
+        BringWidgetToForegroundIfEnabled(_quickTasksOverlay, _settings.GetHotkeyFocusQuickTasksWidget());
+        BringWidgetToForegroundIfEnabled(_docOverlay, _settings.GetHotkeyFocusDocWidget());
+        BringWidgetToForegroundIfEnabled(_frequentProjectsOverlay, _settings.GetHotkeyFocusFrequentProjectsWidget());
+        BringWidgetToForegroundIfEnabled(_quickLaunchOverlay, _settings.GetHotkeyFocusQuickLaunchWidget());
+        BringWidgetToForegroundIfEnabled(_smartProjectSearchOverlay, _settings.GetHotkeyFocusSmartProjectSearchWidget());
 
         DebugLogger.LogHeader("Calling Window.Activate()");
         var activateResult = this.Activate();
@@ -278,53 +336,48 @@ public partial class SearchOverlay
         DebugLogger.LogVariable("Window.IsActive after Activate()", this.IsActive);
         DebugLogger.LogVariable("Window.IsFocused after Activate()", this.IsFocused);
 
-        // Clear SearchBox first to prevent any keyboard events from adding characters
-        DebugLogger.LogHeader("Clearing SearchBox");
-        SearchBox.Clear();
-        DebugLogger.LogVariable("SearchBox.Text after Clear()", SearchBox.Text);
-
-        // Delay focus to ensure hotkey keyboard events are fully processed/blocked
-        // Use DispatcherPriority.Input to run after all input events are processed
-        DebugLogger.LogHeader("Scheduling Focus to SearchBox (DispatcherPriority.Input)");
-        Dispatcher.BeginInvoke(new Action(() =>
+        if (retainSmartSearchState)
         {
-            DebugLogger.LogHeader("Focus Callback Executing");
-            DebugLogger.LogVariable("Window.IsActive (in callback)", this.IsActive);
-            DebugLogger.LogVariable("Window.IsFocused (in callback)", this.IsFocused);
-            DebugLogger.LogVariable("SearchBox.IsFocused (before Focus())", SearchBox.IsFocused);
-
-            var focusResult = SearchBox.Focus();
-            DebugLogger.LogVariable("SearchBox.Focus() returned", focusResult);
-            DebugLogger.LogVariable("SearchBox.IsFocused (after Focus())", SearchBox.IsFocused);
-            DebugLogger.LogVariable("SearchBox.IsKeyboardFocused (after Focus())", SearchBox.IsKeyboardFocused);
-            DebugLogger.LogVariable("SearchBox.IsKeyboardFocusWithin (after Focus())", SearchBox.IsKeyboardFocusWithin);
-
-            SearchBox.SelectAll();
-
-            // Double-check and clear any text that appeared (safety measure)
-            Task.Delay(50).ContinueWith(_ => Dispatcher.Invoke(() =>
+            // Retain existing search text and results — just re-focus the search box
+            DebugLogger.Log("ShowOverlay: Retaining search state (smart search was expanded)");
+            Dispatcher.BeginInvoke(new Action(() =>
             {
-                if (!string.IsNullOrEmpty(SearchBox.Text))
-                {
-                    DebugLogger.Log($"ShowOverlay: Clearing unexpected text in SearchBox: '{SearchBox.Text}'");
-                    SearchBox.Clear();
-                }
+                SearchBox.Focus();
+                SearchBox.SelectAll();
+            }), System.Windows.Threading.DispatcherPriority.Input);
+        }
+        else
+        {
+            // Clear SearchBox first to prevent any keyboard events from adding characters
+            DebugLogger.LogHeader("Clearing SearchBox");
+            SearchBox.Clear();
+            DebugLogger.LogVariable("SearchBox.Text after Clear()", SearchBox.Text);
 
-                DebugLogger.LogHeader("Final Focus State (after 50ms delay)");
-                DebugLogger.LogVariable("Window.IsActive", this.IsActive);
-                DebugLogger.LogVariable("Window.IsFocused", this.IsFocused);
-                DebugLogger.LogVariable("SearchBox.IsFocused", SearchBox.IsFocused);
-                DebugLogger.LogVariable("SearchBox.IsKeyboardFocused", SearchBox.IsKeyboardFocused);
-                DebugLogger.LogVariable("SearchBox.IsKeyboardFocusWithin", SearchBox.IsKeyboardFocusWithin);
-                DebugLogger.LogVariable("SearchBox.Text", SearchBox.Text);
-            }));
-        }), System.Windows.Threading.DispatcherPriority.Input);
+            // Delay focus to ensure hotkey keyboard events are fully processed/blocked
+            // Use DispatcherPriority.Input to run after all input events are processed
+            DebugLogger.LogHeader("Scheduling Focus to SearchBox (DispatcherPriority.Input)");
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                DebugLogger.LogHeader("Focus Callback Executing");
+                DebugLogger.LogVariable("Window.IsActive (in callback)", this.IsActive);
+                DebugLogger.LogVariable("Window.IsFocused (in callback)", this.IsFocused);
+                DebugLogger.LogVariable("SearchBox.IsFocused (before Focus())", SearchBox.IsFocused);
 
-        // Load all projects filtered by year
-        LoadAllProjects();
+                var focusResult = SearchBox.Focus();
+                DebugLogger.LogVariable("SearchBox.Focus() returned", focusResult);
+                DebugLogger.LogVariable("SearchBox.IsFocused (after Focus())", SearchBox.IsFocused);
+                DebugLogger.LogVariable("SearchBox.IsKeyboardFocused (after Focus())", SearchBox.IsKeyboardFocused);
+                DebugLogger.LogVariable("SearchBox.IsKeyboardFocusWithin (after Focus())", SearchBox.IsKeyboardFocusWithin);
 
-        // Show history if search is blank
-        UpdateHistoryVisibility();
+                SearchBox.SelectAll();
+            }), System.Windows.Threading.DispatcherPriority.Input);
+
+            // Load all projects filtered by year
+            LoadAllProjects();
+
+            // Show history if search is blank
+            UpdateHistoryVisibility();
+        }
         DebugLogger.Log("ShowOverlay: Returning from method");
     }
 
@@ -530,13 +583,25 @@ public partial class SearchOverlay
 
         // Timer overlay is now independent - don't auto-hide with search overlay
 
-        DebugLogger.LogHeader("Clearing SearchBox and UI");
-        SearchBox.Clear();
-        ResultsList.ItemsSource = null;
+        // Hide the smart search attached window (but retain its expanded state)
+        if (_smartProjectSearchAttachedWindow != null)
+            _smartProjectSearchAttachedWindow.Visibility = Visibility.Hidden;
 
-        // Clear history pills to prevent them from reappearing
-        HorizontalHistoryList.ItemsSource = null;
-        HistoryAndCollapseContainer.Visibility = Visibility.Collapsed;
+        // When smart search panel is expanded, preserve search state for re-open
+        if (!_isSmartProjectSearchAttachedPanelExpanded)
+        {
+            DebugLogger.LogHeader("Clearing SearchBox and UI");
+            SearchBox.Clear();
+            ResultsList.ItemsSource = null;
+
+            // Clear history pills to prevent them from reappearing
+            HorizontalHistoryList.ItemsSource = null;
+            HistoryAndCollapseContainer.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            DebugLogger.Log("HideOverlay: Preserving search state (smart search panel expanded)");
+        }
 
         DebugLogger.LogHeader("Final State");
         DebugLogger.LogVariable("Window.Visibility", this.Visibility);
@@ -544,6 +609,18 @@ public partial class SearchOverlay
         DebugLogger.LogVariable("SearchBox.IsFocused (final)", SearchBox.IsFocused);
         DebugLogger.LogVariable("SearchBox.IsKeyboardFocused (final)", SearchBox.IsKeyboardFocused);
         DebugLogger.Log("HideOverlay: Returning from method");
+    }
+
+    private static void BringWidgetToForegroundIfEnabled(Window? widget, bool enabled)
+    {
+        if (!enabled || widget == null || widget.Visibility != Visibility.Visible)
+            return;
+
+        // Bring to foreground without stealing keyboard focus:
+        // temporarily set Topmost to force the window above others, then restore.
+        var wasTopmost = widget.Topmost;
+        widget.Topmost = true;
+        widget.Topmost = wasTopmost;
     }
 
     private static string FormatHotkey(int modifiers, int key)

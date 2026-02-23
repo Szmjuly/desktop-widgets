@@ -276,6 +276,15 @@ public partial class SettingsWindow : Window
             _isLoadingQLSettings = true;
             _isLoadingQLSettings = false;
             
+            // Load hotkey focus behavior toggles
+            HotkeyFocusWidgetLauncherToggle.IsChecked = _settings.GetHotkeyFocusWidgetLauncher();
+            HotkeyFocusTimerToggle.IsChecked = _settings.GetHotkeyFocusTimerWidget();
+            HotkeyFocusQuickTasksToggle.IsChecked = _settings.GetHotkeyFocusQuickTasksWidget();
+            HotkeyFocusDocToggle.IsChecked = _settings.GetHotkeyFocusDocWidget();
+            HotkeyFocusFrequentProjectsToggle.IsChecked = _settings.GetHotkeyFocusFrequentProjectsWidget();
+            HotkeyFocusQuickLaunchToggle.IsChecked = _settings.GetHotkeyFocusQuickLaunchWidget();
+            HotkeyFocusSmartSearchToggle.IsChecked = _settings.GetHotkeyFocusSmartProjectSearchWidget();
+
             UpdateAllLinkButtons();
         }
         catch (Exception ex)
@@ -1713,6 +1722,24 @@ public partial class SettingsWindow : Window
         }
         // Default to "Every 6 hours" if no match
         UpdateFrequencyCombo.SelectedIndex = 1;
+    }
+
+    // ===== Hotkey Focus Behavior =====
+
+    private void HotkeyFocusToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+
+        _settings.SetHotkeyFocusWidgetLauncher(HotkeyFocusWidgetLauncherToggle.IsChecked == true);
+        _settings.SetHotkeyFocusTimerWidget(HotkeyFocusTimerToggle.IsChecked == true);
+        _settings.SetHotkeyFocusQuickTasksWidget(HotkeyFocusQuickTasksToggle.IsChecked == true);
+        _settings.SetHotkeyFocusDocWidget(HotkeyFocusDocToggle.IsChecked == true);
+        _settings.SetHotkeyFocusFrequentProjectsWidget(HotkeyFocusFrequentProjectsToggle.IsChecked == true);
+        _settings.SetHotkeyFocusQuickLaunchWidget(HotkeyFocusQuickLaunchToggle.IsChecked == true);
+        _settings.SetHotkeyFocusSmartProjectSearchWidget(HotkeyFocusSmartSearchToggle.IsChecked == true);
+        _ = _settings.SaveAsync();
+
+        StatusText.Text = "Hotkey focus behavior updated";
     }
 
     // ===== Frequent Projects Tab =====

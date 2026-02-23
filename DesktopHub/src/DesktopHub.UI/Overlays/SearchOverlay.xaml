@@ -632,34 +632,7 @@
             
             </Grid>
 
-            <!-- Smart Project Search attached panel -->
-            <Border Grid.Row="3"
-                    x:Name="SmartProjectSearchAttachedPanelContainer"
-                    Margin="0,8,0,0"
-                    Background="#D0121212"
-                    BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Visibility="Collapsed"
-                    MaxHeight="0"
-                    ClipToBounds="True">
-                <Grid Margin="12">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-
-                    <TextBlock Grid.Row="0"
-                              Text="Smart Project Search"
-                              FontSize="12"
-                              FontWeight="SemiBold"
-                              Foreground="#F5F7FA"
-                              Margin="0,0,0,8"/>
-
-                    <ContentControl x:Name="SmartProjectSearchAttachedHost"
-                                    Grid.Row="1"/>
-                </Grid>
-            </Border>
+            <!-- Smart Project Search is now a separate floating window below the overlay -->
             
             <!-- Status bar -->
             <Grid Grid.Row="4" Margin="0,8,0,0">

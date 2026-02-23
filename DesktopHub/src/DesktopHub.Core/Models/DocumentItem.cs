@@ -63,4 +63,23 @@ public class DocumentItem
             return $"{SizeBytes / (1024.0 * 1024 * 1024):F1} GB";
         }
     }
+
+    /// <summary>
+    /// UI-friendly icon derived from file extension.
+    /// </summary>
+    public string FileIcon => Extension.ToLowerInvariant() switch
+    {
+        "pdf" => "\U0001F4C4",
+        "doc" or "docx" => "\U0001F4DD",
+        "xls" or "xlsx" or "csv" => "\U0001F4CA",
+        "dwg" or "dxf" or "dgn" => "\U0001F4D0",
+        "rvt" or "rfa" => "\U0001F3D7\uFE0F",
+        "jpg" or "jpeg" or "png" or "gif" or "bmp" or "svg" or "tif" or "tiff" => "\U0001F5BC\uFE0F",
+        "txt" or "log" => "\U0001F4C3",
+        "msg" or "eml" => "\u2709\uFE0F",
+        "zip" or "rar" or "7z" => "\U0001F4E6",
+        "exe" or "msi" => "\u2699\uFE0F",
+        "ppt" or "pptx" => "\U0001F4FD\uFE0F",
+        _ => "\U0001F4C4"
+    };
 }

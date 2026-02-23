@@ -80,8 +80,7 @@ public class DocumentScanner : IDocumentScanner
 
             // 1.5 Build a broad searchable file set across the full project directory.
             // Keep this independent from discipline view so users can find letters/docs anywhere.
-            var fullProjectDepth = Math.Max(maxDepth, 2);
-            info.AllFiles = ScanProjectFiles(projectPath, includeSet, fullProjectDepth, excludedFolders, maxFiles, cancellationToken);
+            info.AllFiles = ScanProjectFiles(projectPath, includeSet, maxDepth, excludedFolders, maxFiles, cancellationToken);
 
             // 2. Check for "Revit File" folder
             var revitFolderPath = FindRevitFolder(projectPath);
@@ -353,7 +352,7 @@ public class DocumentScanner : IDocumentScanner
                         LastModified = fi.LastWriteTime,
                         Category = ExtensionCategories.GetValueOrDefault(ext, "Other"),
                         RelativePath = Path.GetRelativePath(projectRoot, filePath),
-                        Subfolder = Path.GetFileName(rootPath)
+                        Subfolder = Path.GetFileName(Path.GetDirectoryName(filePath) ?? rootPath)
                     });
                 }
                 catch (UnauthorizedAccessException) { }

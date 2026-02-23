@@ -66,7 +66,7 @@ public partial class SearchOverlay : Window
     private UpdateIndicatorManager? _updateIndicatorManager;
     private const double OverlayCollapsedBaseHeight = 140;
     private const double OverlayExpandedBaseHeight = 500;
-    private const double SmartProjectSearchAttachedPanelExpandedHeight = 255;
+    private const double SmartProjectSearchAttachedPanelExpandedHeight = 400;
     private static readonly HashSet<string> PathSearchStopWords = new(StringComparer.OrdinalIgnoreCase)
     {
         "a", "an", "and", "or", "the", "from", "for", "to", "of", "in", "on", "at", "by", "with"
