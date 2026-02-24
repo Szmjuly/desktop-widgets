@@ -1,3 +1,5 @@
+using DesktopHub.Core.Models;
+
 namespace DesktopHub.Core.Abstractions;
 
 /// <summary>
@@ -472,21 +474,9 @@ public interface ISettingsService
     List<string> GetSmartProjectSearchFileTypes();
     void SetSmartProjectSearchFileTypes(IReadOnlyList<string> fileTypes);
 
-    // --- Hotkey Focus Behavior ---
-    bool GetHotkeyFocusWidgetLauncher();
-    void SetHotkeyFocusWidgetLauncher(bool enabled);
-    bool GetHotkeyFocusTimerWidget();
-    void SetHotkeyFocusTimerWidget(bool enabled);
-    bool GetHotkeyFocusQuickTasksWidget();
-    void SetHotkeyFocusQuickTasksWidget(bool enabled);
-    bool GetHotkeyFocusDocWidget();
-    void SetHotkeyFocusDocWidget(bool enabled);
-    bool GetHotkeyFocusFrequentProjectsWidget();
-    void SetHotkeyFocusFrequentProjectsWidget(bool enabled);
-    bool GetHotkeyFocusQuickLaunchWidget();
-    void SetHotkeyFocusQuickLaunchWidget(bool enabled);
-    bool GetHotkeyFocusSmartProjectSearchWidget();
-    void SetHotkeyFocusSmartProjectSearchWidget(bool enabled);
+    // --- Hotkey Groups ---
+    List<HotkeyGroup> GetHotkeyGroups();
+    void SetHotkeyGroups(List<HotkeyGroup> groups);
 
     /// <summary>
     /// Get close shortcut configuration for closing widgets

@@ -218,6 +218,58 @@
                                 </Style>
                             </RadioButton.Style>
                         </RadioButton>
+
+                        <RadioButton x:Name="SmartProjectSearchMenuButton" Content="🔎 Smart Search" Checked="MenuButton_Checked"
+                                     GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
+                                     Foreground="{StaticResource TextBrush}" Cursor="Hand">
+                            <RadioButton.Style>
+                                <Style TargetType="RadioButton">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="RadioButton">
+                                                <Border x:Name="Border" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryBrush}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="#33FFFFFF"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </RadioButton.Style>
+                        </RadioButton>
+
+                        <RadioButton x:Name="WidgetLauncherMenuButton" Content="🧩 Widget Launcher" Checked="MenuButton_Checked"
+                                     GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
+                                     Foreground="{StaticResource TextBrush}" Cursor="Hand">
+                            <RadioButton.Style>
+                                <Style TargetType="RadioButton">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="RadioButton">
+                                                <Border x:Name="Border" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryBrush}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="#33FFFFFF"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </RadioButton.Style>
+                        </RadioButton>
                         
                         <RadioButton x:Name="QuickTasksMenuButton" Content="☑ Quick Tasks" Checked="MenuButton_Checked"
                                      GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
@@ -359,94 +411,6 @@
                             CornerRadius="8" Padding="20" Visibility="Collapsed">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
-                    <!-- Hotkey Section -->
-                    <Border Background="{StaticResource SurfaceBrush}" 
-                            BorderBrush="{StaticResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="16"
-                            Margin="0,0,0,12">
-                        <StackPanel>
-                            <TextBlock Text="Global Hotkey" 
-                                       FontSize="16" 
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextBrush}"
-                                       Margin="0,0,0,8"/>
-                            
-                            <TextBlock Text="Press a new key combination to change the hotkey" 
-                                       FontSize="12" 
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       Margin="0,0,0,12"/>
-                            
-                            <!-- Hotkey Display -->
-                            <Border x:Name="HotkeyBox"
-                                    Background="#22FFFFFF"
-                                    BorderBrush="{StaticResource BorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="12"
-                                    Margin="0,0,0,12"
-                                    Cursor="Hand"
-                                    MouseDown="HotkeyBox_MouseDown">
-                                <Grid>
-                                    <TextBlock x:Name="HotkeyText"
-                                               Text="Ctrl+Alt+Space"
-                                               FontSize="14"
-                                               FontWeight="Medium"
-                                               Foreground="{StaticResource TextBrush}"
-                                               HorizontalAlignment="Center"/>
-                                    <TextBlock x:Name="RecordingText"
-                                               Text="Press a key combination..."
-                                               FontSize="14"
-                                               FontStyle="Italic"
-                                               Foreground="{StaticResource PrimaryBrush}"
-                                               HorizontalAlignment="Center"
-                                               Visibility="Collapsed"/>
-                                </Grid>
-                            </Border>
-                            
-                            <Button x:Name="ResetHotkeyButton"
-                                    Content="Reset to Default (Ctrl+Alt+Space)"
-                                    Padding="12,8"
-                                    Background="#22FFFFFF"
-                                    Foreground="{StaticResource TextSecondaryBrush}"
-                                    BorderBrush="{StaticResource BorderBrush}"
-                                    Click="ResetHotkeyButton_Click"
-                                    Cursor="Hand">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="Button">
-                                                    <Border Background="{TemplateBinding Background}" 
-                                                            BorderBrush="{TemplateBinding BorderBrush}" 
-                                                            BorderThickness="1"
-                                                            CornerRadius="6">
-                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                    </Border>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </Button.Style>
-                            </Button>
-
-                            <Border x:Name="HotkeyTypingWarning"
-                                    Background="#332B1B00"
-                                    BorderBrush="#665A3A00"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="10"
-                                    Margin="0,12,0,0"
-                                    Visibility="Collapsed">
-                                <TextBlock x:Name="HotkeyTypingWarningText"
-                                           TextWrapping="Wrap"
-                                           FontSize="12"
-                                           Foreground="#F3D6A2"/>
-                            </Border>
-                        </StackPanel>
-                    </Border>
-                    
                     <!-- Close Shortcut Section -->
                     <Border Background="{StaticResource SurfaceBrush}" 
                             BorderBrush="{StaticResource BorderBrush}"
@@ -532,6 +496,29 @@
                                            FontSize="12"
                                            Foreground="#F3D6A2"/>
                             </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Hotkey Groups Section -->
+                    <Border Background="#18FFFFFF" 
+                            BorderBrush="#22FFFFFF"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="16"
+                            Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Hotkey Groups" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextBrush}"
+                                       Margin="0,0,0,4"/>
+                            <TextBlock Text="Assign widgets to hotkey groups. Each widget belongs to one group. Click a hotkey box then press your key combo to set it." 
+                                       FontSize="12" 
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,16"/>
+                            <!-- Groups are built in code-behind via RebuildHotkeyGroupsPanel -->
+                            <StackPanel x:Name="HotkeyGroupsPanel"/>
                         </StackPanel>
                     </Border>
                             </StackPanel>
@@ -1210,6 +1197,61 @@
                             </Grid>
                         </StackPanel>
                     </Border>
+
+                    <!-- Living Widgets snap spacing -->
+                    <Border Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="16"
+                            Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Widget Snap Gap"
+                                       FontSize="16"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextBrush}"
+                                       Margin="0,0,0,4"/>
+                            <TextBlock Text="Controls spacing between widgets when snapping and auto-attaching in Living Widgets Mode."
+                                       FontSize="12"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,10"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0"
+                                           Text="Tight"
+                                           FontSize="10"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,8,0"/>
+
+                                <Slider x:Name="WidgetSnapGapSlider"
+                                       Grid.Column="1"
+                                       Minimum="4"
+                                       Maximum="64"
+                                       TickFrequency="2"
+                                       IsSnapToTickEnabled="True"
+                                       Value="12"
+                                       ValueChanged="WidgetSnapGapSlider_ValueChanged"
+                                       VerticalAlignment="Center"/>
+
+                                <TextBlock x:Name="WidgetSnapGapValueText"
+                                           Grid.Column="2"
+                                           Text="12 px"
+                                           FontSize="11"
+                                           FontWeight="Medium"
+                                           Foreground="{StaticResource TextBrush}"
+                                           VerticalAlignment="Center"
+                                           Margin="8,0,0,0"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
@@ -1430,76 +1472,6 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Smart Project Search Section -->
-                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
-                        <StackPanel>
-                            <TextBlock Text="Smart Project Search" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                            <TextBlock Text="Controls query behavior for the Smart Project Search widget." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-
-                            <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Attach mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Embed Smart Project Search inside the Search Overlay. This disables the widget-launcher Smart Search toggle while active." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
-                                </StackPanel>
-                                <ToggleButton x:Name="SmartProjectSearchAttachModeToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
-                                              Checked="SmartProjectSearchAttachModeToggle_Changed" Unchecked="SmartProjectSearchAttachModeToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-                            </Grid>
-
-                            <TextBlock Text="Latest query mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
-                            <StackPanel Margin="12,0,0,10">
-                                <RadioButton x:Name="SmartSearchLatestListRadio"
-                                             Content="Newest-first list"
-                                             FontSize="12"
-                                             Foreground="{StaticResource TextBrush}"
-                                             Margin="0,0,0,4"
-                                             Checked="SmartSearchLatestMode_Changed"/>
-                                <RadioButton x:Name="SmartSearchLatestSingleRadio"
-                                             Content="Single newest result"
-                                             FontSize="12"
-                                             Foreground="{StaticResource TextBrush}"
-                                             Checked="SmartSearchLatestMode_Changed"/>
-                            </StackPanel>
-
-                            <TextBlock Text="Searchable file types" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                            <TextBlock Text="Comma-separated keywords/extensions. Example: doc, docx, pdf, txt, dwg, rvt, excel, png, jpeg, msg"
-                                       FontSize="11"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       TextWrapping="Wrap"
-                                       Margin="0,0,0,6"/>
-                            <TextBox x:Name="SmartSearchFileTypesInput"
-                                     Background="#22FFFFFF"
-                                     BorderBrush="{StaticResource BorderBrush}"
-                                     Foreground="{StaticResource TextBrush}"
-                                     Padding="8,6"
-                                     LostFocus="SmartSearchFileTypesInput_LostFocus"/>
-                        </StackPanel>
-                    </Border>
-                    
                     <!-- Network Drives Section -->
                     <Border Background="{StaticResource SurfaceBrush}" 
                             BorderBrush="{StaticResource BorderBrush}"
@@ -1732,61 +1704,6 @@
                         </Grid>
                     </Border>
 
-                    <!-- Living Widgets snap spacing -->
-                    <Border Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="16"
-                            Margin="0,0,0,12">
-                        <StackPanel>
-                            <TextBlock Text="Widget Snap Gap"
-                                       FontSize="16"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextBrush}"
-                                       Margin="0,0,0,4"/>
-                            <TextBlock Text="Controls spacing between widgets when snapping and auto-attaching in Living Widgets Mode."
-                                       FontSize="12"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       TextWrapping="Wrap"
-                                       Margin="0,0,0,10"/>
-
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-
-                                <TextBlock Grid.Column="0"
-                                           Text="Tight"
-                                           FontSize="10"
-                                           Foreground="{StaticResource TextSecondaryBrush}"
-                                           VerticalAlignment="Center"
-                                           Margin="0,0,8,0"/>
-
-                                <Slider x:Name="WidgetSnapGapSlider"
-                                       Grid.Column="1"
-                                       Minimum="4"
-                                       Maximum="64"
-                                       TickFrequency="2"
-                                       IsSnapToTickEnabled="True"
-                                       Value="12"
-                                       ValueChanged="WidgetSnapGapSlider_ValueChanged"
-                                       VerticalAlignment="Center"/>
-
-                                <TextBlock x:Name="WidgetSnapGapValueText"
-                                           Grid.Column="2"
-                                           Text="12 px"
-                                           FontSize="11"
-                                           FontWeight="Medium"
-                                           Foreground="{StaticResource TextBrush}"
-                                           VerticalAlignment="Center"
-                                           Margin="8,0,0,0"/>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-                    
                     <!-- Notification Duration Section -->
                     <Border Background="{StaticResource SurfaceBrush}" 
                             BorderBrush="{StaticResource BorderBrush}"
@@ -1837,577 +1754,400 @@
                         </StackPanel>
                     </Border>
                     
-                    <!-- Widget Launcher Widgets Section -->
-                    <Border Background="#18FFFFFF" 
-                            BorderBrush="#22FFFFFF"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="16"
-                            Margin="0,12,0,12">
-                        <StackPanel>
-                            <TextBlock Text="Widget Launcher Widgets" 
-                                       FontSize="16" 
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextBrush}"
-                                       Margin="0,0,0,4"/>
-                            <TextBlock Text="Enable or disable widgets available in the widget launcher" 
-                                       FontSize="12" 
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       Margin="0,0,0,16"/>
-
-                            <StackPanel Margin="0,0,0,14">
-                                <TextBlock Text="Max visible widgets before scroll"
-                                           FontSize="13"
-                                           FontWeight="Medium"
-                                           Foreground="{StaticResource TextBrush}"
-                                           Margin="0,0,0,4"/>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <TextBlock Grid.Column="0"
-                                               Text="Few"
-                                               FontSize="10"
-                                               Foreground="{StaticResource TextSecondaryBrush}"
-                                               VerticalAlignment="Center"
-                                               Margin="0,0,8,0"/>
-
-                                    <Slider x:Name="WidgetLauncherMaxVisibleWidgetsSlider"
-                                           Grid.Column="1"
-                                           Minimum="1"
-                                           Maximum="12"
-                                           TickFrequency="1"
-                                           IsSnapToTickEnabled="True"
-                                           Value="4"
-                                           ValueChanged="WidgetLauncherMaxVisibleWidgetsSlider_Changed"
-                                           VerticalAlignment="Center"/>
-
-                                    <TextBlock x:Name="WidgetLauncherMaxVisibleWidgetsValueText"
-                                               Grid.Column="2"
-                                               Text="4"
-                                               FontSize="11"
-                                               FontWeight="Medium"
-                                               Foreground="{StaticResource TextBrush}"
-                                               VerticalAlignment="Center"
-                                               Margin="8,0,0,0"/>
-                                </Grid>
                             </StackPanel>
-                            
-                            <!-- Timer Widget Toggle -->
-                            <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Timer Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Countdown and stopwatch timer" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                </StackPanel>
-                                <ToggleButton x:Name="TimerWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
-                                              Checked="TimerWidgetEnabledToggle_Changed" Unchecked="TimerWidgetEnabledToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-                            </Grid>
-                            
-                            <!-- Quick Tasks Widget Toggle -->
-                            <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Quick Tasks Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Task list and to-do manager" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                </StackPanel>
-                                <ToggleButton x:Name="QuickTasksWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
-                                              Checked="QuickTasksWidgetEnabledToggle_Changed" Unchecked="QuickTasksWidgetEnabledToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-                            </Grid>
-                            
-                            <!-- Doc Quick Open Widget Toggle -->
-                            <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Doc Quick Open Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Quick access to project documents" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                </StackPanel>
-                                <ToggleButton x:Name="DocWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
-                                              Checked="DocWidgetEnabledToggle_Changed" Unchecked="DocWidgetEnabledToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-                            </Grid>
-                            
-                            <!-- Search Widget Toggle -->
-                            <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Search Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Search button in the Widget Launcher" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                </StackPanel>
-                                <ToggleButton x:Name="SearchWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
-                                              Checked="SearchWidgetEnabledToggle_Changed" Unchecked="SearchWidgetEnabledToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-                            </Grid>
-                            
-                            <!-- Frequent Projects Widget Toggle -->
-                            <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Frequent Projects Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Shows your most frequently launched projects" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                </StackPanel>
-                                <ToggleButton x:Name="FrequentProjectsWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
-                                              Checked="FrequentProjectsWidgetEnabledToggle_Changed" Unchecked="FrequentProjectsWidgetEnabledToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-                            </Grid>
-                            
-                            <!-- Quick Launch Widget Toggle -->
-                            <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Quick Launch Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Customizable folder and file launcher" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                </StackPanel>
-                                <ToggleButton x:Name="QuickLaunchWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
-                                              Checked="QuickLaunchWidgetEnabledToggle_Changed" Unchecked="QuickLaunchWidgetEnabledToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-                            </Grid>
-
-                            <!-- Smart Project Search Widget Toggle -->
-                            <Grid Margin="0,0,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Smart Project Search Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Fast semantic, regex, and extension-aware project file search" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                </StackPanel>
-                                <ToggleButton x:Name="SmartProjectSearchWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
-                                              Checked="SmartProjectSearchWidgetEnabledToggle_Changed" Unchecked="SmartProjectSearchWidgetEnabledToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-                            </Grid>
-                        </StackPanel>
+                        </ScrollViewer>
                     </Border>
 
-                    <!-- Hotkey Focus Behavior Section -->
-                    <Border Background="#18FFFFFF" 
-                            BorderBrush="#22FFFFFF"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="16"
-                            Margin="0,12,0,12">
-                        <StackPanel>
-                            <TextBlock Text="Hotkey Focus Behavior" 
-                                       FontSize="16" 
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextBrush}"
-                                       Margin="0,0,0,4"/>
-                            <TextBlock Text="Select which widgets are brought to focus when the hotkey is pressed" 
-                                       FontSize="12" 
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       Margin="0,0,0,16"/>
+                    <!-- Smart Project Search Panel -->
+                    <Border x:Name="SmartProjectSearchPanel" Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
+                            <StackPanel>
+                                <!-- Smart Project Search Section -->
+                                <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="Smart Project Search" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Controls query behavior for the Smart Project Search widget." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
 
-                            <!-- Widget Launcher -->
-                            <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Widget Launcher" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Bring widget launcher to focus on hotkey" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                </StackPanel>
-                                <ToggleButton x:Name="HotkeyFocusWidgetLauncherToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
-                                              Checked="HotkeyFocusToggle_Changed" Unchecked="HotkeyFocusToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-                            </Grid>
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Attach mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                                <TextBlock Text="Embed Smart Project Search inside the Search Overlay. This disables the widget-launcher Smart Search toggle while active." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="SmartProjectSearchAttachModeToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
+                                                          Checked="SmartProjectSearchAttachModeToggle_Changed" Unchecked="SmartProjectSearchAttachModeToggle_Changed" Cursor="Hand">
+                                                <ToggleButton.Style>
+                                                    <Style TargetType="ToggleButton">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                    <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                                        <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsChecked" Value="True">
+                                                                            <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                            <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </ToggleButton.Style>
+                                            </ToggleButton>
+                                        </Grid>
 
-                            <!-- Timer Widget -->
-                            <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Timer Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Bring timer to focus on hotkey" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                </StackPanel>
-                                <ToggleButton x:Name="HotkeyFocusTimerToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
-                                              Checked="HotkeyFocusToggle_Changed" Unchecked="HotkeyFocusToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-                            </Grid>
+                                        <TextBlock Text="Latest query mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
+                                        <StackPanel Margin="12,0,0,10">
+                                            <RadioButton x:Name="SmartSearchLatestListRadio"
+                                                         Content="Newest-first list"
+                                                         FontSize="12"
+                                                         Foreground="{StaticResource TextBrush}"
+                                                         Margin="0,0,0,4"
+                                                         Checked="SmartSearchLatestMode_Changed"/>
+                                            <RadioButton x:Name="SmartSearchLatestSingleRadio"
+                                                         Content="Single newest result"
+                                                         FontSize="12"
+                                                         Foreground="{StaticResource TextBrush}"
+                                                         Checked="SmartSearchLatestMode_Changed"/>
+                                        </StackPanel>
 
-                            <!-- Quick Tasks Widget -->
-                            <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Quick Tasks Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Bring task list to focus on hotkey" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                </StackPanel>
-                                <ToggleButton x:Name="HotkeyFocusQuickTasksToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
-                                              Checked="HotkeyFocusToggle_Changed" Unchecked="HotkeyFocusToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-                            </Grid>
-
-                            <!-- Doc Quick Open Widget -->
-                            <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Doc Quick Open Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Bring document browser to focus on hotkey" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                </StackPanel>
-                                <ToggleButton x:Name="HotkeyFocusDocToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
-                                              Checked="HotkeyFocusToggle_Changed" Unchecked="HotkeyFocusToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-                            </Grid>
-
-                            <!-- Frequent Projects Widget -->
-                            <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Frequent Projects Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Bring frequent projects to focus on hotkey" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                </StackPanel>
-                                <ToggleButton x:Name="HotkeyFocusFrequentProjectsToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
-                                              Checked="HotkeyFocusToggle_Changed" Unchecked="HotkeyFocusToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-                            </Grid>
-
-                            <!-- Quick Launch Widget -->
-                            <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Quick Launch Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Bring quick launcher to focus on hotkey" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                </StackPanel>
-                                <ToggleButton x:Name="HotkeyFocusQuickLaunchToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
-                                              Checked="HotkeyFocusToggle_Changed" Unchecked="HotkeyFocusToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-                            </Grid>
-
-                            <!-- Smart Project Search Widget -->
-                            <Grid Margin="0,0,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Smart Project Search Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Bring smart search to focus on hotkey" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                                </StackPanel>
-                                <ToggleButton x:Name="HotkeyFocusSmartSearchToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
-                                              Checked="HotkeyFocusToggle_Changed" Unchecked="HotkeyFocusToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
-                                </ToggleButton>
-                            </Grid>
-                        </StackPanel>
+                                        <TextBlock Text="Searchable file types" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Comma-separated keywords/extensions. Example: doc, docx, pdf, txt, dwg, rvt, excel, png, jpeg, msg"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,0,0,6"/>
+                                        <TextBox x:Name="SmartSearchFileTypesInput"
+                                                 Background="#22FFFFFF"
+                                                 BorderBrush="{StaticResource BorderBrush}"
+                                                 Foreground="{StaticResource TextBrush}"
+                                                 Padding="8,6"
+                                                 LostFocus="SmartSearchFileTypesInput_LostFocus"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
                     </Border>
-                    
+
+                    <!-- Widget Launcher Panel -->
+                    <Border x:Name="WidgetLauncherPanel" Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
+                            <StackPanel>
+                                <!-- Widget Launcher Widgets Section -->
+                                <Border Background="#18FFFFFF" 
+                                        BorderBrush="#22FFFFFF"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="16"
+                                        Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="Widget Launcher Widgets" 
+                                                   FontSize="16" 
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextBrush}"
+                                                   Margin="0,0,0,4"/>
+                                        <TextBlock Text="Enable or disable widgets available in the widget launcher" 
+                                                   FontSize="12" 
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Margin="0,0,0,16"/>
+
+                                        <StackPanel Margin="0,0,0,14">
+                                            <TextBlock Text="Max visible widgets before scroll"
+                                                       FontSize="13"
+                                                       FontWeight="Medium"
+                                                       Foreground="{StaticResource TextBrush}"
+                                                       Margin="0,0,0,4"/>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Grid.Column="0"
+                                                           Text="Few"
+                                                           FontSize="10"
+                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           VerticalAlignment="Center"
+                                                           Margin="0,0,8,0"/>
+
+                                                <Slider x:Name="WidgetLauncherMaxVisibleWidgetsSlider"
+                                                       Grid.Column="1"
+                                                       Minimum="1"
+                                                       Maximum="12"
+                                                       TickFrequency="1"
+                                                       IsSnapToTickEnabled="True"
+                                                       Value="4"
+                                                       ValueChanged="WidgetLauncherMaxVisibleWidgetsSlider_Changed"
+                                                       VerticalAlignment="Center"/>
+
+                                                <TextBlock x:Name="WidgetLauncherMaxVisibleWidgetsValueText"
+                                                           Grid.Column="2"
+                                                           Text="4"
+                                                           FontSize="11"
+                                                           FontWeight="Medium"
+                                                           Foreground="{StaticResource TextBrush}"
+                                                           VerticalAlignment="Center"
+                                                           Margin="8,0,0,0"/>
+                                            </Grid>
+                                        </StackPanel>
+                                        
+                                        <!-- Timer Widget Toggle -->
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Timer Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                                <TextBlock Text="Countdown and stopwatch timer" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="TimerWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
+                                                          Checked="TimerWidgetEnabledToggle_Changed" Unchecked="TimerWidgetEnabledToggle_Changed" Cursor="Hand">
+                                                <ToggleButton.Style>
+                                                    <Style TargetType="ToggleButton">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                    <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                                        <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsChecked" Value="True">
+                                                                            <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                            <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </ToggleButton.Style>
+                                            </ToggleButton>
+                                        </Grid>
+                                        
+                                        <!-- Quick Tasks Widget Toggle -->
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Quick Tasks Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                                <TextBlock Text="Task list and to-do manager" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="QuickTasksWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
+                                                          Checked="QuickTasksWidgetEnabledToggle_Changed" Unchecked="QuickTasksWidgetEnabledToggle_Changed" Cursor="Hand">
+                                                <ToggleButton.Style>
+                                                    <Style TargetType="ToggleButton">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                    <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                                        <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsChecked" Value="True">
+                                                                            <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                            <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </ToggleButton.Style>
+                                            </ToggleButton>
+                                        </Grid>
+                                        
+                                        <!-- Doc Quick Open Widget Toggle -->
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Doc Quick Open Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                                <TextBlock Text="Quick access to project documents" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="DocWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
+                                                          Checked="DocWidgetEnabledToggle_Changed" Unchecked="DocWidgetEnabledToggle_Changed" Cursor="Hand">
+                                                <ToggleButton.Style>
+                                                    <Style TargetType="ToggleButton">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                    <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                                        <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsChecked" Value="True">
+                                                                            <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                            <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </ToggleButton.Style>
+                                            </ToggleButton>
+                                        </Grid>
+                                        
+                                        <!-- Search Widget Toggle -->
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Search Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                                <TextBlock Text="Search button in the Widget Launcher" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="SearchWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
+                                                          Checked="SearchWidgetEnabledToggle_Changed" Unchecked="SearchWidgetEnabledToggle_Changed" Cursor="Hand">
+                                                <ToggleButton.Style>
+                                                    <Style TargetType="ToggleButton">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                    <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                                        <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsChecked" Value="True">
+                                                                            <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                            <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </ToggleButton.Style>
+                                            </ToggleButton>
+                                        </Grid>
+                                        
+                                        <!-- Frequent Projects Widget Toggle -->
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Frequent Projects Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                                <TextBlock Text="Shows your most frequently launched projects" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="FrequentProjectsWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
+                                                          Checked="FrequentProjectsWidgetEnabledToggle_Changed" Unchecked="FrequentProjectsWidgetEnabledToggle_Changed" Cursor="Hand">
+                                                <ToggleButton.Style>
+                                                    <Style TargetType="ToggleButton">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                    <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                                        <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsChecked" Value="True">
+                                                                            <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                            <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </ToggleButton.Style>
+                                            </ToggleButton>
+                                        </Grid>
+                                        
+                                        <!-- Quick Launch Widget Toggle -->
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Quick Launch Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                                <TextBlock Text="Customizable folder and file launcher" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="QuickLaunchWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
+                                                          Checked="QuickLaunchWidgetEnabledToggle_Changed" Unchecked="QuickLaunchWidgetEnabledToggle_Changed" Cursor="Hand">
+                                                <ToggleButton.Style>
+                                                    <Style TargetType="ToggleButton">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                    <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                                        <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsChecked" Value="True">
+                                                                            <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                            <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </ToggleButton.Style>
+                                            </ToggleButton>
+                                        </Grid>
+
+                                        <!-- Smart Project Search Widget Toggle -->
+                                        <Grid Margin="0,0,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Smart Project Search Widget" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
+                                                <TextBlock Text="Fast semantic, regex, and extension-aware project file search" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="SmartProjectSearchWidgetEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
+                                                          Checked="SmartProjectSearchWidgetEnabledToggle_Changed" Unchecked="SmartProjectSearchWidgetEnabledToggle_Changed" Cursor="Hand">
+                                                <ToggleButton.Style>
+                                                    <Style TargetType="ToggleButton">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                    <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
+                                                                        <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsChecked" Value="True">
+                                                                            <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
+                                                                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                                            <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </ToggleButton.Style>
+                                            </ToggleButton>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </ScrollViewer>
                     </Border>

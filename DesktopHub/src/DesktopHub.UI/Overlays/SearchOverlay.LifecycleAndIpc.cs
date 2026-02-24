@@ -224,19 +224,17 @@ public partial class SearchOverlay
         {
             try
             {
-                _hotkey?.Dispose();
-
+                await Task.Delay(100); // Let save flush before reloading
                 await _settings.LoadAsync();
-                var (modifiers, key) = _settings.GetHotkey();
+                RegisterHotkeysFromGroups();
 
-                _hotkey = new GlobalHotkey(this, (uint)modifiers, (uint)key);
-                _hotkey.HotkeyPressed += OnHotkeyPressed;
-
-                StatusText.Text = $"Hotkey updated to {FormatHotkey(modifiers, key)}";
+                var groups = _settings.GetHotkeyGroups();
+                var label = groups.Count > 0 ? FormatHotkey(groups[0].Modifiers, groups[0].Key) : "none";
+                StatusText.Text = $"Hotkeys updated ({groups.Count} group{(groups.Count == 1 ? "" : "s")})";
             }
             catch (Exception ex)
             {
-                StatusText.Text = $"Failed to update hotkey: {ex.Message}";
+                StatusText.Text = $"Failed to update hotkeys: {ex.Message}";
             }
         });
     }
@@ -321,7 +319,8 @@ public partial class SearchOverlay
     {
         _ipcCts?.Cancel();
         _ipcCts?.Dispose();
-        _hotkey?.Dispose();
+        foreach (var hk in _hotkeys) hk.Dispose();
+        _hotkeys.Clear();
         _trayIcon?.Dispose();
         base.OnClosed(e);
     }

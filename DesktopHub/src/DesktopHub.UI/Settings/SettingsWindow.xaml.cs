@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Win32;
 using DesktopHub.Core.Abstractions;
+using DesktopHub.Core.Models;
 using DesktopHub.Infrastructure.Settings;
 using DesktopHub.UI.Helpers;
 using DesktopHub.UI.Services;
@@ -14,9 +15,6 @@ public partial class SettingsWindow : Window
     private readonly ISettingsService _settings;
     private readonly TaskService? _taskService;
     private readonly DocOpenService? _docService;
-    private bool _isRecording;
-    private int _recordedModifiers;
-    private int _recordedKey;
     private bool _isRecordingCloseShortcut;
     private int _recordedCloseShortcutModifiers;
     private int _recordedCloseShortcutKey;
@@ -44,6 +42,11 @@ public partial class SettingsWindow : Window
     private bool _isLoadingFPSettings;
     private bool _isLoadingQLSettings;
     private bool _isLoadingSPSettings;
+    // Group hotkey recording state
+    private Border? _activeGroupKeyBox;
+    private TextBlock? _activeGroupKeyText;
+    private TextBlock? _activeGroupRecordingText;
+    private int _activeGroupIndex = -1;
 
     public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null, Action? onFrequentProjectsWidgetEnabledChanged = null, Action? onFrequentProjectsLayoutChanged = null, Action? onQuickLaunchWidgetEnabledChanged = null, IProjectLaunchDataStore? launchDataStore = null, Action? onQuickLaunchLayoutChanged = null, Action? onWidgetSnapGapChanged = null, Action? onSmartProjectSearchWidgetEnabledChanged = null, Action? onWidgetLauncherLayoutChanged = null)
     {
@@ -119,71 +122,6 @@ public partial class SettingsWindow : Window
         };
     }
 
-    private void UpdateHotkeyWarning(int modifiers, int key)
-    {
-        if (HotkeyTypingWarning == null || HotkeyTypingWarningText == null)
-        {
-            return;
-        }
-
-        if (IsShiftCharacterHotkey(modifiers, key))
-        {
-            HotkeyTypingWarningText.Text =
-                "Heads up: Shift+character shortcuts (like Shift+A or Shift+1) are treated as normal typing. " +
-                "When a text field is focused, the hotkey is suppressed to avoid blocking input. " +
-                "Use Esc or click outside the overlay to close it while typing.";
-            HotkeyTypingWarning.Visibility = Visibility.Visible;
-        }
-        else
-        {
-            HotkeyTypingWarning.Visibility = Visibility.Collapsed;
-        }
-    }
-
-    private static bool IsShiftCharacterHotkey(int modifiers, int key)
-    {
-        if ((modifiers & (int)GlobalHotkey.MOD_SHIFT) == 0)
-        {
-            return false;
-        }
-
-        var wpfKey = KeyInterop.KeyFromVirtualKey(key);
-        return IsCharacterKey(wpfKey);
-    }
-
-    private static bool IsCharacterKey(Key key)
-    {
-        if (key >= Key.A && key <= Key.Z)
-        {
-            return true;
-        }
-
-        if (key >= Key.D0 && key <= Key.D9)
-        {
-            return true;
-        }
-
-        return key is Key.Oem1
-            or Key.Oem2
-            or Key.Oem3
-            or Key.Oem4
-            or Key.Oem5
-            or Key.Oem6
-            or Key.Oem7
-            or Key.Oem8
-            or Key.OemPlus
-            or Key.OemMinus
-            or Key.OemComma
-            or Key.OemPeriod
-            or Key.OemQuestion
-            or Key.OemTilde
-            or Key.OemOpenBrackets
-            or Key.OemCloseBrackets
-            or Key.OemPipe
-            or Key.OemSemicolon
-            or Key.OemQuotes;
-    }
-
     private async Task LoadSettingsAsync()
     {
         try
@@ -191,10 +129,6 @@ public partial class SettingsWindow : Window
             // Ensure settings are loaded
             await _settings.LoadAsync();
             
-            var (modifiers, key) = _settings.GetHotkey();
-            HotkeyText.Text = FormatHotkey(modifiers, key);
-            UpdateHotkeyWarning(modifiers, key);
-
             var (closeModifiers, closeKey) = _settings.GetCloseShortcut();
             CloseShortcutText.Text = FormatHotkey(closeModifiers, closeKey);
 
@@ -277,14 +211,7 @@ public partial class SettingsWindow : Window
             _isLoadingQLSettings = true;
             _isLoadingQLSettings = false;
             
-            // Load hotkey focus behavior toggles
-            HotkeyFocusWidgetLauncherToggle.IsChecked = _settings.GetHotkeyFocusWidgetLauncher();
-            HotkeyFocusTimerToggle.IsChecked = _settings.GetHotkeyFocusTimerWidget();
-            HotkeyFocusQuickTasksToggle.IsChecked = _settings.GetHotkeyFocusQuickTasksWidget();
-            HotkeyFocusDocToggle.IsChecked = _settings.GetHotkeyFocusDocWidget();
-            HotkeyFocusFrequentProjectsToggle.IsChecked = _settings.GetHotkeyFocusFrequentProjectsWidget();
-            HotkeyFocusQuickLaunchToggle.IsChecked = _settings.GetHotkeyFocusQuickLaunchWidget();
-            HotkeyFocusSmartSearchToggle.IsChecked = _settings.GetHotkeyFocusSmartProjectSearchWidget();
+            LoadHotkeyGroupsUI();
 
             UpdateAllLinkButtons();
         }
@@ -298,35 +225,23 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private void HotkeyBox_MouseDown(object sender, MouseButtonEventArgs e)
-    {
-        StartRecording();
-    }
-
-    private void StartRecording()
-    {
-        _isRecording = true;
-        HotkeyText.Visibility = Visibility.Collapsed;
-        RecordingText.Visibility = Visibility.Visible;
-        HotkeyBox.BorderBrush = (System.Windows.Media.Brush)FindResource("PrimaryBrush");
-        this.Focus();
-    }
-
-    private void StopRecording()
-    {
-        _isRecording = false;
-        RecordingText.Visibility = Visibility.Collapsed;
-        HotkeyText.Visibility = Visibility.Visible;
-        HotkeyBox.BorderBrush = (System.Windows.Media.Brush)FindResource("BorderBrush");
-    }
-
     private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key == Key.Escape)
         {
-            if (_isRecording)
+            if (_activeGroupIndex >= 0)
             {
-                StopRecording();
+                // Cancel group key recording
+                if (_activeGroupKeyText != null)
+                    _activeGroupKeyText.Visibility = Visibility.Visible;
+                if (_activeGroupRecordingText != null)
+                    _activeGroupRecordingText.Visibility = Visibility.Collapsed;
+                if (_activeGroupKeyBox != null)
+                    _activeGroupKeyBox.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x50, 0xFF, 0xFF, 0xFF));
+                _activeGroupKeyBox = null;
+                _activeGroupKeyText = null;
+                _activeGroupRecordingText = null;
+                _activeGroupIndex = -1;
                 e.Handled = true;
                 return;
             }
@@ -341,9 +256,9 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        if (_isRecording)
+        if (_activeGroupIndex >= 0)
         {
-            // Ignore modifier-only keys
+            // Recording key for a hotkey group
             if (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl ||
                 e.Key == Key.LeftAlt || e.Key == Key.RightAlt ||
                 e.Key == Key.LeftShift || e.Key == Key.RightShift ||
@@ -353,37 +268,35 @@ public partial class SettingsWindow : Window
                 return;
             }
 
-            // Record the hotkey
-            _recordedModifiers = 0;
-            if ((Keyboard.Modifiers & ModifierKeys.Control) != 0)
-                _recordedModifiers |= (int)GlobalHotkey.MOD_CONTROL;
-            if ((Keyboard.Modifiers & ModifierKeys.Alt) != 0)
-                _recordedModifiers |= (int)GlobalHotkey.MOD_ALT;
-            if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
-                _recordedModifiers |= (int)GlobalHotkey.MOD_SHIFT;
-            if ((Keyboard.Modifiers & ModifierKeys.Windows) != 0)
-                _recordedModifiers |= (int)GlobalHotkey.MOD_WIN;
+            int mods = 0;
+            if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) mods |= (int)GlobalHotkey.MOD_CONTROL;
+            if ((Keyboard.Modifiers & ModifierKeys.Alt) != 0) mods |= (int)GlobalHotkey.MOD_ALT;
+            if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0) mods |= (int)GlobalHotkey.MOD_SHIFT;
+            if ((Keyboard.Modifiers & ModifierKeys.Windows) != 0) mods |= (int)GlobalHotkey.MOD_WIN;
+            int vk = KeyInterop.VirtualKeyFromKey(e.Key);
 
-            _recordedKey = KeyInterop.VirtualKeyFromKey(e.Key);
+            var groups = _settings.GetHotkeyGroups();
+            if (_activeGroupIndex < groups.Count)
+            {
+                groups[_activeGroupIndex].Modifiers = mods;
+                groups[_activeGroupIndex].Key = vk;
+                _settings.SetHotkeyGroups(groups);
+                _ = _settings.SaveAsync();
+                _onHotkeyChanged?.Invoke();
+            }
 
-            // Update display
-            var hotkeyLabel = FormatHotkey(_recordedModifiers, _recordedKey);
-            HotkeyText.Text = hotkeyLabel;
-            UpdateHotkeyWarning(_recordedModifiers, _recordedKey);
-
-            // Save the new hotkey
-            _settings.SetHotkey(_recordedModifiers, _recordedKey);
-            _ = _settings.SaveAsync();
-
-            StopRecording();
-            StatusText.Text = "Hotkey updated!";
-
-            // Notify parent to update hotkey
-            _onHotkeyChanged?.Invoke();
-
+            _activeGroupKeyBox = null;
+            _activeGroupKeyText = null;
+            _activeGroupRecordingText = null;
+            _activeGroupIndex = -1;
+            StatusText.Text = "Hotkey group updated!";
+            // Rebuild panel so widget pills appear for newly-keyed groups
+            RebuildHotkeyGroupsPanel(groups);
             e.Handled = true;
+            return;
         }
-        else if (_isRecordingCloseShortcut)
+
+        if (_isRecordingCloseShortcut)
         {
             // Ignore modifier-only keys
             if (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl ||
@@ -424,21 +337,6 @@ public partial class SettingsWindow : Window
 
             e.Handled = true;
         }
-    }
-
-    private void ResetHotkeyButton_Click(object sender, RoutedEventArgs e)
-    {
-        const int defaultModifiers = 0x0003; // Ctrl+Alt
-        const int defaultKey = 0x20; // Space
-
-        _settings.SetHotkey(defaultModifiers, defaultKey);
-        _ = _settings.SaveAsync();
-
-        HotkeyText.Text = FormatHotkey(defaultModifiers, defaultKey);
-        UpdateHotkeyWarning(defaultModifiers, defaultKey);
-        StatusText.Text = "Hotkey reset to default.";
-
-        _onHotkeyChanged?.Invoke();
     }
 
     private void CloseShortcutBox_MouseDown(object sender, MouseButtonEventArgs e)
@@ -594,6 +492,9 @@ public partial class SettingsWindow : Window
             StatusText.Text = "Q: drive enabled - updating projects...";
         }
         _onDriveSettingsChanged?.Invoke();
+        await Task.Delay(2000);
+        if (StatusText != null && StatusText.Text.Contains("updating"))
+            StatusText.Text = "Q: drive enabled";
     }
 
     private async void QDriveEnabledToggle_Unchecked(object sender, RoutedEventArgs e)
@@ -606,6 +507,9 @@ public partial class SettingsWindow : Window
             StatusText.Text = "Q: drive disabled - updating projects...";
         }
         _onDriveSettingsChanged?.Invoke();
+        await Task.Delay(2000);
+        if (StatusText != null && StatusText.Text.Contains("updating"))
+            StatusText.Text = "Q: drive disabled";
     }
 
     private async void PDriveEnabledToggle_Checked(object sender, RoutedEventArgs e)
@@ -637,6 +541,9 @@ public partial class SettingsWindow : Window
             StatusText.Text = "P: drive disabled - updating projects...";
         }
         _onDriveSettingsChanged?.Invoke();
+        await Task.Delay(2000);
+        if (StatusText != null && StatusText.Text.Contains("updating"))
+            StatusText.Text = "P: drive disabled";
     }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e)
@@ -662,6 +569,8 @@ public partial class SettingsWindow : Window
             if (ShortcutsPanel != null) ShortcutsPanel.Visibility = Visibility.Collapsed;
             if (AppearancePanel != null) AppearancePanel.Visibility = Visibility.Collapsed;
             if (GeneralPanel != null) GeneralPanel.Visibility = Visibility.Collapsed;
+            if (SmartProjectSearchPanel != null) SmartProjectSearchPanel.Visibility = Visibility.Collapsed;
+            if (WidgetLauncherPanel != null) WidgetLauncherPanel.Visibility = Visibility.Collapsed;
             if (QuickTasksPanel != null) QuickTasksPanel.Visibility = Visibility.Collapsed;
             if (DocQuickOpenPanel != null) DocQuickOpenPanel.Visibility = Visibility.Collapsed;
             if (UpdatesPanel != null) UpdatesPanel.Visibility = Visibility.Collapsed;
@@ -680,6 +589,14 @@ public partial class SettingsWindow : Window
             else if (radioButton.Name == "GeneralMenuButton" && GeneralPanel != null)
             {
                 GeneralPanel.Visibility = Visibility.Visible;
+            }
+            else if (radioButton.Name == "SmartProjectSearchMenuButton" && SmartProjectSearchPanel != null)
+            {
+                SmartProjectSearchPanel.Visibility = Visibility.Visible;
+            }
+            else if (radioButton.Name == "WidgetLauncherMenuButton" && WidgetLauncherPanel != null)
+            {
+                WidgetLauncherPanel.Visibility = Visibility.Visible;
             }
             else if (radioButton.Name == "QuickTasksMenuButton" && QuickTasksPanel != null)
             {
@@ -1757,22 +1674,306 @@ public partial class SettingsWindow : Window
         UpdateFrequencyCombo.SelectedIndex = 1;
     }
 
-    // ===== Hotkey Focus Behavior =====
+    // ===== Hotkey Groups =====
 
-    private void HotkeyFocusToggle_Changed(object sender, RoutedEventArgs e)
+    private void LoadHotkeyGroupsUI()
     {
-        if (_settings == null || !IsLoaded) return;
+        if (_settings == null) return;
+        var groups = _settings.GetHotkeyGroups();
+        RebuildHotkeyGroupsPanel(groups);
+    }
 
-        _settings.SetHotkeyFocusWidgetLauncher(HotkeyFocusWidgetLauncherToggle.IsChecked == true);
-        _settings.SetHotkeyFocusTimerWidget(HotkeyFocusTimerToggle.IsChecked == true);
-        _settings.SetHotkeyFocusQuickTasksWidget(HotkeyFocusQuickTasksToggle.IsChecked == true);
-        _settings.SetHotkeyFocusDocWidget(HotkeyFocusDocToggle.IsChecked == true);
-        _settings.SetHotkeyFocusFrequentProjectsWidget(HotkeyFocusFrequentProjectsToggle.IsChecked == true);
-        _settings.SetHotkeyFocusQuickLaunchWidget(HotkeyFocusQuickLaunchToggle.IsChecked == true);
-        _settings.SetHotkeyFocusSmartProjectSearchWidget(HotkeyFocusSmartSearchToggle.IsChecked == true);
-        _ = _settings.SaveAsync();
+    private void RebuildHotkeyGroupsPanel(List<HotkeyGroup> groups)
+    {
+        HotkeyGroupsPanel.Children.Clear();
+        for (int i = 0; i < groups.Count; i++)
+        {
+            var groupRow = BuildHotkeyGroupRow(groups, i);
+            HotkeyGroupsPanel.Children.Add(groupRow);
+        }
+        // Add group button — max 5 groups
+        if (groups.Count < 5)
+        {
+            var addBtn = new System.Windows.Controls.Button
+            {
+                Content = "+ Add Hotkey Group",
+                Margin = new Thickness(0, 8, 0, 0),
+                Padding = new Thickness(14, 7, 14, 7),
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x20, 0xFF, 0xFF, 0xFF)),
+                Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
+                BorderThickness = new Thickness(1),
+                BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF)),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+            };
+            addBtn.Click += (s, e) =>
+            {
+                var newGroups = _settings.GetHotkeyGroups();
+                newGroups.Add(new HotkeyGroup { Modifiers = 0, Key = 0, Widgets = new List<string>() });
+                _settings.SetHotkeyGroups(newGroups);
+                _ = _settings.SaveAsync();
+                RebuildHotkeyGroupsPanel(newGroups);
+            };
+            HotkeyGroupsPanel.Children.Add(addBtn);
+        }
+    }
 
-        StatusText.Text = "Hotkey focus behavior updated";
+    private UIElement BuildHotkeyGroupRow(List<HotkeyGroup> groups, int index)
+    {
+        var group = groups[index];
+        var outerBorder = new Border
+        {
+            Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF)),
+            BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(14, 12, 14, 12),
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+
+        var stack = new StackPanel();
+        outerBorder.Child = stack;
+
+        // Row header: group number + key binding recorder + remove button
+        var headerRow = new Grid();
+        headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var groupLabel = new TextBlock
+        {
+            Text = $"Group {index + 1}",
+            FontSize = 13,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 12, 0),
+        };
+        Grid.SetColumn(groupLabel, 0);
+        headerRow.Children.Add(groupLabel);
+
+        // Key binding box
+        var keyText = new TextBlock
+        {
+            Text = group.Key != 0 ? FormatHotkey(group.Modifiers, group.Key) : "Click to set hotkey",
+            FontSize = 12,
+            Foreground = group.Key != 0
+                ? (System.Windows.Media.Brush)FindResource("TextBrush")
+                : (System.Windows.Media.Brush)FindResource("TextSecondaryBrush"),
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+        };
+        var recordingText = new TextBlock
+        {
+            Text = "Press any key combo...",
+            FontSize = 12,
+            Foreground = (System.Windows.Media.Brush)FindResource("PrimaryBrush"),
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+            Visibility = Visibility.Collapsed,
+        };
+        var keyBox = new Border
+        {
+            Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x25, 0x00, 0x00, 0x00)),
+            BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x50, 0xFF, 0xFF, 0xFF)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(5),
+            Padding = new Thickness(10, 5, 10, 5),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            MinWidth = 140,
+            Tag = false, // recording state
+        };
+        var keyBoxInner = new Grid();
+        keyBoxInner.Children.Add(keyText);
+        keyBoxInner.Children.Add(recordingText);
+        keyBox.Child = keyBoxInner;
+        Grid.SetColumn(keyBox, 1);
+
+        int capturedIndex = index;
+        keyBox.MouseDown += (s, e) =>
+        {
+            bool isRecording = (bool)keyBox.Tag;
+            if (!isRecording)
+            {
+                keyBox.Tag = true;
+                keyText.Visibility = Visibility.Collapsed;
+                recordingText.Visibility = Visibility.Visible;
+                keyBox.BorderBrush = (System.Windows.Media.Brush)FindResource("PrimaryBrush");
+                _activeGroupKeyBox = keyBox;
+                _activeGroupKeyText = keyText;
+                _activeGroupRecordingText = recordingText;
+                _activeGroupIndex = capturedIndex;
+                this.Focus();
+            }
+        };
+        headerRow.Children.Add(keyBox);
+
+        // Remove button (hidden for group 1 if it's the only group)
+        var removeBtn = new System.Windows.Controls.Button
+        {
+            Content = "✕",
+            FontSize = 11,
+            Width = 28,
+            Height = 28,
+            Margin = new Thickness(8, 0, 0, 0),
+            Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, 0xFF, 0x40, 0x40)),
+            Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0x80, 0x80)),
+            BorderThickness = new Thickness(0),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            VerticalAlignment = VerticalAlignment.Center,
+            Visibility = groups.Count > 1 ? Visibility.Visible : Visibility.Collapsed,
+        };
+        removeBtn.Click += (s, e) =>
+        {
+            var newGroups = _settings.GetHotkeyGroups();
+            newGroups.RemoveAt(capturedIndex);
+            _settings.SetHotkeyGroups(newGroups);
+            _ = _settings.SaveAsync();
+            _onHotkeyChanged?.Invoke();
+            RebuildHotkeyGroupsPanel(newGroups);
+        };
+        Grid.SetColumn(removeBtn, 3);
+        headerRow.Children.Add(removeBtn);
+
+        stack.Children.Add(headerRow);
+
+        // Widget pill row
+        var pillLabel = new TextBlock
+        {
+            Text = group.Key != 0 ? "Widgets in this group:" : "Widgets in this group (set a hotkey to activate):",
+            FontSize = 11,
+            Foreground = (System.Windows.Media.Brush)FindResource("TextSecondaryBrush"),
+            Margin = new Thickness(0, 10, 0, 6),
+        };
+        stack.Children.Add(pillLabel);
+
+        var pillPanel = new WrapPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+        foreach (var widgetId in WidgetIds.All)
+        {
+            bool inGroup = group.Widgets.Contains(widgetId);
+            // Check if widget is in another group
+            int ci = capturedIndex;
+            bool inOtherGroup = groups.Where((g, gi) => gi != ci).Any(g => g.Widgets.Contains(widgetId));
+            if (inGroup == false && inOtherGroup) continue; // hide widgets owned by another group (exclusive)
+
+            var pill = BuildWidgetPill(widgetId, inGroup, capturedIndex, groups);
+            pillPanel.Children.Add(pill);
+        }
+        stack.Children.Add(pillPanel);
+
+        // Show unassigned widgets note
+        var allAssigned = WidgetIds.All.All(id => groups.Any(g => g.Widgets.Contains(id)));
+        if (!allAssigned && index == groups.Count - 1)
+        {
+            var unassignedPanel = new WrapPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+            var unassignedLabel = new TextBlock
+            {
+                Text = "Unassigned (no hotkey): ",
+                FontSize = 11,
+                Foreground = (System.Windows.Media.Brush)FindResource("TextSecondaryBrush"),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            unassignedPanel.Children.Add(unassignedLabel);
+            foreach (var widgetId in WidgetIds.All)
+            {
+                bool inAnyGroup = groups.Any(g => g.Widgets.Contains(widgetId));
+                if (!inAnyGroup)
+                {
+                    var capturedWidgetId = widgetId;
+                    var chipText = new TextBlock
+                    {
+                        Text = WidgetIds.DisplayName(widgetId),
+                        FontSize = 11,
+                        Foreground = (System.Windows.Media.Brush)FindResource("TextSecondaryBrush"),
+                        IsHitTestVisible = false,
+                    };
+                    var chip = new Border
+                    {
+                        Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF)),
+                        BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)),
+                        BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(12),
+                        Padding = new Thickness(8, 3, 8, 3),
+                        Margin = new Thickness(0, 2, 6, 2),
+                        Cursor = System.Windows.Input.Cursors.Hand,
+                        Child = chipText,
+                    };
+                    chip.MouseLeftButtonUp += (s, ev) =>
+                    {
+                        var newGroups = _settings.GetHotkeyGroups();
+                        // Find first group that has a hotkey assigned
+                        var targetIdx = newGroups.FindIndex(g => g.Key != 0);
+                        if (targetIdx >= 0)
+                        {
+                            newGroups[targetIdx].Widgets.Add(capturedWidgetId);
+                            _settings.SetHotkeyGroups(newGroups);
+                            _ = _settings.SaveAsync();
+                            _onHotkeyChanged?.Invoke();
+                            RebuildHotkeyGroupsPanel(newGroups);
+                        }
+                    };
+                    unassignedPanel.Children.Add(chip);
+                }
+            }
+            stack.Children.Add(unassignedPanel);
+        }
+
+        return outerBorder;
+    }
+
+    private UIElement BuildWidgetPill(string widgetId, bool inGroup, int groupIndex, List<HotkeyGroup> groups)
+    {
+        var pill = new Border
+        {
+            CornerRadius = new CornerRadius(14),
+            Padding = new Thickness(10, 4, 10, 4),
+            Margin = new Thickness(0, 2, 6, 2),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            BorderThickness = new Thickness(1),
+        };
+        var pillText = new TextBlock { Text = WidgetIds.DisplayName(widgetId), FontSize = 12, IsHitTestVisible = false };
+        pill.Child = pillText;
+        ApplyPillStyle(pill, pillText, inGroup);
+
+        pill.MouseLeftButtonUp += (s, e) =>
+        {
+            var newGroups = _settings.GetHotkeyGroups();
+            bool nowIn = newGroups[groupIndex].Widgets.Contains(widgetId);
+            if (!nowIn)
+            {
+                // Exclusive: remove from any other group first
+                foreach (var g in newGroups)
+                    g.Widgets.Remove(widgetId);
+                newGroups[groupIndex].Widgets.Add(widgetId);
+            }
+            else
+            {
+                newGroups[groupIndex].Widgets.Remove(widgetId);
+            }
+            _settings.SetHotkeyGroups(newGroups);
+            _ = _settings.SaveAsync();
+            _onHotkeyChanged?.Invoke();
+            RebuildHotkeyGroupsPanel(newGroups);
+        };
+
+        return pill;
+    }
+
+    private static void ApplyPillStyle(Border pill, TextBlock pillText, bool active)
+    {
+        if (active)
+        {
+            pill.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, 0x58, 0xC4, 0xFF));
+            pill.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xA0, 0x58, 0xC4, 0xFF));
+            pillText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xA8, 0xD8, 0xFF));
+        }
+        else
+        {
+            pill.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF));
+            pill.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x35, 0xFF, 0xFF, 0xFF));
+            pillText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xB0, 0xB8, 0xC8));
+        }
     }
 
     // ===== Frequent Projects Tab =====

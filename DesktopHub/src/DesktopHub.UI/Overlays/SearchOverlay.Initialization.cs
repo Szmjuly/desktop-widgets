@@ -174,22 +174,8 @@ public partial class SearchOverlay
             RegisterWidgetWindow(this);
             RegisterWidgetWindow(_widgetLauncher);
 
-            // Register global hotkey (Ctrl+Alt+Space by default)
-            try
-            {
-                _hotkey = new GlobalHotkey(this, (uint)modifiers, (uint)key);
-                _hotkey.HotkeyPressed += OnHotkeyPressed;
-                _hotkey.ShouldSuppressHotkey = () => ShouldSuppressHotkey(modifiers, key);
-            }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show(
-                    $"Failed to register hotkey ({hotkeyLabel}). You can still open the search from the tray icon.\n\n{ex.Message}",
-                    "DesktopHub",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Warning
-                );
-            }
+            // Register global hotkeys from all hotkey groups
+            RegisterHotkeysFromGroups();
 
             // Initialize dragging mode based on Living Widgets Mode setting
             // Note: Virtual desktop pinning is deferred until after window is fully loaded

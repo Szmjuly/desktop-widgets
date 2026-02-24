@@ -8,73 +8,88 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Forms;
+using DesktopHub.Core.Models;
 using DesktopHub.UI.Helpers;
 
 namespace DesktopHub.UI;
 
 public partial class SearchOverlay
 {
-    private void OnHotkeyPressed(object? sender, EventArgs e)
+    internal void RegisterHotkeysFromGroups()
+    {
+        // Dispose all existing hotkeys
+        foreach (var hk in _hotkeys)
+            hk.Dispose();
+        _hotkeys.Clear();
+
+        var groups = _settings.GetHotkeyGroups();
+        foreach (var group in groups)
+        {
+            if (group.Key == 0) continue; // Skip unassigned groups
+            var capturedWidgets = group.Widgets.ToList();
+            var capturedMods = group.Modifiers;
+            var capturedKey = group.Key;
+            try
+            {
+                var hk = new GlobalHotkey(this, (uint)capturedMods, (uint)capturedKey);
+                hk.HotkeyPressed += (s, e) => OnHotkeyPressed(capturedWidgets, capturedMods, capturedKey);
+                hk.ShouldSuppressHotkey = () => ShouldSuppressHotkey(capturedMods, capturedKey);
+                _hotkeys.Add(hk);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    $"Failed to register hotkey ({FormatHotkey(capturedMods, capturedKey)}). {ex.Message}",
+                    "DesktopHub", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            }
+        }
+    }
+
+    private void OnHotkeyPressed(IReadOnlyList<string> targetWidgets, int modifiers, int key)
     {
         DebugLogger.LogSeparator("HOTKEY PRESSED");
-        DebugLogger.LogHeader("Hotkey Press - Initial State");
 
-        // Debounce rapid hotkey presses (prevent double-triggering)
+        // Debounce rapid hotkey presses
         var now = DateTime.Now;
-        var timeSinceLastPress = (now - _lastHotkeyPress).TotalMilliseconds;
-        DebugLogger.LogVariable("Time since last press (ms)", timeSinceLastPress);
-
-        if (timeSinceLastPress < 200)
-        {
-            DebugLogger.Log("OnHotkeyPressed: DEBOUNCED (too soon after last press)");
+        if ((now - _lastHotkeyPress).TotalMilliseconds < 200)
             return;
-        }
         _lastHotkeyPress = now;
-
-        var (modifiers, key) = _settings.GetHotkey();
-        DebugLogger.LogVariable("Hotkey Modifiers", modifiers);
-        DebugLogger.LogVariable("Hotkey Key", key);
-        DebugLogger.LogVariable("Hotkey Formatted", FormatHotkey(modifiers, key));
-
-        // Check if we should suppress based on current visibility
-        bool isCurrentlyVisible = false;
-        Dispatcher.Invoke(() => { isCurrentlyVisible = this.Visibility == Visibility.Visible; });
-        DebugLogger.LogVariable("Window Currently Visible", isCurrentlyVisible);
-
-        // Note: Suppression is now handled in GlobalHotkey.ShouldSuppressHotkey callback
-        // This code path only executes if the hotkey was NOT suppressed
-        DebugLogger.Log("OnHotkeyPressed: Hotkey was NOT suppressed, proceeding with toggle");
 
         Dispatcher.Invoke(() =>
         {
-            DebugLogger.LogHeader("Dispatcher.Invoke - Beginning Toggle");
-            DebugLogger.LogVariable("Window.Visibility (before toggle)", this.Visibility);
-            DebugLogger.LogVariable("Window.IsActive (before toggle)", this.IsActive);
-            DebugLogger.LogVariable("Window.IsFocused (before toggle)", this.IsFocused);
-
             _isTogglingViaHotkey = true;
-            DebugLogger.LogVariable("_isTogglingViaHotkey", _isTogglingViaHotkey);
 
-            // Cancel any pending deactivate timer
             if (_deactivateTimer != null)
-            {
-                DebugLogger.Log("OnHotkeyPressed: Stopping deactivate timer");
                 _deactivateTimer.Stop();
+
+            var triggersSearch = targetWidgets.Contains(WidgetIds.SearchOverlay);
+            if (triggersSearch)
+            {
+                ShowOverlay(targetWidgets);
+            }
+            else
+            {
+                // No search overlay in this group — just focus the listed widgets
+                FocusWidgetsForGroup(targetWidgets);
             }
 
-            // Hotkey behavior: always bring up search, clear query, and focus typing.
-            // ShowOverlay() already handles clear + focus and safely works when already visible.
-            DebugLogger.Log("OnHotkeyPressed: FORCING overlay open + focus");
-            ShowOverlay();
-
-            // Reset toggle flag after a short delay
-            DebugLogger.Log("OnHotkeyPressed: Scheduling _isTogglingViaHotkey reset (300ms delay)");
-            Task.Delay(300).ContinueWith(_ => Dispatcher.Invoke(() =>
-            {
-                _isTogglingViaHotkey = false;
-                DebugLogger.Log("OnHotkeyPressed: Reset _isTogglingViaHotkey to false");
-            }));
+            Task.Delay(300).ContinueWith(_ => Dispatcher.Invoke(() => _isTogglingViaHotkey = false));
         });
+    }
+
+    private void FocusWidgetsForGroup(IReadOnlyList<string> targetWidgets)
+    {
+        if (targetWidgets.Contains(WidgetIds.WidgetLauncher) && _widgetLauncher != null)
+        {
+            _widgetLauncher.Visibility = Visibility.Visible;
+            BringWidgetToForegroundIfEnabled(_widgetLauncher, true);
+        }
+        BringWidgetToForegroundIfEnabled(_timerOverlay, targetWidgets.Contains(WidgetIds.Timer));
+        BringWidgetToForegroundIfEnabled(_quickTasksOverlay, targetWidgets.Contains(WidgetIds.QuickTasks));
+        BringWidgetToForegroundIfEnabled(_docOverlay, targetWidgets.Contains(WidgetIds.DocQuickOpen));
+        BringWidgetToForegroundIfEnabled(_frequentProjectsOverlay, targetWidgets.Contains(WidgetIds.FrequentProjects));
+        BringWidgetToForegroundIfEnabled(_quickLaunchOverlay, targetWidgets.Contains(WidgetIds.QuickLaunch));
+        BringWidgetToForegroundIfEnabled(_smartProjectSearchOverlay, targetWidgets.Contains(WidgetIds.SmartProjectSearch));
     }
 
     private bool ShouldSuppressHotkey(int modifiers, int key)
@@ -194,7 +209,7 @@ public partial class SearchOverlay
         return false;
     }
 
-    private void ShowOverlay()
+    private void ShowOverlay(IReadOnlyList<string>? targetWidgets = null)
     {
         DebugLogger.LogSeparator("SHOW OVERLAY CALLED");
         DebugLogger.LogHeader("Initial State");
@@ -236,18 +251,19 @@ public partial class SearchOverlay
         {
             DebugLogger.Log("ShowOverlay: Already visible in Living Widgets Mode — just re-focusing");
 
-            // Bring widgets to foreground
+            // Bring widgets to foreground based on group membership
+            var tw = targetWidgets;
             if (_widgetLauncher != null)
             {
                 _widgetLauncher.Visibility = Visibility.Visible;
-                BringWidgetToForegroundIfEnabled(_widgetLauncher, _settings.GetHotkeyFocusWidgetLauncher());
+                BringWidgetToForegroundIfEnabled(_widgetLauncher, tw == null || tw.Contains(WidgetIds.WidgetLauncher));
             }
-            BringWidgetToForegroundIfEnabled(_timerOverlay, _settings.GetHotkeyFocusTimerWidget());
-            BringWidgetToForegroundIfEnabled(_quickTasksOverlay, _settings.GetHotkeyFocusQuickTasksWidget());
-            BringWidgetToForegroundIfEnabled(_docOverlay, _settings.GetHotkeyFocusDocWidget());
-            BringWidgetToForegroundIfEnabled(_frequentProjectsOverlay, _settings.GetHotkeyFocusFrequentProjectsWidget());
-            BringWidgetToForegroundIfEnabled(_quickLaunchOverlay, _settings.GetHotkeyFocusQuickLaunchWidget());
-            BringWidgetToForegroundIfEnabled(_smartProjectSearchOverlay, _settings.GetHotkeyFocusSmartProjectSearchWidget());
+            BringWidgetToForegroundIfEnabled(_timerOverlay, tw == null || tw.Contains(WidgetIds.Timer));
+            BringWidgetToForegroundIfEnabled(_quickTasksOverlay, tw == null || tw.Contains(WidgetIds.QuickTasks));
+            BringWidgetToForegroundIfEnabled(_docOverlay, tw == null || tw.Contains(WidgetIds.DocQuickOpen));
+            BringWidgetToForegroundIfEnabled(_frequentProjectsOverlay, tw == null || tw.Contains(WidgetIds.FrequentProjects));
+            BringWidgetToForegroundIfEnabled(_quickLaunchOverlay, tw == null || tw.Contains(WidgetIds.QuickLaunch));
+            BringWidgetToForegroundIfEnabled(_smartProjectSearchOverlay, tw == null || tw.Contains(WidgetIds.SmartProjectSearch));
 
             this.Activate();
             Dispatcher.BeginInvoke(new Action(() =>
@@ -322,13 +338,13 @@ public partial class SearchOverlay
 
         // Bring widgets to foreground (without stealing focus from the search overlay)
         // using Topmost toggle trick — Activate() would steal keyboard focus and grey out the overlay
-        BringWidgetToForegroundIfEnabled(_widgetLauncher, _settings.GetHotkeyFocusWidgetLauncher());
-        BringWidgetToForegroundIfEnabled(_timerOverlay, _settings.GetHotkeyFocusTimerWidget());
-        BringWidgetToForegroundIfEnabled(_quickTasksOverlay, _settings.GetHotkeyFocusQuickTasksWidget());
-        BringWidgetToForegroundIfEnabled(_docOverlay, _settings.GetHotkeyFocusDocWidget());
-        BringWidgetToForegroundIfEnabled(_frequentProjectsOverlay, _settings.GetHotkeyFocusFrequentProjectsWidget());
-        BringWidgetToForegroundIfEnabled(_quickLaunchOverlay, _settings.GetHotkeyFocusQuickLaunchWidget());
-        BringWidgetToForegroundIfEnabled(_smartProjectSearchOverlay, _settings.GetHotkeyFocusSmartProjectSearchWidget());
+        BringWidgetToForegroundIfEnabled(_widgetLauncher, targetWidgets == null || targetWidgets.Contains(WidgetIds.WidgetLauncher));
+        BringWidgetToForegroundIfEnabled(_timerOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.Timer));
+        BringWidgetToForegroundIfEnabled(_quickTasksOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.QuickTasks));
+        BringWidgetToForegroundIfEnabled(_docOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.DocQuickOpen));
+        BringWidgetToForegroundIfEnabled(_frequentProjectsOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.FrequentProjects));
+        BringWidgetToForegroundIfEnabled(_quickLaunchOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.QuickLaunch));
+        BringWidgetToForegroundIfEnabled(_smartProjectSearchOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.SmartProjectSearch));
 
         DebugLogger.LogHeader("Calling Window.Activate()");
         var activateResult = this.Activate();

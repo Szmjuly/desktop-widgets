@@ -27,7 +27,7 @@ public partial class SearchOverlay : Window
     private readonly IDataStore _dataStore;
     private readonly ISettingsService _settings;
     private readonly TimerService _timerService;
-    private GlobalHotkey? _hotkey;
+    private readonly List<GlobalHotkey> _hotkeys = new();
     private TrayIcon? _trayIcon;
     private TimerOverlay? _timerOverlay;
     private QuickTasksOverlay? _quickTasksOverlay;

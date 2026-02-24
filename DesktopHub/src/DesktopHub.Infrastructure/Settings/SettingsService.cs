@@ -1,5 +1,7 @@
 using System.Text.Json;
+using System.Threading;
 using DesktopHub.Core.Abstractions;
+using DesktopHub.Core.Models;
 
 namespace DesktopHub.Infrastructure.Settings;
 
@@ -15,6 +17,7 @@ public class SettingsService : ISettingsService
     private const int DefaultCloseShortcutModifiers = 0x0000; // No modifiers
     private const int DefaultCloseShortcutKey = 0x1B; // ESC
     private readonly string _settingsPath;
+    private readonly SemaphoreSlim _fileLock = new(1, 1);
     private AppSettings _settings;
 
     public SettingsService()
@@ -282,21 +285,45 @@ public class SettingsService : ISettingsService
             : GetDefaultSmartProjectSearchFileTypes();
     }
 
-    // --- Hotkey Focus Behavior ---
-    public bool GetHotkeyFocusWidgetLauncher() => _settings.HotkeyFocusWidgetLauncher;
-    public void SetHotkeyFocusWidgetLauncher(bool enabled) => _settings.HotkeyFocusWidgetLauncher = enabled;
-    public bool GetHotkeyFocusTimerWidget() => _settings.HotkeyFocusTimerWidget;
-    public void SetHotkeyFocusTimerWidget(bool enabled) => _settings.HotkeyFocusTimerWidget = enabled;
-    public bool GetHotkeyFocusQuickTasksWidget() => _settings.HotkeyFocusQuickTasksWidget;
-    public void SetHotkeyFocusQuickTasksWidget(bool enabled) => _settings.HotkeyFocusQuickTasksWidget = enabled;
-    public bool GetHotkeyFocusDocWidget() => _settings.HotkeyFocusDocWidget;
-    public void SetHotkeyFocusDocWidget(bool enabled) => _settings.HotkeyFocusDocWidget = enabled;
-    public bool GetHotkeyFocusFrequentProjectsWidget() => _settings.HotkeyFocusFrequentProjectsWidget;
-    public void SetHotkeyFocusFrequentProjectsWidget(bool enabled) => _settings.HotkeyFocusFrequentProjectsWidget = enabled;
-    public bool GetHotkeyFocusQuickLaunchWidget() => _settings.HotkeyFocusQuickLaunchWidget;
-    public void SetHotkeyFocusQuickLaunchWidget(bool enabled) => _settings.HotkeyFocusQuickLaunchWidget = enabled;
-    public bool GetHotkeyFocusSmartProjectSearchWidget() => _settings.HotkeyFocusSmartProjectSearchWidget;
-    public void SetHotkeyFocusSmartProjectSearchWidget(bool enabled) => _settings.HotkeyFocusSmartProjectSearchWidget = enabled;
+    // --- Hotkey Groups ---
+    public List<HotkeyGroup> GetHotkeyGroups()
+    {
+        // Migrate: if no groups exist yet, seed group 1 with the legacy single hotkey + all widgets
+        if (_settings.HotkeyGroups == null || _settings.HotkeyGroups.Count == 0)
+        {
+            _settings.HotkeyGroups = new List<HotkeyGroup>
+            {
+                new HotkeyGroup
+                {
+                    Modifiers = _settings.HotkeyModifiers,
+                    Key = _settings.HotkeyKey,
+                    Widgets = new List<string>
+                    {
+                        WidgetIds.SearchOverlay,
+                        WidgetIds.WidgetLauncher,
+                        WidgetIds.Timer,
+                        WidgetIds.QuickTasks,
+                        WidgetIds.DocQuickOpen,
+                        WidgetIds.FrequentProjects,
+                        WidgetIds.QuickLaunch,
+                        WidgetIds.SmartProjectSearch,
+                    }
+                }
+            };
+        }
+        return _settings.HotkeyGroups;
+    }
+
+    public void SetHotkeyGroups(List<HotkeyGroup> groups)
+    {
+        _settings.HotkeyGroups = groups ?? new List<HotkeyGroup>();
+        // Keep legacy HotkeyModifiers/Key in sync with group 1 for backward compat
+        if (_settings.HotkeyGroups.Count > 0)
+        {
+            _settings.HotkeyModifiers = _settings.HotkeyGroups[0].Modifiers;
+            _settings.HotkeyKey = _settings.HotkeyGroups[0].Key;
+        }
+    }
 
     public (int modifiers, int key) GetCloseShortcut() => (_settings.CloseShortcutModifiers, _settings.CloseShortcutKey);
     public void SetCloseShortcut(int modifiers, int key)
@@ -307,31 +334,53 @@ public class SettingsService : ISettingsService
 
     public async Task SaveAsync()
     {
-        var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions
+        await _fileLock.WaitAsync();
+        try
         {
-            WriteIndented = true
-        });
-        await File.WriteAllTextAsync(_settingsPath, json);
+            var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+            await File.WriteAllTextAsync(_settingsPath, json);
+        }
+        finally
+        {
+            _fileLock.Release();
+        }
     }
 
     public async Task LoadAsync()
     {
-        if (File.Exists(_settingsPath))
+        await _fileLock.WaitAsync();
+        try
         {
-            var json = await File.ReadAllTextAsync(_settingsPath);
-            _settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
-
-            if (_settings.HotkeyModifiers == LegacyHotkeyModifiers && _settings.HotkeyKey == LegacyHotkeyKey)
+            if (File.Exists(_settingsPath))
             {
-                _settings.HotkeyModifiers = DefaultHotkeyModifiers;
-                _settings.HotkeyKey = DefaultHotkeyKey;
+                var json = await File.ReadAllTextAsync(_settingsPath);
+                _settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+
+                if (_settings.HotkeyModifiers == LegacyHotkeyModifiers && _settings.HotkeyKey == LegacyHotkeyKey)
+                {
+                    _settings.HotkeyModifiers = DefaultHotkeyModifiers;
+                    _settings.HotkeyKey = DefaultHotkeyKey;
+                    // Release lock before calling SaveAsync which also acquires it
+                    _fileLock.Release();
+                    await SaveAsync();
+                    return;
+                }
+            }
+            else
+            {
+                _settings = new AppSettings();
+                _fileLock.Release();
                 await SaveAsync();
+                return;
             }
         }
-        else
+        finally
         {
-            _settings = new AppSettings();
-            await SaveAsync();
+            if (_fileLock.CurrentCount == 0)
+                _fileLock.Release();
         }
     }
 
@@ -441,14 +490,8 @@ public class SettingsService : ISettingsService
         public string SmartProjectSearchLatestMode { get; set; } = "list";
         public List<string> SmartProjectSearchFileTypes { get; set; } = GetDefaultSmartProjectSearchFileTypes();
 
-        // Hotkey focus behavior — which widgets to bring to focus on hotkey press
-        public bool HotkeyFocusWidgetLauncher { get; set; } = true;
-        public bool HotkeyFocusTimerWidget { get; set; } = false;
-        public bool HotkeyFocusQuickTasksWidget { get; set; } = false;
-        public bool HotkeyFocusDocWidget { get; set; } = false;
-        public bool HotkeyFocusFrequentProjectsWidget { get; set; } = false;
-        public bool HotkeyFocusQuickLaunchWidget { get; set; } = false;
-        public bool HotkeyFocusSmartProjectSearchWidget { get; set; } = false;
+        // Hotkey groups — each group has its own key combo and a set of widget IDs to show/focus
+        public List<HotkeyGroup> HotkeyGroups { get; set; } = new();
     }
 
     private static List<string> GetDefaultSmartProjectSearchFileTypes()
