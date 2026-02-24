@@ -475,6 +475,7 @@
                 <!-- Widget Launcher Toggle Button -->
                 <Button x:Name="WidgetLauncherToggle"
                         Grid.Column="4"
+                        Margin="8,0,0,0"
                         Background="#D0121212"
                         BorderBrush="{StaticResource BorderBrush}"
                         BorderThickness="1"

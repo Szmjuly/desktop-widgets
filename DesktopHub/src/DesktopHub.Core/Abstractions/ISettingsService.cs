@@ -453,6 +453,10 @@ public interface ISettingsService
 
     // --- Smart Project Search Widget ---
 
+    double GetSmartProjectSearchWidgetTransparency();
+    void SetSmartProjectSearchWidgetTransparency(double transparency);
+    bool GetSmartProjectSearchTransparencyLinked();
+    void SetSmartProjectSearchTransparencyLinked(bool linked);
     (double? left, double? top) GetSmartProjectSearchWidgetPosition();
     void SetSmartProjectSearchWidgetPosition(double left, double top);
     bool GetSmartProjectSearchWidgetVisible();

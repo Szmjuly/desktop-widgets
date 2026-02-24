@@ -51,8 +51,7 @@ public partial class SmartProjectSearchOverlay : Window
     {
         try
         {
-            // Reuse doc widget transparency for now to keep behavior predictable.
-            var transparency = _settings.GetDocWidgetTransparency();
+            var transparency = _settings.GetSmartProjectSearchWidgetTransparency();
             var alpha = (byte)(transparency * 255);
             RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, 0x12, 0x12, 0x12));
         }

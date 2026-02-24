@@ -1115,6 +1115,99 @@
                                           VerticalAlignment="Center"
                                           Margin="8,0,0,0"/>
                             </Grid>
+
+                            <!-- Smart Project Search Widget Transparency -->
+                            <Grid Margin="0,8,0,8">
+                                <TextBlock Text="Smart Project Search Widget" 
+                                           FontSize="13" 
+                                           FontWeight="Medium"
+                                           Foreground="{StaticResource TextBrush}"
+                                           VerticalAlignment="Center"/>
+                                
+                                <Button x:Name="LinkSmartSearchButton"
+                                        HorizontalAlignment="Right"
+                                        Width="24"
+                                        Height="24"
+                                        Background="#22FFFFFF"
+                                        BorderBrush="{StaticResource BorderBrush}"
+                                        BorderThickness="1"
+                                        Click="LinkSmartSearchButton_Click"
+                                        Cursor="Hand"
+                                        ToolTip="Link to other sliders">
+                                    <Grid>
+                                        <TextBlock Text="🔓" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <Button.Resources>
+                                        <Style TargetType="Border">
+                                            <Setter Property="CornerRadius" Value="4"/>
+                                        </Style>
+                                    </Button.Resources>
+                                </Button>
+                            </Grid>
+                            
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <TextBlock Grid.Column="0"
+                                          Text="Transparent"
+                                          FontSize="10"
+                                          Foreground="{StaticResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,8,0"/>
+                                
+                                <Slider x:Name="SmartSearchTransparencySlider"
+                                       Grid.Column="1"
+                                       Minimum="0.4"
+                                       Maximum="0.95"
+                                       Value="0.78"
+                                       TickFrequency="0.05"
+                                       IsSnapToTickEnabled="True"
+                                       ValueChanged="SmartSearchTransparencySlider_ValueChanged"
+                                       VerticalAlignment="Center">
+                                    <Slider.Template>
+                                        <ControlTemplate TargetType="Slider">
+                                            <Grid>
+                                                <Border Background="#40FFFFFF" 
+                                                        Height="4" 
+                                                        CornerRadius="2"
+                                                        VerticalAlignment="Center"/>
+                                                <Track x:Name="PART_Track">
+                                                    <Track.DecreaseRepeatButton>
+                                                        <RepeatButton Command="Slider.DecreaseLarge" Opacity="0" IsHitTestVisible="False"/>
+                                                    </Track.DecreaseRepeatButton>
+                                                    <Track.IncreaseRepeatButton>
+                                                        <RepeatButton Command="Slider.IncreaseLarge" Opacity="0" IsHitTestVisible="False"/>
+                                                    </Track.IncreaseRepeatButton>
+                                                    <Track.Thumb>
+                                                        <Thumb>
+                                                            <Thumb.Template>
+                                                                <ControlTemplate>
+                                                                    <Ellipse Fill="{StaticResource PrimaryBrush}"
+                                                                            Width="16"
+                                                                            Height="16"
+                                                                            Stroke="White"
+                                                                            StrokeThickness="2"/>
+                                                                </ControlTemplate>
+                                                            </Thumb.Template>
+                                                        </Thumb>
+                                                    </Track.Thumb>
+                                                </Track>
+                                            </Grid>
+                                        </ControlTemplate>
+                                    </Slider.Template>
+                                </Slider>
+                                
+                                <TextBlock Grid.Column="2"
+                                          Text="Opaque"
+                                          FontSize="10"
+                                          Foreground="{StaticResource TextSecondaryBrush}"
+                                          VerticalAlignment="Center"
+                                          Margin="8,0,0,0"/>
+                            </Grid>
                         </StackPanel>
                     </Border>
                             </StackPanel>

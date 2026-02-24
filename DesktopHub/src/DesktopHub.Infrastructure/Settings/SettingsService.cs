@@ -225,6 +225,10 @@ public class SettingsService : ISettingsService
     public void SetWidgetLauncherMaxVisibleWidgets(int count) => _settings.WidgetLauncherMaxVisibleWidgets = Math.Clamp(count, 1, 12);
 
     // --- Smart Project Search Widget ---
+    public double GetSmartProjectSearchWidgetTransparency() => _settings.SmartProjectSearchWidgetTransparency;
+    public void SetSmartProjectSearchWidgetTransparency(double transparency) => _settings.SmartProjectSearchWidgetTransparency = transparency;
+    public bool GetSmartProjectSearchTransparencyLinked() => _settings.SmartProjectSearchTransparencyLinked;
+    public void SetSmartProjectSearchTransparencyLinked(bool linked) => _settings.SmartProjectSearchTransparencyLinked = linked;
     public (double? left, double? top) GetSmartProjectSearchWidgetPosition() => (_settings.SmartProjectSearchWidgetLeft, _settings.SmartProjectSearchWidgetTop);
     public void SetSmartProjectSearchWidgetPosition(double left, double top)
     {
@@ -426,6 +430,8 @@ public class SettingsService : ISettingsService
         public int WidgetLauncherMaxVisibleWidgets { get; set; } = 4;
 
         // Smart Project Search widget
+        public double SmartProjectSearchWidgetTransparency { get; set; } = 0.78;
+        public bool SmartProjectSearchTransparencyLinked { get; set; } = false;
         public double? SmartProjectSearchWidgetLeft { get; set; } = null;
         public double? SmartProjectSearchWidgetTop { get; set; } = null;
         public bool SmartProjectSearchWidgetVisible { get; set; } = false;

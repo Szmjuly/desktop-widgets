@@ -222,6 +222,7 @@ public partial class SettingsWindow : Window
             TimerWidgetTransparencySlider.Value = _settings.GetTimerWidgetTransparency();
             QuickTasksTransparencySlider.Value = _settings.GetQuickTasksWidgetTransparency();
             DocTransparencySlider.Value = _settings.GetDocWidgetTransparency();
+            SmartSearchTransparencySlider.Value = _settings.GetSmartProjectSearchWidgetTransparency();
             WidgetSnapGapSlider.Value = _settings.GetWidgetSnapGap();
             UpdateWidgetSnapGapValueText(_settings.GetWidgetSnapGap());
             _isUpdatingSliders = false;
@@ -1531,6 +1532,38 @@ public partial class SettingsWindow : Window
         }
         
         StatusText.Text = !isLinked ? "Doc transparency linked" : "Doc transparency unlinked";
+    }
+
+    private void SmartSearchTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isUpdatingSliders || _settings == null) return;
+        
+        _settings.SetSmartProjectSearchWidgetTransparency(e.NewValue);
+        _ = _settings.SaveAsync();
+        StatusText.Text = "Smart Project Search widget transparency updated";
+        
+        if (_settings.GetSmartProjectSearchTransparencyLinked())
+        {
+            SyncLinkedSliders(e.NewValue);
+        }
+        
+        _onTransparencyChanged?.Invoke();
+    }
+
+    private void LinkSmartSearchButton_Click(object sender, RoutedEventArgs e)
+    {
+        var isLinked = _settings.GetSmartProjectSearchTransparencyLinked();
+        _settings.SetSmartProjectSearchTransparencyLinked(!isLinked);
+        _ = _settings.SaveAsync();
+        
+        UpdateLinkButton(LinkSmartSearchButton, !isLinked);
+        
+        if (!isLinked)
+        {
+            SyncLinkedSliders(SmartSearchTransparencySlider.Value);
+        }
+        
+        StatusText.Text = !isLinked ? "Smart Search transparency linked" : "Smart Search transparency unlinked";
     }
 
     // ===== General Tab - Widget Enable/Disable Toggles =====

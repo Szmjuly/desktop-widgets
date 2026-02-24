@@ -258,6 +258,8 @@ public partial class SearchOverlay
                 {
                     _smartProjectSearchOverlay.UpdateTransparency();
                 }
+
+                UpdateSmartSearchAttachedWindowTransparency();
             });
         }
         catch (Exception ex)

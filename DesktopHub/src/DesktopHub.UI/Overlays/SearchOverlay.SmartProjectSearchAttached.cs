@@ -11,6 +11,7 @@ namespace DesktopHub.UI;
 public partial class SearchOverlay
 {
     private Window? _smartProjectSearchAttachedWindow;
+    private Border? _smartProjectSearchAttachedRootBorder;
     private const double SmartSearchWindowGap = 8;
 
     private void ApplySmartProjectSearchAttachModeState()
@@ -77,9 +78,11 @@ public partial class SearchOverlay
             SizeToContent = SizeToContent.Manual,
         };
 
+        var transparency = _settings.GetSmartProjectSearchWidgetTransparency();
+        var alpha = (byte)(transparency * 255);
         var rootBorder = new Border
         {
-            Background = new WpfMedia.SolidColorBrush(WpfMedia.Color.FromArgb(0xE8, 0x12, 0x12, 0x12)),
+            Background = new WpfMedia.SolidColorBrush(WpfMedia.Color.FromArgb(alpha, 0x12, 0x12, 0x12)),
             CornerRadius = new CornerRadius(12),
             BorderBrush = new WpfMedia.SolidColorBrush(WpfMedia.Color.FromArgb(0x3A, 0x2A, 0x2A, 0x2A)),
             BorderThickness = new Thickness(1),
@@ -121,6 +124,7 @@ public partial class SearchOverlay
         outerGrid.Children.Add(new Border { Background = WpfMedia.Brushes.Transparent, Padding = new Thickness(18), Child = contentGrid });
 
         rootBorder.Child = outerGrid;
+        _smartProjectSearchAttachedRootBorder = rootBorder;
         _smartProjectSearchAttachedWindow.Content = rootBorder;
 
         // Prevent this window from causing the overlay to auto-hide
@@ -196,6 +200,15 @@ public partial class SearchOverlay
             _smartProjectSearchAttachedWindow.Visibility = Visibility.Visible;
             _smartProjectSearchAttachedWindow.Show();
         }
+    }
+
+    internal void UpdateSmartSearchAttachedWindowTransparency()
+    {
+        if (_smartProjectSearchAttachedRootBorder == null) return;
+        var transparency = _settings.GetSmartProjectSearchWidgetTransparency();
+        var alpha = (byte)(transparency * 255);
+        _smartProjectSearchAttachedRootBorder.Background =
+            new WpfMedia.SolidColorBrush(WpfMedia.Color.FromArgb(alpha, 0x12, 0x12, 0x12));
     }
 
     private void HideSmartSearchAttachedWindow()
