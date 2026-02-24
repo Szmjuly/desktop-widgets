@@ -670,11 +670,13 @@
     <Ellipse x:Name="UpdateIndicator"
              Width="10" Height="10"
              Fill="#4CAF50"
-             HorizontalAlignment="Right"
-             VerticalAlignment="Bottom"
-             Margin="0,0,8,8"
+             HorizontalAlignment="Left"
+             VerticalAlignment="Top"
+             Margin="8,8,0,0"
              Visibility="Collapsed"
-             IsHitTestVisible="False"/>
+             Cursor="Hand"
+             ToolTip="update available"
+             MouseLeftButtonDown="UpdateIndicator_MouseLeftButtonDown"/>
     </Grid>
     </Border>
     </Grid>

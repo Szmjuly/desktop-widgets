@@ -13,6 +13,7 @@ public class TrayIcon : IDisposable
     private readonly string _hotkeyLabel;
     private readonly DesktopHub.Core.Abstractions.ISettingsService _settings;
     private TrayMenu? _currentMenu;
+    private bool _isIndicatorUpdateInProgress;
     private static readonly string WhatsNewPayloadPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "DesktopHub-WhatsNew.json");
     private static readonly string WhatsNewStateDirectory = System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -390,6 +391,42 @@ public class TrayIcon : IDisposable
             return $"{parts[0]}.{parts[1]}.{parts[2]}";
         }
         return version;
+    }
+
+    public void BeginUpdateFromIndicator()
+    {
+        if (_isIndicatorUpdateInProgress)
+        {
+            DebugLogger.Log("Update indicator: update is already in progress");
+            return;
+        }
+
+        _isIndicatorUpdateInProgress = true;
+        Task.Run(async () =>
+        {
+            try
+            {
+                var updateInfo = _searchOverlay.UpdateCheckService?.LatestUpdateInfo;
+                if (updateInfo == null || !updateInfo.UpdateAvailable)
+                {
+                    DebugLogger.Log("Update indicator: no cached update info, falling back to CheckForUpdates");
+                    CheckForUpdates();
+                    return;
+                }
+
+                DebugLogger.Log($"Update indicator: starting update process for v{updateInfo.LatestVersion}");
+                await DownloadAndInstallUpdateAsync(updateInfo);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"Update indicator: failed to begin update process: {ex.Message}");
+                ShowCustomToast("DesktopHub", "Failed to start update. Please try again.");
+            }
+            finally
+            {
+                _isIndicatorUpdateInProgress = false;
+            }
+        });
     }
 
     private void CheckForUpdates()

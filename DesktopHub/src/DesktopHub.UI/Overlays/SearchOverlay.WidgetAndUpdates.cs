@@ -161,6 +161,15 @@ public partial class SearchOverlay
             UpdateIndicator.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    private void UpdateIndicator_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.ClickCount < 2)
+            return;
+
+        e.Handled = true;
+        _trayIcon?.BeginUpdateFromIndicator();
+    }
+
     public UpdateCheckService? UpdateCheckService => _updateCheckService;
     public UpdateIndicatorManager? UpdateIndicatorManager => _updateIndicatorManager;
 
