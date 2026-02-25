@@ -7,6 +7,8 @@ using System.Windows.Media;
 using DesktopHub.Core.Abstractions;
 using DesktopHub.Infrastructure.Settings;
 using DesktopHub.UI.Helpers;
+using DesktopHub.UI.Services;
+using DesktopHub.Core.Models;
 using WpfColor = System.Windows.Media.Color;
 using WpfColorConverter = System.Windows.Media.ColorConverter;
 
@@ -270,6 +272,10 @@ public partial class QuickLaunchWidget : System.Windows.Controls.UserControl
                     FileName = path,
                     UseShellExecute = true
                 });
+
+                // Track quick launch usage
+                TelemetryAccessor.TrackQuickLaunch(TelemetryEventType.QuickLaunchItemLaunched);
+
                 DebugLogger.Log($"QuickLaunchWidget: Launched {path}");
             }
             catch (Exception ex)
@@ -287,6 +293,9 @@ public partial class QuickLaunchWidget : System.Windows.Controls.UserControl
             _config.Items.RemoveAll(i => i.Id == itemId);
             await _config.SaveAsync();
             RenderItems();
+
+            // Track quick launch item removal
+            TelemetryAccessor.TrackQuickLaunch(TelemetryEventType.QuickLaunchItemRemoved);
         }
     }
 
@@ -367,6 +376,9 @@ public partial class QuickLaunchWidget : System.Windows.Controls.UserControl
 
         _config.Items.Add(item);
         await _config.SaveAsync();
+
+        // Track quick launch item add
+        TelemetryAccessor.TrackQuickLaunch(TelemetryEventType.QuickLaunchItemAdded, itemType: icon);
 
         AddPanel.Visibility = Visibility.Collapsed;
         RenderItems();
@@ -467,6 +479,10 @@ public partial class QuickLaunchWidget : System.Windows.Controls.UserControl
             };
 
             _config.Items.Add(item);
+
+            // Track quick launch item add via drop
+            TelemetryAccessor.TrackQuickLaunch(TelemetryEventType.QuickLaunchItemAdded, itemType: icon);
+
             DebugLogger.Log($"QuickLaunchWidget: Added via drop: {name} -> {filePath}");
         }
 

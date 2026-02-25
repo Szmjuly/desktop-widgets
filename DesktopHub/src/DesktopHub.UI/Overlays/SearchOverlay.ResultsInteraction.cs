@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using DesktopHub.Core.Models;
 using DesktopHub.UI.Helpers;
+using DesktopHub.UI.Services;
 
 namespace DesktopHub.UI;
 
@@ -296,6 +297,29 @@ public partial class SearchOverlay
             else
             {
                 Process.Start(new ProcessStartInfo(itemPath) { UseShellExecute = true });
+            }
+
+            // Track project launch telemetry
+            TelemetryAccessor.TrackProjectLaunch(
+                _isPathSearchResults ? "PathSearch" : "ProjectSearch",
+                itemNumber,
+                projectType: null);
+
+            if (_isPathSearchResults)
+            {
+                TelemetryAccessor.TrackSearch(
+                    TelemetryEventType.PathResultClicked,
+                    SearchBox.Text,
+                    resultIndex: ResultsList.SelectedIndex,
+                    widgetName: "PathSearch");
+            }
+            else
+            {
+                TelemetryAccessor.TrackSearch(
+                    TelemetryEventType.SearchResultClicked,
+                    SearchBox.Text,
+                    resultIndex: ResultsList.SelectedIndex,
+                    widgetName: "ProjectSearch");
             }
 
             // Record the launch for frequency tracking (only for project results)

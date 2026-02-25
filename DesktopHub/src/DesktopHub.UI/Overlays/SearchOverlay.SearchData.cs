@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using DesktopHub.Core.Models;
 using DesktopHub.UI.Helpers;
+using DesktopHub.UI.Services;
 
 namespace DesktopHub.UI;
 
@@ -347,6 +348,13 @@ public partial class SearchOverlay
 
             if (token.IsCancellationRequested)
                 return;
+
+            // Track search execution
+            TelemetryAccessor.TrackSearch(
+                TelemetryEventType.SearchExecuted,
+                query,
+                resultCount: results.Count,
+                widgetName: "ProjectSearch");
 
             // Update UI - batch operations to reduce overhead
             var projectViewModels = results.Select(r => new ProjectViewModel(r.Project)).ToList();

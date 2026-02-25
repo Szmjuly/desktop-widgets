@@ -6,6 +6,7 @@ using System.Windows.Input;
 using DesktopHub.Core.Models;
 using DesktopHub.UI.Services;
 using WpfBrush = System.Windows.Media.Brush;
+
 using WpfBrushes = System.Windows.Media.Brushes;
 using WpfColor = System.Windows.Media.Color;
 using WpfSolidColorBrush = System.Windows.Media.SolidColorBrush;
@@ -452,6 +453,15 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
             await _docService.RecordFileOpenAsync(filePath);
             RenderRecentFiles();
             StatusText.Text = $"Opened {System.IO.Path.GetFileName(filePath)}";
+
+            // Track doc open telemetry
+            var ext = System.IO.Path.GetExtension(filePath)?.ToLowerInvariant();
+            var info = _docService.ProjectInfo;
+            TelemetryAccessor.TrackDocAccess(
+                TelemetryEventType.DocOpened,
+                discipline: _docService.SelectedDiscipline.ToString(),
+                fileExtension: ext,
+                projectType: info?.Type.ToString());
         }
         catch (Exception ex)
         {
@@ -761,6 +771,18 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         _docService.SetSearchQuery(SearchBox.Text);
+
+        // Track doc search telemetry (debounced by service)
+        if (!string.IsNullOrWhiteSpace(SearchBox.Text))
+        {
+            var info = _docService.ProjectInfo;
+            TelemetryAccessor.TrackDocAccess(
+                TelemetryEventType.DocSearchExecuted,
+                discipline: _docService.SelectedDiscipline.ToString(),
+                projectType: info?.Type.ToString(),
+                queryText: SearchBox.Text,
+                resultCount: _docService.CurrentFiles.Count);
+        }
     }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e)
@@ -800,6 +822,13 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
             if (Enum.TryParse<Discipline>(tag, true, out var disc))
             {
                 await _docService.SetDisciplineAsync(disc);
+
+                // Track discipline change
+                TelemetryAccessor.TrackDocAccess(
+                    TelemetryEventType.DocSearchExecuted,
+                    discipline: disc.ToString(),
+                    projectType: _docService.ProjectInfo?.Type.ToString(),
+                    resultCount: _docService.CurrentFiles.Count);
             }
         }
     }

@@ -6,6 +6,7 @@ using System.Windows.Input;
 using DesktopHub.Core.Abstractions;
 using DesktopHub.Core.Models;
 using DesktopHub.UI.Helpers;
+using DesktopHub.UI.Services;
 using WpfColor = System.Windows.Media.Color;
 using WpfBrush = System.Windows.Media.SolidColorBrush;
 using WpfColorConverter = System.Windows.Media.ColorConverter;
@@ -339,6 +340,10 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
                     Process.Start("explorer.exe", path);
                     await _launchStore.RecordLaunchAsync(path, fullNumber, name);
                     await RefreshAsync();
+
+                    // Track frequent project launch
+                    TelemetryAccessor.TrackProjectLaunch("FrequentProjects", fullNumber);
+
                     DebugLogger.Log($"FrequentProjectsWidget: Double-clicked project at {path}, opening folder + recorded launch");
                 }
                 catch (Exception ex)

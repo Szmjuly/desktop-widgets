@@ -2,6 +2,9 @@ using System.IO;
 using System.Threading;
 using DesktopHub.UI.Helpers;
 using DesktopHub.Infrastructure.Firebase;
+using DesktopHub.Infrastructure.Data;
+using DesktopHub.Infrastructure.Telemetry;
+using DesktopHub.Core.Abstractions;
 using DesktopHub.UI.Services;
 
 namespace DesktopHub.UI;
@@ -12,8 +15,11 @@ public partial class App : System.Windows.Application
     private static Mutex? _instanceMutex;
     private const string MutexName = "Global\\DesktopHub_SingleInstance_Mutex";
     private FirebaseLifecycleManager? _firebaseManager;
+    private FirebaseService? _firebaseService;
+    private TelemetryService? _telemetryService;
 
     public FirebaseLifecycleManager? FirebaseManager => _firebaseManager;
+    public ITelemetryService? Telemetry => _telemetryService;
 
     public App()
     {
@@ -72,6 +78,9 @@ public partial class App : System.Windows.Application
         // Initialize Firebase tracking (non-blocking)
         InitializeFirebaseAsync();
         
+        // Initialize telemetry (non-blocking)
+        InitializeTelemetryAsync();
+        
         // Create Start Menu shortcut on startup (only creates if it doesn't exist)
         StartMenuHelper.CreateStartMenuShortcut();
         
@@ -94,10 +103,10 @@ public partial class App : System.Windows.Application
                 DebugLogger.Log("Firebase: Starting initialization in background...");
                 DebugLogger.Log("Firebase: Creating FirebaseService instance...");
                 
-                var firebaseService = new FirebaseService();
+                _firebaseService = new FirebaseService();
                 DebugLogger.Log("Firebase: Creating FirebaseLifecycleManager instance...");
                 
-                _firebaseManager = new FirebaseLifecycleManager(firebaseService);
+                _firebaseManager = new FirebaseLifecycleManager(_firebaseService);
                 DebugLogger.Log("Firebase: Calling InitializeAsync...");
                 
                 // Add 10 second timeout for initialization
@@ -114,6 +123,12 @@ public partial class App : System.Windows.Application
                 {
                     await initTask; // Propagate any exceptions
                     DebugLogger.Log("Firebase: Initialization completed successfully");
+                    
+                    // Connect Firebase to telemetry for periodic sync
+                    if (_telemetryService != null && _firebaseService.IsInitialized)
+                    {
+                        _telemetryService.SetFirebaseService(_firebaseService);
+                    }
                 }
             }
             catch (Exception ex)
@@ -129,6 +144,37 @@ public partial class App : System.Windows.Application
         });
         
         DebugLogger.Log("App.xaml.cs: InitializeFirebaseAsync RETURNING (Task.Run started)");
+    }
+    
+    private void InitializeTelemetryAsync()
+    {
+        DebugLogger.Log("App.xaml.cs: InitializeTelemetryAsync CALLED");
+        
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var metricsDb = new MetricsDatabase();
+                // Pass Firebase service for periodic sync (may be null if Firebase hasn't initialized yet)
+                _telemetryService = new TelemetryService(metricsDb);
+                await _telemetryService.InitializeAsync();
+                
+                // Connect Firebase if it's already initialized
+                if (_firebaseService != null && _firebaseService.IsInitialized)
+                {
+                    _telemetryService.SetFirebaseService(_firebaseService);
+                }
+                
+                // Make telemetry available to all widgets via static accessor
+                TelemetryAccessor.Initialize(_telemetryService);
+                
+                DebugLogger.Log("Telemetry: Initialized successfully");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"Telemetry: Initialization failed: {ex.Message}");
+            }
+        });
     }
     
     private bool ShouldSelfInstall()
@@ -402,6 +448,20 @@ public partial class App : System.Windows.Application
     
     protected override void OnExit(System.Windows.ExitEventArgs e)
     {
+        // End telemetry session first
+        if (_telemetryService != null)
+        {
+            try
+            {
+                _telemetryService.EndSessionAsync().Wait(TimeSpan.FromSeconds(5));
+                _telemetryService.Dispose();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"Telemetry shutdown error: {ex.Message}");
+            }
+        }
+        
         if (_firebaseManager != null)
         {
             try

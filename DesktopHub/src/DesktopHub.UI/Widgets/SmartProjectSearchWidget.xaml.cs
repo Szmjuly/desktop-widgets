@@ -9,6 +9,7 @@ using DesktopHub.UI.Services;
 
 namespace DesktopHub.UI.Widgets;
 
+
 public partial class SmartProjectSearchWidget : System.Windows.Controls.UserControl
 {
     private readonly SmartProjectSearchService _service;
@@ -49,6 +50,16 @@ public partial class SmartProjectSearchWidget : System.Windows.Controls.UserCont
         {
             await Task.Delay(120, token);
             await _service.SetQueryAsync(SearchBox.Text);
+
+            // Track smart search execution
+            if (!string.IsNullOrWhiteSpace(SearchBox.Text))
+            {
+                TelemetryAccessor.TrackSearch(
+                    TelemetryEventType.SmartSearchExecuted,
+                    SearchBox.Text,
+                    resultCount: _service.Results.Count,
+                    widgetName: "SmartProjectSearch");
+            }
         }
         catch (OperationCanceledException)
         {
@@ -169,6 +180,17 @@ public partial class SmartProjectSearchWidget : System.Windows.Controls.UserCont
                 FileName = path,
                 UseShellExecute = true
             });
+
+            // Track smart search result click
+            TelemetryAccessor.TrackSearch(
+                TelemetryEventType.SmartSearchResultClicked,
+                SearchBox.Text,
+                resultIndex: ResultsList.SelectedIndex,
+                widgetName: "SmartProjectSearch",
+                extraData: new Dictionary<string, object?>
+                {
+                    ["file_extension"] = System.IO.Path.GetExtension(path)?.ToLowerInvariant()
+                });
         }
         catch (Exception ex)
         {

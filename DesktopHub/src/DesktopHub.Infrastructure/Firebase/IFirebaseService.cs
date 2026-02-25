@@ -20,4 +20,8 @@ public interface IFirebaseService
     Task LogUpdateInstalledAsync(string version);
     void StartHeartbeat();
     void StopHeartbeat();
+    
+    // Feature flags
+    Task<bool> GetFeatureFlagAsync(string flagName, bool defaultValue = false);
+    Task<bool> IsMetricsViewerEnabledAsync();
 }

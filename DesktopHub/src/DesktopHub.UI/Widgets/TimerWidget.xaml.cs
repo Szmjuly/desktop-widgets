@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using DesktopHub.Core.Models;
 using DesktopHub.UI.Services;
 
 namespace DesktopHub.UI.Widgets;
@@ -109,11 +110,17 @@ public partial class TimerWidget : System.Windows.Controls.UserControl
         {
             _timerService.Pause();
             StartPauseText.Text = "Start";
+
+            // Track timer stop
+            TelemetryAccessor.TrackTimer(TelemetryEventType.TimerStopped);
         }
         else
         {
             _timerService.Start();
             StartPauseText.Text = "Pause";
+
+            // Track timer start
+            TelemetryAccessor.TrackTimer(TelemetryEventType.TimerStarted);
         }
     }
     

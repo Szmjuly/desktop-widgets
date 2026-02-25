@@ -235,6 +235,9 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
     {
         _activeSheet = sheet;
         ShowDetailView();
+
+        // Track cheat sheet view
+        TelemetryAccessor.TrackCheatSheet(sheet.Id);
     }
 
     private void ShowListView()

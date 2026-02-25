@@ -621,6 +621,54 @@ public class FirebaseService : IFirebaseService
         }
     }
 
+    public async Task<bool> GetFeatureFlagAsync(string flagName, bool defaultValue = false)
+    {
+        if (!_isInitialized || _httpClient == null || _deviceInfo == null)
+        {
+            return defaultValue;
+        }
+
+        try
+        {
+            // Check device-specific flag first: feature_flags/{deviceId}/{flagName}
+            var deviceFlag = await GetDataAsync<object>($"feature_flags/{_deviceInfo.DeviceId}/{flagName}");
+            if (deviceFlag != null)
+            {
+                return ParseBool(deviceFlag.ToString()) ?? defaultValue;
+            }
+
+            // Fall back to license-level flag: feature_flags/licenses/{licenseKey}/{flagName}
+            var licenseKey = await GetLicenseKeyAsync();
+            if (!string.IsNullOrEmpty(licenseKey))
+            {
+                var licenseFlag = await GetDataAsync<object>($"feature_flags/licenses/{licenseKey}/{flagName}");
+                if (licenseFlag != null)
+                {
+                    return ParseBool(licenseFlag.ToString()) ?? defaultValue;
+                }
+            }
+
+            // Fall back to global flag: feature_flags/global/{flagName}
+            var globalFlag = await GetDataAsync<object>($"feature_flags/global/{flagName}");
+            if (globalFlag != null)
+            {
+                return ParseBool(globalFlag.ToString()) ?? defaultValue;
+            }
+
+            return defaultValue;
+        }
+        catch (Exception ex)
+        {
+            InfraLogger.Log($"Firebase: Failed to get feature flag '{flagName}': {ex.Message}");
+            return defaultValue;
+        }
+    }
+
+    public async Task<bool> IsMetricsViewerEnabledAsync()
+    {
+        return await GetFeatureFlagAsync("metrics_viewer_enabled", defaultValue: false);
+    }
+
     public async Task LogUpdateInstalledAsync(string version)
     {
         if (!_isInitialized || _httpClient == null || _deviceInfo == null)

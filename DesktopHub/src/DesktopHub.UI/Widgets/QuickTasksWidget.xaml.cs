@@ -7,6 +7,7 @@ using System.Windows.Input;
 using DesktopHub.Core.Models;
 using DesktopHub.UI.Services;
 using WpfBrush = System.Windows.Media.Brush;
+
 using WpfBrushes = System.Windows.Media.Brushes;
 using WpfColor = System.Windows.Media.Color;
 using WpfSolidColorBrush = System.Windows.Media.SolidColorBrush;
@@ -81,6 +82,14 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
             if (!string.IsNullOrEmpty(title))
             {
                 await _taskService.AddTaskAsync(title);
+
+                // Track task creation (char count only, not content)
+                var (active, _) = await _taskService.GetCountsAsync();
+                TelemetryAccessor.TrackQuickTask(
+                    TelemetryEventType.TaskCreated,
+                    charCount: title.Length,
+                    taskCountAtTime: active);
+
                 NewTaskInput.Text = "";
                 NewTaskPanel.Visibility = Visibility.Collapsed;
             }
@@ -262,6 +271,10 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
         {
             e.Handled = true;
             await _taskService.ToggleTaskCompletionAsync(task.Id);
+
+            // Track task completion toggle
+            TelemetryAccessor.TrackQuickTask(
+                task.IsCompleted ? TelemetryEventType.TaskCreated : TelemetryEventType.TaskCompleted);
         };
 
         Grid.SetColumn(checkbox, 0);
@@ -323,6 +336,9 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
         {
             e.Handled = true;
             await _taskService.DeleteTaskAsync(task.Id);
+
+            // Track task deletion
+            TelemetryAccessor.TrackQuickTask(TelemetryEventType.TaskDeleted);
         };
 
         Grid.SetColumn(deleteBtn, 3);

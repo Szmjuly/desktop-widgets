@@ -5,6 +5,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using DesktopHub.Core.Models;
+using DesktopHub.UI.Services;
 
 namespace DesktopHub.UI;
 
@@ -458,6 +460,13 @@ public partial class SearchOverlay
             if (token.IsCancellationRequested) return;
 
             ResultsList.ItemsSource = results;
+
+            // Track path search telemetry
+            TelemetryAccessor.TrackSearch(
+                TelemetryEventType.PathSearchExecuted,
+                query,
+                resultCount: results.Count,
+                widgetName: "PathSearch");
 
             if (results.Count > 0)
             {
