@@ -35,10 +35,12 @@ public partial class SearchOverlay : Window
     private FrequentProjectsOverlay? _frequentProjectsOverlay;
     private QuickLaunchOverlay? _quickLaunchOverlay;
     private SmartProjectSearchOverlay? _smartProjectSearchOverlay;
+    private CheatSheetOverlay? _cheatSheetOverlay;
     private WidgetLauncher? _widgetLauncher;
     private TaskService? _taskService;
     private DocOpenService? _docService;
     private SmartProjectSearchService? _smartProjectSearchService;
+    private CheatSheetService? _cheatSheetService;
     private SmartProjectSearchWidget? _smartProjectSearchAttachedWidget;
     private IProjectLaunchDataStore? _launchDataStore;
     private List<Project> _allProjects = new();

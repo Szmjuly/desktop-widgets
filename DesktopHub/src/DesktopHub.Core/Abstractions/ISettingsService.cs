@@ -474,6 +474,42 @@ public interface ISettingsService
     List<string> GetSmartProjectSearchFileTypes();
     void SetSmartProjectSearchFileTypes(IReadOnlyList<string> fileTypes);
 
+    // --- Cheat Sheet Widget ---
+
+    double GetCheatSheetWidgetTransparency();
+    void SetCheatSheetWidgetTransparency(double transparency);
+    bool GetCheatSheetTransparencyLinked();
+    void SetCheatSheetTransparencyLinked(bool linked);
+    (double? left, double? top) GetCheatSheetWidgetPosition();
+    void SetCheatSheetWidgetPosition(double left, double top);
+    bool GetCheatSheetWidgetVisible();
+    void SetCheatSheetWidgetVisible(bool visible);
+    bool GetCheatSheetWidgetEnabled();
+    void SetCheatSheetWidgetEnabled(bool enabled);
+
+    // --- Generic widget dispatch (used by dynamic settings UI) ---
+
+    /// <summary>
+    /// Get transparency for any widget by its WidgetIds constant.
+    /// Returns the widget-specific value, or 0.78 if unknown.
+    /// </summary>
+    double GetWidgetTransparency(string widgetId);
+
+    /// <summary>Set transparency for any widget by its WidgetIds constant.</summary>
+    void SetWidgetTransparency(string widgetId, double transparency);
+
+    /// <summary>Get whether a widget's transparency slider is linked.</summary>
+    bool GetWidgetTransparencyLinked(string widgetId);
+
+    /// <summary>Set whether a widget's transparency slider is linked.</summary>
+    void SetWidgetTransparencyLinked(string widgetId, bool linked);
+
+    /// <summary>Get whether a widget is enabled in the launcher.</summary>
+    bool GetWidgetEnabled(string widgetId);
+
+    /// <summary>Set whether a widget is enabled in the launcher.</summary>
+    void SetWidgetEnabled(string widgetId, bool enabled);
+
     // --- Hotkey Groups ---
     List<HotkeyGroup> GetHotkeyGroups();
     void SetHotkeyGroups(List<HotkeyGroup> groups);

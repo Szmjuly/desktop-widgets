@@ -194,6 +194,17 @@ public partial class SearchOverlay
             _settings.SetSmartProjectSearchWidgetVisible(false);
         }
 
+        if (_cheatSheetOverlay != null)
+        {
+            _settings.SetCheatSheetWidgetPosition(_cheatSheetOverlay.Left, _cheatSheetOverlay.Top);
+            _settings.SetCheatSheetWidgetVisible(_cheatSheetOverlay.Visibility == Visibility.Visible);
+            DebugLogger.Log($"Window_Closing: Saved cheat sheet overlay position: ({_cheatSheetOverlay.Left}, {_cheatSheetOverlay.Top})");
+        }
+        else
+        {
+            _settings.SetCheatSheetWidgetVisible(false);
+        }
+
         // Save async but don't await (app is closing)
         _ = _settings.SaveAsync();
         DebugLogger.Log("Window_Closing: Saved widget positions and visibility state");

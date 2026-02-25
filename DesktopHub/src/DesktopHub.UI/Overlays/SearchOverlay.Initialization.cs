@@ -30,6 +30,7 @@ public partial class SearchOverlay
         _taskService = new TaskService(new Infrastructure.Data.TaskDataStore());
         _docService = new DocOpenService(new Infrastructure.Scanning.DocumentScanner());
         _smartProjectSearchService = new SmartProjectSearchService(new Infrastructure.Scanning.DocumentScanner(), _settings);
+        _cheatSheetService = new CheatSheetService();
 
         // Setup transparency when window handle is available
         SourceInitialized += (s, e) =>
@@ -170,6 +171,7 @@ public partial class SearchOverlay
             _widgetLauncher.FrequentProjectsRequested += OnFrequentProjectsRequested;
             _widgetLauncher.QuickLaunchRequested += OnQuickLaunchRequested;
             _widgetLauncher.SmartProjectSearchRequested += OnSmartProjectSearchRequested;
+            _widgetLauncher.CheatSheetRequested += OnCheatSheetRequested;
 
             RegisterWidgetWindow(this);
             RegisterWidgetWindow(_widgetLauncher);
@@ -272,6 +274,13 @@ public partial class SearchOverlay
                 DebugLogger.Log("Restored smart project search widget from previous session");
             }
 
+            var cheatSheetVisible = _settings.GetCheatSheetWidgetVisible();
+            if (cheatSheetVisible)
+            {
+                CreateCheatSheetOverlay();
+                DebugLogger.Log("Restored cheat sheet widget from previous session");
+            }
+
             ApplySmartProjectSearchAttachModeState();
 
             if (isLivingWidgetsMode)
@@ -315,9 +324,13 @@ public partial class SearchOverlay
             if (_smartProjectSearchOverlay != null)
                 _updateIndicatorManager.RegisterWidget("SmartProjectSearchOverlay", 8, _smartProjectSearchOverlay,
                     visible => Dispatcher.Invoke(() => _smartProjectSearchOverlay.SetUpdateIndicatorVisible(visible)));
+            if (_cheatSheetOverlay != null)
+                _updateIndicatorManager.RegisterWidget("CheatSheetOverlay", 9, _cheatSheetOverlay,
+                    visible => Dispatcher.Invoke(() => _cheatSheetOverlay.SetUpdateIndicatorVisible(visible)));
 
             // Re-apply in case settings changed while startup widgets were restoring.
             UpdateSmartProjectSearchWidgetButton();
+            UpdateCheatSheetWidgetButton();
 
             // Initialize periodic update checking
             InitializeUpdateCheckService();

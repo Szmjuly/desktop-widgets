@@ -17,7 +17,8 @@ public enum Discipline
 {
     Electrical,
     Mechanical,
-    Plumbing
+    Plumbing,
+    FireProtection
 }
 
 /// <summary>

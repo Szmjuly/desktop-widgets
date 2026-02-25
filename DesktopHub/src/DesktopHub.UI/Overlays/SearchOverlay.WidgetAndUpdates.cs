@@ -124,6 +124,16 @@ public partial class SearchOverlay
         ApplySmartProjectSearchAttachModeState();
     }
 
+    public void UpdateCheatSheetWidgetButton()
+    {
+        if (_widgetLauncher != null)
+        {
+            var enabled = _settings.GetCheatSheetWidgetEnabled();
+            _widgetLauncher.UpdateCheatSheetButtonVisibility(enabled);
+            DebugLogger.Log($"UpdateCheatSheetWidgetButton: visibility set to {enabled}");
+        }
+    }
+
     public void UpdateQuickLaunchLayout()
     {
         if (_quickLaunchOverlay != null && _quickLaunchOverlay.IsVisible)
@@ -266,6 +276,11 @@ public partial class SearchOverlay
                 if (_smartProjectSearchOverlay != null)
                 {
                     _smartProjectSearchOverlay.UpdateTransparency();
+                }
+
+                if (_cheatSheetOverlay != null)
+                {
+                    _cheatSheetOverlay.UpdateTransparency();
                 }
 
                 UpdateSmartSearchAttachedWindowTransparency();

@@ -285,6 +285,102 @@ public class SettingsService : ISettingsService
             : GetDefaultSmartProjectSearchFileTypes();
     }
 
+    // --- Cheat Sheet Widget ---
+    public double GetCheatSheetWidgetTransparency() => _settings.CheatSheetWidgetTransparency;
+    public void SetCheatSheetWidgetTransparency(double transparency) => _settings.CheatSheetWidgetTransparency = transparency;
+    public bool GetCheatSheetTransparencyLinked() => _settings.CheatSheetTransparencyLinked;
+    public void SetCheatSheetTransparencyLinked(bool linked) => _settings.CheatSheetTransparencyLinked = linked;
+    public (double? left, double? top) GetCheatSheetWidgetPosition() => (_settings.CheatSheetWidgetLeft, _settings.CheatSheetWidgetTop);
+    public void SetCheatSheetWidgetPosition(double left, double top)
+    {
+        _settings.CheatSheetWidgetLeft = left;
+        _settings.CheatSheetWidgetTop = top;
+    }
+    public bool GetCheatSheetWidgetVisible() => _settings.CheatSheetWidgetVisible;
+    public void SetCheatSheetWidgetVisible(bool visible) => _settings.CheatSheetWidgetVisible = visible;
+    public bool GetCheatSheetWidgetEnabled() => _settings.CheatSheetWidgetEnabled;
+    public void SetCheatSheetWidgetEnabled(bool enabled) => _settings.CheatSheetWidgetEnabled = enabled;
+
+    // --- Generic widget dispatch (used by dynamic settings UI) ---
+
+    public double GetWidgetTransparency(string widgetId) => widgetId switch
+    {
+        WidgetIds.SearchOverlay      => GetOverlayTransparency(),
+        WidgetIds.WidgetLauncher     => GetWidgetLauncherTransparency(),
+        WidgetIds.Timer              => GetTimerWidgetTransparency(),
+        WidgetIds.QuickTasks         => GetQuickTasksWidgetTransparency(),
+        WidgetIds.DocQuickOpen       => GetDocWidgetTransparency(),
+        WidgetIds.SmartProjectSearch => GetSmartProjectSearchWidgetTransparency(),
+        WidgetIds.CheatSheet         => GetCheatSheetWidgetTransparency(),
+        _ => 0.78
+    };
+
+    public void SetWidgetTransparency(string widgetId, double transparency)
+    {
+        switch (widgetId)
+        {
+            case WidgetIds.SearchOverlay:      SetOverlayTransparency(transparency); break;
+            case WidgetIds.WidgetLauncher:     SetWidgetLauncherTransparency(transparency); break;
+            case WidgetIds.Timer:              SetTimerWidgetTransparency(transparency); break;
+            case WidgetIds.QuickTasks:         SetQuickTasksWidgetTransparency(transparency); break;
+            case WidgetIds.DocQuickOpen:       SetDocWidgetTransparency(transparency); break;
+            case WidgetIds.SmartProjectSearch: SetSmartProjectSearchWidgetTransparency(transparency); break;
+            case WidgetIds.CheatSheet:         SetCheatSheetWidgetTransparency(transparency); break;
+        }
+    }
+
+    public bool GetWidgetTransparencyLinked(string widgetId) => widgetId switch
+    {
+        WidgetIds.SearchOverlay      => GetOverlayTransparencyLinked(),
+        WidgetIds.WidgetLauncher     => GetLauncherTransparencyLinked(),
+        WidgetIds.Timer              => GetTimerTransparencyLinked(),
+        WidgetIds.QuickTasks         => GetQuickTasksTransparencyLinked(),
+        WidgetIds.DocQuickOpen       => GetDocTransparencyLinked(),
+        WidgetIds.SmartProjectSearch => GetSmartProjectSearchTransparencyLinked(),
+        WidgetIds.CheatSheet         => GetCheatSheetTransparencyLinked(),
+        _ => false
+    };
+
+    public void SetWidgetTransparencyLinked(string widgetId, bool linked)
+    {
+        switch (widgetId)
+        {
+            case WidgetIds.SearchOverlay:      SetOverlayTransparencyLinked(linked); break;
+            case WidgetIds.WidgetLauncher:     SetLauncherTransparencyLinked(linked); break;
+            case WidgetIds.Timer:              SetTimerTransparencyLinked(linked); break;
+            case WidgetIds.QuickTasks:         SetQuickTasksTransparencyLinked(linked); break;
+            case WidgetIds.DocQuickOpen:       SetDocTransparencyLinked(linked); break;
+            case WidgetIds.SmartProjectSearch: SetSmartProjectSearchTransparencyLinked(linked); break;
+            case WidgetIds.CheatSheet:         SetCheatSheetTransparencyLinked(linked); break;
+        }
+    }
+
+    public bool GetWidgetEnabled(string widgetId) => widgetId switch
+    {
+        WidgetIds.Timer              => GetTimerWidgetEnabled(),
+        WidgetIds.QuickTasks         => GetQuickTasksWidgetEnabled(),
+        WidgetIds.DocQuickOpen       => GetDocWidgetEnabled(),
+        WidgetIds.FrequentProjects   => GetFrequentProjectsWidgetEnabled(),
+        WidgetIds.QuickLaunch        => GetQuickLaunchWidgetEnabled(),
+        WidgetIds.SmartProjectSearch => GetSmartProjectSearchWidgetEnabled(),
+        WidgetIds.CheatSheet         => GetCheatSheetWidgetEnabled(),
+        _ => true
+    };
+
+    public void SetWidgetEnabled(string widgetId, bool enabled)
+    {
+        switch (widgetId)
+        {
+            case WidgetIds.Timer:              SetTimerWidgetEnabled(enabled); break;
+            case WidgetIds.QuickTasks:         SetQuickTasksWidgetEnabled(enabled); break;
+            case WidgetIds.DocQuickOpen:       SetDocWidgetEnabled(enabled); break;
+            case WidgetIds.FrequentProjects:   SetFrequentProjectsWidgetEnabled(enabled); break;
+            case WidgetIds.QuickLaunch:        SetQuickLaunchWidgetEnabled(enabled); break;
+            case WidgetIds.SmartProjectSearch: SetSmartProjectSearchWidgetEnabled(enabled); break;
+            case WidgetIds.CheatSheet:         SetCheatSheetWidgetEnabled(enabled); break;
+        }
+    }
+
     // --- Hotkey Groups ---
     public List<HotkeyGroup> GetHotkeyGroups()
     {
@@ -307,6 +403,7 @@ public class SettingsService : ISettingsService
                         WidgetIds.FrequentProjects,
                         WidgetIds.QuickLaunch,
                         WidgetIds.SmartProjectSearch,
+                        WidgetIds.CheatSheet,
                     }
                 }
             };
@@ -489,6 +586,14 @@ public class SettingsService : ISettingsService
         public bool SmartProjectSearchWidgetEnabledBeforeAttachMode { get; set; } = true;
         public string SmartProjectSearchLatestMode { get; set; } = "list";
         public List<string> SmartProjectSearchFileTypes { get; set; } = GetDefaultSmartProjectSearchFileTypes();
+
+        // Cheat Sheet widget
+        public double CheatSheetWidgetTransparency { get; set; } = 0.78;
+        public bool CheatSheetTransparencyLinked { get; set; } = false;
+        public double? CheatSheetWidgetLeft { get; set; } = null;
+        public double? CheatSheetWidgetTop { get; set; } = null;
+        public bool CheatSheetWidgetVisible { get; set; } = false;
+        public bool CheatSheetWidgetEnabled { get; set; } = true;
 
         // Hotkey groups — each group has its own key combo and a set of widget IDs to show/focus
         public List<HotkeyGroup> HotkeyGroups { get; set; } = new();

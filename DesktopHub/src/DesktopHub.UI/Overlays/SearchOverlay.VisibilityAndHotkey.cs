@@ -90,6 +90,7 @@ public partial class SearchOverlay
         BringWidgetToForegroundIfEnabled(_frequentProjectsOverlay, targetWidgets.Contains(WidgetIds.FrequentProjects));
         BringWidgetToForegroundIfEnabled(_quickLaunchOverlay, targetWidgets.Contains(WidgetIds.QuickLaunch));
         BringWidgetToForegroundIfEnabled(_smartProjectSearchOverlay, targetWidgets.Contains(WidgetIds.SmartProjectSearch));
+        BringWidgetToForegroundIfEnabled(_cheatSheetOverlay, targetWidgets.Contains(WidgetIds.CheatSheet));
     }
 
     private bool ShouldSuppressHotkey(int modifiers, int key)
@@ -264,6 +265,7 @@ public partial class SearchOverlay
             BringWidgetToForegroundIfEnabled(_frequentProjectsOverlay, tw == null || tw.Contains(WidgetIds.FrequentProjects));
             BringWidgetToForegroundIfEnabled(_quickLaunchOverlay, tw == null || tw.Contains(WidgetIds.QuickLaunch));
             BringWidgetToForegroundIfEnabled(_smartProjectSearchOverlay, tw == null || tw.Contains(WidgetIds.SmartProjectSearch));
+            BringWidgetToForegroundIfEnabled(_cheatSheetOverlay, tw == null || tw.Contains(WidgetIds.CheatSheet));
 
             this.Activate();
             Dispatcher.BeginInvoke(new Action(() =>
@@ -345,6 +347,7 @@ public partial class SearchOverlay
         BringWidgetToForegroundIfEnabled(_frequentProjectsOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.FrequentProjects));
         BringWidgetToForegroundIfEnabled(_quickLaunchOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.QuickLaunch));
         BringWidgetToForegroundIfEnabled(_smartProjectSearchOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.SmartProjectSearch));
+        BringWidgetToForegroundIfEnabled(_cheatSheetOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.CheatSheet));
 
         DebugLogger.LogHeader("Calling Window.Activate()");
         var activateResult = this.Activate();

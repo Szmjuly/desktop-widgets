@@ -222,7 +222,8 @@ public partial class SearchOverlay
             _docOverlay,
             _frequentProjectsOverlay,
             _quickLaunchOverlay,
-            _smartProjectSearchOverlay
+            _smartProjectSearchOverlay,
+            _cheatSheetOverlay
         };
 
         var seen = new HashSet<Window>();
@@ -291,7 +292,7 @@ public partial class SearchOverlay
 
     private void ApplyResponsiveWidgetWidth(Window window)
     {
-        if (window is QuickTasksOverlay or DocQuickOpenOverlay or FrequentProjectsOverlay or QuickLaunchOverlay or SmartProjectSearchOverlay)
+        if (window is QuickTasksOverlay or DocQuickOpenOverlay or FrequentProjectsOverlay or QuickLaunchOverlay or SmartProjectSearchOverlay or CheatSheetOverlay)
         {
             window.Width = GetResponsiveColumnWidgetWidth();
         }

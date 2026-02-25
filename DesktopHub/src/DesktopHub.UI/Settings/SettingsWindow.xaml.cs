@@ -42,13 +42,20 @@ public partial class SettingsWindow : Window
     private bool _isLoadingFPSettings;
     private bool _isLoadingQLSettings;
     private bool _isLoadingSPSettings;
+    // Dynamic UI element tracking (populated from WidgetRegistry)
+    private readonly Dictionary<string, System.Windows.Controls.Slider> _transparencySliders = new();
+    private readonly Dictionary<string, System.Windows.Controls.Button> _linkButtons = new();
+    private readonly Dictionary<string, System.Windows.Controls.Primitives.ToggleButton> _widgetToggles = new();
+    private readonly Dictionary<string, System.Windows.Controls.RadioButton> _widgetNavButtons = new();
+    private readonly Dictionary<string, Border> _widgetPanels = new();
+    private readonly Dictionary<string, Action?> _widgetEnabledCallbacks = new();
     // Group hotkey recording state
     private Border? _activeGroupKeyBox;
     private TextBlock? _activeGroupKeyText;
     private TextBlock? _activeGroupRecordingText;
     private int _activeGroupIndex = -1;
 
-    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null, Action? onFrequentProjectsWidgetEnabledChanged = null, Action? onFrequentProjectsLayoutChanged = null, Action? onQuickLaunchWidgetEnabledChanged = null, IProjectLaunchDataStore? launchDataStore = null, Action? onQuickLaunchLayoutChanged = null, Action? onWidgetSnapGapChanged = null, Action? onSmartProjectSearchWidgetEnabledChanged = null, Action? onWidgetLauncherLayoutChanged = null)
+    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null, Action? onFrequentProjectsWidgetEnabledChanged = null, Action? onFrequentProjectsLayoutChanged = null, Action? onQuickLaunchWidgetEnabledChanged = null, IProjectLaunchDataStore? launchDataStore = null, Action? onQuickLaunchLayoutChanged = null, Action? onWidgetSnapGapChanged = null, Action? onSmartProjectSearchWidgetEnabledChanged = null, Action? onWidgetLauncherLayoutChanged = null, Action? onCheatSheetWidgetEnabledChanged = null)
     {
         _settings = settings;
         _taskService = taskService;
@@ -72,6 +79,16 @@ public partial class SettingsWindow : Window
         _onWidgetSnapGapChanged = onWidgetSnapGapChanged;
         _launchDataStore = launchDataStore;
 
+        // Populate widget-enabled callback dictionary from constructor params
+        _widgetEnabledCallbacks[WidgetIds.Timer] = onTimerWidgetEnabledChanged;
+        _widgetEnabledCallbacks[WidgetIds.QuickTasks] = onQuickTasksWidgetEnabledChanged;
+        _widgetEnabledCallbacks[WidgetIds.DocQuickOpen] = onDocWidgetEnabledChanged;
+        _widgetEnabledCallbacks[WidgetIds.FrequentProjects] = onFrequentProjectsWidgetEnabledChanged;
+        _widgetEnabledCallbacks[WidgetIds.QuickLaunch] = onQuickLaunchWidgetEnabledChanged;
+        _widgetEnabledCallbacks[WidgetIds.SmartProjectSearch] = onSmartProjectSearchWidgetEnabledChanged;
+        _widgetEnabledCallbacks[WidgetIds.CheatSheet] = onCheatSheetWidgetEnabledChanged;
+        _widgetEnabledCallbacks[WidgetIds.SearchOverlay] = onSearchWidgetEnabledChanged;
+
         // Suppress all slider/control events during XAML initialization
         _isUpdatingSliders = true;
         _isLoadingQTSettings = true;
@@ -81,6 +98,9 @@ public partial class SettingsWindow : Window
         _isLoadingSPSettings = true;
 
         InitializeComponent();
+
+        // Build dynamic UI from WidgetRegistry (transparency sliders, toggles, nav menu)
+        BuildDynamicUI();
 
         // Re-enable event handlers now that all XAML elements exist
         _isUpdatingSliders = false;
@@ -122,6 +142,276 @@ public partial class SettingsWindow : Window
         };
     }
 
+    // ===== Dynamic UI generation from WidgetRegistry =====
+
+    private void BuildDynamicUI()
+    {
+        BuildTransparencySliders();
+        BuildWidgetToggles();
+        BuildWidgetNavMenu();
+        RegisterWidgetPanels();
+    }
+
+    private void BuildTransparencySliders()
+    {
+        if (TransparencySlidersContainer == null) return;
+        TransparencySlidersContainer.Children.Clear();
+
+        foreach (var entry in WidgetRegistry.WithTransparencySlider)
+        {
+            // Label row with link button
+            var labelGrid = new System.Windows.Controls.Grid { Margin = new Thickness(0, 12, 0, 8) };
+            var label = new TextBlock
+            {
+                Text = entry.DisplayName,
+                FontSize = 13,
+                FontWeight = FontWeights.Medium,
+                Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            labelGrid.Children.Add(label);
+
+            var linkBtn = new System.Windows.Controls.Button
+            {
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                Width = 24, Height = 24,
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
+                BorderBrush = (System.Windows.Media.Brush)FindResource("BorderBrush"),
+                BorderThickness = new Thickness(1),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = "Link to other sliders",
+                Tag = entry.Id
+            };
+            var linkIcon = new TextBlock { Text = "🔓", FontSize = 12, HorizontalAlignment = System.Windows.HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            var linkIconGrid = new System.Windows.Controls.Grid();
+            linkIconGrid.Children.Add(linkIcon);
+            linkBtn.Content = linkIconGrid;
+            linkBtn.Resources.Add(typeof(Border), new Style(typeof(Border)) { Setters = { new Setter(Border.CornerRadiusProperty, new CornerRadius(4)) } });
+            var capturedId = entry.Id;
+            linkBtn.Click += (s, e) => OnDynamicLinkButtonClick(capturedId);
+            labelGrid.Children.Add(linkBtn);
+            _linkButtons[entry.Id] = linkBtn;
+            TransparencySlidersContainer.Children.Add(labelGrid);
+
+            // Slider row
+            var sliderGrid = new System.Windows.Controls.Grid();
+            sliderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            sliderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            sliderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var leftLabel = new TextBlock { Text = "Transparent", FontSize = 10, Foreground = (System.Windows.Media.Brush)FindResource("TextSecondaryBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+            System.Windows.Controls.Grid.SetColumn(leftLabel, 0);
+            sliderGrid.Children.Add(leftLabel);
+
+            var slider = new System.Windows.Controls.Slider
+            {
+                Minimum = 0.4, Maximum = 0.95, Value = entry.DefaultTransparency,
+                TickFrequency = 0.05, IsSnapToTickEnabled = true,
+                VerticalAlignment = VerticalAlignment.Center,
+                Tag = entry.Id
+            };
+            slider.ValueChanged += OnDynamicTransparencySliderChanged;
+            System.Windows.Controls.Grid.SetColumn(slider, 1);
+            sliderGrid.Children.Add(slider);
+            _transparencySliders[entry.Id] = slider;
+
+            var rightLabel = new TextBlock { Text = "Opaque", FontSize = 10, Foreground = (System.Windows.Media.Brush)FindResource("TextSecondaryBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
+            System.Windows.Controls.Grid.SetColumn(rightLabel, 2);
+            sliderGrid.Children.Add(rightLabel);
+
+            TransparencySlidersContainer.Children.Add(sliderGrid);
+        }
+    }
+
+    private void BuildWidgetToggles()
+    {
+        if (WidgetTogglesContainer == null) return;
+        WidgetTogglesContainer.Children.Clear();
+
+        // Special: Search Widget toggle (not in registry as a launcher toggle)
+        AddWidgetToggleRow(WidgetTogglesContainer, "search_button", "Search Widget", "Search button in the Widget Launcher", true);
+
+        foreach (var entry in WidgetRegistry.WithLauncherToggle)
+        {
+            AddWidgetToggleRow(WidgetTogglesContainer, entry.Id, entry.DisplayName, entry.Description, true);
+        }
+    }
+
+    private void AddWidgetToggleRow(System.Windows.Controls.StackPanel container, string id, string name, string description, bool defaultChecked)
+    {
+        var grid = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 12) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var info = new System.Windows.Controls.StackPanel();
+        info.Children.Add(new TextBlock { Text = name, FontSize = 13, FontWeight = FontWeights.Medium, Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"), Margin = new Thickness(0, 0, 0, 2) });
+        info.Children.Add(new TextBlock { Text = description, FontSize = 11, Foreground = (System.Windows.Media.Brush)FindResource("TextSecondaryBrush") });
+        System.Windows.Controls.Grid.SetColumn(info, 0);
+        grid.Children.Add(info);
+
+        var toggle = new System.Windows.Controls.Primitives.ToggleButton
+        {
+            Width = 50, Height = 28,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsChecked = defaultChecked,
+            Cursor = System.Windows.Input.Cursors.Hand,
+            Tag = id
+        };
+        // Apply toggle switch template
+        var template = CreateToggleSwitchTemplate();
+        toggle.Style = new Style(typeof(System.Windows.Controls.Primitives.ToggleButton)) { Setters = { new Setter(System.Windows.Controls.Primitives.ToggleButton.TemplateProperty, template) } };
+        var capturedId = id;
+        toggle.Checked += (s, e) => OnDynamicWidgetToggleChanged(capturedId, true);
+        toggle.Unchecked += (s, e) => OnDynamicWidgetToggleChanged(capturedId, false);
+        System.Windows.Controls.Grid.SetColumn(toggle, 1);
+        grid.Children.Add(toggle);
+        _widgetToggles[id] = toggle;
+
+        container.Children.Add(grid);
+    }
+
+    private static ControlTemplate CreateToggleSwitchTemplate()
+    {
+        var template = new ControlTemplate(typeof(System.Windows.Controls.Primitives.ToggleButton));
+        var borderFactory = new FrameworkElementFactory(typeof(Border), "Border");
+        borderFactory.SetValue(Border.BackgroundProperty, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x33, 0x33, 0x33)));
+        borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(14));
+        borderFactory.SetValue(Border.WidthProperty, 50.0);
+        borderFactory.SetValue(Border.HeightProperty, 28.0);
+        var thumbFactory = new FrameworkElementFactory(typeof(System.Windows.Shapes.Ellipse), "Thumb");
+        thumbFactory.SetValue(System.Windows.Shapes.Ellipse.WidthProperty, 20.0);
+        thumbFactory.SetValue(System.Windows.Shapes.Ellipse.HeightProperty, 20.0);
+        thumbFactory.SetValue(System.Windows.Shapes.Ellipse.FillProperty, System.Windows.Media.Brushes.White);
+        thumbFactory.SetValue(FrameworkElement.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Left);
+        thumbFactory.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 0, 0));
+        borderFactory.AppendChild(thumbFactory);
+        template.VisualTree = borderFactory;
+
+        var checkedTrigger = new Trigger { Property = System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, Value = true };
+        checkedTrigger.Setters.Add(new Setter(Border.BackgroundProperty, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x00, 0x7A, 0xCC)), "Border"));
+        checkedTrigger.Setters.Add(new Setter(FrameworkElement.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Right, "Thumb"));
+        checkedTrigger.Setters.Add(new Setter(FrameworkElement.MarginProperty, new Thickness(0, 0, 4, 0), "Thumb"));
+        template.Triggers.Add(checkedTrigger);
+
+        return template;
+    }
+
+    private void BuildWidgetNavMenu()
+    {
+        if (WidgetNavMenuContainer == null) return;
+        WidgetNavMenuContainer.Children.Clear();
+
+        foreach (var entry in WidgetRegistry.WithSettingsTab)
+        {
+            var radioBtn = new System.Windows.Controls.RadioButton
+            {
+                Content = $"{entry.Icon} {entry.ResolvedSettingsTabLabel}",
+                GroupName = "SettingsMenu",
+                Margin = new Thickness(0, 0, 0, 8),
+                Padding = new Thickness(12, 10, 12, 10),
+                FontSize = 14,
+                FontWeight = FontWeights.Medium,
+                Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = entry.Id
+            };
+
+            // Apply the same RadioButton template as the static nav items
+            var template = new ControlTemplate(typeof(System.Windows.Controls.RadioButton));
+            var borderFactory = new FrameworkElementFactory(typeof(Border), "Border");
+            borderFactory.SetValue(Border.BackgroundProperty, System.Windows.Media.Brushes.Transparent);
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
+            borderFactory.SetBinding(Border.PaddingProperty, new System.Windows.Data.Binding("Padding") { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.TemplatedParent) });
+            var contentFactory = new FrameworkElementFactory(typeof(ContentPresenter));
+            borderFactory.AppendChild(contentFactory);
+            template.VisualTree = borderFactory;
+
+            var checkedTrigger = new Trigger { Property = System.Windows.Controls.RadioButton.IsCheckedProperty, Value = true };
+            checkedTrigger.Setters.Add(new Setter(Border.BackgroundProperty, FindResource("PrimaryBrush"), "Border"));
+            template.Triggers.Add(checkedTrigger);
+
+            var hoverTrigger = new Trigger { Property = System.Windows.Controls.RadioButton.IsMouseOverProperty, Value = true };
+            hoverTrigger.Setters.Add(new Setter(Border.BackgroundProperty, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)), "Border"));
+            template.Triggers.Add(hoverTrigger);
+
+            radioBtn.Template = template;
+            radioBtn.Checked += MenuButton_Checked;
+            _widgetNavButtons[entry.Id] = radioBtn;
+            WidgetNavMenuContainer.Children.Add(radioBtn);
+        }
+    }
+
+    private void RegisterWidgetPanels()
+    {
+        // Map widget IDs to their existing panel borders (panels keep their custom XAML content)
+        if (SmartProjectSearchPanel != null) _widgetPanels[WidgetIds.SmartProjectSearch] = SmartProjectSearchPanel;
+        if (WidgetLauncherPanel != null) _widgetPanels[WidgetIds.WidgetLauncher] = WidgetLauncherPanel;
+        if (QuickTasksPanel != null) _widgetPanels[WidgetIds.QuickTasks] = QuickTasksPanel;
+        if (DocQuickOpenPanel != null) _widgetPanels[WidgetIds.DocQuickOpen] = DocQuickOpenPanel;
+        if (FrequentProjectsPanel != null) _widgetPanels[WidgetIds.FrequentProjects] = FrequentProjectsPanel;
+        if (QuickLaunchPanel != null) _widgetPanels[WidgetIds.QuickLaunch] = QuickLaunchPanel;
+    }
+
+    // ===== Dynamic event handlers =====
+
+    private void OnDynamicTransparencySliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isUpdatingSliders || _settings == null) return;
+        if (sender is not System.Windows.Controls.Slider slider || slider.Tag is not string widgetId) return;
+
+        _settings.SetWidgetTransparency(widgetId, e.NewValue);
+        _ = _settings.SaveAsync();
+        StatusText.Text = $"{WidgetRegistry.Get(widgetId)?.DisplayName ?? widgetId} transparency updated";
+
+        if (_settings.GetWidgetTransparencyLinked(widgetId))
+        {
+            SyncLinkedSliders(e.NewValue);
+        }
+
+        _onTransparencyChanged?.Invoke();
+    }
+
+    private void OnDynamicLinkButtonClick(string widgetId)
+    {
+        var isLinked = _settings.GetWidgetTransparencyLinked(widgetId);
+        _settings.SetWidgetTransparencyLinked(widgetId, !isLinked);
+        _ = _settings.SaveAsync();
+
+        if (_linkButtons.TryGetValue(widgetId, out var btn))
+            UpdateLinkButton(btn, !isLinked);
+
+        if (!isLinked && _transparencySliders.TryGetValue(widgetId, out var slider))
+        {
+            SyncLinkedSliders(slider.Value);
+        }
+
+        var name = WidgetRegistry.Get(widgetId)?.DisplayName ?? widgetId;
+        StatusText.Text = !isLinked ? $"{name} transparency linked" : $"{name} transparency unlinked";
+    }
+
+    private void OnDynamicWidgetToggleChanged(string id, bool enabled)
+    {
+        if (_isUpdatingSliders) return;
+
+        if (id == "search_button")
+        {
+            _settings.SetSearchWidgetEnabled(enabled);
+            _ = _settings.SaveAsync();
+            _onSearchWidgetEnabledChanged?.Invoke();
+            StatusText.Text = enabled ? "Search widget enabled" : "Search widget disabled";
+            return;
+        }
+
+        _settings.SetWidgetEnabled(id, enabled);
+        _ = _settings.SaveAsync();
+
+        if (_widgetEnabledCallbacks.TryGetValue(id, out var callback))
+            callback?.Invoke();
+
+        var name = WidgetRegistry.Get(id)?.DisplayName ?? id;
+        StatusText.Text = enabled ? $"{name} enabled" : $"{name} disabled";
+    }
+
     private async Task LoadSettingsAsync()
     {
         try
@@ -148,28 +438,27 @@ public partial class SettingsWindow : Window
             var pDrivePath = _settings.GetPDrivePath();
             PDrivePathBox.Text = string.IsNullOrEmpty(pDrivePath) ? "P:\\" : pDrivePath;
             
-            // Load transparency settings
+            // Load transparency settings (static Settings Window slider + dynamic widget sliders)
             _isUpdatingSliders = true;
             SettingsTransparencySlider.Value = _settings.GetSettingsTransparency();
-            OverlayTransparencySlider.Value = _settings.GetOverlayTransparency();
-            WidgetLauncherTransparencySlider.Value = _settings.GetWidgetLauncherTransparency();
-            TimerWidgetTransparencySlider.Value = _settings.GetTimerWidgetTransparency();
-            QuickTasksTransparencySlider.Value = _settings.GetQuickTasksWidgetTransparency();
-            DocTransparencySlider.Value = _settings.GetDocWidgetTransparency();
-            SmartSearchTransparencySlider.Value = _settings.GetSmartProjectSearchWidgetTransparency();
+            foreach (var kvp in _transparencySliders)
+            {
+                kvp.Value.Value = _settings.GetWidgetTransparency(kvp.Key);
+            }
             WidgetSnapGapSlider.Value = _settings.GetWidgetSnapGap();
             UpdateWidgetSnapGapValueText(_settings.GetWidgetSnapGap());
             _isUpdatingSliders = false;
 
             ApplySettingsWindowTransparency(SettingsTransparencySlider.Value);
             
-            // Load widget enabled toggles
-            TimerWidgetEnabledToggle.IsChecked = _settings.GetTimerWidgetEnabled();
-            QuickTasksWidgetEnabledToggle.IsChecked = _settings.GetQuickTasksWidgetEnabled();
-            DocWidgetEnabledToggle.IsChecked = _settings.GetDocWidgetEnabled();
-            
-            // Load search widget enabled toggle
-            SearchWidgetEnabledToggle.IsChecked = _settings.GetSearchWidgetEnabled();
+            // Load widget enabled toggles from registry
+            if (_widgetToggles.TryGetValue("search_button", out var searchToggle))
+                searchToggle.IsChecked = _settings.GetSearchWidgetEnabled();
+            foreach (var entry in WidgetRegistry.WithLauncherToggle)
+            {
+                if (_widgetToggles.TryGetValue(entry.Id, out var toggle))
+                    toggle.IsChecked = _settings.GetWidgetEnabled(entry.Id);
+            }
             
             // Load update settings
             AutoUpdateCheckToggle.IsChecked = _settings.GetAutoUpdateCheckEnabled();
@@ -182,10 +471,6 @@ public partial class SettingsWindow : Window
             // Load Quick Tasks config
             LoadQuickTasksSettings();
             
-            // Load new widget enabled toggles
-            FrequentProjectsWidgetEnabledToggle.IsChecked = _settings.GetFrequentProjectsWidgetEnabled();
-            QuickLaunchWidgetEnabledToggle.IsChecked = _settings.GetQuickLaunchWidgetEnabled();
-
             var maxVisibleWidgets = _settings.GetWidgetLauncherMaxVisibleWidgets();
             WidgetLauncherMaxVisibleWidgetsSlider.Value = maxVisibleWidgets;
             UpdateWidgetLauncherMaxVisibleWidgetsText(maxVisibleWidgets);
@@ -193,8 +478,12 @@ public partial class SettingsWindow : Window
             _isLoadingSPSettings = true;
             var attachModeEnabled = _settings.GetSmartProjectSearchAttachToSearchOverlayMode();
             SmartProjectSearchAttachModeToggle.IsChecked = attachModeEnabled;
-            SmartProjectSearchWidgetEnabledToggle.IsChecked = _settings.GetSmartProjectSearchWidgetEnabled();
-            SmartProjectSearchWidgetEnabledToggle.IsEnabled = !attachModeEnabled;
+            // Smart Project Search enabled toggle is now dynamic — sync attach mode disable state
+            if (_widgetToggles.TryGetValue(WidgetIds.SmartProjectSearch, out var spToggle))
+            {
+                spToggle.IsChecked = _settings.GetSmartProjectSearchWidgetEnabled();
+                spToggle.IsEnabled = !attachModeEnabled;
+            }
             SmartSearchFileTypesInput.Text = string.Join(", ", _settings.GetSmartProjectSearchFileTypes());
             var latestMode = _settings.GetSmartProjectSearchLatestMode();
             SmartSearchLatestListRadio.IsChecked = !string.Equals(latestMode, "single", StringComparison.OrdinalIgnoreCase);
@@ -565,19 +854,17 @@ public partial class SettingsWindow : Window
     {
         if (sender is System.Windows.Controls.RadioButton radioButton)
         {
-            // Hide all panels
+            // Hide all static panels
             if (ShortcutsPanel != null) ShortcutsPanel.Visibility = Visibility.Collapsed;
             if (AppearancePanel != null) AppearancePanel.Visibility = Visibility.Collapsed;
             if (GeneralPanel != null) GeneralPanel.Visibility = Visibility.Collapsed;
-            if (SmartProjectSearchPanel != null) SmartProjectSearchPanel.Visibility = Visibility.Collapsed;
-            if (WidgetLauncherPanel != null) WidgetLauncherPanel.Visibility = Visibility.Collapsed;
-            if (QuickTasksPanel != null) QuickTasksPanel.Visibility = Visibility.Collapsed;
-            if (DocQuickOpenPanel != null) DocQuickOpenPanel.Visibility = Visibility.Collapsed;
             if (UpdatesPanel != null) UpdatesPanel.Visibility = Visibility.Collapsed;
-            if (FrequentProjectsPanel != null) FrequentProjectsPanel.Visibility = Visibility.Collapsed;
-            if (QuickLaunchPanel != null) QuickLaunchPanel.Visibility = Visibility.Collapsed;
 
-            // Show selected panel
+            // Hide all dynamic widget panels
+            foreach (var panel in _widgetPanels.Values)
+                panel.Visibility = Visibility.Collapsed;
+
+            // Show selected static panel
             if (radioButton.Name == "ShortcutsMenuButton" && ShortcutsPanel != null)
             {
                 ShortcutsPanel.Visibility = Visibility.Visible;
@@ -590,36 +877,19 @@ public partial class SettingsWindow : Window
             {
                 GeneralPanel.Visibility = Visibility.Visible;
             }
-            else if (radioButton.Name == "SmartProjectSearchMenuButton" && SmartProjectSearchPanel != null)
-            {
-                SmartProjectSearchPanel.Visibility = Visibility.Visible;
-            }
-            else if (radioButton.Name == "WidgetLauncherMenuButton" && WidgetLauncherPanel != null)
-            {
-                WidgetLauncherPanel.Visibility = Visibility.Visible;
-            }
-            else if (radioButton.Name == "QuickTasksMenuButton" && QuickTasksPanel != null)
-            {
-                QuickTasksPanel.Visibility = Visibility.Visible;
-            }
-            else if (radioButton.Name == "DocQuickOpenMenuButton" && DocQuickOpenPanel != null)
-            {
-                DocQuickOpenPanel.Visibility = Visibility.Visible;
-                LoadDocQuickOpenSettings();
-            }
-            else if (radioButton.Name == "FrequentProjectsMenuButton" && FrequentProjectsPanel != null)
-            {
-                FrequentProjectsPanel.Visibility = Visibility.Visible;
-                LoadFrequentProjectsSettings();
-            }
-            else if (radioButton.Name == "QuickLaunchMenuButton" && QuickLaunchPanel != null)
-            {
-                QuickLaunchPanel.Visibility = Visibility.Visible;
-                LoadQuickLaunchSettings();
-            }
             else if (radioButton.Name == "UpdatesMenuButton" && UpdatesPanel != null)
             {
                 UpdatesPanel.Visibility = Visibility.Visible;
+            }
+            else if (radioButton.Tag is string widgetId && _widgetPanels.TryGetValue(widgetId, out var panel))
+            {
+                // Dynamic widget panel from registry
+                panel.Visibility = Visibility.Visible;
+
+                // Run any per-panel load logic
+                if (widgetId == WidgetIds.DocQuickOpen) LoadDocQuickOpenSettings();
+                else if (widgetId == WidgetIds.FrequentProjects) LoadFrequentProjectsSettings();
+                else if (widgetId == WidgetIds.QuickLaunch) LoadQuickLaunchSettings();
             }
         }
     }
@@ -701,60 +971,6 @@ public partial class SettingsWindow : Window
         RootBorder.Background = new System.Windows.Media.SolidColorBrush(color);
     }
 
-    private void OverlayTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_isUpdatingSliders || _settings == null) return;
-        
-        _settings.SetOverlayTransparency(e.NewValue);
-        _ = _settings.SaveAsync();
-        StatusText.Text = "Overlay transparency updated";
-        
-        // Sync linked sliders
-        if (_settings.GetOverlayTransparencyLinked())
-        {
-            SyncLinkedSliders(e.NewValue);
-        }
-        
-        // Notify windows to update their transparency
-        _onTransparencyChanged?.Invoke();
-    }
-
-    private void WidgetLauncherTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_isUpdatingSliders || _settings == null) return;
-        
-        _settings.SetWidgetLauncherTransparency(e.NewValue);
-        _ = _settings.SaveAsync();
-        StatusText.Text = "Widget launcher transparency updated";
-        
-        // Sync linked sliders
-        if (_settings.GetLauncherTransparencyLinked())
-        {
-            SyncLinkedSliders(e.NewValue);
-        }
-        
-        // Notify windows to update their transparency
-        _onTransparencyChanged?.Invoke();
-    }
-
-    private void TimerWidgetTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_isUpdatingSliders || _settings == null) return;
-        
-        _settings.SetTimerWidgetTransparency(e.NewValue);
-        _ = _settings.SaveAsync();
-        StatusText.Text = "Timer widget transparency updated";
-        
-        // Sync linked sliders
-        if (_settings.GetTimerTransparencyLinked())
-        {
-            SyncLinkedSliders(e.NewValue);
-        }
-        
-        // Notify windows to update their transparency
-        _onTransparencyChanged?.Invoke();
-    }
-
     private void LinkSettingsButton_Click(object sender, RoutedEventArgs e)
     {
         var isLinked = _settings.GetSettingsTransparencyLinked();
@@ -771,92 +987,25 @@ public partial class SettingsWindow : Window
         StatusText.Text = !isLinked ? "Settings transparency linked" : "Settings transparency unlinked";
     }
 
-    private void LinkOverlayButton_Click(object sender, RoutedEventArgs e)
-    {
-        var isLinked = _settings.GetOverlayTransparencyLinked();
-        _settings.SetOverlayTransparencyLinked(!isLinked);
-        _ = _settings.SaveAsync();
-        
-        UpdateLinkButton(LinkOverlayButton, !isLinked);
-        
-        if (!isLinked)
-        {
-            SyncLinkedSliders(OverlayTransparencySlider.Value);
-        }
-        
-        StatusText.Text = !isLinked ? "Overlay transparency linked" : "Overlay transparency unlinked";
-    }
-
-    private void LinkLauncherButton_Click(object sender, RoutedEventArgs e)
-    {
-        var isLinked = _settings.GetLauncherTransparencyLinked();
-        _settings.SetLauncherTransparencyLinked(!isLinked);
-        _ = _settings.SaveAsync();
-        
-        UpdateLinkButton(LinkLauncherButton, !isLinked);
-        
-        if (!isLinked)
-        {
-            SyncLinkedSliders(WidgetLauncherTransparencySlider.Value);
-        }
-        
-        StatusText.Text = !isLinked ? "Launcher transparency linked" : "Launcher transparency unlinked";
-    }
-
-    private void LinkTimerButton_Click(object sender, RoutedEventArgs e)
-    {
-        var isLinked = _settings.GetTimerTransparencyLinked();
-        _settings.SetTimerTransparencyLinked(!isLinked);
-        _ = _settings.SaveAsync();
-        
-        UpdateLinkButton(LinkTimerButton, !isLinked);
-        
-        if (!isLinked)
-        {
-            SyncLinkedSliders(TimerWidgetTransparencySlider.Value);
-        }
-        
-        StatusText.Text = !isLinked ? "Timer transparency linked" : "Timer transparency unlinked";
-    }
-
     private void SyncLinkedSliders(double value)
     {
         _isUpdatingSliders = true;
         
+        // Sync static Settings Window slider
         if (_settings.GetSettingsTransparencyLinked())
         {
             SettingsTransparencySlider.Value = value;
             _settings.SetSettingsTransparency(value);
         }
         
-        if (_settings.GetOverlayTransparencyLinked())
+        // Sync all dynamic widget sliders that are linked
+        foreach (var kvp in _transparencySliders)
         {
-            OverlayTransparencySlider.Value = value;
-            _settings.SetOverlayTransparency(value);
-        }
-        
-        if (_settings.GetLauncherTransparencyLinked())
-        {
-            WidgetLauncherTransparencySlider.Value = value;
-            _settings.SetWidgetLauncherTransparency(value);
-        }
-        
-        if (_settings.GetTimerTransparencyLinked())
-        {
-            TimerWidgetTransparencySlider.Value = value;
-            _settings.SetTimerWidgetTransparency(value);
-        }
-        
-        if (_settings.GetQuickTasksTransparencyLinked())
-        {
-            QuickTasksTransparencySlider.Value = value;
-            _settings.SetQuickTasksWidgetTransparency(value);
-        }
-        
-        if (_settings.GetDocTransparencyLinked())
-        {
-            DocTransparencySlider.Value = value;
-            _settings.SetDocWidgetTransparency(value);
+            if (_settings.GetWidgetTransparencyLinked(kvp.Key))
+            {
+                kvp.Value.Value = value;
+                _settings.SetWidgetTransparency(kvp.Key, value);
+            }
         }
         
         _isUpdatingSliders = false;
@@ -893,12 +1042,14 @@ public partial class SettingsWindow : Window
 
     private void UpdateAllLinkButtons()
     {
+        // Static Settings Window link button
         UpdateLinkButton(LinkSettingsButton, _settings.GetSettingsTransparencyLinked());
-        UpdateLinkButton(LinkOverlayButton, _settings.GetOverlayTransparencyLinked());
-        UpdateLinkButton(LinkLauncherButton, _settings.GetLauncherTransparencyLinked());
-        UpdateLinkButton(LinkTimerButton, _settings.GetTimerTransparencyLinked());
-        UpdateLinkButton(LinkQuickTasksButton, _settings.GetQuickTasksTransparencyLinked());
-        UpdateLinkButton(LinkDocButton, _settings.GetDocTransparencyLinked());
+        
+        // Dynamic widget link buttons
+        foreach (var kvp in _linkButtons)
+        {
+            UpdateLinkButton(kvp.Value, _settings.GetWidgetTransparencyLinked(kvp.Key));
+        }
     }
 
     private void LoadNotificationDurationSetting()
@@ -1385,186 +1536,9 @@ public partial class SettingsWindow : Window
     }
 
 
-    // ===== Appearance Tab - Quick Tasks & Doc Transparency =====
+    // Old hardcoded transparency/link handlers removed — now handled by OnDynamicTransparencySliderChanged / OnDynamicLinkButtonClick
 
-    private void QuickTasksTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_isUpdatingSliders || _settings == null) return;
-        
-        _settings.SetQuickTasksWidgetTransparency(e.NewValue);
-        _ = _settings.SaveAsync();
-        StatusText.Text = "Quick Tasks widget transparency updated";
-        
-        if (_settings.GetQuickTasksTransparencyLinked())
-        {
-            SyncLinkedSliders(e.NewValue);
-        }
-        
-        _onTransparencyChanged?.Invoke();
-    }
-
-    private void DocTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_isUpdatingSliders || _settings == null) return;
-        
-        _settings.SetDocWidgetTransparency(e.NewValue);
-        _ = _settings.SaveAsync();
-        StatusText.Text = "Doc Quick Open widget transparency updated";
-        
-        if (_settings.GetDocTransparencyLinked())
-        {
-            SyncLinkedSliders(e.NewValue);
-        }
-        
-        _onTransparencyChanged?.Invoke();
-    }
-
-    private void LinkQuickTasksButton_Click(object sender, RoutedEventArgs e)
-    {
-        var isLinked = _settings.GetQuickTasksTransparencyLinked();
-        _settings.SetQuickTasksTransparencyLinked(!isLinked);
-        _ = _settings.SaveAsync();
-        
-        UpdateLinkButton(LinkQuickTasksButton, !isLinked);
-        
-        if (!isLinked)
-        {
-            SyncLinkedSliders(QuickTasksTransparencySlider.Value);
-        }
-        
-        StatusText.Text = !isLinked ? "Quick Tasks transparency linked" : "Quick Tasks transparency unlinked";
-    }
-
-    private void LinkDocButton_Click(object sender, RoutedEventArgs e)
-    {
-        var isLinked = _settings.GetDocTransparencyLinked();
-        _settings.SetDocTransparencyLinked(!isLinked);
-        _ = _settings.SaveAsync();
-        
-        UpdateLinkButton(LinkDocButton, !isLinked);
-        
-        if (!isLinked)
-        {
-            SyncLinkedSliders(DocTransparencySlider.Value);
-        }
-        
-        StatusText.Text = !isLinked ? "Doc transparency linked" : "Doc transparency unlinked";
-    }
-
-    private void SmartSearchTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_isUpdatingSliders || _settings == null) return;
-        
-        _settings.SetSmartProjectSearchWidgetTransparency(e.NewValue);
-        _ = _settings.SaveAsync();
-        StatusText.Text = "Smart Project Search widget transparency updated";
-        
-        if (_settings.GetSmartProjectSearchTransparencyLinked())
-        {
-            SyncLinkedSliders(e.NewValue);
-        }
-        
-        _onTransparencyChanged?.Invoke();
-    }
-
-    private void LinkSmartSearchButton_Click(object sender, RoutedEventArgs e)
-    {
-        var isLinked = _settings.GetSmartProjectSearchTransparencyLinked();
-        _settings.SetSmartProjectSearchTransparencyLinked(!isLinked);
-        _ = _settings.SaveAsync();
-        
-        UpdateLinkButton(LinkSmartSearchButton, !isLinked);
-        
-        if (!isLinked)
-        {
-            SyncLinkedSliders(SmartSearchTransparencySlider.Value);
-        }
-        
-        StatusText.Text = !isLinked ? "Smart Search transparency linked" : "Smart Search transparency unlinked";
-    }
-
-    // ===== General Tab - Widget Enable/Disable Toggles =====
-
-    private void TimerWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_settings == null || !IsLoaded) return;
-        var enabled = TimerWidgetEnabledToggle.IsChecked == true;
-        _settings.SetTimerWidgetEnabled(enabled);
-        _ = _settings.SaveAsync();
-        _onTimerWidgetEnabledChanged?.Invoke();
-        StatusText.Text = enabled ? "Timer widget enabled" : "Timer widget disabled";
-    }
-
-    private void QuickTasksWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_settings == null || !IsLoaded) return;
-        var enabled = QuickTasksWidgetEnabledToggle.IsChecked == true;
-        _settings.SetQuickTasksWidgetEnabled(enabled);
-        _ = _settings.SaveAsync();
-        _onQuickTasksWidgetEnabledChanged?.Invoke();
-        StatusText.Text = enabled ? "Quick Tasks widget enabled" : "Quick Tasks widget disabled";
-    }
-
-    private void DocWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_settings == null || !IsLoaded) return;
-        var enabled = DocWidgetEnabledToggle.IsChecked == true;
-        _settings.SetDocWidgetEnabled(enabled);
-        _ = _settings.SaveAsync();
-        _onDocWidgetEnabledChanged?.Invoke();
-        StatusText.Text = enabled ? "Doc Quick Open widget enabled" : "Doc Quick Open widget disabled";
-    }
-
-    private void SearchWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_settings == null || !IsLoaded) return;
-        var enabled = SearchWidgetEnabledToggle.IsChecked == true;
-        _settings.SetSearchWidgetEnabled(enabled);
-        _ = _settings.SaveAsync();
-        _onSearchWidgetEnabledChanged?.Invoke();
-        StatusText.Text = enabled ? "Search widget enabled" : "Search widget disabled";
-    }
-
-    private void FrequentProjectsWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_settings == null || !IsLoaded) return;
-        var enabled = FrequentProjectsWidgetEnabledToggle.IsChecked == true;
-        _settings.SetFrequentProjectsWidgetEnabled(enabled);
-        _ = _settings.SaveAsync();
-        _onFrequentProjectsWidgetEnabledChanged?.Invoke();
-        StatusText.Text = enabled ? "Frequent Projects widget enabled" : "Frequent Projects widget disabled";
-    }
-
-    private void QuickLaunchWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_settings == null || !IsLoaded) return;
-        var enabled = QuickLaunchWidgetEnabledToggle.IsChecked == true;
-        _settings.SetQuickLaunchWidgetEnabled(enabled);
-        _ = _settings.SaveAsync();
-        _onQuickLaunchWidgetEnabledChanged?.Invoke();
-        StatusText.Text = enabled ? "Quick Launch widget enabled" : "Quick Launch widget disabled";
-    }
-
-    private void SmartProjectSearchWidgetEnabledToggle_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_settings == null || !IsLoaded || _isLoadingSPSettings) return;
-
-        if (_settings.GetSmartProjectSearchAttachToSearchOverlayMode())
-        {
-            _isLoadingSPSettings = true;
-            SmartProjectSearchWidgetEnabledToggle.IsChecked = false;
-            SmartProjectSearchWidgetEnabledToggle.IsEnabled = false;
-            _isLoadingSPSettings = false;
-            StatusText.Text = "Smart Project Search launcher toggle is managed by Attach mode";
-            return;
-        }
-
-        var enabled = SmartProjectSearchWidgetEnabledToggle.IsChecked == true;
-        _settings.SetSmartProjectSearchWidgetEnabled(enabled);
-        _ = _settings.SaveAsync();
-        _onSmartProjectSearchWidgetEnabledChanged?.Invoke();
-        StatusText.Text = enabled ? "Smart Project Search widget enabled" : "Smart Project Search widget disabled";
-    }
+    // Old hardcoded widget toggle handlers removed — now handled by OnDynamicWidgetToggleChanged
 
     private void SmartProjectSearchAttachModeToggle_Changed(object sender, RoutedEventArgs e)
     {
@@ -1574,21 +1548,20 @@ public partial class SettingsWindow : Window
         _settings.SetSmartProjectSearchAttachToSearchOverlayMode(attachEnabled);
 
         _isLoadingSPSettings = true;
+        _widgetToggles.TryGetValue(WidgetIds.SmartProjectSearch, out var spEnabledToggle);
         if (attachEnabled)
         {
             var currentLauncherEnabled = _settings.GetSmartProjectSearchWidgetEnabled();
             _settings.SetSmartProjectSearchWidgetEnabledBeforeAttachMode(currentLauncherEnabled);
             _settings.SetSmartProjectSearchWidgetEnabled(false);
-            SmartProjectSearchWidgetEnabledToggle.IsChecked = false;
-            SmartProjectSearchWidgetEnabledToggle.IsEnabled = false;
+            if (spEnabledToggle != null) { spEnabledToggle.IsChecked = false; spEnabledToggle.IsEnabled = false; }
             StatusText.Text = "Smart Project Search attached mode enabled";
         }
         else
         {
             var restoreLauncherEnabled = _settings.GetSmartProjectSearchWidgetEnabledBeforeAttachMode();
             _settings.SetSmartProjectSearchWidgetEnabled(restoreLauncherEnabled);
-            SmartProjectSearchWidgetEnabledToggle.IsEnabled = true;
-            SmartProjectSearchWidgetEnabledToggle.IsChecked = restoreLauncherEnabled;
+            if (spEnabledToggle != null) { spEnabledToggle.IsEnabled = true; spEnabledToggle.IsChecked = restoreLauncherEnabled; }
             StatusText.Text = "Smart Project Search attached mode disabled";
         }
         _isLoadingSPSettings = false;

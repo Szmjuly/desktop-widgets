@@ -481,6 +481,78 @@ public partial class SearchOverlay
         }
     }
 
+    private void CreateCheatSheetOverlay(double? left = null, double? top = null)
+    {
+        if (_cheatSheetService == null)
+            return;
+
+        _cheatSheetOverlay = new CheatSheetOverlay(_cheatSheetService, _settings);
+        ApplyResponsiveWidgetWidth(_cheatSheetOverlay);
+        RegisterWidgetWindow(_cheatSheetOverlay);
+        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+        _cheatSheetOverlay.Topmost = !isLivingWidgetsMode;
+
+        var (savedLeft, savedTop) = _settings.GetCheatSheetWidgetPosition();
+        _cheatSheetOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
+        _cheatSheetOverlay.Top = top ?? savedTop ?? (this.Top + 460);
+
+        if (isLivingWidgetsMode)
+            _cheatSheetOverlay.EnableDragging();
+
+        _cheatSheetOverlay.Show();
+        _cheatSheetOverlay.UpdateTransparency();
+        _cheatSheetOverlay.Tag = "WasVisible";
+
+        if (isLivingWidgetsMode)
+        {
+            ApplyLiveLayoutForWindow(_cheatSheetOverlay);
+            RefreshAttachmentMappings();
+            TrackVisibleWindowBounds();
+        }
+
+        if (isLivingWidgetsMode && _desktopFollower != null)
+        {
+            _desktopFollower.TrackWindow(_cheatSheetOverlay);
+        }
+
+        var csRef = _cheatSheetOverlay;
+        _updateIndicatorManager?.RegisterWidget("CheatSheetOverlay", 9, _cheatSheetOverlay,
+            visible => Dispatcher.Invoke(() => csRef.SetUpdateIndicatorVisible(visible)));
+
+        DebugLogger.Log($"CreateCheatSheetOverlay: Created at ({_cheatSheetOverlay.Left}, {_cheatSheetOverlay.Top})");
+    }
+
+    private void OnCheatSheetRequested(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (_cheatSheetOverlay == null)
+            {
+                CreateCheatSheetOverlay();
+            }
+            else
+            {
+                if (_cheatSheetOverlay.Visibility == Visibility.Visible)
+                {
+                    _cheatSheetOverlay.Visibility = Visibility.Hidden;
+                    _cheatSheetOverlay.Tag = null;
+                    DebugLogger.Log("OnCheatSheetRequested: Cheat sheet overlay hidden");
+                }
+                else
+                {
+                    _cheatSheetOverlay.Visibility = Visibility.Visible;
+                    _cheatSheetOverlay.Tag = "WasVisible";
+                    DebugLogger.Log("OnCheatSheetRequested: Cheat sheet overlay shown");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"OnCheatSheetRequested: Error: {ex}");
+            System.Windows.MessageBox.Show($"Error with cheat sheet overlay: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private void PositionTimerOverlayOnSameScreen()
     {
         if (_timerOverlay == null)
@@ -737,6 +809,11 @@ public partial class SearchOverlay
             _desktopFollower.TrackWindow(_smartProjectSearchOverlay);
         }
 
+        if (_cheatSheetOverlay != null)
+        {
+            _desktopFollower.TrackWindow(_cheatSheetOverlay);
+        }
+
         _desktopFollower.Start();
     }
 
@@ -806,6 +883,12 @@ public partial class SearchOverlay
                 _smartProjectSearchOverlay.Topmost = false;
             }
 
+            if (_cheatSheetOverlay != null)
+            {
+                _cheatSheetOverlay.EnableDragging();
+                _cheatSheetOverlay.Topmost = false;
+            }
+
             // Start following desktop switches
             StartDesktopFollower();
 
@@ -863,6 +946,12 @@ public partial class SearchOverlay
             {
                 _smartProjectSearchOverlay.DisableDragging();
                 _smartProjectSearchOverlay.Topmost = true;
+            }
+
+            if (_cheatSheetOverlay != null)
+            {
+                _cheatSheetOverlay.DisableDragging();
+                _cheatSheetOverlay.Topmost = true;
             }
 
             // Stop following desktop switches

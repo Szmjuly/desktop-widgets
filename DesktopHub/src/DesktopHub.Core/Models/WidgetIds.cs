@@ -13,11 +13,13 @@ public static class WidgetIds
     public const string FrequentProjects   = "FrequentProjects";
     public const string QuickLaunch        = "QuickLaunch";
     public const string SmartProjectSearch = "SmartProjectSearch";
+    public const string CheatSheet          = "CheatSheet";
 
     public static readonly IReadOnlyList<string> All = new[]
     {
         SearchOverlay, WidgetLauncher, Timer, QuickTasks,
-        DocQuickOpen, FrequentProjects, QuickLaunch, SmartProjectSearch
+        DocQuickOpen, FrequentProjects, QuickLaunch, SmartProjectSearch,
+        CheatSheet
     };
 
     public static string DisplayName(string id) => id switch
@@ -30,6 +32,7 @@ public static class WidgetIds
         FrequentProjects   => "Frequent Projects",
         QuickLaunch        => "Quick Launch",
         SmartProjectSearch => "Smart Project Search",
+        CheatSheet         => "Cheat Sheets",
         _                  => id
     };
 }

@@ -18,6 +18,7 @@ public partial class WidgetLauncher : Window
     public event EventHandler? FrequentProjectsRequested;
     public event EventHandler? QuickLaunchRequested;
     public event EventHandler? SmartProjectSearchRequested;
+    public event EventHandler? CheatSheetRequested;
     private bool _isDragging = false;
     private System.Windows.Point _dragStartPoint;
     private bool _isLivingWidgetsMode = false;
@@ -38,6 +39,7 @@ public partial class WidgetLauncher : Window
         var smartSearchVisible = _settings.GetSmartProjectSearchWidgetEnabled() &&
                                  !_settings.GetSmartProjectSearchAttachToSearchOverlayMode();
         UpdateSmartProjectSearchButtonVisibility(smartSearchVisible);
+        UpdateCheatSheetButtonVisibility(_settings.GetCheatSheetWidgetEnabled());
         Loaded += (_, _) => RefreshLayoutFromSettings();
         RefreshLayoutFromSettings();
     }
@@ -58,7 +60,8 @@ public partial class WidgetLauncher : Window
             FrequentProjectsButton,
             QuickLaunchButton,
             DocQuickOpenButton,
-            SmartProjectSearchButton
+            SmartProjectSearchButton,
+            CheatSheetButton
         };
 
         foreach (var button in buttons)
@@ -149,6 +152,11 @@ public partial class WidgetLauncher : Window
     {
         SmartProjectSearchRequested?.Invoke(this, EventArgs.Empty);
     }
+
+    private void CheatSheetButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        CheatSheetRequested?.Invoke(this, EventArgs.Empty);
+    }
     
     public void UpdateSearchButtonVisibility(bool visible)
     {
@@ -196,6 +204,13 @@ public partial class WidgetLauncher : Window
     {
         if (SmartProjectSearchButton != null)
             SmartProjectSearchButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        RefreshLayoutFromSettings();
+    }
+
+    public void UpdateCheatSheetButtonVisibility(bool visible)
+    {
+        if (CheatSheetButton != null)
+            CheatSheetButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         RefreshLayoutFromSettings();
     }
 
