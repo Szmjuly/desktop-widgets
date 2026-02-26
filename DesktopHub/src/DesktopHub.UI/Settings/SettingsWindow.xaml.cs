@@ -208,7 +208,8 @@ public partial class SettingsWindow : Window
                 Minimum = 0.4, Maximum = 0.95, Value = entry.DefaultTransparency,
                 TickFrequency = 0.05, IsSnapToTickEnabled = true,
                 VerticalAlignment = VerticalAlignment.Center,
-                Tag = entry.Id
+                Tag = entry.Id,
+                Style = (Style)FindResource("StyledSlider")
             };
             slider.ValueChanged += OnDynamicTransparencySliderChanged;
             System.Windows.Controls.Grid.SetColumn(slider, 1);
@@ -447,6 +448,7 @@ public partial class SettingsWindow : Window
             }
             WidgetSnapGapSlider.Value = _settings.GetWidgetSnapGap();
             UpdateWidgetSnapGapValueText(_settings.GetWidgetSnapGap());
+            WidgetOverlapPreventionToggle.IsChecked = _settings.GetWidgetOverlapPrevention();
             _isUpdatingSliders = false;
 
             ApplySettingsWindowTransparency(SettingsTransparencySlider.Value);
@@ -1142,6 +1144,18 @@ public partial class SettingsWindow : Window
         UpdateWidgetSnapGapValueText(appliedGap);
         StatusText.Text = $"Widget snap gap: {appliedGap} px";
         _onWidgetSnapGapChanged?.Invoke();
+    }
+
+    private void WidgetOverlapPreventionToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded || _isUpdatingSliders) return;
+
+        var enabled = WidgetOverlapPreventionToggle.IsChecked == true;
+        _settings.SetWidgetOverlapPrevention(enabled);
+        _ = _settings.SaveAsync();
+        StatusText.Text = enabled
+            ? "Widget overlap prevention enabled — widgets cannot overlap"
+            : "Widget overlap prevention disabled — free placement allowed";
     }
 
     private void UpdateWidgetLauncherMaxVisibleWidgetsText(int value)

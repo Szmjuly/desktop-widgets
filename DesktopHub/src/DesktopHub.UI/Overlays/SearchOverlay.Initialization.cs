@@ -61,12 +61,19 @@ public partial class SearchOverlay
             }
         };
 
-        // Reapply rounded corners on resize
+        // Reapply rounded corners on resize and reposition attached smart search window
         SizeChanged += (s, e) =>
         {
             // DO NOT apply window region rounding - causes clipping
             // WindowBlur.ApplyRoundedCorners(this, 12);
             UpdateRootClip(12);
+            PositionSmartSearchAttachedWindow();
+        };
+
+        // Keep attached smart search window positioned below overlay when dragged
+        LocationChanged += (s, e) =>
+        {
+            PositionSmartSearchAttachedWindow();
         };
     }
 

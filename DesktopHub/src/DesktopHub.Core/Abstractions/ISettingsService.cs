@@ -208,6 +208,18 @@ public interface ISettingsService
     void SetWidgetSnapGap(int gapPixels);
 
     /// <summary>
+    /// Get whether widget overlap prevention is enabled in Living Widgets Mode.
+    /// When enabled, widgets snap away from each other to avoid overlapping.
+    /// When disabled, widgets can be placed freely and overlap each other.
+    /// </summary>
+    bool GetWidgetOverlapPrevention();
+
+    /// <summary>
+    /// Set whether widget overlap prevention is enabled in Living Widgets Mode
+    /// </summary>
+    void SetWidgetOverlapPrevention(bool enabled);
+
+    /// <summary>
     /// Get saved search overlay position for Living Widgets Mode
     /// </summary>
     (double? left, double? top) GetSearchOverlayPosition();

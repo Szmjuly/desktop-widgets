@@ -40,7 +40,7 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
 
     private void OnTasksChanged(object? sender, EventArgs e)
     {
-        Dispatcher.Invoke(() =>
+        Dispatcher.BeginInvoke(() =>
         {
             RenderTasks();
             UpdateDateLabel();

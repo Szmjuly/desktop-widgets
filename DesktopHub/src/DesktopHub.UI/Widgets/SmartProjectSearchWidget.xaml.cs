@@ -20,8 +20,8 @@ public partial class SmartProjectSearchWidget : System.Windows.Controls.UserCont
         InitializeComponent();
         _service = service;
 
-        _service.StateChanged += (_, _) => Dispatcher.Invoke(RenderState);
-        _service.ScanningChanged += (_, _) => Dispatcher.Invoke(RenderState);
+        _service.StateChanged += (_, _) => Dispatcher.BeginInvoke(RenderState);
+        _service.ScanningChanged += (_, _) => Dispatcher.BeginInvoke(RenderState);
 
         Loaded += (_, _) =>
         {

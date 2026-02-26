@@ -114,7 +114,7 @@ public partial class TimerOverlay : Window
     
     private void OnTimeUpdated(object? sender, TimeSpan time)
     {
-        Dispatcher.Invoke(() =>
+        Dispatcher.BeginInvoke(() =>
         {
             if (TimeDisplay != null)
             {
@@ -125,7 +125,7 @@ public partial class TimerOverlay : Window
     
     private void OnTimerCompleted(object? sender, EventArgs e)
     {
-        Dispatcher.Invoke(() =>
+        Dispatcher.BeginInvoke(() =>
         {
             System.Windows.MessageBox.Show("Timer completed!", "Timer", MessageBoxButton.OK, MessageBoxImage.Information);
         });

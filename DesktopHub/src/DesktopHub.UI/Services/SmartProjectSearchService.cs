@@ -50,7 +50,11 @@ public sealed class SmartProjectSearchService
     private string? _query;
     private List<DocumentItem> _results = new();
     private CancellationTokenSource? _scanCts;
+    private CancellationTokenSource? _projectSwitchCts;
+    private CancellationTokenSource? _queryCts;
     private int _refreshVersion;
+    private const int MaxDisplayResultsDefault = 200;
+    private const int MaxDisplayResultsShortQuery = 50;
     private List<IndexedDocument>? _cachedSearchPool;
     private string? _cachedPathOverride;
     private readonly Dictionary<string, ProjectFileInfo> _scanCache = new(StringComparer.OrdinalIgnoreCase);
@@ -73,6 +77,11 @@ public sealed class SmartProjectSearchService
 
     public async Task SetProjectAsync(string? projectPath, string? projectName = null)
     {
+        // Cancel any previous project-switch flow (handles fast clicking)
+        _projectSwitchCts?.Cancel();
+        _projectSwitchCts = new CancellationTokenSource();
+        var switchToken = _projectSwitchCts.Token;
+
         Interlocked.Increment(ref _refreshVersion);
 
         if (string.IsNullOrWhiteSpace(projectPath))
@@ -105,11 +114,16 @@ public sealed class SmartProjectSearchService
             await ScanSelectedProjectAsync();
         }
 
+        switchToken.ThrowIfCancellationRequested();
         await RefreshResultsAsync();
     }
 
     public async Task SetQueryAsync(string? query)
     {
+        // Cancel any previous in-flight query search
+        _queryCts?.Cancel();
+        _queryCts = new CancellationTokenSource();
+
         _query = query;
         await RefreshResultsAsync();
     }
@@ -211,49 +225,81 @@ public sealed class SmartProjectSearchService
         DebugLogger.Log($"SmartSearch: RefreshResults query='{_query}' effectiveQuery='{effectiveQuery}' pathOverride={pathOverride}");
 
         var sourceInfo = _projectInfo;
-        if (pathOverride && !string.IsNullOrWhiteSpace(overridePath) && Directory.Exists(overridePath))
+        if (pathOverride && !string.IsNullOrWhiteSpace(overridePath))
         {
-            var includeExtensions = ExpandConfiguredFileTypesToExtensions(_settings.GetSmartProjectSearchFileTypes());
-            var cacheKey = BuildScanCacheKey(overridePath, includeExtensions);
-            if (!_scanCache.TryGetValue(cacheKey, out var cachedPathInfo))
-            {
-                cachedPathInfo = await _scanner.ScanProjectAsync(
-                    overridePath,
-                    Path.GetFileName(overridePath),
-                    maxDepth: 6,
-                    excludedFolders: Array.Empty<string>(),
-                    maxFiles: 10000,
-                    includeExtensions: includeExtensions,
-                    cancellationToken: CancellationToken.None);
-                StoreScanCache(cacheKey, cachedPathInfo);
-            }
+            // Check Directory.Exists off UI thread
+            var pathExists = await Task.Run(() => Directory.Exists(overridePath));
+            if (refreshVersion != Volatile.Read(ref _refreshVersion))
+                return;
 
-            sourceInfo = cachedPathInfo;
+            if (pathExists)
+            {
+                var includeExtensions = ExpandConfiguredFileTypesToExtensions(_settings.GetSmartProjectSearchFileTypes());
+                var cacheKey = BuildScanCacheKey(overridePath, includeExtensions);
+                if (!_scanCache.TryGetValue(cacheKey, out var cachedPathInfo))
+                {
+                    var scanCt = _scanCts?.Token ?? CancellationToken.None;
+                    cachedPathInfo = await _scanner.ScanProjectAsync(
+                        overridePath,
+                        Path.GetFileName(overridePath),
+                        maxDepth: 6,
+                        excludedFolders: Array.Empty<string>(),
+                        maxFiles: 10000,
+                        includeExtensions: includeExtensions,
+                        cancellationToken: scanCt);
+                    StoreScanCache(cacheKey, cachedPathInfo);
+                }
+
+                sourceInfo = cachedPathInfo;
+            }
         }
 
         if (refreshVersion != Volatile.Read(ref _refreshVersion))
             return;
 
-        _cachedPathOverride = pathOverride ? overridePath : null;
-        var pool = pathOverride
-            ? BuildSearchPoolRaw(sourceInfo)
-            : GetOrBuildSearchPool(sourceInfo);
+        // Capture values for background work
+        var capturedSourceInfo = sourceInfo;
+        var capturedPathOverride = pathOverride;
+        var capturedOverridePath = overridePath;
         var latestMode = _settings.GetSmartProjectSearchLatestMode();
         var configuredFileTypes = _settings.GetSmartProjectSearchFileTypes();
         var capturedQuery = effectiveQuery;
         var capturedProjectPath = sourceInfo.ProjectPath;
 
-        DebugLogger.Log($"SmartSearch: Pool size={pool.Count} latestMode='{latestMode}'");
+        // Capture query CTS so background work can bail out early
+        var queryToken = _queryCts?.Token ?? CancellationToken.None;
 
-        var newResults = await Task.Run(() =>
+        List<DocumentItem> newResults;
+        try
         {
-            var ranked = ApplySearch(pool, capturedQuery, latestMode, configuredFileTypes);
-            return ranked.Select(idx => idx.Doc).ToList();
-        });
+            // Move pool building AND search ranking off UI thread
+            newResults = await Task.Run(() =>
+            {
+                queryToken.ThrowIfCancellationRequested();
+
+                var pool = capturedPathOverride
+                    ? BuildSearchPoolRaw(capturedSourceInfo)
+                    : GetOrBuildSearchPool(capturedSourceInfo);
+
+                DebugLogger.Log($"SmartSearch: Pool size={pool.Count} latestMode='{latestMode}'");
+
+                queryToken.ThrowIfCancellationRequested();
+
+                var ranked = ApplySearch(pool, capturedQuery, latestMode, configuredFileTypes);
+                var cap = capturedQuery.Length <= 2 ? MaxDisplayResultsShortQuery : MaxDisplayResultsDefault;
+                return ranked.Select(idx => idx.Doc).Take(cap).ToList();
+            }, queryToken);
+        }
+        catch (OperationCanceledException)
+        {
+            DebugLogger.Log($"SmartSearch: Query canceled for '{capturedQuery}'");
+            return;
+        }
 
         if (refreshVersion != Volatile.Read(ref _refreshVersion))
             return;
 
+        _cachedPathOverride = capturedPathOverride ? capturedOverridePath : null;
         _results = newResults;
 
         DebugLogger.Log($"SmartSearch: Results={_results.Count} for query='{capturedQuery}' projectPath='{capturedProjectPath}'");
@@ -856,7 +902,9 @@ public sealed class SmartProjectSearchService
             return false;
 
         var pathCandidate = trimmed[..splitIndex].Trim().Trim('"');
-        if (!Directory.Exists(pathCandidate))
+        // Don't check Directory.Exists here — it blocks the UI thread.
+        // The caller validates the path off-thread instead.
+        if (pathCandidate.Length < 2 || (pathCandidate.Length >= 2 && pathCandidate[1] != ':'))
             return false;
 
         path = pathCandidate;

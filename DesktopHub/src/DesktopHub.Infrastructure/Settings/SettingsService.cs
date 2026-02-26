@@ -101,6 +101,9 @@ public class SettingsService : ISettingsService
 
     public int GetWidgetSnapGap() => Math.Clamp(_settings.WidgetSnapGap, 4, 64);
     public void SetWidgetSnapGap(int gapPixels) => _settings.WidgetSnapGap = Math.Clamp(gapPixels, 4, 64);
+
+    public bool GetWidgetOverlapPrevention() => _settings.WidgetOverlapPrevention;
+    public void SetWidgetOverlapPrevention(bool enabled) => _settings.WidgetOverlapPrevention = enabled;
     
     public (double? left, double? top) GetSearchOverlayPosition() => (_settings.SearchOverlayLeft, _settings.SearchOverlayTop);
     public void SetSearchOverlayPosition(double left, double top)
@@ -507,6 +510,7 @@ public class SettingsService : ISettingsService
         public bool PathSearchShowHidden { get; set; } = false;
         public bool LivingWidgetsMode { get; set; } = false; // False = legacy overlay mode (auto-hide)
         public int WidgetSnapGap { get; set; } = 12;
+        public bool WidgetOverlapPrevention { get; set; } = true; // True = widgets cannot overlap; False = free placement
         
         // Widget positions for Living Widgets Mode (null = use default positioning)
         public double? SearchOverlayLeft { get; set; } = null;

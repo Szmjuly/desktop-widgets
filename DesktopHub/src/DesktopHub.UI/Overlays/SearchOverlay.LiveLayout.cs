@@ -120,6 +120,7 @@ public partial class SearchOverlay
 
         var gap = GetConfiguredWidgetGap();
         var currentRect = GetWindowRect(window);
+        var overlapPrevention = _settings.GetWidgetOverlapPrevention();
 
         void Finalize()
         {
@@ -128,6 +129,14 @@ public partial class SearchOverlay
             MoveAttachedFollowers(window);
             RefreshAttachmentMappings();
             TrackVisibleWindowBounds();
+        }
+
+        if (!overlapPrevention)
+        {
+            // Overlap prevention disabled — allow free placement, just snap to edges
+            ApplyLiveLayoutForWindow(window);
+            Finalize();
+            return;
         }
 
         // Check if drop position causes overlap
@@ -523,7 +532,10 @@ public partial class SearchOverlay
         var rect = GetWindowRect(window);
         rect = SnapRectToScreenEdges(rect, gap);
         rect = SnapRectToOtherWindows(window, rect, gap);
-        rect = ResolveWindowOverlaps(window, rect, gap);
+
+        if (_settings.GetWidgetOverlapPrevention())
+            rect = ResolveWindowOverlaps(window, rect, gap);
+
         MoveWindowTo(window, rect.Left, rect.Top);
         UpdateDynamicOverlayMaxHeight(window);
     }
@@ -785,7 +797,7 @@ public partial class SearchOverlay
 
     private void RefreshAttachmentMappings()
     {
-        if (!_settings.GetLivingWidgetsMode())
+        if (!_settings.GetLivingWidgetsMode() || !_settings.GetWidgetOverlapPrevention())
         {
             _verticalAttachments.Clear();
             return;
@@ -883,8 +895,13 @@ public partial class SearchOverlay
 
         ApplyLiveLayoutForWindow(window);
         RecalculateDocOverlayConstraints();
-        MoveAttachedFollowers(window);
-        RefreshAttachmentMappings();
+
+        if (_settings.GetWidgetOverlapPrevention())
+        {
+            MoveAttachedFollowers(window);
+            RefreshAttachmentMappings();
+        }
+
         TrackVisibleWindowBounds();
     }
 
@@ -896,7 +913,7 @@ public partial class SearchOverlay
             return;
         }
 
-        if (_lastWidgetBounds.TryGetValue(window, out var previousBounds))
+        if (_settings.GetWidgetOverlapPrevention() && _lastWidgetBounds.TryGetValue(window, out var previousBounds))
         {
             var currentBounds = GetWindowRect(window);
             var grewDownward = currentBounds.Height > previousBounds.Height + 0.5;

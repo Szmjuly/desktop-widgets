@@ -46,6 +46,7 @@ public partial class SearchOverlay : Window
     private List<Project> _allProjects = new();
     private List<Project> _filteredProjects = new();
     private CancellationTokenSource? _searchCts;
+    private CancellationTokenSource? _selectionCts;
     private List<string> _searchHistory = new();
     private bool _isPathSearchResults = false;
     private string? _activePathSearchRootDisplay;

@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -229,30 +230,59 @@ public partial class SearchOverlay
 
     private async void ResultsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        // Feed selected project to Doc Quick Open widget
-        if (ResultsList.SelectedItem is ProjectViewModel vm && _docOverlay?.Widget != null)
+        if (ResultsList.SelectedItem is not ProjectViewModel vm)
+            return;
+
+        // Cancel any previous in-flight selection scans (handles fast clicking)
+        _selectionCts?.Cancel();
+        _selectionCts = new CancellationTokenSource();
+        var token = _selectionCts.Token;
+
+        var path = vm.Path;
+        var displayName = $"{vm.FullNumber} {vm.Name}";
+
+        // Run both widget scans in parallel instead of sequentially
+        var tasks = new List<Task>();
+
+        if (_docOverlay?.Widget != null)
         {
-            try
+            tasks.Add(Task.Run(async () =>
             {
-                await _docOverlay.Widget.SetProjectAsync(vm.Path, $"{vm.FullNumber} {vm.Name}");
-            }
-            catch (Exception ex)
-            {
-                DebugLogger.Log($"ResultsList_SelectionChanged: Error feeding project to doc widget: {ex.Message}");
-            }
+                try
+                {
+                    token.ThrowIfCancellationRequested();
+                    await _docOverlay.Widget.SetProjectAsync(path, displayName);
+                }
+                catch (OperationCanceledException) { }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"ResultsList_SelectionChanged: Error feeding project to doc widget: {ex.Message}");
+                }
+            }, token));
         }
 
-        if (ResultsList.SelectedItem is ProjectViewModel smartVm && _smartProjectSearchService != null)
+        if (_smartProjectSearchService != null)
         {
-            try
+            tasks.Add(Task.Run(async () =>
             {
-                await _smartProjectSearchService.SetProjectAsync(smartVm.Path, $"{smartVm.FullNumber} {smartVm.Name}");
-            }
-            catch (Exception ex)
-            {
-                DebugLogger.Log($"ResultsList_SelectionChanged: Error feeding project to smart search service: {ex.Message}");
-            }
+                try
+                {
+                    token.ThrowIfCancellationRequested();
+                    await _smartProjectSearchService.SetProjectAsync(path, displayName);
+                }
+                catch (OperationCanceledException) { }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"ResultsList_SelectionChanged: Error feeding project to smart search service: {ex.Message}");
+                }
+            }, token));
         }
+
+        try
+        {
+            await Task.WhenAll(tasks);
+        }
+        catch (OperationCanceledException) { }
     }
 
     private void ResultsList_MouseDoubleClick(object sender, MouseButtonEventArgs e)

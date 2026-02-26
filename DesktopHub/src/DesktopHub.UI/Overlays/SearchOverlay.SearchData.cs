@@ -279,6 +279,7 @@ public partial class SearchOverlay
                 ResultsContainer.Visibility = Visibility.Collapsed;
                 CollapseIconRotation.Angle = -90;
                 SetSmartProjectSearchAttachedPanelExpanded(false, true);
+                UpdateOverlayHeightForCurrentState(true);
             }
             return;
         }

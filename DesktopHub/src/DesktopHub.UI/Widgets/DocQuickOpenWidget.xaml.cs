@@ -25,12 +25,12 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
         InitializeComponent();
         _docService = docService;
 
-        _docService.ProjectChanged += (s, e) => Dispatcher.Invoke(RenderAll);
-        _docService.ScanningChanged += (s, scanning) => Dispatcher.Invoke(() =>
+        _docService.ProjectChanged += (s, e) => Dispatcher.BeginInvoke(RenderAll);
+        _docService.ScanningChanged += (s, scanning) => Dispatcher.BeginInvoke(() =>
         {
             LoadingIndicator.Visibility = scanning ? Visibility.Visible : Visibility.Collapsed;
         });
-        _docService.ConfigChanged += (s, e) => Dispatcher.Invoke(RenderAll);
+        _docService.ConfigChanged += (s, e) => Dispatcher.BeginInvoke(RenderAll);
 
         Loaded += async (s, e) =>
         {

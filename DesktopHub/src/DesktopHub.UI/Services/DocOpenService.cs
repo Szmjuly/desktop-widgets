@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Threading;
 using DesktopHub.Core.Abstractions;
 using DesktopHub.Core.Models;
 using DesktopHub.Infrastructure.Settings;
@@ -34,6 +35,7 @@ public class DocOpenService
     private List<DocumentItem> _currentFiles = new();
     private string? _searchQuery;
     private CancellationTokenSource? _scanCts;
+    private int _switchVersion;
 
     /// <summary>Fired when project info or file list changes</summary>
     public event EventHandler? ProjectChanged;
@@ -70,6 +72,8 @@ public class DocOpenService
     /// </summary>
     public async Task SetProjectAsync(string? projectPath, string? projectName = null)
     {
+        var version = Interlocked.Increment(ref _switchVersion);
+
         if (string.IsNullOrEmpty(projectPath))
         {
             _projectInfo = null;
@@ -88,13 +92,13 @@ public class DocOpenService
         _config.LastProjectName = projectName;
         await _config.SaveAsync();
 
-        await ScanProjectAsync(projectPath, projectName);
+        await ScanProjectAsync(projectPath, projectName, version);
     }
 
     /// <summary>
     /// Scan the project folder to detect type and files
     /// </summary>
-    private async Task ScanProjectAsync(string projectPath, string? projectName)
+    private async Task ScanProjectAsync(string projectPath, string? projectName, int version = 0)
     {
         _scanCts?.Cancel();
         _scanCts = new CancellationTokenSource();
@@ -105,9 +109,15 @@ public class DocOpenService
 
         try
         {
-            _projectInfo = await _scanner.ScanProjectAsync(
+            var scanned = await _scanner.ScanProjectAsync(
                 projectPath, projectName,
                 _config.MaxDepth, _config.ExcludedFolders, _config.MaxFiles, _config.Extensions, token);
+
+            // Discard if a newer switch arrived while we were scanning
+            if (version > 0 && version != Volatile.Read(ref _switchVersion))
+                return;
+
+            _projectInfo = scanned;
             RefreshCurrentFiles();
         }
         catch (OperationCanceledException) { }

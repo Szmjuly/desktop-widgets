@@ -49,7 +49,7 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <ScrollContentPresenter Grid.Column="0"/>
+                            <ScrollContentPresenter Grid.Column="0" CanContentScroll="{TemplateBinding ScrollViewer.CanContentScroll}"/>
                             <ScrollBar x:Name="PART_VerticalScrollBar"
                                        Grid.Column="1"
                                        Orientation="Vertical"
@@ -120,6 +120,9 @@
                 Foreground="{StaticResource TextBrush}"
                 ScrollViewer.VerticalScrollBarVisibility="Auto"
                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                ScrollViewer.CanContentScroll="True"
+                VirtualizingStackPanel.IsVirtualizing="True"
+                VirtualizingStackPanel.VirtualizationMode="Recycling"
                 MouseDoubleClick="ResultsList_MouseDoubleClick"
                 PreviewMouseRightButtonUp="ResultsList_PreviewMouseRightButtonUp"
                 KeyDown="ResultsList_KeyDown">
@@ -128,12 +131,18 @@
                     <Border Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}">
-                        <ScrollViewer Style="{StaticResource ThinScrollViewer}" Focusable="False" Padding="{TemplateBinding Padding}">
+                        <ScrollViewer Style="{StaticResource ThinScrollViewer}" Focusable="False" Padding="{TemplateBinding Padding}"
+                                      CanContentScroll="True">
                             <ItemsPresenter/>
                         </ScrollViewer>
                     </Border>
                 </ControlTemplate>
             </ListBox.Template>
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <VirtualizingStackPanel IsVirtualizing="True" VirtualizationMode="Recycling"/>
+                </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
             <ListBox.ItemContainerStyle>
                 <Style TargetType="ListBoxItem">
                     <Setter Property="Background" Value="Transparent"/>

@@ -70,6 +70,42 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Styled slider with rounded track and blue circle thumb -->
+        <Style x:Key="StyledSlider" TargetType="{x:Type Slider}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid>
+                            <Border Background="#40FFFFFF" 
+                                    Height="4" 
+                                    CornerRadius="2"
+                                    VerticalAlignment="Center"/>
+                            <Track x:Name="PART_Track">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="Slider.DecreaseLarge" Opacity="0" IsHitTestVisible="False"/>
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="Slider.IncreaseLarge" Opacity="0" IsHitTestVisible="False"/>
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate>
+                                                <Ellipse Fill="{StaticResource PrimaryBrush}"
+                                                        Width="16"
+                                                        Height="16"
+                                                        Stroke="White"
+                                                        StrokeThickness="2"/>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
     
     <!-- Glass effect container -->
@@ -443,39 +479,8 @@
                                        TickFrequency="0.05"
                                        IsSnapToTickEnabled="True"
                                        ValueChanged="SettingsTransparencySlider_ValueChanged"
-                                       VerticalAlignment="Center">
-                                    <Slider.Template>
-                                        <ControlTemplate TargetType="Slider">
-                                            <Grid>
-                                                <Border Background="#40FFFFFF" 
-                                                        Height="4" 
-                                                        CornerRadius="2"
-                                                        VerticalAlignment="Center"/>
-                                                <Track x:Name="PART_Track">
-                                                    <Track.DecreaseRepeatButton>
-                                                        <RepeatButton Command="Slider.DecreaseLarge" Opacity="0" IsHitTestVisible="False"/>
-                                                    </Track.DecreaseRepeatButton>
-                                                    <Track.IncreaseRepeatButton>
-                                                        <RepeatButton Command="Slider.IncreaseLarge" Opacity="0" IsHitTestVisible="False"/>
-                                                    </Track.IncreaseRepeatButton>
-                                                    <Track.Thumb>
-                                                        <Thumb>
-                                                            <Thumb.Template>
-                                                                <ControlTemplate>
-                                                                    <Ellipse Fill="{StaticResource PrimaryBrush}"
-                                                                            Width="16"
-                                                                            Height="16"
-                                                                            Stroke="White"
-                                                                            StrokeThickness="2"/>
-                                                                </ControlTemplate>
-                                                            </Thumb.Template>
-                                                        </Thumb>
-                                                    </Track.Thumb>
-                                                </Track>
-                                            </Grid>
-                                        </ControlTemplate>
-                                    </Slider.Template>
-                                </Slider>
+                                       VerticalAlignment="Center"
+                                       Style="{StaticResource StyledSlider}"/>
                                 
                                 <TextBlock Grid.Column="2"
                                           Text="Opaque"
@@ -531,7 +536,8 @@
                                        IsSnapToTickEnabled="True"
                                        Value="12"
                                        ValueChanged="WidgetSnapGapSlider_ValueChanged"
-                                       VerticalAlignment="Center"/>
+                                       VerticalAlignment="Center"
+                                       Style="{StaticResource StyledSlider}"/>
 
                                 <TextBlock x:Name="WidgetSnapGapValueText"
                                            Grid.Column="2"
@@ -543,6 +549,72 @@
                                            Margin="8,0,0,0"/>
                             </Grid>
                         </StackPanel>
+                    </Border>
+
+                    <!-- Widget Overlap Prevention toggle -->
+                    <Border Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="16"
+                            Margin="0,12,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Widget Overlap Prevention"
+                                           FontSize="16"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextBrush}"/>
+                                <TextBlock Text="When enabled, widgets cannot overlap each other and will snap back if dropped on another widget. When disabled, widgets can be freely placed anywhere, even overlapping."
+                                           FontSize="12"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,4,0,0"/>
+                            </StackPanel>
+
+                            <ToggleButton x:Name="WidgetOverlapPreventionToggle"
+                                          Grid.Column="1"
+                                          Width="50"
+                                          Height="28"
+                                          VerticalAlignment="Center"
+                                          Checked="WidgetOverlapPreventionToggle_Changed"
+                                          Unchecked="WidgetOverlapPreventionToggle_Changed"
+                                          Cursor="Hand">
+                                <ToggleButton.Style>
+                                    <Style TargetType="ToggleButton">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ToggleButton">
+                                                    <Grid>
+                                                        <Border x:Name="ToggleBackground"
+                                                                Background="#40FFFFFF"
+                                                                CornerRadius="14"
+                                                                Width="50" Height="28"/>
+                                                        <Border x:Name="ToggleKnob"
+                                                                Background="White"
+                                                                CornerRadius="11"
+                                                                Width="22" Height="22"
+                                                                HorizontalAlignment="Left"
+                                                                Margin="3,0,0,0"/>
+                                                    </Grid>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsChecked" Value="True">
+                                                            <Setter TargetName="ToggleBackground" Property="Background" Value="#4FC3F7"/>
+                                                            <Setter TargetName="ToggleKnob" Property="HorizontalAlignment" Value="Right"/>
+                                                            <Setter TargetName="ToggleKnob" Property="Margin" Value="0,0,3,0"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ToggleButton.Style>
+                            </ToggleButton>
+                        </Grid>
                     </Border>
                             </StackPanel>
                         </ScrollViewer>
@@ -1181,7 +1253,8 @@
                                                        IsSnapToTickEnabled="True"
                                                        Value="4"
                                                        ValueChanged="WidgetLauncherMaxVisibleWidgetsSlider_Changed"
-                                                       VerticalAlignment="Center"/>
+                                                       VerticalAlignment="Center"
+                                                       Style="{StaticResource StyledSlider}"/>
 
                                                 <TextBlock x:Name="WidgetLauncherMaxVisibleWidgetsValueText"
                                                            Grid.Column="2"
@@ -1493,28 +1566,8 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Faded" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <Slider x:Name="QT_CompletedOpacitySlider" Grid.Column="1" Minimum="0.2" Maximum="1.0" Value="0.5"
-                                        TickFrequency="0.1" IsSnapToTickEnabled="True" ValueChanged="QT_CompletedOpacitySlider_Changed" VerticalAlignment="Center">
-                                    <Slider.Template>
-                                        <ControlTemplate TargetType="Slider">
-                                            <Grid>
-                                                <Border Background="#40FFFFFF" Height="4" CornerRadius="2" VerticalAlignment="Center"/>
-                                                <Track x:Name="PART_Track">
-                                                    <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.DecreaseRepeatButton>
-                                                    <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.IncreaseRepeatButton>
-                                                    <Track.Thumb>
-                                                        <Thumb>
-                                                            <Thumb.Template>
-                                                                <ControlTemplate>
-                                                                    <Ellipse Fill="{StaticResource PrimaryBrush}" Width="16" Height="16" Stroke="White" StrokeThickness="2"/>
-                                                                </ControlTemplate>
-                                                            </Thumb.Template>
-                                                        </Thumb>
-                                                    </Track.Thumb>
-                                                </Track>
-                                            </Grid>
-                                        </ControlTemplate>
-                                    </Slider.Template>
-                                </Slider>
+                                        TickFrequency="0.1" IsSnapToTickEnabled="True" ValueChanged="QT_CompletedOpacitySlider_Changed" VerticalAlignment="Center"
+                                        Style="{StaticResource StyledSlider}"/>
                                 <TextBlock Grid.Column="2" Text="Solid" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
                             </Grid>
                         </StackPanel>
@@ -1799,7 +1852,7 @@
                                 </Grid>
                                 <TextBlock Text="0 = discipline folder only, 1+ = include subfolders" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
                                 <Slider x:Name="DQ_MaxDepthSlider" Minimum="0" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True"
-                                        ValueChanged="DQ_MaxDepthSlider_Changed" Foreground="{StaticResource PrimaryBrush}"/>
+                                        ValueChanged="DQ_MaxDepthSlider_Changed" Style="{StaticResource StyledSlider}"/>
                             </StackPanel>
                             
                             <!-- Excluded Folders -->
@@ -1825,7 +1878,7 @@
                                 </Grid>
                                 <TextBlock Text="Maximum number of files to display (50-500)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
                                 <Slider x:Name="DQ_MaxFilesSlider" Minimum="50" Maximum="500" TickFrequency="50" IsSnapToTickEnabled="True"
-                                        ValueChanged="DQ_MaxFilesSlider_Changed" Foreground="{StaticResource PrimaryBrush}"/>
+                                        ValueChanged="DQ_MaxFilesSlider_Changed" Style="{StaticResource StyledSlider}"/>
                             </StackPanel>
                             
                             <!-- File Extensions -->
@@ -1916,7 +1969,7 @@
                                 </Grid>
                                 <TextBlock Text="Number of recently opened files to remember (0 = disabled)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
                                 <Slider x:Name="DQ_RecentCountSlider" Minimum="0" Maximum="20" TickFrequency="1" IsSnapToTickEnabled="True"
-                                        ValueChanged="DQ_RecentCountSlider_Changed" Foreground="{StaticResource PrimaryBrush}"/>
+                                        ValueChanged="DQ_RecentCountSlider_Changed" Style="{StaticResource StyledSlider}"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -1949,28 +2002,7 @@
                                 </Grid>
                                 <TextBlock Text="Number of top projects displayed in the widget (1-10)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
                                 <Slider x:Name="FP_MaxShownSlider" Minimum="1" Maximum="10" TickFrequency="1" IsSnapToTickEnabled="True"
-                                        ValueChanged="FP_MaxShownSlider_Changed">
-                                    <Slider.Template>
-                                        <ControlTemplate TargetType="Slider">
-                                            <Grid>
-                                                <Border Background="#40FFFFFF" Height="4" CornerRadius="2" VerticalAlignment="Center"/>
-                                                <Track x:Name="PART_Track">
-                                                    <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.DecreaseRepeatButton>
-                                                    <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.IncreaseRepeatButton>
-                                                    <Track.Thumb>
-                                                        <Thumb>
-                                                            <Thumb.Template>
-                                                                <ControlTemplate>
-                                                                    <Ellipse Fill="{StaticResource PrimaryBrush}" Width="16" Height="16" Stroke="White" StrokeThickness="2"/>
-                                                                </ControlTemplate>
-                                                            </Thumb.Template>
-                                                        </Thumb>
-                                                    </Track.Thumb>
-                                                </Track>
-                                            </Grid>
-                                        </ControlTemplate>
-                                    </Slider.Template>
-                                </Slider>
+                                        ValueChanged="FP_MaxShownSlider_Changed" Style="{StaticResource StyledSlider}"/>
                             </StackPanel>
                             
                             <!-- Max Projects Saved -->
@@ -1985,28 +2017,7 @@
                                 </Grid>
                                 <TextBlock Text="Maximum number of projects to track launch counts for (5-50)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
                                 <Slider x:Name="FP_MaxSavedSlider" Minimum="5" Maximum="50" TickFrequency="5" IsSnapToTickEnabled="True"
-                                        ValueChanged="FP_MaxSavedSlider_Changed">
-                                    <Slider.Template>
-                                        <ControlTemplate TargetType="Slider">
-                                            <Grid>
-                                                <Border Background="#40FFFFFF" Height="4" CornerRadius="2" VerticalAlignment="Center"/>
-                                                <Track x:Name="PART_Track">
-                                                    <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.DecreaseRepeatButton>
-                                                    <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Opacity="0" IsHitTestVisible="False"/></Track.IncreaseRepeatButton>
-                                                    <Track.Thumb>
-                                                        <Thumb>
-                                                            <Thumb.Template>
-                                                                <ControlTemplate>
-                                                                    <Ellipse Fill="{StaticResource PrimaryBrush}" Width="16" Height="16" Stroke="White" StrokeThickness="2"/>
-                                                                </ControlTemplate>
-                                                            </Thumb.Template>
-                                                        </Thumb>
-                                                    </Track.Thumb>
-                                                </Track>
-                                            </Grid>
-                                        </ControlTemplate>
-                                    </Slider.Template>
-                                </Slider>
+                                        ValueChanged="FP_MaxSavedSlider_Changed" Style="{StaticResource StyledSlider}"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
