@@ -522,6 +522,10 @@ public interface ISettingsService
     /// <summary>Set whether a widget is enabled in the launcher.</summary>
     void SetWidgetEnabled(string widgetId, bool enabled);
 
+    // --- Metrics Viewer ---
+    int GetMetricsRefreshIntervalSeconds();
+    void SetMetricsRefreshIntervalSeconds(int seconds);
+
     // --- Hotkey Groups ---
     List<HotkeyGroup> GetHotkeyGroups();
     void SetHotkeyGroups(List<HotkeyGroup> groups);

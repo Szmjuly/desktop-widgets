@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using DesktopHub.Core.Models;
+using DesktopHub.UI.Helpers;
 using DesktopHub.UI.Services;
 using WpfBrush = System.Windows.Media.Brush;
 
@@ -362,207 +363,12 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
         return row;
     }
 
-    private static ContextMenu CreateDarkContextMenu()
-    {
-        var menuBg = new WpfSolidColorBrush(WpfColor.FromRgb(0x1E, 0x1E, 0x1E));
-        var menuBorder = new WpfSolidColorBrush(WpfColor.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
-        var itemFg = new WpfSolidColorBrush(WpfColor.FromRgb(0xE0, 0xE0, 0xE0));
-        var hoverBg = new WpfSolidColorBrush(WpfColor.FromArgb(0x30, 0x4F, 0xC3, 0xF7));
-        var transparentBrush = WpfBrushes.Transparent;
-
-        // Build a MenuItem ControlTemplate that fully replaces WPF default chrome
-        var itemTemplate = new ControlTemplate(typeof(MenuItem));
-        var borderFactory = new FrameworkElementFactory(typeof(Border));
-        borderFactory.Name = "Bd";
-        borderFactory.SetValue(Border.BackgroundProperty, transparentBrush);
-        borderFactory.SetValue(Border.PaddingProperty, new Thickness(10, 6, 10, 6));
-        borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
-        borderFactory.SetValue(Border.MarginProperty, new Thickness(2, 1, 2, 1));
-
-        var contentFactory = new FrameworkElementFactory(typeof(ContentPresenter));
-        contentFactory.SetValue(ContentPresenter.ContentSourceProperty, "Header");
-        contentFactory.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
-        borderFactory.AppendChild(contentFactory);
-        itemTemplate.VisualTree = borderFactory;
-
-        var hoverTrigger = new Trigger { Property = MenuItem.IsHighlightedProperty, Value = true };
-        hoverTrigger.Setters.Add(new Setter(Border.BackgroundProperty, hoverBg, "Bd"));
-        itemTemplate.Triggers.Add(hoverTrigger);
-
-        // MenuItem style using the custom template
-        var itemStyle = new Style(typeof(MenuItem));
-        itemStyle.Setters.Add(new Setter(MenuItem.ForegroundProperty, itemFg));
-        itemStyle.Setters.Add(new Setter(MenuItem.TemplateProperty, itemTemplate));
-        itemStyle.Setters.Add(new Setter(MenuItem.CursorProperty, System.Windows.Input.Cursors.Hand));
-
-        // ContextMenu with custom template to remove system chrome
-        var contextMenuTemplate = new ControlTemplate(typeof(ContextMenu));
-        var menuBorderFactory = new FrameworkElementFactory(typeof(Border));
-        menuBorderFactory.SetValue(Border.BackgroundProperty, menuBg);
-        menuBorderFactory.SetValue(Border.BorderBrushProperty, menuBorder);
-        menuBorderFactory.SetValue(Border.BorderThicknessProperty, new Thickness(1));
-        menuBorderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
-        menuBorderFactory.SetValue(Border.PaddingProperty, new Thickness(2, 4, 2, 4));
-
-        var shadowEffect = new System.Windows.Media.Effects.DropShadowEffect
-        {
-            BlurRadius = 12,
-            ShadowDepth = 2,
-            Opacity = 0.5,
-            Color = WpfColor.FromRgb(0, 0, 0)
-        };
-        menuBorderFactory.SetValue(Border.EffectProperty, shadowEffect);
-
-        var itemsPresenter = new FrameworkElementFactory(typeof(ItemsPresenter));
-        menuBorderFactory.AppendChild(itemsPresenter);
-        contextMenuTemplate.VisualTree = menuBorderFactory;
-
-        // Separator with custom template
-        var sepTemplate = new ControlTemplate(typeof(Separator));
-        var sepBorderFactory = new FrameworkElementFactory(typeof(Border));
-        sepBorderFactory.SetValue(Border.BackgroundProperty,
-            new WpfSolidColorBrush(WpfColor.FromArgb(0x20, 0xFF, 0xFF, 0xFF)));
-        sepBorderFactory.SetValue(Border.HeightProperty, 1.0);
-        sepBorderFactory.SetValue(Border.MarginProperty, new Thickness(8, 4, 8, 4));
-        sepTemplate.VisualTree = sepBorderFactory;
-        var sepStyle = new Style(typeof(Separator));
-        sepStyle.Setters.Add(new Setter(Separator.TemplateProperty, sepTemplate));
-
-        var menu = new ContextMenu
-        {
-            Template = contextMenuTemplate,
-            HasDropShadow = false
-        };
-        menu.Resources[typeof(MenuItem)] = itemStyle;
-        menu.Resources[typeof(Separator)] = sepStyle;
-
-        return menu;
-    }
-
-    private static MenuItem CreateDarkSubmenuItem(string header)
-    {
-        var menuBg = new WpfSolidColorBrush(WpfColor.FromRgb(0x1E, 0x1E, 0x1E));
-        var menuBorder = new WpfSolidColorBrush(WpfColor.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
-        var itemFg = new WpfSolidColorBrush(WpfColor.FromRgb(0xE0, 0xE0, 0xE0));
-        var hoverBg = new WpfSolidColorBrush(WpfColor.FromArgb(0x30, 0x4F, 0xC3, 0xF7));
-        var transparentBrush = WpfBrushes.Transparent;
-
-        // SubmenuHeader ControlTemplate with PART_Popup
-        var template = new ControlTemplate(typeof(MenuItem));
-
-        var gridFactory = new FrameworkElementFactory(typeof(Grid));
-
-        // Visible row
-        var bdFactory = new FrameworkElementFactory(typeof(Border));
-        bdFactory.Name = "Bd";
-        bdFactory.SetValue(Border.BackgroundProperty, transparentBrush);
-        bdFactory.SetValue(Border.PaddingProperty, new Thickness(10, 6, 10, 6));
-        bdFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
-        bdFactory.SetValue(Border.MarginProperty, new Thickness(2, 1, 2, 1));
-
-        var dockFactory = new FrameworkElementFactory(typeof(DockPanel));
-
-        // Arrow indicator on the right
-        var arrowFactory = new FrameworkElementFactory(typeof(TextBlock));
-        arrowFactory.SetValue(DockPanel.DockProperty, Dock.Right);
-        arrowFactory.SetValue(TextBlock.TextProperty, "\u203A");
-        arrowFactory.SetValue(TextBlock.FontSizeProperty, 14.0);
-        arrowFactory.SetValue(TextBlock.ForegroundProperty,
-            new WpfSolidColorBrush(WpfColor.FromArgb(0x60, 0xE0, 0xE0, 0xE0)));
-        arrowFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
-        arrowFactory.SetValue(TextBlock.MarginProperty, new Thickness(16, 0, 0, 0));
-        dockFactory.AppendChild(arrowFactory);
-
-        // Header content
-        var contentFactory = new FrameworkElementFactory(typeof(ContentPresenter));
-        contentFactory.SetValue(ContentPresenter.ContentSourceProperty, "Header");
-        contentFactory.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
-        dockFactory.AppendChild(contentFactory);
-
-        bdFactory.AppendChild(dockFactory);
-        gridFactory.AppendChild(bdFactory);
-
-        // Popup for submenu items
-        var popupFactory = new FrameworkElementFactory(typeof(System.Windows.Controls.Primitives.Popup));
-        popupFactory.Name = "PART_Popup";
-        popupFactory.SetValue(System.Windows.Controls.Primitives.Popup.PlacementProperty,
-            System.Windows.Controls.Primitives.PlacementMode.Right);
-        popupFactory.SetValue(System.Windows.Controls.Primitives.Popup.AllowsTransparencyProperty, true);
-        popupFactory.SetValue(System.Windows.Controls.Primitives.Popup.HorizontalOffsetProperty, -2.0);
-        popupFactory.SetValue(System.Windows.Controls.Primitives.Popup.VerticalOffsetProperty, -4.0);
-        popupFactory.SetBinding(System.Windows.Controls.Primitives.Popup.IsOpenProperty,
-            new System.Windows.Data.Binding("IsSubmenuOpen")
-            {
-                RelativeSource = new System.Windows.Data.RelativeSource(
-                    System.Windows.Data.RelativeSourceMode.TemplatedParent)
-            });
-
-        // Dark popup border
-        var popupBorderFactory = new FrameworkElementFactory(typeof(Border));
-        popupBorderFactory.SetValue(Border.BackgroundProperty, menuBg);
-        popupBorderFactory.SetValue(Border.BorderBrushProperty, menuBorder);
-        popupBorderFactory.SetValue(Border.BorderThicknessProperty, new Thickness(1));
-        popupBorderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
-        popupBorderFactory.SetValue(Border.PaddingProperty, new Thickness(2, 4, 2, 4));
-        var popupShadow = new System.Windows.Media.Effects.DropShadowEffect
-        {
-            BlurRadius = 12, ShadowDepth = 2, Opacity = 0.5,
-            Color = WpfColor.FromRgb(0, 0, 0)
-        };
-        popupBorderFactory.SetValue(Border.EffectProperty, popupShadow);
-
-        var popupItemsPresenter = new FrameworkElementFactory(typeof(ItemsPresenter));
-        popupBorderFactory.AppendChild(popupItemsPresenter);
-        popupFactory.AppendChild(popupBorderFactory);
-
-        gridFactory.AppendChild(popupFactory);
-        template.VisualTree = gridFactory;
-
-        // Hover trigger
-        var subHoverTrigger = new Trigger { Property = MenuItem.IsHighlightedProperty, Value = true };
-        subHoverTrigger.Setters.Add(new Setter(Border.BackgroundProperty, hoverBg, "Bd"));
-        template.Triggers.Add(subHoverTrigger);
-
-        // Leaf item style for child items
-        var leafTemplate = new ControlTemplate(typeof(MenuItem));
-        var leafBorder = new FrameworkElementFactory(typeof(Border));
-        leafBorder.Name = "Bd";
-        leafBorder.SetValue(Border.BackgroundProperty, transparentBrush);
-        leafBorder.SetValue(Border.PaddingProperty, new Thickness(10, 6, 10, 6));
-        leafBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
-        leafBorder.SetValue(Border.MarginProperty, new Thickness(2, 1, 2, 1));
-        var leafContent = new FrameworkElementFactory(typeof(ContentPresenter));
-        leafContent.SetValue(ContentPresenter.ContentSourceProperty, "Header");
-        leafContent.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
-        leafBorder.AppendChild(leafContent);
-        leafTemplate.VisualTree = leafBorder;
-        var leafHover = new Trigger { Property = MenuItem.IsHighlightedProperty, Value = true };
-        leafHover.Setters.Add(new Setter(Border.BackgroundProperty, hoverBg, "Bd"));
-        leafTemplate.Triggers.Add(leafHover);
-
-        var leafStyle = new Style(typeof(MenuItem));
-        leafStyle.Setters.Add(new Setter(MenuItem.ForegroundProperty, itemFg));
-        leafStyle.Setters.Add(new Setter(MenuItem.TemplateProperty, leafTemplate));
-        leafStyle.Setters.Add(new Setter(MenuItem.CursorProperty, System.Windows.Input.Cursors.Hand));
-
-        var menuItem = new MenuItem
-        {
-            Header = header,
-            Template = template,
-            Foreground = itemFg,
-            Cursor = System.Windows.Input.Cursors.Hand,
-            ItemContainerStyle = leafStyle
-        };
-
-        return menuItem;
-    }
-
     private void ShowTaskContextMenu(TaskItem task, Border row)
     {
-        var menu = CreateDarkContextMenu();
+        var menu = DarkContextMenuFactory.Create(includeSeparatorStyle: true);
 
         // Priority submenu
-        var priorityHeader = CreateDarkSubmenuItem("Priority");
+        var priorityHeader = DarkContextMenuFactory.CreateSubmenuItem("Priority");
         foreach (var p in new[] { "high", "normal", "low" })
         {
             var priority = p;
@@ -576,7 +382,7 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
         menu.Items.Add(priorityHeader);
 
         // Category submenu
-        var categoryHeader = CreateDarkSubmenuItem("Category");
+        var categoryHeader = DarkContextMenuFactory.CreateSubmenuItem("Category");
         var noneItem = new MenuItem
         {
             Header = "None" + (task.Category == null ? "  \u2713" : "")
@@ -597,7 +403,7 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
         menu.Items.Add(categoryHeader);
 
         // Move to Date submenu
-        var moveHeader = CreateDarkSubmenuItem("Move to Date");
+        var moveHeader = DarkContextMenuFactory.CreateSubmenuItem("Move to Date");
 
         var todayItem = new MenuItem { Header = "Today" };
         todayItem.Click += async (s, e) => await _taskService.MoveTaskToDateAsync(task.Id, DateTime.Now.Date);

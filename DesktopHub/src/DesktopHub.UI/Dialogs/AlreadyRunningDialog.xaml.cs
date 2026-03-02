@@ -25,13 +25,13 @@ public partial class AlreadyRunningDialog : Window
         SourceInitialized += (s, e) =>
         {
             WindowBlur.SetupTransparency(this);
-            UpdateRootClip(12);
+            WindowHelper.UpdateRootClip(RootBorder, 12, "AlreadyRunningDialog");
             this.Background = null;
         };
 
         SizeChanged += (s, e) =>
         {
-            UpdateRootClip(12);
+            WindowHelper.UpdateRootClip(RootBorder, 12, "AlreadyRunningDialog");
         };
     }
 
@@ -72,23 +72,6 @@ public partial class AlreadyRunningDialog : Window
         }
     }
 
-    private void UpdateRootClip(double radiusDip)
-    {
-        try
-        {
-            if (RootBorder.ActualWidth <= 0 || RootBorder.ActualHeight <= 0)
-            {
-                return;
-            }
-            
-            var rect = new System.Windows.Rect(0, 0, RootBorder.ActualWidth, RootBorder.ActualHeight);
-            RootBorder.Clip = new System.Windows.Media.RectangleGeometry(rect, radiusDip, radiusDip);
-        }
-        catch (Exception ex)
-        {
-            DebugLogger.Log($"AlreadyRunningDialog: UpdateRootClip error: {ex.Message}");
-        }
-    }
 
     public static DialogAction Show(string hotkeyLabel, Window? owner = null)
     {

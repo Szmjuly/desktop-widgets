@@ -33,7 +33,8 @@ public interface ITelemetryService
     /// </summary>
     void TrackSearch(string eventType, string? queryText, int? resultCount = null,
         int? resultIndex = null, long? timeToClickMs = null,
-        string? widgetName = null, Dictionary<string, object?>? extraData = null);
+        string? widgetName = null, Dictionary<string, object?>? extraData = null,
+        string? querySource = null);
 
     /// <summary>
     /// Track a project launch event
@@ -103,4 +104,40 @@ public interface ITelemetryService
     /// Purge events older than the specified number of days
     /// </summary>
     Task PurgeOldEventsAsync(int retainDays = 90);
+
+    /// <summary>
+    /// [Admin] Get daily summaries for ALL users from Firebase for a date range.
+    /// Returns an empty list for non-admin builds or when Firebase is unavailable.
+    /// </summary>
+    Task<List<DailyMetricsSummary>> GetAllUsersSummariesAsync(DateTime from, DateTime to);
+
+    /// <summary>
+    /// [Admin] Get the list of known device/user identities from Firebase.
+    /// </summary>
+    Task<List<MetricsUserInfo>> GetKnownUsersAsync();
+
+    /// <summary>
+    /// Get hourly event breakdown for a given day (for activity heatmap)
+    /// </summary>
+    Task<HourlyBreakdown> GetHourlyBreakdownAsync(DateTime date);
+
+    /// <summary>
+    /// Get per-session details for a given day
+    /// </summary>
+    Task<List<SessionDetail>> GetSessionDetailsAsync(DateTime date);
+
+    /// <summary>
+    /// Get top projects by interaction count for a date range
+    /// </summary>
+    Task<List<TopProjectInfo>> GetTopProjectsAsync(DateTime from, DateTime to, int limit = 10);
+
+    /// <summary>
+    /// Get daily summaries for a local date range (multi-day sparklines)
+    /// </summary>
+    Task<List<DailyMetricsSummary>> GetMultiDaySummariesAsync(DateTime from, DateTime to);
+
+    /// <summary>
+    /// Get feature-to-feature transition counts for activity flow analysis
+    /// </summary>
+    Task<List<FeatureTransition>> GetFeatureTransitionsAsync(DateTime from, DateTime to, int limit = 50);
 }

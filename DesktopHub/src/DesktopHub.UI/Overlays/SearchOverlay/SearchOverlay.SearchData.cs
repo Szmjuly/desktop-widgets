@@ -355,7 +355,8 @@ public partial class SearchOverlay
                 TelemetryEventType.SearchExecuted,
                 query,
                 resultCount: results.Count,
-                widgetName: "ProjectSearch");
+                widgetName: "ProjectSearch",
+                querySource: _lastQuerySource);
 
             // Update UI - batch operations to reduce overhead
             var projectViewModels = results.Select(r => new ProjectViewModel(r.Project)).ToList();

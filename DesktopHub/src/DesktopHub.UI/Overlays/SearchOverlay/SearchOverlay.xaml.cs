@@ -36,6 +36,7 @@ public partial class SearchOverlay : Window
     private QuickLaunchOverlay? _quickLaunchOverlay;
     private SmartProjectSearchOverlay? _smartProjectSearchOverlay;
     private CheatSheetOverlay? _cheatSheetOverlay;
+    private MetricsViewerOverlay? _metricsViewerOverlay;
     private WidgetLauncher? _widgetLauncher;
     private TaskService? _taskService;
     private DocOpenService? _docService;
@@ -57,6 +58,7 @@ public partial class SearchOverlay : Window
     private DateTime _lastHotkeyPress = DateTime.MinValue;
     private System.Windows.Threading.DispatcherTimer? _deactivateTimer;
     private CancellationTokenSource? _ipcCts;
+    private string _lastQuerySource = DesktopHub.Core.Models.QuerySources.Typed;
     private bool _isClosing = false;
     private bool _isDragging = false;
     private System.Windows.Point _dragStartPoint;

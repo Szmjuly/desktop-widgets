@@ -666,7 +666,7 @@ public class FirebaseService : IFirebaseService
 
     public async Task<bool> IsMetricsViewerEnabledAsync()
     {
-        return await GetFeatureFlagAsync("metrics_viewer_enabled", defaultValue: false);
+        return await GetFeatureFlagAsync("metrics_viewer_enabled", defaultValue: true);
     }
 
     public async Task LogUpdateInstalledAsync(string version)

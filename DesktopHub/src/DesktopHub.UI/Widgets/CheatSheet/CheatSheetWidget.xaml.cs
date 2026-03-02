@@ -622,6 +622,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         try
         {
             System.Windows.Clipboard.SetText(_activeSheet.NoteContent);
+            TelemetryAccessor.TrackClipboardCopy("note_content", "CheatSheet");
             CopyNoteLabel.Text = "\u2714 Copied!";
             var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
             timer.Tick += (_, _) =>

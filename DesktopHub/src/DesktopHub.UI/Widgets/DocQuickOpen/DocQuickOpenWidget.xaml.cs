@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using DesktopHub.Core.Models;
+using DesktopHub.UI.Helpers;
 using DesktopHub.UI.Services;
 using WpfBrush = System.Windows.Media.Brush;
 
@@ -471,7 +472,7 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
 
     private void ShowFileContextMenu(DocumentItem doc, Border row)
     {
-        var menu = CreateDarkContextMenu();
+        var menu = DarkContextMenuFactory.Create();
 
         var openItem = new MenuItem { Header = "Open" };
         openItem.Click += async (s, e) => await OpenFileAsync(doc.Path);
@@ -491,72 +492,6 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
 
         row.ContextMenu = menu;
         menu.IsOpen = true;
-    }
-
-    private static ContextMenu CreateDarkContextMenu()
-    {
-        var menuBg = new WpfSolidColorBrush(WpfColor.FromRgb(0x1E, 0x1E, 0x1E));
-        var menuBorder = new WpfSolidColorBrush(WpfColor.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
-        var itemFg = new WpfSolidColorBrush(WpfColor.FromRgb(0xE0, 0xE0, 0xE0));
-        var hoverBg = new WpfSolidColorBrush(WpfColor.FromArgb(0x30, 0x4F, 0xC3, 0xF7));
-        var transparentBrush = WpfBrushes.Transparent;
-
-        // Build a MenuItem ControlTemplate that fully replaces WPF default chrome
-        var itemTemplate = new ControlTemplate(typeof(MenuItem));
-        var borderFactory = new FrameworkElementFactory(typeof(Border));
-        borderFactory.Name = "Bd";
-        borderFactory.SetValue(Border.BackgroundProperty, transparentBrush);
-        borderFactory.SetValue(Border.PaddingProperty, new Thickness(10, 6, 10, 6));
-        borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
-        borderFactory.SetValue(Border.MarginProperty, new Thickness(2, 1, 2, 1));
-
-        var contentFactory = new FrameworkElementFactory(typeof(ContentPresenter));
-        contentFactory.SetValue(ContentPresenter.ContentSourceProperty, "Header");
-        contentFactory.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
-        borderFactory.AppendChild(contentFactory);
-        itemTemplate.VisualTree = borderFactory;
-
-        // Hover trigger
-        var hoverTrigger = new Trigger { Property = MenuItem.IsHighlightedProperty, Value = true };
-        hoverTrigger.Setters.Add(new Setter(Border.BackgroundProperty, hoverBg, "Bd"));
-        itemTemplate.Triggers.Add(hoverTrigger);
-
-        // MenuItem style using the custom template
-        var itemStyle = new Style(typeof(MenuItem));
-        itemStyle.Setters.Add(new Setter(MenuItem.ForegroundProperty, itemFg));
-        itemStyle.Setters.Add(new Setter(MenuItem.TemplateProperty, itemTemplate));
-        itemStyle.Setters.Add(new Setter(MenuItem.CursorProperty, System.Windows.Input.Cursors.Hand));
-
-        // ContextMenu with custom template to remove system chrome
-        var contextMenuTemplate = new ControlTemplate(typeof(ContextMenu));
-        var menuBorderFactory = new FrameworkElementFactory(typeof(Border));
-        menuBorderFactory.SetValue(Border.BackgroundProperty, menuBg);
-        menuBorderFactory.SetValue(Border.BorderBrushProperty, menuBorder);
-        menuBorderFactory.SetValue(Border.BorderThicknessProperty, new Thickness(1));
-        menuBorderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
-        menuBorderFactory.SetValue(Border.PaddingProperty, new Thickness(2, 4, 2, 4));
-
-        var shadowEffect = new System.Windows.Media.Effects.DropShadowEffect
-        {
-            BlurRadius = 12,
-            ShadowDepth = 2,
-            Opacity = 0.5,
-            Color = WpfColor.FromRgb(0, 0, 0)
-        };
-        menuBorderFactory.SetValue(Border.EffectProperty, shadowEffect);
-
-        var itemsPresenter = new FrameworkElementFactory(typeof(ItemsPresenter));
-        menuBorderFactory.AppendChild(itemsPresenter);
-        contextMenuTemplate.VisualTree = menuBorderFactory;
-
-        var menu = new ContextMenu
-        {
-            Template = contextMenuTemplate,
-            HasDropShadow = false // We handle shadow ourselves
-        };
-        menu.Resources[typeof(MenuItem)] = itemStyle;
-
-        return menu;
     }
 
     // ---- Revit detection & launch ----
@@ -718,6 +653,7 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
         {
             System.Windows.Clipboard.SetText(text);
             StatusText.Text = statusMessage;
+            TelemetryAccessor.TrackClipboardCopy(statusMessage, "DocQuickOpen");
         }
         catch { }
     }
@@ -744,7 +680,7 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
 
     private void ShowRecentFileContextMenu(string filePath, Border row)
     {
-        var menu = CreateDarkContextMenu();
+        var menu = DarkContextMenuFactory.Create();
 
         var openItem = new MenuItem { Header = "Open" };
         openItem.Click += async (s, e) => await OpenFileAsync(filePath);
@@ -854,7 +790,7 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
             return;
 
         var (projectNumber, projectName, projectNumberAndName) = GetProjectHeaderCopyValues(info);
-        var menu = CreateDarkContextMenu();
+        var menu = DarkContextMenuFactory.Create();
 
         var copyNumber = new MenuItem { Header = "Copy Project Number" };
         copyNumber.Click += (s, args) =>

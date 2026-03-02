@@ -7,106 +7,13 @@
         Background="Transparent"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
-        Width="750"
+        Width="800"
         Height="650"
         Topmost="True"
         ShowInTaskbar="False"
         KeyDown="Window_KeyDown">
     
-    <Window.Resources>
-        <!-- Custom thin rounded scrollbar style -->
-        <Style x:Key="ThinScrollBar" TargetType="{x:Type ScrollBar}">
-            <Setter Property="Width" Value="8"/>
-            <Setter Property="MinWidth" Value="8"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type ScrollBar}">
-                        <Grid Background="Transparent">
-                            <Track x:Name="PART_Track" IsDirectionReversed="True" Width="8">
-                                <Track.DecreaseRepeatButton>
-                                    <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0"/>
-                                </Track.DecreaseRepeatButton>
-                                <Track.Thumb>
-                                    <Thumb>
-                                        <Thumb.Template>
-                                            <ControlTemplate>
-                                                <Border Background="#60F5F7FA" 
-                                                        CornerRadius="4"
-                                                        Width="8"/>
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-                                </Track.Thumb>
-                                <Track.IncreaseRepeatButton>
-                                    <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0"/>
-                                </Track.IncreaseRepeatButton>
-                            </Track>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        
-        <Style x:Key="ThinScrollViewer" TargetType="{x:Type ScrollViewer}">
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type ScrollViewer}">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <ScrollContentPresenter Grid.Column="0"/>
-                            <ScrollBar x:Name="PART_VerticalScrollBar"
-                                     Grid.Column="1"
-                                     Value="{TemplateBinding VerticalOffset}"
-                                     Maximum="{TemplateBinding ScrollableHeight}"
-                                     ViewportSize="{TemplateBinding ViewportHeight}"
-                                     Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"
-                                     Style="{StaticResource ThinScrollBar}"
-                                     Margin="4,0,0,0"/>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <!-- Styled slider with rounded track and blue circle thumb -->
-        <Style x:Key="StyledSlider" TargetType="{x:Type Slider}">
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Slider">
-                        <Grid>
-                            <Border Background="#40FFFFFF" 
-                                    Height="4" 
-                                    CornerRadius="2"
-                                    VerticalAlignment="Center"/>
-                            <Track x:Name="PART_Track">
-                                <Track.DecreaseRepeatButton>
-                                    <RepeatButton Command="Slider.DecreaseLarge" Opacity="0" IsHitTestVisible="False"/>
-                                </Track.DecreaseRepeatButton>
-                                <Track.IncreaseRepeatButton>
-                                    <RepeatButton Command="Slider.IncreaseLarge" Opacity="0" IsHitTestVisible="False"/>
-                                </Track.IncreaseRepeatButton>
-                                <Track.Thumb>
-                                    <Thumb>
-                                        <Thumb.Template>
-                                            <ControlTemplate>
-                                                <Ellipse Fill="{StaticResource PrimaryBrush}"
-                                                        Width="16"
-                                                        Height="16"
-                                                        Stroke="White"
-                                                        StrokeThickness="2"/>
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-                                </Track.Thumb>
-                            </Track>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
+    <!-- Styles loaded from Styles/SharedStyles.xaml via App.xaml MergedDictionaries -->
     
     <!-- Glass effect container -->
     <Border x:Name="RootBorder" 
@@ -147,35 +54,20 @@
                         Foreground="{StaticResource TextBrush}"
                         BorderBrush="#22FFFFFF"
                         Click="CloseButton_Click"
-                        Cursor="Hand">
-                    <Button.Style>
-                        <Style TargetType="Button">
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border Background="{TemplateBinding Background}" 
-                                                BorderBrush="{TemplateBinding BorderBrush}" 
-                                                BorderThickness="1"
-                                                CornerRadius="6">
-                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Border>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </Button.Style>
-                </Button>
+                        Cursor="Hand"
+                        Style="{StaticResource RoundedButton}"/>
             </Grid>
             
             <!-- Side Menu Layout -->
             <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="180"/>
+                    <ColumnDefinition Width="220"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 
                 <!-- Side Navigation Menu -->
                 <Border Grid.Column="0" Background="#18FFFFFF" CornerRadius="8" Padding="8" Margin="0,0,12,0">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Style="{StaticResource ThinScrollViewer}">
                     <StackPanel x:Name="NavigationMenu">
                         <RadioButton x:Name="GeneralMenuButton" Content="⚙️ General" IsChecked="True" Checked="MenuButton_Checked"
                                      GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
@@ -284,6 +176,7 @@
                             </RadioButton.Style>
                         </RadioButton>
                     </StackPanel>
+                    </ScrollViewer>
                 </Border>
                 
                 <!-- Content Area -->
@@ -347,24 +240,8 @@
                                     Foreground="{StaticResource TextSecondaryBrush}"
                                     BorderBrush="{StaticResource BorderBrush}"
                                     Click="ResetCloseShortcutButton_Click"
-                                    Cursor="Hand">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="Button">
-                                                    <Border Background="{TemplateBinding Background}" 
-                                                            BorderBrush="{TemplateBinding BorderBrush}" 
-                                                            BorderThickness="1"
-                                                            CornerRadius="6">
-                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                    </Border>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </Button.Style>
-                            </Button>
+                                    Cursor="Hand"
+                                    Style="{StaticResource RoundedButton}"/>
 
                             <Border x:Name="CloseShortcutTypingWarning"
                                     Background="#332B1B00"
@@ -447,7 +324,7 @@
                                         Cursor="Hand"
                                         ToolTip="Link to other sliders">
                                     <Grid>
-                                        <TextBlock Text="�" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock Text="&#x1F513;" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Grid>
                                     <Button.Resources>
                                         <Style TargetType="Border">
@@ -476,8 +353,9 @@
                                        Minimum="0.4"
                                        Maximum="0.95"
                                        Value="0.78"
-                                       TickFrequency="0.05"
-                                       IsSnapToTickEnabled="True"
+                                       IsSnapToTickEnabled="False"
+                                       SmallChange="0.01"
+                                       LargeChange="0.05"
                                        ValueChanged="SettingsTransparencySlider_ValueChanged"
                                        VerticalAlignment="Center"
                                        Style="{StaticResource StyledSlider}"/>
@@ -576,7 +454,7 @@
                                            Margin="0,4,0,0"/>
                             </StackPanel>
 
-                            <ToggleButton x:Name="WidgetOverlapPreventionToggle"
+                            <ToggleButton x:Name="WidgetOverlapPreventionToggle" Style="{StaticResource ToggleSwitch}"
                                           Grid.Column="1"
                                           Width="50"
                                           Height="28"
@@ -584,35 +462,6 @@
                                           Checked="WidgetOverlapPreventionToggle_Changed"
                                           Unchecked="WidgetOverlapPreventionToggle_Changed"
                                           Cursor="Hand">
-                                <ToggleButton.Style>
-                                    <Style TargetType="ToggleButton">
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="ToggleButton">
-                                                    <Grid>
-                                                        <Border x:Name="ToggleBackground"
-                                                                Background="#40FFFFFF"
-                                                                CornerRadius="14"
-                                                                Width="50" Height="28"/>
-                                                        <Border x:Name="ToggleKnob"
-                                                                Background="White"
-                                                                CornerRadius="11"
-                                                                Width="22" Height="22"
-                                                                HorizontalAlignment="Left"
-                                                                Margin="3,0,0,0"/>
-                                                    </Grid>
-                                                    <ControlTemplate.Triggers>
-                                                        <Trigger Property="IsChecked" Value="True">
-                                                            <Setter TargetName="ToggleBackground" Property="Background" Value="#4FC3F7"/>
-                                                            <Setter TargetName="ToggleKnob" Property="HorizontalAlignment" Value="Right"/>
-                                                            <Setter TargetName="ToggleKnob" Property="Margin" Value="0,0,3,0"/>
-                                                        </Trigger>
-                                                    </ControlTemplate.Triggers>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </ToggleButton.Style>
                             </ToggleButton>
                         </Grid>
                     </Border>
@@ -652,7 +501,7 @@
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                             
-                            <ToggleButton x:Name="AutoStartToggle"
+                            <ToggleButton x:Name="AutoStartToggle" Style="{StaticResource ToggleSwitch}"
                                           Grid.Column="1"
                                           Width="50"
                                           Height="28"
@@ -660,35 +509,6 @@
                                           Checked="AutoStartToggle_Checked"
                                           Unchecked="AutoStartToggle_Unchecked"
                                           Cursor="Hand">
-                                <ToggleButton.Style>
-                                    <Style TargetType="ToggleButton">
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="ToggleButton">
-                                                    <Border x:Name="Border"
-                                                            Background="#333333"
-                                                            CornerRadius="14"
-                                                            Width="50"
-                                                            Height="28">
-                                                        <Ellipse x:Name="Thumb"
-                                                                 Width="20"
-                                                                 Height="20"
-                                                                 Fill="White"
-                                                                 HorizontalAlignment="Left"
-                                                                 Margin="4,0,0,0"/>
-                                                    </Border>
-                                                    <ControlTemplate.Triggers>
-                                                        <Trigger Property="IsChecked" Value="True">
-                                                            <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                            <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                        </Trigger>
-                                                    </ControlTemplate.Triggers>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </ToggleButton.Style>
                             </ToggleButton>
                         </Grid>
                     </Border>
@@ -709,28 +529,8 @@
                                     <TextBlock Text="Enable Path Search" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
                                     <TextBlock Text="Browse directories by entering a path in the search field" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
-                                <ToggleButton x:Name="PathSearchEnabledToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
+                                <ToggleButton x:Name="PathSearchEnabledToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
                                               Checked="PathSearchToggle_Changed" Unchecked="PathSearchToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
                                 </ToggleButton>
                             </Grid>
                             
@@ -741,28 +541,8 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Show sub-directories" FontSize="13" Foreground="{StaticResource TextBrush}"/>
-                                <ToggleButton x:Name="PathSearchSubDirsToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
+                                <ToggleButton x:Name="PathSearchSubDirsToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
                                               Checked="PathSearchToggle_Changed" Unchecked="PathSearchToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
                                 </ToggleButton>
                             </Grid>
                             
@@ -773,28 +553,8 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Show sub-files" FontSize="13" Foreground="{StaticResource TextBrush}"/>
-                                <ToggleButton x:Name="PathSearchSubFilesToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
+                                <ToggleButton x:Name="PathSearchSubFilesToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
                                               Checked="PathSearchToggle_Changed" Unchecked="PathSearchToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
                                 </ToggleButton>
                             </Grid>
                             
@@ -808,28 +568,8 @@
                                     <TextBlock Text="Show hidden/system files" FontSize="13" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
                                     <TextBlock Text="Include files like Thumbs.db, desktop.ini, etc." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
-                                <ToggleButton x:Name="PathSearchShowHiddenToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
+                                <ToggleButton x:Name="PathSearchShowHiddenToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
                                               Checked="PathSearchToggle_Changed" Unchecked="PathSearchToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
                                 </ToggleButton>
                             </Grid>
 
@@ -862,7 +602,7 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 
-                                <ToggleButton x:Name="QDriveEnabledToggle"
+                                <ToggleButton x:Name="QDriveEnabledToggle" Style="{StaticResource ToggleSwitch}"
                                               Grid.Column="0"
                                               Width="50"
                                               Height="28"
@@ -871,35 +611,6 @@
                                               Checked="QDriveEnabledToggle_Checked"
                                               Unchecked="QDriveEnabledToggle_Unchecked"
                                               Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border"
-                                                                Background="#333333"
-                                                                CornerRadius="14"
-                                                                Width="50"
-                                                                Height="28">
-                                                            <Ellipse x:Name="Thumb"
-                                                                     Width="20"
-                                                                     Height="20"
-                                                                     Fill="White"
-                                                                     HorizontalAlignment="Left"
-                                                                     Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
                                 </ToggleButton>
                                 
                                 <StackPanel Grid.Column="1">
@@ -932,7 +643,7 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 
-                                <ToggleButton x:Name="PDriveEnabledToggle"
+                                <ToggleButton x:Name="PDriveEnabledToggle" Style="{StaticResource ToggleSwitch}"
                                               Grid.Column="0"
                                               Width="50"
                                               Height="28"
@@ -941,35 +652,6 @@
                                               Checked="PDriveEnabledToggle_Checked"
                                               Unchecked="PDriveEnabledToggle_Unchecked"
                                               Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border"
-                                                                Background="#333333"
-                                                                CornerRadius="14"
-                                                                Width="50"
-                                                                Height="28">
-                                                            <Ellipse x:Name="Thumb"
-                                                                     Width="20"
-                                                                     Height="20"
-                                                                     Fill="White"
-                                                                     HorizontalAlignment="Left"
-                                                                     Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
                                 </ToggleButton>
                                 
                                 <StackPanel Grid.Column="1">
@@ -1027,7 +709,7 @@
                                 </TextBlock>
                             </StackPanel>
                             
-                            <ToggleButton x:Name="LivingWidgetsModeToggle"
+                            <ToggleButton x:Name="LivingWidgetsModeToggle" Style="{StaticResource ToggleSwitch}"
                                           Grid.Column="1"
                                           Width="50"
                                           Height="28"
@@ -1035,35 +717,6 @@
                                           Checked="LivingWidgetsModeToggle_Checked"
                                           Unchecked="LivingWidgetsModeToggle_Unchecked"
                                           Cursor="Hand">
-                                <ToggleButton.Style>
-                                    <Style TargetType="ToggleButton">
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="ToggleButton">
-                                                    <Border x:Name="Border"
-                                                            Background="#333333"
-                                                            CornerRadius="14"
-                                                            Width="50"
-                                                            Height="28">
-                                                        <Ellipse x:Name="Thumb"
-                                                                 Width="20"
-                                                                 Height="20"
-                                                                 Fill="White"
-                                                                 HorizontalAlignment="Left"
-                                                                 Margin="4,0,0,0"/>
-                                                    </Border>
-                                                    <ControlTemplate.Triggers>
-                                                        <Trigger Property="IsChecked" Value="True">
-                                                            <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                            <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                        </Trigger>
-                                                    </ControlTemplate.Triggers>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </ToggleButton.Style>
                             </ToggleButton>
                         </Grid>
                     </Border>
@@ -1143,28 +796,8 @@
                                                 <TextBlock Text="Attach mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
                                                 <TextBlock Text="Embed Smart Project Search inside the Search Overlay. This disables the widget-launcher Smart Search toggle while active." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                             </StackPanel>
-                                            <ToggleButton x:Name="SmartProjectSearchAttachModeToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
+                                            <ToggleButton x:Name="SmartProjectSearchAttachModeToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
                                                           Checked="SmartProjectSearchAttachModeToggle_Changed" Unchecked="SmartProjectSearchAttachModeToggle_Changed" Cursor="Hand">
-                                                <ToggleButton.Style>
-                                                    <Style TargetType="ToggleButton">
-                                                        <Setter Property="Template">
-                                                            <Setter.Value>
-                                                                <ControlTemplate TargetType="ToggleButton">
-                                                                    <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                                        <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                                    </Border>
-                                                                    <ControlTemplate.Triggers>
-                                                                        <Trigger Property="IsChecked" Value="True">
-                                                                            <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                            <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                                        </Trigger>
-                                                                    </ControlTemplate.Triggers>
-                                                                </ControlTemplate>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </Style>
-                                                </ToggleButton.Style>
                                             </ToggleButton>
                                         </Grid>
 
@@ -1307,28 +940,8 @@
                                                 <TextBlock Text="Auto Check for Updates" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
                                                 <TextBlock Text="Periodically check for new versions" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
                                             </StackPanel>
-                                            <ToggleButton x:Name="AutoUpdateCheckToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
+                                            <ToggleButton x:Name="AutoUpdateCheckToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
                                                           Checked="AutoUpdateCheckToggle_Changed" Unchecked="AutoUpdateCheckToggle_Changed" Cursor="Hand">
-                                                <ToggleButton.Style>
-                                                    <Style TargetType="ToggleButton">
-                                                        <Setter Property="Template">
-                                                            <Setter.Value>
-                                                                <ControlTemplate TargetType="ToggleButton">
-                                                                    <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                                        <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                                    </Border>
-                                                                    <ControlTemplate.Triggers>
-                                                                        <Trigger Property="IsChecked" Value="True">
-                                                                            <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                            <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                                        </Trigger>
-                                                                    </ControlTemplate.Triggers>
-                                                                </ControlTemplate>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </Style>
-                                                </ToggleButton.Style>
                                             </ToggleButton>
                                         </Grid>
                                         
@@ -1342,28 +955,8 @@
                                                 <TextBlock Text="Auto Install Updates" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
                                                 <TextBlock Text="Automatically download and prompt to install" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
                                             </StackPanel>
-                                            <ToggleButton x:Name="AutoUpdateInstallToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
+                                            <ToggleButton x:Name="AutoUpdateInstallToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
                                                           Checked="AutoUpdateInstallToggle_Changed" Unchecked="AutoUpdateInstallToggle_Changed" Cursor="Hand">
-                                                <ToggleButton.Style>
-                                                    <Style TargetType="ToggleButton">
-                                                        <Setter Property="Template">
-                                                            <Setter.Value>
-                                                                <ControlTemplate TargetType="ToggleButton">
-                                                                    <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                                        <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                                    </Border>
-                                                                    <ControlTemplate.Triggers>
-                                                                        <Trigger Property="IsChecked" Value="True">
-                                                                            <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                            <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                                        </Trigger>
-                                                                    </ControlTemplate.Triggers>
-                                                                </ControlTemplate>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </Style>
-                                                </ToggleButton.Style>
                                             </ToggleButton>
                                         </Grid>
                                         
@@ -1496,28 +1089,8 @@
                                     <TextBlock Text="Show Completed Tasks" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
                                     <TextBlock Text="Display completed tasks in the list (with strikethrough)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
                                 </StackPanel>
-                                <ToggleButton x:Name="QT_ShowCompletedToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
+                                <ToggleButton x:Name="QT_ShowCompletedToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
                                               Checked="QT_ShowCompletedToggle_Changed" Unchecked="QT_ShowCompletedToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
                                 </ToggleButton>
                             </Grid>
                             
@@ -1531,28 +1104,8 @@
                                     <TextBlock Text="Compact Mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
                                     <TextBlock Text="Tighter spacing to fit more tasks on screen" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
                                 </StackPanel>
-                                <ToggleButton x:Name="QT_CompactModeToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
+                                <ToggleButton x:Name="QT_CompactModeToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
                                               Checked="QT_CompactModeToggle_Changed" Unchecked="QT_CompactModeToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
                                 </ToggleButton>
                             </Grid>
                             
@@ -1597,28 +1150,8 @@
                                     <TextBlock Text="Auto Carry-Over" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
                                     <TextBlock Text="Automatically carry incomplete tasks to the next day" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
-                                <ToggleButton x:Name="QT_AutoCarryOverToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
+                                <ToggleButton x:Name="QT_AutoCarryOverToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
                                               Checked="QT_AutoCarryOverToggle_Changed" Unchecked="QT_AutoCarryOverToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
                                 </ToggleButton>
                             </Grid>
                             
@@ -1703,28 +1236,8 @@
                                     <TextBlock Text="Show File Size" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
                                     <TextBlock Text="Display file size next to each file" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
                                 </StackPanel>
-                                <ToggleButton x:Name="DQ_ShowFileSizeToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
+                                <ToggleButton x:Name="DQ_ShowFileSizeToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
                                               Checked="DQ_ShowFileSizeToggle_Changed" Unchecked="DQ_ShowFileSizeToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
                                 </ToggleButton>
                             </Grid>
                             
@@ -1738,28 +1251,8 @@
                                     <TextBlock Text="Show Date Modified" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
                                     <TextBlock Text="Display last modified date for each file" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
                                 </StackPanel>
-                                <ToggleButton x:Name="DQ_ShowDateModifiedToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
+                                <ToggleButton x:Name="DQ_ShowDateModifiedToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
                                               Checked="DQ_ShowDateModifiedToggle_Changed" Unchecked="DQ_ShowDateModifiedToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
                                 </ToggleButton>
                             </Grid>
                             
@@ -1773,28 +1266,8 @@
                                     <TextBlock Text="Show File Extension" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
                                     <TextBlock Text="Show .pdf, .dwg etc. in file names" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
                                 </StackPanel>
-                                <ToggleButton x:Name="DQ_ShowFileExtToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
+                                <ToggleButton x:Name="DQ_ShowFileExtToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
                                               Checked="DQ_ShowFileExtToggle_Changed" Unchecked="DQ_ShowFileExtToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
                                 </ToggleButton>
                             </Grid>
                             
@@ -1808,28 +1281,8 @@
                                     <TextBlock Text="Compact Mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
                                     <TextBlock Text="Tighter row spacing for more files on screen" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
                                 </StackPanel>
-                                <ToggleButton x:Name="DQ_CompactModeToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
+                                <ToggleButton x:Name="DQ_CompactModeToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
                                               Checked="DQ_CompactModeToggle_Changed" Unchecked="DQ_CompactModeToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
                                 </ToggleButton>
                             </Grid>
                         </StackPanel>
@@ -1932,28 +1385,8 @@
                                     <TextBlock Text="Remember Last Project" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
                                     <TextBlock Text="Auto-open the last selected project on launch" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
                                 </StackPanel>
-                                <ToggleButton x:Name="DQ_AutoOpenToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
+                                <ToggleButton x:Name="DQ_AutoOpenToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
                                               Checked="DQ_AutoOpenToggle_Changed" Unchecked="DQ_AutoOpenToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
                                 </ToggleButton>
                             </Grid>
                             
@@ -2037,28 +1470,8 @@
                                     <TextBlock Text="Grid Mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
                                     <TextBlock Text="Display projects in a compact grid instead of a vertical list" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
-                                <ToggleButton x:Name="FP_GridModeToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
+                                <ToggleButton x:Name="FP_GridModeToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
                                               Checked="FP_GridModeToggle_Changed" Unchecked="FP_GridModeToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
                                 </ToggleButton>
                             </Grid>
                         </StackPanel>
@@ -2107,28 +1520,8 @@
                                     <TextBlock Text="Horizontal Mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
                                     <TextBlock Text="Display items in a horizontal row instead of a vertical list (max 5 visible before scrolling)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
-                                <ToggleButton x:Name="QL_HorizontalModeToggle" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
+                                <ToggleButton x:Name="QL_HorizontalModeToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
                                               Checked="QL_HorizontalModeToggle_Changed" Unchecked="QL_HorizontalModeToggle_Changed" Cursor="Hand">
-                                    <ToggleButton.Style>
-                                        <Style TargetType="ToggleButton">
-                                            <Setter Property="Template">
-                                                <Setter.Value>
-                                                    <ControlTemplate TargetType="ToggleButton">
-                                                        <Border x:Name="Border" Background="#333333" CornerRadius="14" Width="50" Height="28">
-                                                            <Ellipse x:Name="Thumb" Width="20" Height="20" Fill="White" HorizontalAlignment="Left" Margin="4,0,0,0"/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="Border" Property="Background" Value="#007ACC"/>
-                                                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
-                                                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Setter.Value>
-                                            </Setter>
-                                        </Style>
-                                    </ToggleButton.Style>
                                 </ToggleButton>
                             </Grid>
                         </StackPanel>
@@ -2174,6 +1567,98 @@
                         </StackPanel>
                     </Border>
                     
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                    
+                    <!-- Metrics Viewer Panel -->
+                    <Border x:Name="MetricsViewerPanel" Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
+                            <StackPanel>
+                                <!-- Refresh Interval -->
+                                <Border Background="#18FFFFFF" 
+                                        BorderBrush="#22FFFFFF"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="16"
+                                        Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="Metrics Settings" 
+                                                   FontSize="16" 
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextBrush}"
+                                                   Margin="0,0,0,4"/>
+                                        <TextBlock Text="Configure metrics collection and display" 
+                                                   FontSize="12" 
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Margin="0,0,0,16"/>
+
+                                        <!-- Auto-Refresh Interval -->
+                                        <StackPanel Margin="0,0,0,0">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="Auto-Refresh Interval" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                                <TextBlock x:Name="MetricsRefreshIntervalValue" Grid.Column="1" Text="30s" FontSize="13" Foreground="{StaticResource PrimaryBrush}"/>
+                                            </Grid>
+                                            <TextBlock Text="How often the metrics widget polls for updated data (10-120 seconds)" 
+                                                       FontSize="11" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" 
+                                                       Margin="0,2,0,6"/>
+                                            <Slider x:Name="MetricsRefreshIntervalSlider" 
+                                                    Minimum="10" Maximum="120" 
+                                                    TickFrequency="5" IsSnapToTickEnabled="True"
+                                                    Value="30"
+                                                    ValueChanged="MetricsRefreshIntervalSlider_Changed" 
+                                                    Style="{StaticResource StyledSlider}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+
+                    <!-- Cheat Sheet Panel -->
+                    <Border x:Name="CheatSheetPanel" Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
+                            <StackPanel>
+                                <Border Background="#18FFFFFF" 
+                                        BorderBrush="#22FFFFFF"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="16"
+                                        Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="Cheat Sheet Settings" 
+                                                   FontSize="16" 
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextBrush}"
+                                                   Margin="0,0,0,4"/>
+                                        <TextBlock Text="Configure the engineering cheat sheets and reference tables widget" 
+                                                   FontSize="12" 
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,0,0,16"/>
+
+                                        <TextBlock Text="Disciplines" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
+                                        <TextBlock Text="Electrical cheat sheets include NEC motor FLA tables, conductor sizing, conduit fill, transformer sizing, and more. Additional disciplines coming soon." 
+                                                   FontSize="11" 
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,0,0,12"/>
+
+                                        <TextBlock Text="Data is stored locally and can be edited via the cheat sheet JSON file in AppData." 
+                                                   FontSize="11" 
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </ScrollViewer>
                     </Border>

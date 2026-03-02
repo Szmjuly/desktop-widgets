@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using DesktopHub.Core.Models;
+using DesktopHub.UI.Helpers;
 using DesktopHub.UI.Services;
 
 namespace DesktopHub.UI.Widgets;
@@ -58,7 +59,8 @@ public partial class SmartProjectSearchWidget : System.Windows.Controls.UserCont
                     TelemetryEventType.SmartSearchExecuted,
                     SearchBox.Text,
                     resultCount: _service.Results.Count,
-                    widgetName: "SmartProjectSearch");
+                    widgetName: "SmartProjectSearch",
+                    querySource: Core.Models.QuerySources.SmartSearch);
             }
         }
         catch (OperationCanceledException)
@@ -100,13 +102,13 @@ public partial class SmartProjectSearchWidget : System.Windows.Controls.UserCont
 
     private void ResultsList_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
-        var item = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        var item = OverlayHelper.FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
         if (item == null) return;
 
         ResultsList.SelectedItem = item.DataContext;
         if (ResultsList.SelectedItem is not DocumentItem result) return;
 
-        var menu = CreateDarkContextMenu();
+        var menu = DarkContextMenuFactory.Create();
 
         var openItem = new MenuItem { Header = "Open" };
         openItem.Click += (_, _) => OpenFile(result.Path);
@@ -249,60 +251,4 @@ public partial class SmartProjectSearchWidget : System.Windows.Controls.UserCont
         }
     }
 
-    private static ContextMenu CreateDarkContextMenu()
-    {
-        var menuBg = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1E, 0x1E, 0x1E));
-        var menuBorder = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
-        var itemFg = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF5, 0xF7, 0xFA));
-        var itemHoverBg = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x20, 0xFF, 0xFF, 0xFF));
-
-        var itemTemplate = new ControlTemplate(typeof(MenuItem));
-        var itemBorderFactory = new FrameworkElementFactory(typeof(Border));
-        itemBorderFactory.SetValue(Border.BackgroundProperty, System.Windows.Media.Brushes.Transparent);
-        itemBorderFactory.SetValue(Border.PaddingProperty, new Thickness(12, 6, 12, 6));
-        itemBorderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
-        var contentPresenter = new FrameworkElementFactory(typeof(ContentPresenter));
-        contentPresenter.SetValue(ContentPresenter.ContentSourceProperty, "Header");
-        contentPresenter.SetValue(TextBlock.ForegroundProperty, itemFg);
-        contentPresenter.SetValue(TextBlock.FontSizeProperty, 13.0);
-        itemBorderFactory.AppendChild(contentPresenter);
-        var itemTrigger = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
-        itemTrigger.Setters.Add(new Setter(Border.BackgroundProperty, itemHoverBg, "ItemBorder"));
-        itemTemplate.VisualTree = itemBorderFactory;
-        itemTemplate.VisualTree.Name = "ItemBorder";
-
-        var itemStyle = new Style(typeof(MenuItem));
-        itemStyle.Setters.Add(new Setter(MenuItem.TemplateProperty, itemTemplate));
-        itemStyle.Setters.Add(new Setter(MenuItem.CursorProperty, System.Windows.Input.Cursors.Hand));
-
-        var contextMenuTemplate = new ControlTemplate(typeof(ContextMenu));
-        var menuBorderFactory = new FrameworkElementFactory(typeof(Border));
-        menuBorderFactory.SetValue(Border.BackgroundProperty, menuBg);
-        menuBorderFactory.SetValue(Border.BorderBrushProperty, menuBorder);
-        menuBorderFactory.SetValue(Border.BorderThicknessProperty, new Thickness(1));
-        menuBorderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(8));
-        menuBorderFactory.SetValue(Border.PaddingProperty, new Thickness(4));
-        var itemsPresenter = new FrameworkElementFactory(typeof(ItemsPresenter));
-        menuBorderFactory.AppendChild(itemsPresenter);
-        contextMenuTemplate.VisualTree = menuBorderFactory;
-
-        var menu = new ContextMenu
-        {
-            Template = contextMenuTemplate,
-            HasDropShadow = false
-        };
-        menu.Resources[typeof(MenuItem)] = itemStyle;
-        return menu;
-    }
-
-    private static T? FindAncestor<T>(DependencyObject? current) where T : DependencyObject
-    {
-        while (current != null)
-        {
-            if (current is T match)
-                return match;
-            current = System.Windows.Media.VisualTreeHelper.GetParent(current);
-        }
-        return null;
-    }
 }

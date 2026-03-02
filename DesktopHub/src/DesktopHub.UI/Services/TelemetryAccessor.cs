@@ -1,4 +1,5 @@
 using DesktopHub.Core.Abstractions;
+using DesktopHub.Core.Models;
 
 namespace DesktopHub.UI.Services;
 
@@ -25,9 +26,10 @@ public static class TelemetryAccessor
 
     public static void TrackSearch(string eventType, string? queryText, int? resultCount = null,
         int? resultIndex = null, long? timeToClickMs = null,
-        string? widgetName = null, Dictionary<string, object?>? extraData = null)
+        string? widgetName = null, Dictionary<string, object?>? extraData = null,
+        string? querySource = null)
     {
-        _service?.TrackSearch(eventType, queryText, resultCount, resultIndex, timeToClickMs, widgetName, extraData);
+        _service?.TrackSearch(eventType, queryText, resultCount, resultIndex, timeToClickMs, widgetName, extraData, querySource);
     }
 
     public static void TrackProjectLaunch(string source, string? projectNumber, string? projectType = null)
@@ -66,5 +68,41 @@ public static class TelemetryAccessor
     public static void TrackCheatSheet(string sheetId, long? timeVisibleMs = null)
     {
         _service?.TrackCheatSheet(sheetId, timeVisibleMs);
+    }
+
+    public static void TrackHotkey(string hotkeyGroup, int widgetCount)
+    {
+        _service?.TrackEvent(TelemetryCategory.Hotkey, TelemetryEventType.HotkeyPressed,
+            new Dictionary<string, object?> { ["hotkeyGroup"] = hotkeyGroup, ["widgetCount"] = widgetCount });
+    }
+
+    public static void TrackSettingChanged(string settingName, string? newValue = null)
+    {
+        _service?.TrackEvent(TelemetryCategory.Settings, TelemetryEventType.SettingChanged,
+            new Dictionary<string, object?> { ["settingName"] = settingName, ["newValue"] = newValue });
+    }
+
+    public static void TrackFilterChanged(string filterType, string? filterValue = null)
+    {
+        _service?.TrackEvent(TelemetryCategory.Filter, TelemetryEventType.FilterChanged,
+            new Dictionary<string, object?> { ["filterType"] = filterType, ["filterValue"] = filterValue });
+    }
+
+    public static void TrackClipboardCopy(string copyType, string? widgetName = null)
+    {
+        _service?.TrackEvent(TelemetryCategory.Clipboard, TelemetryEventType.ClipboardCopy,
+            new Dictionary<string, object?> { ["copyType"] = copyType, ["widgetName"] = widgetName });
+    }
+
+    public static void TrackError(string eventType, string errorType, string context, string? message = null)
+    {
+        _service?.TrackEvent(TelemetryCategory.Error, eventType,
+            new Dictionary<string, object?> { ["errorType"] = errorType, ["context"] = context, ["message"] = message });
+    }
+
+    public static void TrackPerformance(string eventType, string phase, long durationMs, int? resultCount = null)
+    {
+        _service?.TrackEvent(TelemetryCategory.Performance, eventType,
+            new Dictionary<string, object?> { ["phase"] = phase, ["durationMs"] = durationMs, ["resultCount"] = resultCount });
     }
 }

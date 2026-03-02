@@ -113,7 +113,8 @@ public class TelemetryService : ITelemetryService, IDisposable
 
     public void TrackSearch(string eventType, string? queryText, int? resultCount = null,
         int? resultIndex = null, long? timeToClickMs = null,
-        string? widgetName = null, Dictionary<string, object?>? extraData = null)
+        string? widgetName = null, Dictionary<string, object?>? extraData = null,
+        string? querySource = null)
     {
         if (!IsEnabled) return;
 
@@ -128,6 +129,7 @@ public class TelemetryService : ITelemetryService, IDisposable
             ResultIndex = resultIndex,
             DurationMs = timeToClickMs,
             WidgetName = widgetName,
+            QuerySource = querySource,
             DataJson = extraData != null ? JsonSerializer.Serialize(extraData) : null
         };
 
@@ -330,7 +332,9 @@ public class TelemetryService : ITelemetryService, IDisposable
                     ["widget_usage"] = summary.WidgetUsageCounts,
                     ["project_type_frequency"] = summary.ProjectTypeFrequency,
                     ["discipline_frequency"] = summary.DisciplineFrequency,
-                    ["top_search_queries"] = summary.TopSearchQueries,
+                    ["top_search_queries"] = summary.TopSearchQueries.Select(q => new Dictionary<string, object> { ["query"] = q.Query, ["count"] = q.Count }).ToList(),
+                    ["device_name"] = Environment.MachineName,
+                    ["user_name"] = Environment.UserName,
                     ["synced_at"] = DateTime.UtcNow.ToString("O")
                 };
 
@@ -395,6 +399,89 @@ public class TelemetryService : ITelemetryService, IDisposable
         {
             _flushLock.Release();
         }
+    }
+
+    public async Task<List<DailyMetricsSummary>> GetAllUsersSummariesAsync(DateTime from, DateTime to)
+    {
+        // Admin-only: fetch all-user summaries from Firebase
+        // For non-admin builds this returns empty; the UI guard in BuildConfig prevents calling
+        if (!Core.BuildConfig.IsAdminBuild) return new List<DailyMetricsSummary>();
+        if (_firebaseService == null || !_firebaseService.IsInitialized) return new List<DailyMetricsSummary>();
+
+        try
+        {
+            // In a full implementation this would query Firebase REST API for all devices.
+            // For now, return local data as a starting point (single-device fallback).
+            var results = new List<DailyMetricsSummary>();
+            for (var date = from.Date; date <= to.Date; date = date.AddDays(1))
+            {
+                var summary = await _db.GetDailySummaryAsync(date);
+                if (summary != null)
+                {
+                    summary.DeviceName = Environment.MachineName;
+                    summary.UserName = Environment.UserName;
+                    summary.DeviceId = _firebaseService.GetDeviceId();
+                    results.Add(summary);
+                }
+            }
+            return results;
+        }
+        catch (Exception ex)
+        {
+            InfraLogger.Log($"TelemetryService: GetAllUsersSummariesAsync failed: {ex.Message}");
+            return new List<DailyMetricsSummary>();
+        }
+    }
+
+    public Task<List<MetricsUserInfo>> GetKnownUsersAsync()
+    {
+        if (!Core.BuildConfig.IsAdminBuild) return Task.FromResult(new List<MetricsUserInfo>());
+        if (_firebaseService == null || !_firebaseService.IsInitialized) return Task.FromResult(new List<MetricsUserInfo>());
+
+        try
+        {
+            // Return local device info as starting point
+            return Task.FromResult(new List<MetricsUserInfo>
+            {
+                new MetricsUserInfo
+                {
+                    DeviceId = _firebaseService.GetDeviceId(),
+                    DeviceName = Environment.MachineName,
+                    UserName = Environment.UserName,
+                    LastSeen = DateTime.UtcNow
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            InfraLogger.Log($"TelemetryService: GetKnownUsersAsync failed: {ex.Message}");
+            return Task.FromResult(new List<MetricsUserInfo>());
+        }
+    }
+
+    public async Task<HourlyBreakdown> GetHourlyBreakdownAsync(DateTime date)
+    {
+        return await _db.GetHourlyBreakdownAsync(date);
+    }
+
+    public async Task<List<SessionDetail>> GetSessionDetailsAsync(DateTime date)
+    {
+        return await _db.GetSessionDetailsAsync(date);
+    }
+
+    public async Task<List<TopProjectInfo>> GetTopProjectsAsync(DateTime from, DateTime to, int limit = 10)
+    {
+        return await _db.GetTopProjectsAsync(from, to, limit);
+    }
+
+    public async Task<List<DailyMetricsSummary>> GetMultiDaySummariesAsync(DateTime from, DateTime to)
+    {
+        return await _db.GetMultiDaySummariesAsync(from, to);
+    }
+
+    public async Task<List<FeatureTransition>> GetFeatureTransitionsAsync(DateTime from, DateTime to, int limit = 50)
+    {
+        return await _db.GetFeatureTransitionsAsync(from, to, limit);
     }
 
     public void Dispose()

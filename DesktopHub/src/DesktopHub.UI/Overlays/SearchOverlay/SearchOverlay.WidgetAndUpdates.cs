@@ -134,6 +134,25 @@ public partial class SearchOverlay
         }
     }
 
+    public void SetMetricsViewerEnabled(bool enabled)
+    {
+        if (_widgetLauncher != null)
+        {
+            _widgetLauncher.UpdateMetricsViewerButtonVisibility(enabled);
+            DebugLogger.Log($"SetMetricsViewerEnabled: visibility set to {enabled}");
+        }
+    }
+
+    public void UpdateMetricsViewerWidgetButton()
+    {
+        if (_widgetLauncher != null)
+        {
+            var enabled = _settings.GetWidgetEnabled(Core.Models.WidgetIds.MetricsViewer);
+            _widgetLauncher.UpdateMetricsViewerButtonVisibility(enabled);
+            DebugLogger.Log($"UpdateMetricsViewerWidgetButton: visibility set to {enabled}");
+        }
+    }
+
     public void UpdateQuickLaunchLayout()
     {
         if (_quickLaunchOverlay != null && _quickLaunchOverlay.IsVisible)

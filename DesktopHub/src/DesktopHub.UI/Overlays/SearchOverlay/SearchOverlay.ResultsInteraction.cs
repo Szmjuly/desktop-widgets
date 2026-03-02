@@ -65,6 +65,9 @@ public partial class SearchOverlay
 
     private void YearFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        var selectedYear = (sender as System.Windows.Controls.ComboBox)?.SelectedItem?.ToString();
+        TelemetryAccessor.TrackFilterChanged("year", selectedYear);
+
         // Reload projects with new year filter
         if (!string.IsNullOrWhiteSpace(SearchBox.Text))
         {
@@ -80,6 +83,9 @@ public partial class SearchOverlay
 
     private void DriveLocationFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        var selectedDrive = (sender as System.Windows.Controls.ComboBox)?.SelectedItem?.ToString();
+        TelemetryAccessor.TrackFilterChanged("drive_location", selectedDrive);
+
         // Reload projects with new drive location filter
         if (!string.IsNullOrWhiteSpace(SearchBox.Text))
         {
@@ -123,6 +129,7 @@ public partial class SearchOverlay
     {
         if (sender is Border border && border.DataContext is string query)
         {
+            _lastQuerySource = Core.Models.QuerySources.History;
             SearchBox.Text = query;
         }
     }
@@ -159,6 +166,20 @@ public partial class SearchOverlay
         DebugLogger.LogVariable("SearchBox.Text (before)", SearchBox.Text);
         DebugLogger.LogVariable("SearchBox.IsFocused", SearchBox.IsFocused);
         DebugLogger.LogVariable("SearchBox.IsKeyboardFocused", SearchBox.IsKeyboardFocused);
+
+        // Detect paste (Ctrl+V) to track query source
+        if (e.Key == Key.V && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
+        {
+            _lastQuerySource = Core.Models.QuerySources.Pasted;
+        }
+        else if (e.Key != Key.LeftCtrl && e.Key != Key.RightCtrl &&
+                 e.Key != Key.LeftShift && e.Key != Key.RightShift &&
+                 e.Key != Key.LeftAlt && e.Key != Key.RightAlt &&
+                 e.Key != Key.Enter && e.Key != Key.Escape &&
+                 e.Key != Key.Tab && e.Key != Key.Up && e.Key != Key.Down)
+        {
+            _lastQuerySource = Core.Models.QuerySources.Typed;
+        }
     }
 
     private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -341,7 +362,8 @@ public partial class SearchOverlay
                     TelemetryEventType.PathResultClicked,
                     SearchBox.Text,
                     resultIndex: ResultsList.SelectedIndex,
-                    widgetName: "PathSearch");
+                    widgetName: "PathSearch",
+                    querySource: _lastQuerySource);
             }
             else
             {
@@ -349,7 +371,8 @@ public partial class SearchOverlay
                     TelemetryEventType.SearchResultClicked,
                     SearchBox.Text,
                     resultIndex: ResultsList.SelectedIndex,
-                    widgetName: "ProjectSearch");
+                    widgetName: "ProjectSearch",
+                    querySource: _lastQuerySource);
             }
 
             // Record the launch for frequency tracking (only for project results)
@@ -404,6 +427,7 @@ public partial class SearchOverlay
             {
                 System.Windows.Clipboard.SetText(path);
                 StatusText.Text = "Path copied to clipboard";
+                TelemetryAccessor.TrackClipboardCopy("project_path", "SearchOverlay");
             }
             catch (Exception ex)
             {
@@ -427,6 +451,7 @@ public partial class SearchOverlay
             {
                 System.Windows.Clipboard.SetText(path);
                 StatusText.Text = "Path copied to clipboard";
+                TelemetryAccessor.TrackClipboardCopy("project_path", "SearchOverlay");
             }
             catch (Exception ex)
             {
@@ -506,11 +531,12 @@ public partial class SearchOverlay
                     {
                         System.Windows.Clipboard.SetText(text);
                         StatusText.Text = statusMessage;
+                        TelemetryAccessor.TrackClipboardCopy(statusMessage, "SearchOverlay");
                     }
                     catch { }
                 }
 
-                var menu = CreateDarkContextMenu();
+                var menu = DarkContextMenuFactory.Create();
 
                 if (isProjectResult)
                 {
@@ -584,69 +610,4 @@ public partial class SearchOverlay
         }
     }
 
-    private static ContextMenu CreateDarkContextMenu()
-    {
-        var menuBg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1E, 0x1E, 0x1E));
-        var menuBorder = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
-        var itemFg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE0, 0xE0, 0xE0));
-        var hoverBg = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, 0x4F, 0xC3, 0xF7));
-        var transparentBrush = System.Windows.Media.Brushes.Transparent;
-
-        // Build a MenuItem ControlTemplate that fully replaces WPF default chrome
-        var itemTemplate = new ControlTemplate(typeof(MenuItem));
-        var borderFactory = new FrameworkElementFactory(typeof(Border));
-        borderFactory.Name = "Bd";
-        borderFactory.SetValue(Border.BackgroundProperty, transparentBrush);
-        borderFactory.SetValue(Border.PaddingProperty, new Thickness(10, 6, 10, 6));
-        borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
-        borderFactory.SetValue(Border.MarginProperty, new Thickness(2, 1, 2, 1));
-
-        var contentFactory = new FrameworkElementFactory(typeof(ContentPresenter));
-        contentFactory.SetValue(ContentPresenter.ContentSourceProperty, "Header");
-        contentFactory.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
-        borderFactory.AppendChild(contentFactory);
-        itemTemplate.VisualTree = borderFactory;
-
-        // Hover trigger
-        var hoverTrigger = new Trigger { Property = MenuItem.IsHighlightedProperty, Value = true };
-        hoverTrigger.Setters.Add(new Setter(Border.BackgroundProperty, hoverBg, "Bd"));
-        itemTemplate.Triggers.Add(hoverTrigger);
-
-        // MenuItem style using the custom template
-        var itemStyle = new Style(typeof(MenuItem));
-        itemStyle.Setters.Add(new Setter(MenuItem.ForegroundProperty, itemFg));
-        itemStyle.Setters.Add(new Setter(MenuItem.TemplateProperty, itemTemplate));
-        itemStyle.Setters.Add(new Setter(MenuItem.CursorProperty, System.Windows.Input.Cursors.Hand));
-
-        // ContextMenu with custom template to remove system chrome
-        var contextMenuTemplate = new ControlTemplate(typeof(ContextMenu));
-        var menuBorderFactory = new FrameworkElementFactory(typeof(Border));
-        menuBorderFactory.SetValue(Border.BackgroundProperty, menuBg);
-        menuBorderFactory.SetValue(Border.BorderBrushProperty, menuBorder);
-        menuBorderFactory.SetValue(Border.BorderThicknessProperty, new Thickness(1));
-        menuBorderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
-        menuBorderFactory.SetValue(Border.PaddingProperty, new Thickness(2, 4, 2, 4));
-
-        var shadowEffect = new System.Windows.Media.Effects.DropShadowEffect
-        {
-            BlurRadius = 12,
-            ShadowDepth = 2,
-            Opacity = 0.5,
-            Color = System.Windows.Media.Color.FromRgb(0, 0, 0)
-        };
-        menuBorderFactory.SetValue(Border.EffectProperty, shadowEffect);
-
-        var itemsPresenter = new FrameworkElementFactory(typeof(ItemsPresenter));
-        menuBorderFactory.AppendChild(itemsPresenter);
-        contextMenuTemplate.VisualTree = menuBorderFactory;
-
-        var menu = new ContextMenu
-        {
-            Template = contextMenuTemplate,
-            HasDropShadow = false
-        };
-        menu.Resources[typeof(MenuItem)] = itemStyle;
-
-        return menu;
-    }
 }

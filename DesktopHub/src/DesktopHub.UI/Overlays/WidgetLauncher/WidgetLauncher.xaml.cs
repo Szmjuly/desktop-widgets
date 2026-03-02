@@ -19,9 +19,7 @@ public partial class WidgetLauncher : Window
     public event EventHandler? QuickLaunchRequested;
     public event EventHandler? SmartProjectSearchRequested;
     public event EventHandler? CheatSheetRequested;
-    private bool _isDragging = false;
-    private System.Windows.Point _dragStartPoint;
-    private bool _isLivingWidgetsMode = false;
+    public event EventHandler? MetricsViewerRequested;
     private readonly ISettingsService _settings;
     
     public WidgetLauncher(ISettingsService settings)
@@ -61,6 +59,7 @@ public partial class WidgetLauncher : Window
             QuickLaunchButton,
             DocQuickOpenButton,
             SmartProjectSearchButton,
+            MetricsViewerButton,
             CheatSheetButton
         };
 
@@ -98,24 +97,13 @@ public partial class WidgetLauncher : Window
         WidgetButtonsScroller.MaxHeight = Math.Max(120, Math.Floor(targetHeight - 1));
     }
     
-    public void UpdateTransparency()
+    public void UpdateTransparency() =>
+        OverlayHelper.ApplyTransparency(RootBorder, _settings.GetWidgetLauncherTransparency(), "WidgetLauncher");
+
+    private void CloseButton_Click(object sender, MouseButtonEventArgs e)
     {
-        try
-        {
-            var transparency = _settings.GetWidgetLauncherTransparency();
-            var alpha = (byte)(transparency * 255);
-            
-            if (RootBorder != null)
-            {
-                RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, 0x12, 0x12, 0x12));
-            }
-            
-            DebugLogger.Log($"WidgetLauncher: Transparency updated to {transparency:F2}");
-        }
-        catch (Exception ex)
-        {
-            DebugLogger.Log($"WidgetLauncher: UpdateTransparency error: {ex.Message}");
-        }
+        e.Handled = true;
+        Hide();
     }
     
     private void SearchWidgetButton_Click(object sender, MouseButtonEventArgs e)
@@ -156,6 +144,11 @@ public partial class WidgetLauncher : Window
     private void CheatSheetButton_Click(object sender, MouseButtonEventArgs e)
     {
         CheatSheetRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void MetricsViewerButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        MetricsViewerRequested?.Invoke(this, EventArgs.Empty);
     }
     
     public void UpdateSearchButtonVisibility(bool visible)
@@ -214,11 +207,15 @@ public partial class WidgetLauncher : Window
         RefreshLayoutFromSettings();
     }
 
-    public void SetUpdateIndicatorVisible(bool visible)
+    public void UpdateMetricsViewerButtonVisibility(bool visible)
     {
-        if (UpdateIndicator != null)
-            UpdateIndicator.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        if (MetricsViewerButton != null)
+            MetricsViewerButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        RefreshLayoutFromSettings();
     }
+
+    public void SetUpdateIndicatorVisible(bool visible) =>
+        OverlayHelper.SetUpdateIndicatorVisible(UpdateIndicator, visible);
     
     private void Window_Deactivated(object sender, EventArgs e)
     {
@@ -226,91 +223,15 @@ public partial class WidgetLauncher : Window
         // This is controlled by the hotkey toggle
     }
     
-    public void EnableDragging()
-    {
-        _isLivingWidgetsMode = true;
-        
-        // Remove handlers first to prevent duplicates when switching modes
-        this.MouseLeftButtonDown -= WidgetLauncher_MouseLeftButtonDown;
-        this.MouseLeftButtonUp -= WidgetLauncher_MouseLeftButtonUp;
-        this.MouseMove -= WidgetLauncher_MouseMove;
-        
-        // Add handlers
-        this.MouseLeftButtonDown += WidgetLauncher_MouseLeftButtonDown;
-        this.MouseLeftButtonUp += WidgetLauncher_MouseLeftButtonUp;
-        this.MouseMove += WidgetLauncher_MouseMove;
-    }
-    
-    public void DisableDragging()
-    {
-        _isLivingWidgetsMode = false;
-        this.MouseLeftButtonDown -= WidgetLauncher_MouseLeftButtonDown;
-        this.MouseLeftButtonUp -= WidgetLauncher_MouseLeftButtonUp;
-        this.MouseMove -= WidgetLauncher_MouseMove;
-    }
-    
-    private void WidgetLauncher_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
-    {
-        if (!_isLivingWidgetsMode)
-            return;
-            
-        // Don't start drag if clicking on interactive elements
-        var element = e.OriginalSource as FrameworkElement;
-        if (element != null)
-        {
-            var clickedType = element.GetType().Name;
-            if (clickedType == "Button" || clickedType == "Border" && element.Name.Contains("Button"))
-            {
-                return;
-            }
-        }
-        
-        _isDragging = true;
-        _dragStartPoint = e.GetPosition(this);
-        this.CaptureMouse();
-    }
-    
-    private void WidgetLauncher_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
-    {
-        if (_isDragging)
-        {
-            _isDragging = false;
-            this.ReleaseMouseCapture();
-        }
-    }
-    
-    private void WidgetLauncher_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
-    {
-        if (_isDragging && e.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
-        {
-            var currentPosition = e.GetPosition(this);
-            var offset = currentPosition - _dragStartPoint;
-            
-            this.Left += offset.X;
-            this.Top += offset.Y;
-        }
-    }
+    public void EnableDragging() => OverlayDragHelper.EnableDragging(this);
+    public void DisableDragging() => OverlayDragHelper.DisableDragging(this);
     
     private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
-        // Check if close shortcut was pressed
-        var (closeModifiers, closeKey) = _settings.GetCloseShortcut();
-        var currentModifiers = 0;
-        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
-            currentModifiers |= (int)GlobalHotkey.MOD_CONTROL;
-        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Alt) != 0)
-            currentModifiers |= (int)GlobalHotkey.MOD_ALT;
-        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Shift) != 0)
-            currentModifiers |= (int)GlobalHotkey.MOD_SHIFT;
-        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Windows) != 0)
-            currentModifiers |= (int)GlobalHotkey.MOD_WIN;
-        
-        var currentKey = System.Windows.Input.KeyInterop.VirtualKeyFromKey(e.Key);
-        
-        if (currentModifiers == closeModifiers && currentKey == closeKey)
+        if (OverlayHelper.IsCloseShortcutPressed(e, _settings))
         {
-            DebugLogger.Log($"WidgetLauncher: Close shortcut pressed -> Hiding widget launcher");
-            this.Visibility = Visibility.Hidden;
+            DebugLogger.Log("WidgetLauncher: Close shortcut pressed -> Hiding");
+            Visibility = Visibility.Hidden;
             e.Handled = true;
         }
     }

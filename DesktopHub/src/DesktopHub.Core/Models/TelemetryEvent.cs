@@ -14,6 +14,12 @@ public static class TelemetryCategory
     public const string DocAccess = "doc_access";
     public const string Timer = "timer";
     public const string CheatSheet = "cheat_sheet";
+    public const string Hotkey = "hotkey";
+    public const string Settings = "settings";
+    public const string Filter = "filter";
+    public const string Clipboard = "clipboard";
+    public const string Error = "error";
+    public const string Performance = "performance";
 }
 
 /// <summary>
@@ -64,6 +70,27 @@ public static class TelemetryEventType
     // Widget visibility
     public const string WidgetOpened = "widget_opened";
     public const string WidgetClosed = "widget_closed";
+
+    // Hotkey
+    public const string HotkeyPressed = "hotkey_pressed";
+
+    // Settings
+    public const string SettingChanged = "setting_changed";
+
+    // Filter
+    public const string FilterChanged = "filter_changed";
+    public const string DisciplineChanged = "discipline_changed";
+
+    // Clipboard
+    public const string ClipboardCopy = "clipboard_copy";
+
+    // Error
+    public const string AppError = "app_error";
+    public const string WidgetError = "widget_error";
+
+    // Performance
+    public const string StartupTiming = "startup_timing";
+    public const string SearchTiming = "search_timing";
 }
 
 /// <summary>
@@ -91,6 +118,9 @@ public class TelemetryEvent
     public int? ResultIndex { get; set; }
     public long? DurationMs { get; set; }
     public int? CharCount { get; set; }
+
+    /// <summary>How the query was initiated (typed, pasted, frequent_project, quick_launch, history, etc.)</summary>
+    public string? QuerySource { get; set; }
 
     // Synced to Firebase?
     public bool Synced { get; set; }
@@ -120,5 +150,141 @@ public class DailyMetricsSummary
     public Dictionary<string, int> WidgetUsageCounts { get; set; } = new();
     public Dictionary<string, int> ProjectTypeFrequency { get; set; } = new();
     public Dictionary<string, int> DisciplineFrequency { get; set; } = new();
-    public List<string> TopSearchQueries { get; set; } = new();
+    public List<SearchQueryCount> TopSearchQueries { get; set; } = new();
+    public int TotalHotkeyPresses { get; set; }
+    public int TotalFilterChanges { get; set; }
+    public int TotalClipboardCopies { get; set; }
+    public int TotalErrors { get; set; }
+
+    // Device/user identity for admin telemetry
+    public string DeviceName { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
+    public string DeviceId { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// A search query with its frequency count and source breakdown
+/// </summary>
+public class SearchQueryCount
+{
+    public string Query { get; set; } = string.Empty;
+    public int Count { get; set; }
+    /// <summary>Primary source for this query (most common initiation method)</summary>
+    public string PrimarySource { get; set; } = string.Empty;
+    /// <summary>Source breakdown: source -> count</summary>
+    public Dictionary<string, int> SourceBreakdown { get; set; } = new();
+}
+
+/// <summary>
+/// Constants for query source tracking — how a search was initiated
+/// </summary>
+public static class QuerySources
+{
+    public const string Typed = "typed";
+    public const string Pasted = "pasted";
+    public const string FrequentProject = "frequent_project";
+    public const string QuickLaunch = "quick_launch";
+    public const string History = "history";
+    public const string SmartSearch = "smart_search";
+    public const string PathSearch = "path_search";
+    public const string DocSearch = "doc_search";
+    public const string HotkeyDirect = "hotkey_direct";
+    public const string WidgetLauncher = "widget_launcher";
+
+    public static string DisplayName(string source) => source switch
+    {
+        Typed => "Typed",
+        Pasted => "Pasted",
+        FrequentProject => "Freq. Project",
+        QuickLaunch => "Quick Launch",
+        History => "History",
+        SmartSearch => "Smart Search",
+        PathSearch => "Path Search",
+        DocSearch => "Doc Search",
+        HotkeyDirect => "Hotkey",
+        WidgetLauncher => "Launcher",
+        _ => source
+    };
+}
+
+/// <summary>
+/// Information about a known user/device for admin metrics view
+/// </summary>
+public class MetricsUserInfo
+{
+    public string DeviceId { get; set; } = string.Empty;
+    public string DeviceName { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
+    public DateTime LastSeen { get; set; }
+}
+
+/// <summary>
+/// Hourly event counts for a single day — used for activity heatmap
+/// </summary>
+public class HourlyBreakdown
+{
+    public int[] EventCounts { get; set; } = new int[24];
+    public int PeakHour { get; set; }
+    public int PeakCount { get; set; }
+}
+
+/// <summary>
+/// A single session's summary (start, end, what was done)
+/// </summary>
+public class SessionDetail
+{
+    public string SessionId { get; set; } = string.Empty;
+    public DateTime StartTime { get; set; }
+    public DateTime EndTime { get; set; }
+    public long DurationMs { get; set; }
+    public int EventCount { get; set; }
+    public Dictionary<string, int> ActionBreakdown { get; set; } = new();
+}
+
+/// <summary>
+/// A frequently accessed project with counts
+/// </summary>
+public class TopProjectInfo
+{
+    public string ProjectNumber { get; set; } = string.Empty;
+    public string? ProjectType { get; set; }
+    public int LaunchCount { get; set; }
+    public int SearchCount { get; set; }
+    public int DocOpenCount { get; set; }
+    public int TotalInteractions => LaunchCount + SearchCount + DocOpenCount;
+}
+
+/// <summary>
+/// Derived usage insights for a date range
+/// </summary>
+public class UsageInsights
+{
+    public double AvgSessionDurationMin { get; set; }
+    public int PeakHour { get; set; }
+    public int ActiveDays { get; set; }
+    public int TotalDaysInRange { get; set; }
+    public int CurrentStreak { get; set; }
+    public double ProductivityScore { get; set; }
+    public string MostUsedFeature { get; set; } = string.Empty;
+    public int MostUsedFeatureCount { get; set; }
+    public Dictionary<string, double> FeatureWeights { get; set; } = new();
+}
+
+/// <summary>
+/// Multi-day trend data point for sparkline charts
+/// </summary>
+public class TrendDataPoint
+{
+    public string Date { get; set; } = string.Empty;
+    public int Value { get; set; }
+}
+
+/// <summary>
+/// Feature-to-feature transition for activity flow analysis
+/// </summary>
+public class FeatureTransition
+{
+    public string From { get; set; } = string.Empty;
+    public string To { get; set; } = string.Empty;
+    public int Count { get; set; }
 }

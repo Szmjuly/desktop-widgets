@@ -49,14 +49,14 @@ public partial class TrayMenu : Window
         SourceInitialized += (s, e) =>
         {
             WindowBlur.SetupTransparency(this);
-            UpdateRootClip(8);
+            WindowHelper.UpdateRootClip(RootBorder, 8, "TrayMenu");
             this.Background = null;
         };
 
         // Update clip on resize
         SizeChanged += (s, e) =>
         {
-            UpdateRootClip(8);
+            WindowHelper.UpdateRootClip(RootBorder, 8, "TrayMenu");
         };
 
         Loaded += (s, e) =>
@@ -310,21 +310,4 @@ public partial class TrayMenu : Window
         }
     }
 
-    private void UpdateRootClip(double radiusDip)
-    {
-        try
-        {
-            if (RootBorder.ActualWidth <= 0 || RootBorder.ActualHeight <= 0)
-            {
-                return;
-            }
-            
-            var rect = new System.Windows.Rect(0, 0, RootBorder.ActualWidth, RootBorder.ActualHeight);
-            RootBorder.Clip = new System.Windows.Media.RectangleGeometry(rect, radiusDip, radiusDip);
-        }
-        catch (Exception ex)
-        {
-            DebugLogger.Log($"TrayMenu: UpdateRootClip error: {ex.Message}");
-        }
-    }
 }

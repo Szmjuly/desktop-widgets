@@ -1,7 +1,9 @@
 using System;
 using System.Windows;
 using System.Windows.Forms;
+using DesktopHub.Core.Models;
 using DesktopHub.UI.Helpers;
+using DesktopHub.UI.Services;
 
 namespace DesktopHub.UI;
 
@@ -24,6 +26,7 @@ public partial class SearchOverlay
 
         _timerOverlay.Show();
         _timerOverlay.Tag = "WasVisible";
+        TelemetryAccessor.TrackWidgetVisibility(WidgetIds.Timer, true);
 
         if (isLivingWidgetsMode)
         {
@@ -80,12 +83,14 @@ public partial class SearchOverlay
                 {
                     _timerOverlay.Visibility = Visibility.Hidden;
                     _timerOverlay.Tag = null;
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.Timer, false);
                     DebugLogger.Log("OnTimerWidgetRequested: Timer overlay hidden");
                 }
                 else
                 {
                     _timerOverlay.Visibility = Visibility.Visible;
                     _timerOverlay.Tag = "WasVisible";
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.Timer, true);
                     DebugLogger.Log("OnTimerWidgetRequested: Timer overlay shown");
                 }
             }
@@ -115,6 +120,7 @@ public partial class SearchOverlay
 
         _quickTasksOverlay.Show();
         _quickTasksOverlay.Tag = "WasVisible";
+        TelemetryAccessor.TrackWidgetVisibility(WidgetIds.QuickTasks, true);
 
         if (isLivingWidgetsMode)
         {
@@ -150,12 +156,14 @@ public partial class SearchOverlay
                 {
                     _quickTasksOverlay.Visibility = Visibility.Hidden;
                     _quickTasksOverlay.Tag = null;
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.QuickTasks, false);
                     DebugLogger.Log("OnQuickTasksWidgetRequested: Quick Tasks overlay hidden");
                 }
                 else
                 {
                     _quickTasksOverlay.Visibility = Visibility.Visible;
                     _quickTasksOverlay.Tag = "WasVisible";
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.QuickTasks, true);
                     DebugLogger.Log("OnQuickTasksWidgetRequested: Quick Tasks overlay shown");
                 }
             }
@@ -184,6 +192,7 @@ public partial class SearchOverlay
 
         _docOverlay.Show();
         _docOverlay.Tag = "WasVisible";
+        TelemetryAccessor.TrackWidgetVisibility(WidgetIds.DocQuickOpen, true);
         UpdateDynamicOverlayMaxHeight(_docOverlay);
 
         if (isLivingWidgetsMode)
@@ -220,12 +229,14 @@ public partial class SearchOverlay
                 {
                     _docOverlay.Visibility = Visibility.Hidden;
                     _docOverlay.Tag = null;
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.DocQuickOpen, false);
                     DebugLogger.Log("OnDocQuickOpenRequested: Doc overlay hidden");
                 }
                 else
                 {
                     _docOverlay.Visibility = Visibility.Visible;
                     _docOverlay.Tag = "WasVisible";
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.DocQuickOpen, true);
                     DebugLogger.Log("OnDocQuickOpenRequested: Doc overlay shown");
                 }
             }
@@ -246,6 +257,7 @@ public partial class SearchOverlay
         {
             Dispatcher.Invoke(() =>
             {
+                _lastQuerySource = Core.Models.QuerySources.FrequentProject;
                 SearchBox.Text = path;
                 SearchBox.Focus();
                 SearchBox.CaretIndex = path.Length;
@@ -265,6 +277,7 @@ public partial class SearchOverlay
         _frequentProjectsOverlay.Show();
         _frequentProjectsOverlay.UpdateTransparency();
         _frequentProjectsOverlay.Tag = "WasVisible";
+        TelemetryAccessor.TrackWidgetVisibility(WidgetIds.FrequentProjects, true);
 
         if (isLivingWidgetsMode)
         {
@@ -299,12 +312,14 @@ public partial class SearchOverlay
                 {
                     _frequentProjectsOverlay.Visibility = Visibility.Hidden;
                     _frequentProjectsOverlay.Tag = null;
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.FrequentProjects, false);
                     DebugLogger.Log("OnFrequentProjectsRequested: Frequent projects overlay hidden");
                 }
                 else
                 {
                     _frequentProjectsOverlay.Visibility = Visibility.Visible;
                     _frequentProjectsOverlay.Tag = "WasVisible";
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.FrequentProjects, true);
                     DebugLogger.Log("OnFrequentProjectsRequested: Frequent projects overlay shown");
                 }
             }
@@ -334,6 +349,7 @@ public partial class SearchOverlay
         _quickLaunchOverlay.Show();
         _quickLaunchOverlay.UpdateTransparency();
         _quickLaunchOverlay.Tag = "WasVisible";
+        TelemetryAccessor.TrackWidgetVisibility(WidgetIds.QuickLaunch, true);
 
         if (isLivingWidgetsMode)
         {
@@ -368,12 +384,14 @@ public partial class SearchOverlay
                 {
                     _quickLaunchOverlay.Visibility = Visibility.Hidden;
                     _quickLaunchOverlay.Tag = null;
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.QuickLaunch, false);
                     DebugLogger.Log("OnQuickLaunchRequested: Quick launch overlay hidden");
                 }
                 else
                 {
                     _quickLaunchOverlay.Visibility = Visibility.Visible;
                     _quickLaunchOverlay.Tag = "WasVisible";
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.QuickLaunch, true);
                     DebugLogger.Log("OnQuickLaunchRequested: Quick launch overlay shown");
                 }
             }
@@ -412,6 +430,7 @@ public partial class SearchOverlay
         _smartProjectSearchOverlay.Show();
         _smartProjectSearchOverlay.UpdateTransparency();
         _smartProjectSearchOverlay.Tag = "WasVisible";
+        TelemetryAccessor.TrackWidgetVisibility(WidgetIds.SmartProjectSearch, true);
 
         if (isLivingWidgetsMode)
         {
@@ -464,12 +483,14 @@ public partial class SearchOverlay
                 {
                     _smartProjectSearchOverlay.Visibility = Visibility.Hidden;
                     _smartProjectSearchOverlay.Tag = null;
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.SmartProjectSearch, false);
                     DebugLogger.Log("OnSmartProjectSearchRequested: Smart search overlay hidden");
                 }
                 else
                 {
                     _smartProjectSearchOverlay.Visibility = Visibility.Visible;
                     _smartProjectSearchOverlay.Tag = "WasVisible";
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.SmartProjectSearch, true);
                     DebugLogger.Log("OnSmartProjectSearchRequested: Smart search overlay shown");
                 }
             }
@@ -502,6 +523,7 @@ public partial class SearchOverlay
         _cheatSheetOverlay.Show();
         _cheatSheetOverlay.UpdateTransparency();
         _cheatSheetOverlay.Tag = "WasVisible";
+        TelemetryAccessor.TrackWidgetVisibility(WidgetIds.CheatSheet, true);
 
         if (isLivingWidgetsMode)
         {
@@ -536,12 +558,14 @@ public partial class SearchOverlay
                 {
                     _cheatSheetOverlay.Visibility = Visibility.Hidden;
                     _cheatSheetOverlay.Tag = null;
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.CheatSheet, false);
                     DebugLogger.Log("OnCheatSheetRequested: Cheat sheet overlay hidden");
                 }
                 else
                 {
                     _cheatSheetOverlay.Visibility = Visibility.Visible;
                     _cheatSheetOverlay.Tag = "WasVisible";
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.CheatSheet, true);
                     DebugLogger.Log("OnCheatSheetRequested: Cheat sheet overlay shown");
                 }
             }
@@ -550,6 +574,76 @@ public partial class SearchOverlay
         {
             DebugLogger.Log($"OnCheatSheetRequested: Error: {ex}");
             System.Windows.MessageBox.Show($"Error with cheat sheet overlay: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void CreateMetricsViewerOverlay(double? left = null, double? top = null)
+    {
+        _metricsViewerOverlay = new MetricsViewerOverlay(_settings);
+        RegisterWidgetWindow(_metricsViewerOverlay);
+        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+        _metricsViewerOverlay.Topmost = !isLivingWidgetsMode;
+
+        _metricsViewerOverlay.Left = left ?? (this.Left + this.Width + GetConfiguredWidgetGap());
+        _metricsViewerOverlay.Top = top ?? (this.Top + 100);
+
+        if (isLivingWidgetsMode)
+            _metricsViewerOverlay.EnableDragging();
+
+        _metricsViewerOverlay.Show();
+        _metricsViewerOverlay.UpdateTransparency();
+        _metricsViewerOverlay.Tag = "WasVisible";
+        TelemetryAccessor.TrackWidgetVisibility(WidgetIds.MetricsViewer, true);
+
+        if (isLivingWidgetsMode)
+        {
+            ApplyLiveLayoutForWindow(_metricsViewerOverlay);
+            RefreshAttachmentMappings();
+            TrackVisibleWindowBounds();
+        }
+
+        if (isLivingWidgetsMode && _desktopFollower != null)
+        {
+            _desktopFollower.TrackWindow(_metricsViewerOverlay);
+        }
+
+        var mvRef = _metricsViewerOverlay;
+        _updateIndicatorManager?.RegisterWidget("MetricsViewerOverlay", 10, _metricsViewerOverlay,
+            visible => Dispatcher.Invoke(() => mvRef.SetUpdateIndicatorVisible(visible)));
+
+        DebugLogger.Log($"CreateMetricsViewerOverlay: Created at ({_metricsViewerOverlay.Left}, {_metricsViewerOverlay.Top})");
+    }
+
+    private void OnMetricsViewerRequested(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (_metricsViewerOverlay == null)
+            {
+                CreateMetricsViewerOverlay();
+            }
+            else
+            {
+                if (_metricsViewerOverlay.Visibility == Visibility.Visible)
+                {
+                    _metricsViewerOverlay.Visibility = Visibility.Hidden;
+                    _metricsViewerOverlay.Tag = null;
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.MetricsViewer, false);
+                    DebugLogger.Log("OnMetricsViewerRequested: Metrics viewer hidden");
+                }
+                else
+                {
+                    _metricsViewerOverlay.Visibility = Visibility.Visible;
+                    _metricsViewerOverlay.Tag = "WasVisible";
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.MetricsViewer, true);
+                    DebugLogger.Log("OnMetricsViewerRequested: Metrics viewer shown");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"OnMetricsViewerRequested: Error: {ex}");
+            System.Windows.MessageBox.Show($"Error with metrics viewer: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -814,6 +908,11 @@ public partial class SearchOverlay
             _desktopFollower.TrackWindow(_cheatSheetOverlay);
         }
 
+        if (_metricsViewerOverlay != null)
+        {
+            _desktopFollower.TrackWindow(_metricsViewerOverlay);
+        }
+
         _desktopFollower.Start();
     }
 
@@ -889,6 +988,12 @@ public partial class SearchOverlay
                 _cheatSheetOverlay.Topmost = false;
             }
 
+            if (_metricsViewerOverlay != null)
+            {
+                _metricsViewerOverlay.EnableDragging();
+                _metricsViewerOverlay.Topmost = false;
+            }
+
             // Start following desktop switches
             StartDesktopFollower();
 
@@ -952,6 +1057,12 @@ public partial class SearchOverlay
             {
                 _cheatSheetOverlay.DisableDragging();
                 _cheatSheetOverlay.Topmost = true;
+            }
+
+            if (_metricsViewerOverlay != null)
+            {
+                _metricsViewerOverlay.DisableDragging();
+                _metricsViewerOverlay.Topmost = true;
             }
 
             // Stop following desktop switches

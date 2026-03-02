@@ -4,19 +4,15 @@
              xmlns:converters="clr-namespace:DesktopHub.UI.Converters"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Styles/ThemeColors.xaml"/>
+                <ResourceDictionary Source="Styles/SharedStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
         <!-- Converters -->
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
-        
-        <!-- Dark Theme Colors - Semi-transparent without blur -->
-        <SolidColorBrush x:Key="BackgroundBrush" Color="#401E1E1E"/>
-        <SolidColorBrush x:Key="SurfaceBrush" Color="#602D2D2D"/>
-        <SolidColorBrush x:Key="PrimaryBrush" Color="#007ACC"/>
-        <SolidColorBrush x:Key="TextBrush" Color="#FFFFFF"/>
-        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#CCCCCC"/>
-        <SolidColorBrush x:Key="BorderBrush" Color="#3F3F46"/>
-        <SolidColorBrush x:Key="HoverBrush" Color="#503A3A3A"/>
-        <SolidColorBrush x:Key="SelectedBrush" Color="#80094771"/>
         
         <!-- Global Styles -->
         <Style TargetType="TextBox">
@@ -58,5 +54,6 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

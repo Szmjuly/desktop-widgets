@@ -37,13 +37,36 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     
-                    <!-- Header -->
-                    <TextBlock Grid.Row="0"
-                              Text="Widgets"
-                              FontSize="13"
-                              FontWeight="SemiBold"
-                              Foreground="#F5F7FA"
-                              Margin="0,0,0,14"/>
+                    <!-- Header with close button -->
+                    <Grid Grid.Row="0" Margin="0,0,0,14">
+                        <TextBlock Text="Widgets"
+                                  FontSize="13"
+                                  FontWeight="SemiBold"
+                                  Foreground="#F5F7FA"
+                                  VerticalAlignment="Center"/>
+                        <Border HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Width="20" Height="20"
+                                CornerRadius="4"
+                                Background="Transparent"
+                                Cursor="Hand"
+                                MouseLeftButtonDown="CloseButton_Click">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#33FFFFFF"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="✕"
+                                      FontSize="10"
+                                      Foreground="#80F5F7FA"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
                     
                     <!-- Widget buttons -->
                     <ScrollViewer x:Name="WidgetButtonsScroller"
@@ -298,6 +321,31 @@
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#128269;" FontSize="14" Margin="0,0,8,0"/>
                                 <TextBlock Text="Smart Search" FontSize="12" Foreground="#F5F7FA" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="MetricsViewerButton"
+                                Background="#10F5F7FA"
+                                BorderBrush="#30F5F7FA"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="12,10"
+                                Margin="0,0,0,8"
+                                Cursor="Hand"
+                                Visibility="Collapsed"
+                                MouseLeftButtonDown="MetricsViewerButton_Click">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#25F5F7FA"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#128202;" FontSize="14" Margin="0,0,8,0"/>
+                                <TextBlock Text="Metrics" FontSize="12" Foreground="#F5F7FA" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
 

@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Forms;
 using DesktopHub.Core.Models;
 using DesktopHub.UI.Helpers;
+using DesktopHub.UI.Services;
 
 namespace DesktopHub.UI;
 
@@ -62,6 +63,8 @@ public partial class SearchOverlay
             if (_deactivateTimer != null)
                 _deactivateTimer.Stop();
 
+            TelemetryAccessor.TrackHotkey(FormatHotkey(modifiers, key), targetWidgets.Count);
+
             var triggersSearch = targetWidgets.Contains(WidgetIds.SearchOverlay);
             if (triggersSearch)
             {
@@ -91,6 +94,7 @@ public partial class SearchOverlay
         BringWidgetToForegroundIfEnabled(_quickLaunchOverlay, targetWidgets.Contains(WidgetIds.QuickLaunch));
         BringWidgetToForegroundIfEnabled(_smartProjectSearchOverlay, targetWidgets.Contains(WidgetIds.SmartProjectSearch));
         BringWidgetToForegroundIfEnabled(_cheatSheetOverlay, targetWidgets.Contains(WidgetIds.CheatSheet));
+        BringWidgetToForegroundIfEnabled(_metricsViewerOverlay, targetWidgets.Contains(WidgetIds.MetricsViewer));
     }
 
     private bool ShouldSuppressHotkey(int modifiers, int key)
@@ -266,6 +270,7 @@ public partial class SearchOverlay
             BringWidgetToForegroundIfEnabled(_quickLaunchOverlay, tw == null || tw.Contains(WidgetIds.QuickLaunch));
             BringWidgetToForegroundIfEnabled(_smartProjectSearchOverlay, tw == null || tw.Contains(WidgetIds.SmartProjectSearch));
             BringWidgetToForegroundIfEnabled(_cheatSheetOverlay, tw == null || tw.Contains(WidgetIds.CheatSheet));
+            BringWidgetToForegroundIfEnabled(_metricsViewerOverlay, tw == null || tw.Contains(WidgetIds.MetricsViewer));
 
             this.Activate();
             Dispatcher.BeginInvoke(new Action(() =>
@@ -348,6 +353,7 @@ public partial class SearchOverlay
         BringWidgetToForegroundIfEnabled(_quickLaunchOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.QuickLaunch));
         BringWidgetToForegroundIfEnabled(_smartProjectSearchOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.SmartProjectSearch));
         BringWidgetToForegroundIfEnabled(_cheatSheetOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.CheatSheet));
+        BringWidgetToForegroundIfEnabled(_metricsViewerOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.MetricsViewer));
 
         DebugLogger.LogHeader("Calling Window.Activate()");
         var activateResult = this.Activate();
@@ -643,34 +649,6 @@ public partial class SearchOverlay
         widget.Topmost = wasTopmost;
     }
 
-    private static string FormatHotkey(int modifiers, int key)
-    {
-        var parts = new List<string>();
-
-        if ((modifiers & GlobalHotkey.MOD_CONTROL) != 0)
-        {
-            parts.Add("Ctrl");
-        }
-
-        if ((modifiers & GlobalHotkey.MOD_ALT) != 0)
-        {
-            parts.Add("Alt");
-        }
-
-        if ((modifiers & GlobalHotkey.MOD_SHIFT) != 0)
-        {
-            parts.Add("Shift");
-        }
-
-        if ((modifiers & GlobalHotkey.MOD_WIN) != 0)
-        {
-            parts.Add("Win");
-        }
-
-        var keyLabel = KeyInterop.KeyFromVirtualKey(key);
-        var keyText = keyLabel != Key.None ? keyLabel.ToString() : $"0x{key:X}";
-        parts.Add(keyText);
-
-        return string.Join("+", parts);
-    }
+    private static string FormatHotkey(int modifiers, int key) =>
+        HotkeyFormatter.FormatHotkey(modifiers, key);
 }

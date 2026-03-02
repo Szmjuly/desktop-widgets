@@ -179,6 +179,7 @@ public partial class SearchOverlay
             _widgetLauncher.QuickLaunchRequested += OnQuickLaunchRequested;
             _widgetLauncher.SmartProjectSearchRequested += OnSmartProjectSearchRequested;
             _widgetLauncher.CheatSheetRequested += OnCheatSheetRequested;
+            _widgetLauncher.MetricsViewerRequested += OnMetricsViewerRequested;
 
             RegisterWidgetWindow(this);
             RegisterWidgetWindow(_widgetLauncher);

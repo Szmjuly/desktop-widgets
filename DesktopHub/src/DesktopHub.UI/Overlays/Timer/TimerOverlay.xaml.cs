@@ -14,9 +14,6 @@ public partial class TimerOverlay : Window
     private readonly TimerService _timerService;
     private readonly ISettingsService _settings;
     private bool _isInitialized = false;
-    private bool _isDragging = false;
-    private System.Windows.Point _dragStartPoint;
-    private bool _isLivingWidgetsMode = false;
     
     public TimerOverlay(TimerService timerService, ISettingsService settings)
     {
@@ -47,64 +44,8 @@ public partial class TimerOverlay : Window
         }
     }
     
-    public void EnableDragging()
-    {
-        _isLivingWidgetsMode = true;
-        
-        this.MouseLeftButtonDown -= Overlay_MouseLeftButtonDown;
-        this.MouseLeftButtonUp -= Overlay_MouseLeftButtonUp;
-        this.MouseMove -= Overlay_MouseMove;
-        
-        this.MouseLeftButtonDown += Overlay_MouseLeftButtonDown;
-        this.MouseLeftButtonUp += Overlay_MouseLeftButtonUp;
-        this.MouseMove += Overlay_MouseMove;
-    }
-    
-    public void DisableDragging()
-    {
-        _isLivingWidgetsMode = false;
-        this.MouseLeftButtonDown -= Overlay_MouseLeftButtonDown;
-        this.MouseLeftButtonUp -= Overlay_MouseLeftButtonUp;
-        this.MouseMove -= Overlay_MouseMove;
-    }
-    
-    private void Overlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (!_isLivingWidgetsMode) return;
-        
-        var element = e.OriginalSource as FrameworkElement;
-        if (element != null)
-        {
-            var clickedType = element.GetType().Name;
-            if (clickedType == "TextBox" || clickedType == "Button" || clickedType == "ListBoxItem" ||
-                clickedType == "ComboBox" || clickedType == "ScrollBar" || clickedType == "Thumb")
-                return;
-        }
-        
-        _isDragging = true;
-        _dragStartPoint = e.GetPosition(this);
-        this.CaptureMouse();
-    }
-    
-    private void Overlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        if (_isDragging)
-        {
-            _isDragging = false;
-            this.ReleaseMouseCapture();
-        }
-    }
-    
-    private void Overlay_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
-    {
-        if (_isDragging && e.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
-        {
-            var currentPosition = e.GetPosition(this);
-            var offset = currentPosition - _dragStartPoint;
-            this.Left += offset.X;
-            this.Top += offset.Y;
-        }
-    }
+    public void EnableDragging() => OverlayDragHelper.EnableDragging(this);
+    public void DisableDragging() => OverlayDragHelper.DisableDragging(this);
     
     private void CloseButton_Click(object sender, MouseButtonEventArgs e)
     {
@@ -221,68 +162,25 @@ public partial class TimerOverlay : Window
         }
     }
     
-    public void SetUpdateIndicatorVisible(bool visible)
-    {
-        if (UpdateIndicator != null)
-            UpdateIndicator.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
-    }
+    public void SetUpdateIndicatorVisible(bool visible) =>
+        OverlayHelper.SetUpdateIndicatorVisible(UpdateIndicator, visible);
 
-    public void UpdateTransparency()
-    {
-        try
-        {
-            var transparency = _settings.GetTimerWidgetTransparency();
-            var alpha = (byte)(transparency * 255);
-            
-            if (RootBorder != null)
-            {
-                RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, 0x12, 0x12, 0x12));
-            }
-            
-            DebugLogger.Log($"TimerOverlay: Transparency updated to {transparency:F2}");
-        }
-        catch (Exception ex)
-        {
-            DebugLogger.Log($"TimerOverlay: UpdateTransparency error: {ex.Message}");
-        }
-    }
+    public void UpdateTransparency() =>
+        OverlayHelper.ApplyTransparency(RootBorder, _settings.GetTimerWidgetTransparency(), "TimerOverlay");
     
     private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
-        // Check if close shortcut was pressed
-        var (closeModifiers, closeKey) = _settings.GetCloseShortcut();
-        var currentModifiers = 0;
-        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
-            currentModifiers |= (int)GlobalHotkey.MOD_CONTROL;
-        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Alt) != 0)
-            currentModifiers |= (int)GlobalHotkey.MOD_ALT;
-        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Shift) != 0)
-            currentModifiers |= (int)GlobalHotkey.MOD_SHIFT;
-        if ((System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Windows) != 0)
-            currentModifiers |= (int)GlobalHotkey.MOD_WIN;
-        
-        var currentKey = System.Windows.Input.KeyInterop.VirtualKeyFromKey(e.Key);
-        
-        if (currentModifiers == closeModifiers && currentKey == closeKey)
+        if (OverlayHelper.IsCloseShortcutPressed(e, _settings))
         {
-            DebugLogger.Log($"TimerOverlay: Close shortcut pressed -> Hiding timer overlay");
-            this.Visibility = Visibility.Hidden;
+            DebugLogger.Log("TimerOverlay: Close shortcut pressed -> Hiding");
+            Visibility = Visibility.Hidden;
             e.Handled = true;
         }
     }
     
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
-        // If application is shutting down, allow the close
-        var app = System.Windows.Application.Current;
-        if (app == null || app.ShutdownMode == System.Windows.ShutdownMode.OnExplicitShutdown)
-        {
+        if (!OverlayHelper.HandleOnClosingHide(e, this))
             base.OnClosing(e);
-            return;
-        }
-
-        // User clicked X - just hide instead of closing
-        e.Cancel = true;
-        Hide();
     }
 }

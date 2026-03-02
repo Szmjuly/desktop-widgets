@@ -1,11 +1,13 @@
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using DesktopHub.Core.Abstractions;
+using DesktopHub.Core.Models;
 using DesktopHub.UI.Helpers;
+using DesktopHub.UI.Services;
 using DesktopHub.Infrastructure.Firebase;
 using DesktopHub.Infrastructure.Data;
 using DesktopHub.Infrastructure.Telemetry;
-using DesktopHub.Core.Abstractions;
-using DesktopHub.UI.Services;
 
 namespace DesktopHub.UI;
 
@@ -17,6 +19,7 @@ public partial class App : System.Windows.Application
     private FirebaseLifecycleManager? _firebaseManager;
     private FirebaseService? _firebaseService;
     private TelemetryService? _telemetryService;
+    private readonly Stopwatch _startupStopwatch = Stopwatch.StartNew();
 
     public FirebaseLifecycleManager? FirebaseManager => _firebaseManager;
     public ITelemetryService? Telemetry => _telemetryService;
@@ -88,6 +91,11 @@ public partial class App : System.Windows.Application
         var mainWindow = new SearchOverlay();
         MainWindow = mainWindow;
         mainWindow.Show(); // Must show to trigger Window_Loaded which initializes tray/hotkey
+        
+        // Track startup timing
+        var startupMs = _startupStopwatch.ElapsedMilliseconds;
+        DebugLogger.Log($"App startup completed in {startupMs}ms");
+        TelemetryAccessor.TrackPerformance(TelemetryEventType.StartupTiming, "app_startup", startupMs);
     }
     
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
@@ -128,6 +136,30 @@ public partial class App : System.Windows.Application
                     if (_telemetryService != null && _firebaseService.IsInitialized)
                     {
                         _telemetryService.SetFirebaseService(_firebaseService);
+                    }
+                    
+                    // Check metrics viewer feature flag and update launcher button
+                    if (_firebaseService.IsInitialized)
+                    {
+                        try
+                        {
+                            var metricsEnabled = await _firebaseService.IsMetricsViewerEnabledAsync();
+                            DebugLogger.Log($"Firebase: metrics_viewer_enabled = {metricsEnabled}");
+                            if (metricsEnabled)
+                            {
+                                _ = Current.Dispatcher.BeginInvoke(() =>
+                                {
+                                    if (MainWindow is SearchOverlay overlay)
+                                    {
+                                        overlay.SetMetricsViewerEnabled(true);
+                                    }
+                                });
+                            }
+                        }
+                        catch (Exception flagEx)
+                        {
+                            DebugLogger.Log($"Firebase: Feature flag check failed: {flagEx.Message}");
+                        }
                     }
                 }
             }
@@ -488,36 +520,8 @@ public partial class App : System.Windows.Application
     
     private const int SW_RESTORE = 9;
 
-    private static string FormatHotkey(int modifiers, int key)
-    {
-        var parts = new List<string>();
-
-        if ((modifiers & 0x0002) != 0) // MOD_CONTROL
-        {
-            parts.Add("Ctrl");
-        }
-
-        if ((modifiers & 0x0001) != 0) // MOD_ALT
-        {
-            parts.Add("Alt");
-        }
-
-        if ((modifiers & 0x0004) != 0) // MOD_SHIFT
-        {
-            parts.Add("Shift");
-        }
-
-        if ((modifiers & 0x0008) != 0) // MOD_WIN
-        {
-            parts.Add("Win");
-        }
-
-        var keyLabel = System.Windows.Input.KeyInterop.KeyFromVirtualKey(key);
-        var keyText = keyLabel != System.Windows.Input.Key.None ? keyLabel.ToString() : $"0x{key:X}";
-        parts.Add(keyText);
-
-        return string.Join("+", parts);
-    }
+    private static string FormatHotkey(int modifiers, int key) =>
+        HotkeyFormatter.FormatHotkey(modifiers, key);
 
     private static void LogCrash(string title, Exception ex)
     {
@@ -537,6 +541,13 @@ public partial class App : System.Windows.Application
     private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
         LogCrash("DispatcherUnhandledException", e.Exception);
+        
+        // Track error in telemetry
+        TelemetryAccessor.TrackError(
+            TelemetryEventType.AppError,
+            e.Exception.GetType().Name,
+            "DispatcherUnhandledException",
+            e.Exception.Message);
         
         // Log to Firebase (non-blocking)
         if (_firebaseManager != null)
@@ -574,6 +585,13 @@ public partial class App : System.Windows.Application
         if (e.ExceptionObject is Exception ex)
         {
             LogCrash("UnhandledException", ex);
+            
+            // Track error in telemetry
+            TelemetryAccessor.TrackError(
+                TelemetryEventType.AppError,
+                ex.GetType().Name,
+                "UnhandledException",
+                ex.Message);
             
             // Log to Firebase (non-blocking)
             if (_firebaseManager != null)

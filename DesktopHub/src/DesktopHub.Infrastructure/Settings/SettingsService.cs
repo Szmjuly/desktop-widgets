@@ -288,6 +288,10 @@ public class SettingsService : ISettingsService
             : GetDefaultSmartProjectSearchFileTypes();
     }
 
+    // --- Metrics Viewer ---
+    public int GetMetricsRefreshIntervalSeconds() => Math.Clamp(_settings.MetricsRefreshIntervalSeconds, 5, 600);
+    public void SetMetricsRefreshIntervalSeconds(int seconds) => _settings.MetricsRefreshIntervalSeconds = Math.Clamp(seconds, 5, 600);
+
     // --- Cheat Sheet Widget ---
     public double GetCheatSheetWidgetTransparency() => _settings.CheatSheetWidgetTransparency;
     public void SetCheatSheetWidgetTransparency(double transparency) => _settings.CheatSheetWidgetTransparency = transparency;
@@ -599,6 +603,9 @@ public class SettingsService : ISettingsService
         public bool CheatSheetWidgetVisible { get; set; } = false;
         public bool CheatSheetWidgetEnabled { get; set; } = true;
 
+        // Metrics Viewer
+        public int MetricsRefreshIntervalSeconds { get; set; } = 30; // Auto-refresh every 30s by default
+
         // Hotkey groups — each group has its own key combo and a set of widget IDs to show/focus
         public List<HotkeyGroup> HotkeyGroups { get; set; } = new();
     }
@@ -612,7 +619,7 @@ public class SettingsService : ISettingsService
             "txt",
             "dwg",
             "rvt",
-            "excel",
+            "xlsx",
             "png",
             "jpeg",
             "msg"

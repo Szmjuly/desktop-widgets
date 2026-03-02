@@ -466,7 +466,8 @@ public partial class SearchOverlay
                 TelemetryEventType.PathSearchExecuted,
                 query,
                 resultCount: results.Count,
-                widgetName: "PathSearch");
+                widgetName: "PathSearch",
+                querySource: Core.Models.QuerySources.PathSearch);
 
             if (results.Count > 0)
             {
