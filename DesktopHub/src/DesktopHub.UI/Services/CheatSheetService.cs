@@ -41,6 +41,10 @@ public class CheatSheetService
             {
                 var json = await File.ReadAllTextAsync(_dataFilePath);
                 _store = JsonSerializer.Deserialize<CheatSheetDataStore>(json, JsonOptions) ?? new CheatSheetDataStore();
+
+                // Auto-merge any new default sheets/code books that don't exist in saved data
+                MergeDefaults();
+                await SaveAsync();
             }
             else
             {
@@ -53,6 +57,52 @@ public class CheatSheetService
             DebugLogger.Log($"CheatSheetService.LoadAsync: Error: {ex.Message}");
             _store = CreateDefaultData();
         }
+    }
+
+    /// <summary>
+    /// Merges new default code books, jurisdictions, and sheets into the loaded store
+    /// without overwriting any user-modified data. Only adds entries whose Id is missing.
+    /// </summary>
+    private void MergeDefaults()
+    {
+        var defaults = CreateDefaultData();
+        var merged = false;
+
+        var existingBookIds = new HashSet<string>(_store.CodeBooks.Select(b => b.Id), StringComparer.OrdinalIgnoreCase);
+        foreach (var book in defaults.CodeBooks)
+        {
+            if (!existingBookIds.Contains(book.Id))
+            {
+                _store.CodeBooks.Add(book);
+                merged = true;
+                DebugLogger.Log($"CheatSheetService: Merged new code book '{book.Name} {book.Edition}'");
+            }
+        }
+
+        var existingJurisdictionIds = new HashSet<string>(_store.Jurisdictions.Select(j => j.JurisdictionId), StringComparer.OrdinalIgnoreCase);
+        foreach (var jurisdiction in defaults.Jurisdictions)
+        {
+            if (!existingJurisdictionIds.Contains(jurisdiction.JurisdictionId))
+            {
+                _store.Jurisdictions.Add(jurisdiction);
+                merged = true;
+                DebugLogger.Log($"CheatSheetService: Merged new jurisdiction '{jurisdiction.Name}'");
+            }
+        }
+
+        var existingSheetIds = new HashSet<string>(_store.Sheets.Select(s => s.Id), StringComparer.OrdinalIgnoreCase);
+        foreach (var sheet in defaults.Sheets)
+        {
+            if (!existingSheetIds.Contains(sheet.Id))
+            {
+                _store.Sheets.Add(sheet);
+                merged = true;
+                DebugLogger.Log($"CheatSheetService: Merged new sheet '{sheet.Title}' ({sheet.Discipline})");
+            }
+        }
+
+        if (merged)
+            DebugLogger.Log("CheatSheetService: Default data merge complete — new entries added");
     }
 
     public async Task SaveAsync()
@@ -337,6 +387,7 @@ public class CheatSheetService
             Description = "Full-Load Current in Amperes for Single-Phase AC Motors",
             Discipline = Discipline.Electrical,
             SheetType = CheatSheetType.Table,
+            Layout = CheatSheetLayout.CompactLookup,
             CodeBookId = "nec2020",
             Tags = new List<string> { "motor", "FLA", "full load", "ampere", "single phase", "430.248", "HP" },
             Columns = new List<CheatSheetColumn>
@@ -372,6 +423,7 @@ public class CheatSheetService
             Description = "Full-Load Current in Amperes for Three-Phase AC Motors",
             Discipline = Discipline.Electrical,
             SheetType = CheatSheetType.Table,
+            Layout = CheatSheetLayout.CompactLookup,
             CodeBookId = "nec2020",
             Tags = new List<string> { "motor", "FLA", "full load", "ampere", "three phase", "3-phase", "430.250", "HP" },
             Columns = new List<CheatSheetColumn>
@@ -419,6 +471,7 @@ public class CheatSheetService
             Description = "Full-load current for single-phase transformers based on KVA rating and voltage",
             Discipline = Discipline.Electrical,
             SheetType = CheatSheetType.Calculator,
+            Layout = CheatSheetLayout.CompactLookup,
             CodeBookId = "nec2020",
             Tags = new List<string> { "transformer", "KVA", "FLA", "single phase", "ampere", "voltage" },
             Columns = new List<CheatSheetColumn>
@@ -462,6 +515,7 @@ public class CheatSheetService
             Description = "Full-load current for three-phase transformers based on KVA rating and voltage",
             Discipline = Discipline.Electrical,
             SheetType = CheatSheetType.Calculator,
+            Layout = CheatSheetLayout.CompactLookup,
             CodeBookId = "nec2020",
             Tags = new List<string> { "transformer", "KVA", "FLA", "three phase", "3-phase", "ampere", "voltage" },
             Columns = new List<CheatSheetColumn>
@@ -500,6 +554,7 @@ public class CheatSheetService
             Description = "Standard branch circuit and feeder conductor sizing based on OCPD rating",
             Discipline = Discipline.Electrical,
             SheetType = CheatSheetType.Table,
+            Layout = CheatSheetLayout.FullTable,
             CodeBookId = "nec2020",
             Tags = new List<string> { "feeder", "branch circuit", "OCPD", "wire", "conduit", "conductor", "schedule" },
             Columns = new List<CheatSheetColumn>
@@ -543,6 +598,7 @@ public class CheatSheetService
             Description = "Standard three-phase feeder conductor sizing based on OCPD rating",
             Discipline = Discipline.Electrical,
             SheetType = CheatSheetType.Table,
+            Layout = CheatSheetLayout.FullTable,
             CodeBookId = "nec2020",
             Tags = new List<string> { "feeder", "three phase", "3-phase", "OCPD", "wire", "conduit", "conductor", "schedule" },
             Columns = new List<CheatSheetColumn>
@@ -586,6 +642,7 @@ public class CheatSheetService
             Description = "Grounding Electrode Conductor (GEC) sizing based on largest service-entrance conductor",
             Discipline = Discipline.Electrical,
             SheetType = CheatSheetType.Table,
+            Layout = CheatSheetLayout.CompactLookup,
             CodeBookId = "nec2020",
             Tags = new List<string> { "GEC", "grounding", "electrode", "conductor", "250.66", "service entrance" },
             Columns = new List<CheatSheetColumn>
@@ -616,6 +673,7 @@ public class CheatSheetService
             Description = "Service entrance conductor and conduit sizing from 15A to 3000A (NEC Article 230)",
             Discipline = Discipline.Electrical,
             SheetType = CheatSheetType.Table,
+            Layout = CheatSheetLayout.FullTable,
             CodeBookId = "nec2020",
             Tags = new List<string> { "service", "conduit", "schedule", "ampacity", "entrance", "230", "feeder" },
             Columns = new List<CheatSheetColumn>
@@ -660,6 +718,7 @@ public class CheatSheetService
             Description = "Equipment Grounding Conductor (EGC) sizing based on OCPD rating",
             Discipline = Discipline.Electrical,
             SheetType = CheatSheetType.Table,
+            Layout = CheatSheetLayout.SimpleList,
             CodeBookId = "nec2020",
             Tags = new List<string> { "EGC", "equipment", "grounding", "conductor", "250.122", "OCPD" },
             Columns = new List<CheatSheetColumn>
@@ -691,6 +750,210 @@ public class CheatSheetService
                 new() { "4000", "500", "750" },
                 new() { "5000", "700", "1200" },
                 new() { "6000", "800", "1200" }
+            }
+        });
+
+        // --- Plumbing / Mechanical Cheat Sheets ---
+
+        // IPC code book
+        store.CodeBooks.Add(new CodeBook { Id = "ipc2021", Name = "IPC", Edition = "2021", Year = 2021, Discipline = Discipline.Plumbing });
+
+        // 1) Table E103.3(2) — Water Supply Fixture Units
+        store.Sheets.Add(new CheatSheet
+        {
+            Id = "wsfu-fixture-loads",
+            Title = "Water Supply Fixture Units",
+            Subtitle = "IPC Table E103.3(2)",
+            Description = "Load Values Assigned to Fixtures — Water Supply Fixture Units (wsfu)",
+            Discipline = Discipline.Plumbing,
+            SheetType = CheatSheetType.Table,
+            Layout = CheatSheetLayout.CompactLookup,
+            CodeBookId = "ipc2021",
+            Tags = new List<string> { "wsfu", "water supply", "fixture units", "load", "plumbing", "E103.3", "hot", "cold" },
+            Columns = new List<CheatSheetColumn>
+            {
+                new() { Header = "Fixture", IsInputColumn = true },
+                new() { Header = "Occupancy", IsInputColumn = true },
+                new() { Header = "Supply Control", IsInputColumn = true },
+                new() { Header = "Cold (wsfu)", Unit = "wsfu", IsOutputColumn = true },
+                new() { Header = "Hot (wsfu)", Unit = "wsfu", IsOutputColumn = true },
+                new() { Header = "Total (wsfu)", Unit = "wsfu", IsOutputColumn = true }
+            },
+            Rows = new List<List<string>>
+            {
+                new() { "Bathroom group", "Private", "Flush tank", "2.7", "1.5", "3.6" },
+                new() { "Bathroom group", "Private", "Flushometer valve", "6.0", "3.0", "8.0" },
+                new() { "Bathtub", "Private", "Faucet", "1.0", "1.0", "1.4" },
+                new() { "Bathtub", "Public", "Faucet", "3.0", "3.0", "4.0" },
+                new() { "Bidet", "Private", "Faucet", "1.5", "1.5", "2.0" },
+                new() { "Combination fixture", "Private", "Faucet", "2.25", "2.25", "3.0" },
+                new() { "Dishwashing machine", "Private", "Automatic", "—", "1.4", "1.4" },
+                new() { "Drinking fountain", "Offices, etc.", "3/8\" valve", "0.25", "—", "0.25" },
+                new() { "Kitchen sink", "Private", "Faucet", "1.0", "1.0", "1.4" },
+                new() { "Kitchen sink", "Hotel, restaurant", "Faucet", "3.0", "3.0", "4.0" },
+                new() { "Laundry trays (1 to 3)", "Private", "Faucet", "1.0", "1.0", "1.4" },
+                new() { "Lavatory", "Private", "Faucet", "0.5", "0.5", "0.7" },
+                new() { "Lavatory", "Public", "Faucet", "1.5", "1.5", "2.0" },
+                new() { "Service sink", "Offices, etc.", "Faucet", "2.25", "2.25", "3.0" },
+                new() { "Shower head", "Public", "Mixing valve", "3.0", "3.0", "4.0" },
+                new() { "Shower head", "Private", "Mixing valve", "1.0", "1.0", "1.4" },
+                new() { "Urinal", "Public", "1\" flushometer valve", "10.0", "—", "10.0" },
+                new() { "Urinal", "Public", "3/4\" flushometer valve", "5.0", "—", "5.0" },
+                new() { "Urinal", "Public", "Flush tank", "3.0", "—", "3.0" },
+                new() { "Washing machine (8 lb)", "Private", "Automatic", "1.0", "1.0", "1.4" },
+                new() { "Washing machine (8 lb)", "Public", "Automatic", "2.25", "2.25", "3.0" },
+                new() { "Washing machine (15 lb)", "Public", "Automatic", "3.0", "3.0", "4.0" },
+                new() { "Water closet", "Private", "Flushometer valve", "6.0", "—", "6.0" },
+                new() { "Water closet", "Private", "Flush tank", "2.2", "—", "2.2" },
+                new() { "Water closet", "Public", "Flushometer valve", "10.0", "—", "10.0" },
+                new() { "Water closet", "Public", "Flush tank", "5.0", "—", "5.0" },
+                new() { "Water closet", "Public or private", "Flushometer tank", "2.0", "—", "2.0" }
+            }
+        });
+
+        // 2) Table 710.1(1) — Building Drains and Sewers
+        store.Sheets.Add(new CheatSheet
+        {
+            Id = "building-drains-sewers",
+            Title = "Building Drains and Sewers",
+            Subtitle = "IPC Table 710.1(1)",
+            Description = "Maximum Number of Drainage Fixture Units Connected to Any Portion of the Building Drain or Sewer, Including Branches of the Building Drain",
+            Discipline = Discipline.Plumbing,
+            SheetType = CheatSheetType.Table,
+            Layout = CheatSheetLayout.FullTable,
+            CodeBookId = "ipc2021",
+            Tags = new List<string> { "drain", "sewer", "building drain", "DFU", "drainage", "fixture units", "pipe size", "slope", "710.1" },
+            Columns = new List<CheatSheetColumn>
+            {
+                new() { Header = "Pipe Diameter (in)", Unit = "in", IsInputColumn = true },
+                new() { Header = "1/16 in slope", Unit = "DFU", IsOutputColumn = true },
+                new() { Header = "1/8 in slope", Unit = "DFU", IsOutputColumn = true },
+                new() { Header = "1/4 in slope", Unit = "DFU", IsOutputColumn = true },
+                new() { Header = "1/2 in slope", Unit = "DFU", IsOutputColumn = true }
+            },
+            Rows = new List<List<string>>
+            {
+                new() { "1-1/4", "—", "—", "1", "1" },
+                new() { "1-1/2", "—", "—", "3", "3" },
+                new() { "2", "—", "—", "21", "26" },
+                new() { "2-1/2", "—", "—", "24", "31" },
+                new() { "3", "—", "36", "42", "50" },
+                new() { "4", "—", "180", "216", "250" },
+                new() { "5", "—", "390", "480", "575" },
+                new() { "6", "—", "700", "840", "1,000" },
+                new() { "8", "1,400", "1,600", "1,920", "2,300" },
+                new() { "10", "2,500", "2,900", "3,500", "4,200" },
+                new() { "12", "3,900", "4,600", "5,600", "6,700" },
+                new() { "15", "7,000", "8,300", "10,000", "12,000" }
+            }
+        });
+
+        // 3) Table P3004.1 — Drainage Fixture Unit (DFU) Values
+        store.Sheets.Add(new CheatSheet
+        {
+            Id = "dfu-fixture-values",
+            Title = "Drainage Fixture Unit Values",
+            Subtitle = "IPC Table P3004.1",
+            Description = "Drainage Fixture Unit (d.f.u.) Values for Various Plumbing Fixtures",
+            Discipline = Discipline.Plumbing,
+            SheetType = CheatSheetType.Table,
+            Layout = CheatSheetLayout.SimpleList,
+            CodeBookId = "ipc2021",
+            Tags = new List<string> { "DFU", "drainage", "fixture unit", "plumbing", "P3004.1", "fixture", "drain" },
+            Columns = new List<CheatSheetColumn>
+            {
+                new() { Header = "Fixture Type", IsInputColumn = true },
+                new() { Header = "DFU Value", Unit = "d.f.u.", IsOutputColumn = true }
+            },
+            Rows = new List<List<string>>
+            {
+                new() { "Bar sink", "1" },
+                new() { "Bathtub (with or without shower head/whirlpool)", "2" },
+                new() { "Bidet", "1" },
+                new() { "Clothes washer standpipe", "2" },
+                new() { "Dishwasher", "2" },
+                new() { "Floor drain", "0" },
+                new() { "Kitchen sink", "2" },
+                new() { "Lavatory", "1" },
+                new() { "Laundry tub", "2" },
+                new() { "Shower stall", "2" },
+                new() { "Water closet (1.6 gpf)", "3" },
+                new() { "Water closet (> 1.6 gpf)", "4" },
+                new() { "Full-bath group (1.6 gpf WC, w/ or w/o shower)", "5" },
+                new() { "Full-bath group (> 1.6 gpf WC, w/ or w/o shower)", "6" },
+                new() { "Half-bath group (1.6 gpf WC + lavatory)", "4" },
+                new() { "Half-bath group (> 1.6 gpf WC + lavatory)", "5" },
+                new() { "Kitchen group (dishwasher + sink)", "2" },
+                new() { "Laundry group (washer standpipe + laundry tub)", "3" },
+                new() { "Multiple-bath groups: 1.5 baths", "7" },
+                new() { "Multiple-bath groups: 2 baths", "8" },
+                new() { "Multiple-bath groups: 2.5 baths", "9" },
+                new() { "Multiple-bath groups: 3 baths", "10" },
+                new() { "Multiple-bath groups: 3.5 baths", "11" }
+            }
+        });
+
+        // 4) Table 1106.2 — Storm Drain Pipe Sizing
+        store.Sheets.Add(new CheatSheet
+        {
+            Id = "storm-drain-sizing",
+            Title = "Storm Drain Pipe Sizing",
+            Subtitle = "IPC Table 1106.2",
+            Description = "Storm Drain Pipe Sizing — Capacity in GPM for Vertical Drains and Horizontal Drains at Various Slopes",
+            Discipline = Discipline.Plumbing,
+            SheetType = CheatSheetType.Table,
+            Layout = CheatSheetLayout.FullTable,
+            CodeBookId = "ipc2021",
+            Tags = new List<string> { "storm", "drain", "pipe", "sizing", "GPM", "capacity", "slope", "vertical", "horizontal", "1106.2" },
+            Columns = new List<CheatSheetColumn>
+            {
+                new() { Header = "Pipe Size (in)", Unit = "in", IsInputColumn = true },
+                new() { Header = "Vertical Drain (gpm)", Unit = "gpm", IsOutputColumn = true },
+                new() { Header = "1/16 in/ft (gpm)", Unit = "gpm", IsOutputColumn = true },
+                new() { Header = "1/8 in/ft (gpm)", Unit = "gpm", IsOutputColumn = true },
+                new() { Header = "1/4 in/ft (gpm)", Unit = "gpm", IsOutputColumn = true },
+                new() { Header = "1/2 in/ft (gpm)", Unit = "gpm", IsOutputColumn = true }
+            },
+            Rows = new List<List<string>>
+            {
+                new() { "2", "34", "15", "22", "31", "44" },
+                new() { "3", "87", "39", "55", "79", "111" },
+                new() { "4", "180", "81", "115", "163", "231" },
+                new() { "5", "311", "117", "165", "234", "331" },
+                new() { "6", "538", "243", "344", "487", "689" },
+                new() { "8", "1,117", "505", "714", "1,010", "1,429" },
+                new() { "10", "2,050", "927", "1,311", "1,855", "2,623" },
+                new() { "12", "3,272", "1,480", "2,093", "2,960", "4,187" },
+                new() { "15", "5,543", "2,508", "3,546", "5,016", "7,093" }
+            }
+        });
+
+        // 5) Table 604.4 — Maximum Flow Rates and Consumption
+        store.Sheets.Add(new CheatSheet
+        {
+            Id = "max-flow-rates",
+            Title = "Maximum Flow Rates",
+            Subtitle = "IPC Table 604.4",
+            Description = "Maximum Flow Rates and Consumption for Plumbing Fixtures and Fixture Fittings",
+            Discipline = Discipline.Plumbing,
+            SheetType = CheatSheetType.Table,
+            Layout = CheatSheetLayout.SimpleList,
+            CodeBookId = "ipc2021",
+            Tags = new List<string> { "flow rate", "GPM", "consumption", "fixture", "faucet", "shower", "604.4", "maximum" },
+            Columns = new List<CheatSheetColumn>
+            {
+                new() { Header = "Fixture / Fitting", IsInputColumn = true },
+                new() { Header = "Maximum Flow Rate or Quantity", IsOutputColumn = true }
+            },
+            Rows = new List<List<string>>
+            {
+                new() { "Lavatory, private", "2.2 gpm at 60 psi" },
+                new() { "Lavatory, public (metering)", "0.25 gallon per metering cycle" },
+                new() { "Lavatory, public (other than metering)", "0.5 gpm at 60 psi" },
+                new() { "Shower head", "2.5 gpm at 80 psi" },
+                new() { "Sink faucet", "2.2 gpm at 60 psi" },
+                new() { "Urinal", "1.0 gallon per flushing cycle" },
+                new() { "Water closet", "1.6 gallons per flushing cycle" }
             }
         });
 

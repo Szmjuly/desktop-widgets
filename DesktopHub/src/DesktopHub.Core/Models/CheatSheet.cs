@@ -29,6 +29,22 @@ public class JurisdictionCodeAdoption
 }
 
 /// <summary>
+/// Hints how the widget should render input/output for this sheet.
+/// Auto = infer from column structure; others override the default.
+/// </summary>
+public enum CheatSheetLayout
+{
+    /// <summary>Infer layout from column count and input/output flags.</summary>
+    Auto,
+    /// <summary>Prominent input panel + card-style output; table is secondary reference.</summary>
+    CompactLookup,
+    /// <summary>Full scrollable table is primary; input filters are secondary.</summary>
+    FullTable,
+    /// <summary>Simple two-column list with optional search/filter.</summary>
+    SimpleList
+}
+
+/// <summary>
 /// Defines the type/shape of a cheat sheet.
 /// </summary>
 public enum CheatSheetType
@@ -66,6 +82,9 @@ public class CheatSheet
     public string? CodeBookId { get; set; }
     public string? JurisdictionId { get; set; }
     public List<string> Tags { get; set; } = new();
+
+    /// <summary>Layout hint for how the widget should render this sheet's input/output UI.</summary>
+    public CheatSheetLayout Layout { get; set; } = CheatSheetLayout.Auto;
 
     /// <summary>Column definitions for Table/Calculator types.</summary>
     public List<CheatSheetColumn> Columns { get; set; } = new();

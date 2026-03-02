@@ -30,10 +30,10 @@
                                     <RepeatButton Command="ScrollBar.LineUpCommand" Opacity="0" Focusable="False"/>
                                 </Track.DecreaseRepeatButton>
                                 <Track.Thumb>
-                                    <Thumb x:Name="Thumb" Height="20" Margin="1,2,1,2">
+                                    <Thumb x:Name="Thumb" Margin="1,2,1,2">
                                         <Thumb.Template>
                                             <ControlTemplate TargetType="Thumb">
-                                                <Border Background="#55F5F7FA" CornerRadius="6"/>
+                                                <Border Background="#55F5F7FA" CornerRadius="3" MinHeight="20"/>
                                             </ControlTemplate>
                                         </Thumb.Template>
                                     </Thumb>

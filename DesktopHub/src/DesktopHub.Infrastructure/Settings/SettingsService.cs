@@ -291,6 +291,8 @@ public class SettingsService : ISettingsService
     // --- Metrics Viewer ---
     public int GetMetricsRefreshIntervalSeconds() => Math.Clamp(_settings.MetricsRefreshIntervalSeconds, 5, 600);
     public void SetMetricsRefreshIntervalSeconds(int seconds) => _settings.MetricsRefreshIntervalSeconds = Math.Clamp(seconds, 5, 600);
+    public bool GetMetricsSnapGridEnabled() => _settings.MetricsSnapGridEnabled;
+    public void SetMetricsSnapGridEnabled(bool enabled) => _settings.MetricsSnapGridEnabled = enabled;
 
     // --- Cheat Sheet Widget ---
     public double GetCheatSheetWidgetTransparency() => _settings.CheatSheetWidgetTransparency;
@@ -307,6 +309,8 @@ public class SettingsService : ISettingsService
     public void SetCheatSheetWidgetVisible(bool visible) => _settings.CheatSheetWidgetVisible = visible;
     public bool GetCheatSheetWidgetEnabled() => _settings.CheatSheetWidgetEnabled;
     public void SetCheatSheetWidgetEnabled(bool enabled) => _settings.CheatSheetWidgetEnabled = enabled;
+    public bool GetCheatSheetSnapGridEnabled() => _settings.CheatSheetSnapGridEnabled;
+    public void SetCheatSheetSnapGridEnabled(bool enabled) => _settings.CheatSheetSnapGridEnabled = enabled;
 
     // --- Generic widget dispatch (used by dynamic settings UI) ---
 
@@ -602,9 +606,11 @@ public class SettingsService : ISettingsService
         public double? CheatSheetWidgetTop { get; set; } = null;
         public bool CheatSheetWidgetVisible { get; set; } = false;
         public bool CheatSheetWidgetEnabled { get; set; } = true;
+        public bool CheatSheetSnapGridEnabled { get; set; } = true;
 
         // Metrics Viewer
         public int MetricsRefreshIntervalSeconds { get; set; } = 30; // Auto-refresh every 30s by default
+        public bool MetricsSnapGridEnabled { get; set; } = true;
 
         // Hotkey groups — each group has its own key combo and a set of widget IDs to show/focus
         public List<HotkeyGroup> HotkeyGroups { get; set; } = new();

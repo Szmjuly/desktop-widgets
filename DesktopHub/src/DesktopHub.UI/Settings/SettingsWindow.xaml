@@ -1616,6 +1616,26 @@
                                                     ValueChanged="MetricsRefreshIntervalSlider_Changed" 
                                                     Style="{StaticResource StyledSlider}"/>
                                         </StackPanel>
+
+                                        <!-- Snap Grid Toggle -->
+                                        <Grid Margin="0,16,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="Snap Grid" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                                <TextBlock Text="When enabled, the metrics widget participates in edge snapping and overlap prevention. When disabled, it floats freely." 
+                                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="MetricsSnapGridToggle"
+                                                          Grid.Column="1"
+                                                          Style="{StaticResource ToggleSwitch}"
+                                                          Margin="12,0,0,0"
+                                                          VerticalAlignment="Center"
+                                                          Checked="MetricsSnapGridToggle_Changed"
+                                                          Unchecked="MetricsSnapGridToggle_Changed"/>
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
@@ -1656,7 +1676,28 @@
                                         <TextBlock Text="Data is stored locally and can be edited via the cheat sheet JSON file in AppData." 
                                                    FontSize="11" 
                                                    Foreground="{StaticResource TextSecondaryBrush}"
-                                                   TextWrapping="Wrap"/>
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,0,0,16"/>
+
+                                        <!-- Snap Grid Toggle -->
+                                        <Grid Margin="0,0,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="Snap Grid" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                                <TextBlock Text="When enabled, the cheat sheet widget participates in edge snapping and overlap prevention. When disabled, it floats freely." 
+                                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="CheatSheetSnapGridToggle"
+                                                          Grid.Column="1"
+                                                          Style="{StaticResource ToggleSwitch}"
+                                                          Margin="12,0,0,0"
+                                                          VerticalAlignment="Center"
+                                                          Checked="CheatSheetSnapGridToggle_Changed"
+                                                          Unchecked="CheatSheetSnapGridToggle_Changed"/>
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>

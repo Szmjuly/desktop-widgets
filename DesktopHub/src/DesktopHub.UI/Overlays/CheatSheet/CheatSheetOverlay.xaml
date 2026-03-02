@@ -10,7 +10,7 @@
         WindowStartupLocation="Manual"
         ResizeMode="NoResize"
         Width="420"
-        Height="560"
+        Height="620"
         MinHeight="320"
         KeyDown="Window_KeyDown">
 

@@ -343,6 +343,15 @@ public partial class SettingsWindow
         StatusText.Text = $"Metrics refresh interval set to {seconds}s";
     }
 
+    private void MetricsSnapGridToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        var enabled = MetricsSnapGridToggle.IsChecked == true;
+        _settings.SetMetricsSnapGridEnabled(enabled);
+        _ = _settings.SaveAsync();
+        StatusText.Text = enabled ? "Metrics snap grid enabled" : "Metrics snap grid disabled (free-floating)";
+    }
+
     private void LoadMetricsSettings()
     {
         var interval = _settings.GetMetricsRefreshIntervalSeconds();
@@ -350,6 +359,23 @@ public partial class SettingsWindow
         MetricsRefreshIntervalSlider.Value = interval;
         MetricsRefreshIntervalValue.Text = $"{interval}s";
         _isUpdatingSliders = false;
+        MetricsSnapGridToggle.IsChecked = _settings.GetMetricsSnapGridEnabled();
+    }
+
+    // ===== Cheat Sheet Snap Grid =====
+
+    private void CheatSheetSnapGridToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        var enabled = CheatSheetSnapGridToggle.IsChecked == true;
+        _settings.SetCheatSheetSnapGridEnabled(enabled);
+        _ = _settings.SaveAsync();
+        StatusText.Text = enabled ? "Cheat sheet snap grid enabled" : "Cheat sheet snap grid disabled (free-floating)";
+    }
+
+    private void LoadCheatSheetSnapGridSetting()
+    {
+        CheatSheetSnapGridToggle.IsChecked = _settings.GetCheatSheetSnapGridEnabled();
     }
 
     // ===== General Tab - Update Settings =====

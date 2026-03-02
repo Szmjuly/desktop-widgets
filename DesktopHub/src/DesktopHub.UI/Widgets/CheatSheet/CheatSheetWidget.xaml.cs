@@ -17,8 +17,19 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
     private CheatSheet? _activeSheet;
     private List<CheatSheet> _currentSheets = new();
     private readonly Dictionary<string, System.Windows.Controls.TextBox> _inputTextBoxes = new();
+    private readonly Dictionary<string, System.Windows.Controls.ComboBox> _inputCombos = new();
     private bool _allInputsAreDropdowns;
+    private bool _isUpdatingCascade;
     private string? _selectedVoltageHeader;
+
+    /// <summary>
+    /// Fired when the widget wants the hosting overlay to resize.
+    /// The double payload is the desired width in device-independent pixels.
+    /// </summary>
+    public event Action<double>? DesiredWidthChanged;
+
+    /// <summary>Default/list-view width for the overlay.</summary>
+    private const double ListViewWidth = 420;
 
     public CheatSheetWidget(CheatSheetService service)
     {
@@ -246,6 +257,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         if (SheetListPanel == null || SheetDetailPanel == null) return;
         SheetListPanel.Visibility = Visibility.Visible;
         SheetDetailPanel.Visibility = Visibility.Collapsed;
+        DesiredWidthChanged?.Invoke(ListViewWidth);
     }
 
     private void ShowDetailView()
@@ -267,6 +279,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         FindToggle.Visibility = Visibility.Collapsed;
 
         _inputTextBoxes.Clear();
+        _inputCombos.Clear();
         InputFields.Children.Clear();
         OutputFields.Children.Clear();
         _selectedVoltageHeader = null;
@@ -279,13 +292,50 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
                 break;
             case CheatSheetType.Note:
                 RenderNote(_activeSheet);
+                DesiredWidthChanged?.Invoke(ListViewWidth);
                 break;
         }
+    }
+
+    /// <summary>
+    /// Computes the ideal overlay width for a given sheet based on its column structure.
+    /// </summary>
+    private double ComputeIdealWidth(CheatSheet sheet)
+    {
+        var colCount = sheet.Columns.Count;
+        if (colCount <= 2) return 400;
+        if (colCount <= 3) return 440;
+        if (colCount <= 4) return 480;
+        if (colCount <= 5) return 540;
+        // 6+ columns (e.g. WSFU, 3-phase motor FLA with 7 cols)
+        return Math.Min(680, 400 + colCount * 45);
+    }
+
+    /// <summary>
+    /// Resolve effective layout: Auto infers from column structure.
+    /// </summary>
+    private static CheatSheetLayout ResolveLayout(CheatSheet sheet)
+    {
+        if (sheet.Layout != CheatSheetLayout.Auto)
+            return sheet.Layout;
+
+        var inputCount = sheet.Columns.Count(c => c.IsInputColumn);
+        var outputCount = sheet.Columns.Count(c => c.IsOutputColumn);
+
+        if (sheet.Columns.Count <= 2)
+            return CheatSheetLayout.SimpleList;
+        if (inputCount >= 2 && outputCount >= 1)
+            return CheatSheetLayout.CompactLookup;
+        if (sheet.Columns.Count >= 4 && inputCount <= 1)
+            return CheatSheetLayout.FullTable;
+
+        return CheatSheetLayout.CompactLookup;
     }
 
     private void RenderTable(CheatSheet sheet)
     {
         TableView.Visibility = Visibility.Visible;
+        var layout = ResolveLayout(sheet);
 
         // Determine which input columns to show based on sheet structure
         var inputCols = sheet.Columns.Where(c => c.IsInputColumn).ToList();
@@ -298,8 +348,11 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             inputCols = new List<CheatSheetColumn> { inputCols[0] }; // Start with Cu
         }
 
+        // FullTable and SimpleList layouts: show Find toggle by default, skip input panel
+        var showInputPanel = layout == CheatSheetLayout.CompactLookup;
         var dropdownCount = 0;
-        if (inputCols.Count > 0)
+
+        if (showInputPanel && inputCols.Count > 0)
         {
             InputPanel.Visibility = Visibility.Visible;
 
@@ -353,10 +406,16 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             }
         }
 
-        _allInputsAreDropdowns = inputCols.Count > 0 && dropdownCount == inputCols.Count;
+        _allInputsAreDropdowns = showInputPanel && inputCols.Count > 0 && dropdownCount == inputCols.Count;
 
-        // Hide lookup button and find toggle when all inputs are dropdowns (auto-lookup fires)
-        if (_allInputsAreDropdowns)
+        // Layout-aware button/toggle visibility
+        if (layout == CheatSheetLayout.FullTable || layout == CheatSheetLayout.SimpleList)
+        {
+            // Reference tables: always show Find toggle, hide lookup button
+            LookupButton.Visibility = Visibility.Collapsed;
+            FindToggle.Visibility = Visibility.Visible;
+        }
+        else if (_allInputsAreDropdowns)
         {
             LookupButton.Visibility = Visibility.Collapsed;
             FindToggle.Visibility = Visibility.Collapsed;
@@ -366,6 +425,9 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             LookupButton.Visibility = Visibility.Visible;
             FindToggle.Visibility = Visibility.Visible;
         }
+
+        // Notify overlay of ideal width for this sheet
+        DesiredWidthChanged?.Invoke(ComputeIdealWidth(sheet));
 
         // Render the data grid
         RenderDataGrid(sheet, null);
@@ -411,30 +473,23 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             {
                 FontSize = 12,
                 Padding = new Thickness(6, 3, 6, 3),
-                Style = (System.Windows.Style)FindResource("DarkComboBox")
+                Style = (System.Windows.Style)FindResource("DarkComboBox"),
+                Tag = col.Header
             };
-            combo.Items.Add(new ComboBoxItem
-            {
-                Content = $"-- All --",
-                Tag = "",
-                Foreground = (System.Windows.Media.Brush)FindResource("MutedTextBrush")
-            });
-            foreach (var val in distinctValues)
-            {
-                combo.Items.Add(new ComboBoxItem
-                {
-                    Content = col.Unit != null ? $"{val} {col.Unit}" : val,
-                    Tag = val
-                });
-            }
-            combo.SelectedIndex = 0;
+            PopulateComboOptions(combo, col, distinctValues);
+            _inputCombos[col.Header] = combo;
+
             combo.SelectionChanged += (_, _) =>
             {
+                if (_isUpdatingCascade) return;
                 var selected = (combo.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
                 proxyBox.Text = selected;
+
+                // Cascade: update other dropdowns based on current selections
+                RefreshCascadingDropdowns(sheet);
+
                 if (string.IsNullOrEmpty(selected))
                 {
-                    // Reset: show all rows, hide output
                     OutputPanel.Visibility = Visibility.Collapsed;
                     if (_activeSheet != null) RenderDataGrid(_activeSheet, null);
                 }
@@ -473,6 +528,96 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         }
     }
 
+    private void PopulateComboOptions(System.Windows.Controls.ComboBox combo, CheatSheetColumn col, List<string> values)
+    {
+        combo.Items.Clear();
+        combo.Items.Add(new ComboBoxItem
+        {
+            Content = "-- All --",
+            Tag = "",
+            Foreground = (System.Windows.Media.Brush)FindResource("MutedTextBrush")
+        });
+        foreach (var val in values)
+        {
+            combo.Items.Add(new ComboBoxItem
+            {
+                Content = col.Unit != null ? $"{val} {col.Unit}" : val,
+                Tag = val
+            });
+        }
+        combo.SelectedIndex = 0;
+    }
+
+    /// <summary>
+    /// Cascading filter: when a dropdown selection changes, update other dropdowns
+    /// to only show values that exist in rows matching the current selections.
+    /// </summary>
+    private void RefreshCascadingDropdowns(CheatSheet sheet)
+    {
+        if (_isUpdatingCascade || _activeSheet == null) return;
+        _isUpdatingCascade = true;
+
+        try
+        {
+            // Gather current selections
+            var selections = new Dictionary<string, string>();
+            foreach (var kvp in _inputCombos)
+            {
+                var selected = (kvp.Value.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+                if (!string.IsNullOrEmpty(selected))
+                    selections[kvp.Key] = selected;
+            }
+
+            // For each dropdown, compute valid values given OTHER dropdowns' selections
+            foreach (var kvp in _inputCombos)
+            {
+                var header = kvp.Key;
+                var combo = kvp.Value;
+                var col = sheet.Columns.FirstOrDefault(c => c.Header == header);
+                if (col == null) continue;
+
+                var colIdx = sheet.Columns.IndexOf(col);
+                var currentSelection = (combo.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+
+                // Filter rows by all OTHER selections
+                var filteredRows = sheet.Rows.AsEnumerable();
+                foreach (var otherKvp in selections)
+                {
+                    if (otherKvp.Key == header) continue;
+                    var otherCol = sheet.Columns.FirstOrDefault(c => c.Header == otherKvp.Key);
+                    if (otherCol == null) continue;
+                    var otherIdx = sheet.Columns.IndexOf(otherCol);
+                    filteredRows = filteredRows.Where(r => otherIdx < r.Count && r[otherIdx] == otherKvp.Value);
+                }
+
+                var validValues = filteredRows
+                    .Where(r => colIdx < r.Count && !string.IsNullOrWhiteSpace(r[colIdx]))
+                    .Select(r => r[colIdx])
+                    .Distinct()
+                    .ToList();
+
+                PopulateComboOptions(combo, col, validValues);
+
+                // Restore selection if still valid
+                if (!string.IsNullOrEmpty(currentSelection))
+                {
+                    for (var i = 1; i < combo.Items.Count; i++)
+                    {
+                        if ((combo.Items[i] as ComboBoxItem)?.Tag as string == currentSelection)
+                        {
+                            combo.SelectedIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        finally
+        {
+            _isUpdatingCascade = false;
+        }
+    }
+
     /// <summary>
     /// Rebuilds the GEC input field when the user toggles between Cu and Al.
     /// </summary>
@@ -503,26 +648,78 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         TableContainer.Children.Clear();
 
         var grid = new Grid { HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch };
+        var colCount = sheet.Columns.Count;
+        var isSmallTable = colCount <= 2;
 
-        // Define columns with equal Star widths to fill container
-        for (var c = 0; c < sheet.Columns.Count; c++)
-        {
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        }
-
-        // Header row
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        for (var c = 0; c < sheet.Columns.Count; c++)
+        // --- Column sizing: compute per-column star weight from content ---
+        for (var c = 0; c < colCount; c++)
         {
             var col = sheet.Columns[c];
+            var maxLen = sheet.Rows.Where(r => c < r.Count).Select(r => r[c].Length).DefaultIfEmpty(0).Max();
+            var isNumeric = sheet.Rows.Where(r => c < r.Count)
+                .All(r => r[c] == "—" || double.TryParse(r[c].Replace(",", ""), out _));
+
+            double starWeight;
+            if (isSmallTable)
+            {
+                starWeight = c == 0 ? 3.0 : 2.0;
+            }
+            else if (col.IsInputColumn && maxLen > 15)
+            {
+                starWeight = 3.0;
+            }
+            else if (col.IsInputColumn && maxLen > 8)
+            {
+                starWeight = 2.0;
+            }
+            else if (col.IsInputColumn)
+            {
+                starWeight = 1.4;
+            }
+            else if (isNumeric)
+            {
+                starWeight = 1.0;
+            }
+            else if (col.IsOutputColumn && maxLen > 15)
+            {
+                starWeight = 2.0;
+            }
+            else
+            {
+                starWeight = 1.0;
+            }
+
+            grid.ColumnDefinitions.Add(new ColumnDefinition
+            {
+                Width = new GridLength(starWeight, GridUnitType.Star)
+            });
+        }
+
+        // --- Header row ---
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        for (var c = 0; c < colCount; c++)
+        {
+            var col = sheet.Columns[c];
+            var isInputCol = col.IsInputColumn;
+
             var headerBorder = new Border
             {
                 Background = (System.Windows.Media.Brush)FindResource("TableHeaderBrush"),
-                Padding = new Thickness(8, 5, 8, 5),
+                Padding = new Thickness(6, 5, 6, 5),
                 BorderBrush = (System.Windows.Media.Brush)FindResource("HoverBrush"),
-                BorderThickness = new Thickness(0, 0, c < sheet.Columns.Count - 1 ? 1 : 0, 1)
+                BorderThickness = new Thickness(0, 0, c < colCount - 1 ? 1 : 0, 1)
             };
 
+            // Input columns left-align; output/other columns center
+            var textAlign = isInputCol ? TextAlignment.Left : TextAlignment.Center;
+
+            var headerForeground = isInputCol
+                ? (System.Windows.Media.Brush)FindResource("AccentBrush")
+                : col.IsOutputColumn
+                    ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x66, 0xBB, 0x6A))
+                    : (System.Windows.Media.Brush)FindResource("TextBrush");
+
+            // Header text: name + unit inline when short, stacked when needed
             var headerText = col.Header;
             if (col.Unit != null) headerText += $"\n({col.Unit})";
 
@@ -531,12 +728,9 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
                 Text = headerText,
                 FontSize = 10,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = col.IsInputColumn
-                    ? (System.Windows.Media.Brush)FindResource("AccentBrush")
-                    : col.IsOutputColumn
-                        ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x66, 0xBB, 0x6A))
-                        : (System.Windows.Media.Brush)FindResource("TextBrush"),
-                TextAlignment = TextAlignment.Center,
+                Foreground = headerForeground,
+                TextAlignment = textAlign,
+                TextWrapping = TextWrapping.Wrap,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch
             };
 
@@ -545,7 +739,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             grid.Children.Add(headerBorder);
         }
 
-        // Data rows
+        // --- Data rows ---
         var rowsToShow = visibleRowIndices ?? Enumerable.Range(0, sheet.Rows.Count).ToList();
         for (var ri = 0; ri < rowsToShow.Count; ri++)
         {
@@ -556,25 +750,30 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             var gridRow = ri + 1;
 
-            for (var c = 0; c < sheet.Columns.Count && c < row.Count; c++)
+            for (var c = 0; c < colCount && c < row.Count; c++)
             {
+                var col = sheet.Columns[c];
                 var isAlt = ri % 2 == 1;
                 var cellBorder = new Border
                 {
                     Background = isAlt
                         ? (System.Windows.Media.Brush)FindResource("TableRowAltBrush")
                         : System.Windows.Media.Brushes.Transparent,
-                    Padding = new Thickness(8, 4, 8, 4),
+                    Padding = new Thickness(6, 4, 6, 4),
                     BorderBrush = (System.Windows.Media.Brush)FindResource("HoverBrush"),
-                    BorderThickness = new Thickness(0, 0, c < sheet.Columns.Count - 1 ? 1 : 0, 0)
+                    BorderThickness = new Thickness(0, 0, c < colCount - 1 ? 1 : 0, 0)
                 };
+
+                // Input columns left-align; output/numeric columns center
+                var cellAlign = col.IsInputColumn ? TextAlignment.Left : TextAlignment.Center;
 
                 cellBorder.Child = new TextBlock
                 {
                     Text = row[c],
                     FontSize = 11,
                     Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
-                    TextAlignment = TextAlignment.Center,
+                    TextAlignment = cellAlign,
+                    TextWrapping = TextWrapping.Wrap,
                     HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch
                 };
 

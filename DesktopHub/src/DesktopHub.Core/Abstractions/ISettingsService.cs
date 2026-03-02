@@ -498,6 +498,8 @@ public interface ISettingsService
     void SetCheatSheetWidgetVisible(bool visible);
     bool GetCheatSheetWidgetEnabled();
     void SetCheatSheetWidgetEnabled(bool enabled);
+    bool GetCheatSheetSnapGridEnabled();
+    void SetCheatSheetSnapGridEnabled(bool enabled);
 
     // --- Generic widget dispatch (used by dynamic settings UI) ---
 
@@ -525,6 +527,8 @@ public interface ISettingsService
     // --- Metrics Viewer ---
     int GetMetricsRefreshIntervalSeconds();
     void SetMetricsRefreshIntervalSeconds(int seconds);
+    bool GetMetricsSnapGridEnabled();
+    void SetMetricsSnapGridEnabled(bool enabled);
 
     // --- Hotkey Groups ---
     List<HotkeyGroup> GetHotkeyGroups();

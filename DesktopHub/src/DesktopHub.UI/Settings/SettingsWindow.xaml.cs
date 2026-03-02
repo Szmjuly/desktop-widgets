@@ -508,6 +508,7 @@ public partial class SettingsWindow : Window
             
             LoadHotkeyGroupsUI();
             LoadMetricsSettings();
+            LoadCheatSheetSnapGridSetting();
 
             UpdateAllLinkButtons();
         }

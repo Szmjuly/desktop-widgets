@@ -118,6 +118,13 @@ public partial class SearchOverlay
         if (window.Visibility != Visibility.Visible || !window.IsLoaded)
             return;
 
+        // Widgets that opted out of snap grid get free placement — no snapping or overlap logic
+        if (!IsWidgetInSnapGrid(window))
+        {
+            TrackVisibleWindowBounds();
+            return;
+        }
+
         var gap = GetConfiguredWidgetGap();
         var currentRect = GetWindowRect(window);
         var overlapPrevention = _settings.GetWidgetOverlapPrevention();
@@ -220,6 +227,20 @@ public partial class SearchOverlay
         TrackVisibleWindowBounds();
     }
 
+    /// <summary>
+    /// Returns whether a widget window participates in the snap grid.
+    /// Widgets with snap grid disabled are free-floating and excluded from
+    /// overlap prevention, edge snapping, and attachment calculations.
+    /// </summary>
+    private bool IsWidgetInSnapGrid(Window window)
+    {
+        if (window is CheatSheetOverlay)
+            return _settings.GetCheatSheetSnapGridEnabled();
+        if (window is MetricsViewerOverlay)
+            return _settings.GetMetricsSnapGridEnabled();
+        return true;
+    }
+
     private IEnumerable<Window> GetManagedWidgetWindows(bool includeHidden = false)
     {
         var windows = new Window?[]
@@ -232,7 +253,8 @@ public partial class SearchOverlay
             _frequentProjectsOverlay,
             _quickLaunchOverlay,
             _smartProjectSearchOverlay,
-            _cheatSheetOverlay
+            _cheatSheetOverlay,
+            _metricsViewerOverlay
         };
 
         var seen = new HashSet<Window>();
@@ -248,6 +270,10 @@ public partial class SearchOverlay
                 continue;
 
             if (!includeHidden && window.Visibility != Visibility.Visible)
+                continue;
+
+            // Exclude widgets that opted out of the snap grid
+            if (!IsWidgetInSnapGrid(window))
                 continue;
 
             yield return window;
@@ -301,7 +327,8 @@ public partial class SearchOverlay
 
     private void ApplyResponsiveWidgetWidth(Window window)
     {
-        if (window is QuickTasksOverlay or DocQuickOpenOverlay or FrequentProjectsOverlay or QuickLaunchOverlay or SmartProjectSearchOverlay or CheatSheetOverlay)
+        // CheatSheetOverlay self-sizes via DesiredWidthChanged — skip it here
+        if (window is QuickTasksOverlay or DocQuickOpenOverlay or FrequentProjectsOverlay or QuickLaunchOverlay or SmartProjectSearchOverlay)
         {
             window.Width = GetResponsiveColumnWidgetWidth();
         }
@@ -870,6 +897,10 @@ public partial class SearchOverlay
             return;
         }
 
+        // Non-snapped widgets move freely — no snap/overlap/attachment logic
+        if (!IsWidgetInSnapGrid(window))
+            return;
+
         if (_verticalAttachments.ContainsKey(window))
         {
             _verticalAttachments.Remove(window);
@@ -908,6 +939,13 @@ public partial class SearchOverlay
     private void HandleWindowResized(Window window)
     {
         if (window.Visibility != Visibility.Visible || !window.IsLoaded)
+        {
+            TrackVisibleWindowBounds();
+            return;
+        }
+
+        // Non-snapped widgets resize freely
+        if (!IsWidgetInSnapGrid(window))
         {
             TrackVisibleWindowBounds();
             return;

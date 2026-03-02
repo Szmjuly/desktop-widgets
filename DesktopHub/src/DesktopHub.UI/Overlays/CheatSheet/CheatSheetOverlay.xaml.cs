@@ -19,7 +19,16 @@ public partial class CheatSheetOverlay : Window
         _settings = settings;
 
         Widget = new CheatSheetWidget(service);
+        Widget.DesiredWidthChanged += OnDesiredWidthChanged;
         WidgetHost.Content = Widget;
+    }
+
+    private void OnDesiredWidthChanged(double desiredWidth)
+    {
+        if (Math.Abs(Width - desiredWidth) < 1)
+            return;
+
+        Width = desiredWidth;
     }
 
     public void EnableDragging() => OverlayDragHelper.EnableDragging(this);
