@@ -18,7 +18,7 @@ public partial class CheatSheetOverlay : Window
         InitializeComponent();
         _settings = settings;
 
-        Widget = new CheatSheetWidget(service);
+        Widget = new CheatSheetWidget(service, settings);
         Widget.DesiredWidthChanged += OnDesiredWidthChanged;
         WidgetHost.Content = Widget;
     }

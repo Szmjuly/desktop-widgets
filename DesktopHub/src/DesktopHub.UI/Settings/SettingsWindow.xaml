@@ -1679,6 +1679,26 @@
                                                    TextWrapping="Wrap"
                                                    Margin="0,0,0,16"/>
 
+                                        <!-- Cross-Discipline Search Toggle -->
+                                        <Grid Margin="0,0,0,16">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="Cross-Discipline Search" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                                <TextBlock Text="When searching and no results are found in the current discipline, show matching results from other disciplines." 
+                                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="CheatSheetCrossDisciplineToggle"
+                                                          Grid.Column="1"
+                                                          Style="{StaticResource ToggleSwitch}"
+                                                          Margin="12,0,0,0"
+                                                          VerticalAlignment="Center"
+                                                          Checked="CheatSheetCrossDisciplineToggle_Changed"
+                                                          Unchecked="CheatSheetCrossDisciplineToggle_Changed"/>
+                                        </Grid>
+
                                         <!-- Snap Grid Toggle -->
                                         <Grid Margin="0,0,0,4">
                                             <Grid.ColumnDefinitions>

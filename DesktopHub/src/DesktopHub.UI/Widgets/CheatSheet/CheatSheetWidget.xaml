@@ -225,6 +225,7 @@
             <ComboBox x:Name="DisciplineCombo"
                      Grid.Column="1"
                      Width="140"
+                     Cursor="Hand"
                      Style="{StaticResource DarkComboBox}"
                      SelectionChanged="DisciplineCombo_SelectionChanged">
                 <ComboBoxItem Content="Electrical" IsSelected="True"/>
@@ -342,17 +343,57 @@
                 <Border x:Name="EmptyState"
                         Grid.Row="2"
                         Visibility="Collapsed"
-                        Padding="0,30">
-                    <StackPanel HorizontalAlignment="Center">
-                        <TextBlock Text="No cheat sheets found"
+                        Padding="0,20">
+                    <StackPanel>
+                        <TextBlock Text="No cheat sheets found in this discipline"
                                   FontSize="12"
                                   Foreground="{StaticResource MutedTextBrush}"
                                   HorizontalAlignment="Center"/>
-                        <TextBlock Text="Try a different search or discipline"
-                                  FontSize="10"
-                                  Foreground="#60F5F7FA"
-                                  HorizontalAlignment="Center"
-                                  Margin="0,4,0,0"/>
+
+                        <!-- Cross-discipline results -->
+                        <Border x:Name="CrossDisciplinePanel"
+                                Visibility="Collapsed"
+                                Background="#15FFD54F"
+                                CornerRadius="6"
+                                Padding="10,8"
+                                Margin="0,12,0,0">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                              Text="FOUND IN OTHER DISCIPLINES"
+                                              FontSize="9"
+                                              FontWeight="SemiBold"
+                                              Foreground="#CCFFD54F"
+                                              VerticalAlignment="Center"/>
+                                    <Border Grid.Column="1"
+                                            x:Name="CrossDisciplineToggle"
+                                            Background="Transparent"
+                                            CornerRadius="3"
+                                            Padding="6,2"
+                                            Cursor="Hand"
+                                            MouseLeftButtonDown="CrossDisciplineToggle_Click">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#20FFD54F"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock x:Name="CrossDisciplineToggleLabel"
+                                                  Text="Hide"
+                                                  FontSize="9"
+                                                  Foreground="#AAFFD54F"/>
+                                    </Border>
+                                </Grid>
+                                <StackPanel x:Name="CrossDisciplineItems"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </Border>
                 

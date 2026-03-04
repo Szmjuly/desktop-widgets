@@ -376,6 +376,16 @@ public partial class SettingsWindow
     private void LoadCheatSheetSnapGridSetting()
     {
         CheatSheetSnapGridToggle.IsChecked = _settings.GetCheatSheetSnapGridEnabled();
+        CheatSheetCrossDisciplineToggle.IsChecked = _settings.GetCheatSheetCrossDisciplineSearch();
+    }
+
+    private void CheatSheetCrossDisciplineToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        var enabled = CheatSheetCrossDisciplineToggle.IsChecked == true;
+        _settings.SetCheatSheetCrossDisciplineSearch(enabled);
+        _ = _settings.SaveAsync();
+        StatusText.Text = enabled ? "Cross-discipline search enabled" : "Cross-discipline search disabled";
     }
 
     // ===== General Tab - Update Settings =====

@@ -311,6 +311,8 @@ public class SettingsService : ISettingsService
     public void SetCheatSheetWidgetEnabled(bool enabled) => _settings.CheatSheetWidgetEnabled = enabled;
     public bool GetCheatSheetSnapGridEnabled() => _settings.CheatSheetSnapGridEnabled;
     public void SetCheatSheetSnapGridEnabled(bool enabled) => _settings.CheatSheetSnapGridEnabled = enabled;
+    public bool GetCheatSheetCrossDisciplineSearch() => _settings.CheatSheetCrossDisciplineSearch;
+    public void SetCheatSheetCrossDisciplineSearch(bool enabled) => _settings.CheatSheetCrossDisciplineSearch = enabled;
 
     // --- Generic widget dispatch (used by dynamic settings UI) ---
 
@@ -607,6 +609,7 @@ public class SettingsService : ISettingsService
         public bool CheatSheetWidgetVisible { get; set; } = false;
         public bool CheatSheetWidgetEnabled { get; set; } = true;
         public bool CheatSheetSnapGridEnabled { get; set; } = true;
+        public bool CheatSheetCrossDisciplineSearch { get; set; } = true;
 
         // Metrics Viewer
         public int MetricsRefreshIntervalSeconds { get; set; } = 30; // Auto-refresh every 30s by default

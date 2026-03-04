@@ -13,6 +13,7 @@ namespace DesktopHub.UI.Widgets;
 public partial class CheatSheetWidget : System.Windows.Controls.UserControl
 {
     private readonly CheatSheetService _service;
+    private readonly DesktopHub.Core.Abstractions.ISettingsService? _settings;
     private Discipline _currentDiscipline = Discipline.Electrical;
     private CheatSheet? _activeSheet;
     private List<CheatSheet> _currentSheets = new();
@@ -21,6 +22,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
     private bool _allInputsAreDropdowns;
     private bool _isUpdatingCascade;
     private string? _selectedVoltageHeader;
+    private bool _crossDisciplineVisible = true;
 
     /// <summary>
     /// Fired when the widget wants the hosting overlay to resize.
@@ -31,9 +33,11 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
     /// <summary>Default/list-view width for the overlay.</summary>
     private const double ListViewWidth = 420;
 
-    public CheatSheetWidget(CheatSheetService service)
+    public CheatSheetWidget(CheatSheetService service, DesktopHub.Core.Abstractions.ISettingsService? settings = null)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
+        _settings = settings;
+        _crossDisciplineVisible = settings?.GetCheatSheetCrossDisciplineSearch() ?? true;
         InitializeComponent();
         Loaded += OnLoaded;
     }
@@ -106,14 +110,64 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             : _service.Search(_currentDiscipline, query);
 
         SheetListItems.Children.Clear();
+        CrossDisciplinePanel.Visibility = Visibility.Collapsed;
+        CrossDisciplineItems.Children.Clear();
 
         foreach (var sheet in _currentSheets)
         {
             SheetListItems.Children.Add(CreateSheetCard(sheet));
         }
 
-        EmptyState.Visibility = _currentSheets.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var isEmpty = _currentSheets.Count == 0;
+        EmptyState.Visibility = isEmpty ? Visibility.Visible : Visibility.Collapsed;
         SheetCountLabel.Text = $"{_currentSheets.Count} sheet{(_currentSheets.Count != 1 ? "s" : "")}";
+
+        // Cross-discipline search: when current discipline has no results and user is searching
+        if (isEmpty && !string.IsNullOrEmpty(query) && (_settings?.GetCheatSheetCrossDisciplineSearch() ?? true))
+        {
+            var crossResults = _service.SearchAllDisciplines(query);
+            crossResults.Remove(_currentDiscipline);
+
+            if (crossResults.Count > 0)
+            {
+                CrossDisciplinePanel.Visibility = Visibility.Visible;
+                CrossDisciplineItems.Visibility = _crossDisciplineVisible ? Visibility.Visible : Visibility.Collapsed;
+                CrossDisciplineToggleLabel.Text = _crossDisciplineVisible ? "Hide" : "Show";
+
+                var totalCross = 0;
+                foreach (var kvp in crossResults)
+                {
+                    var disciplineName = kvp.Key.ToString();
+                    // Discipline header
+                    CrossDisciplineItems.Children.Add(new TextBlock
+                    {
+                        Text = disciplineName.ToUpper(),
+                        FontSize = 9,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x80, 0xFF, 0xD5, 0x4F)),
+                        Margin = new Thickness(0, totalCross > 0 ? 8 : 0, 0, 4)
+                    });
+
+                    foreach (var sheet in kvp.Value.Take(5))
+                    {
+                        var card = CreateCrossDisciplineCard(sheet, kvp.Key);
+                        CrossDisciplineItems.Children.Add(card);
+                        totalCross++;
+                    }
+
+                    if (kvp.Value.Count > 5)
+                    {
+                        CrossDisciplineItems.Children.Add(new TextBlock
+                        {
+                            Text = $"  +{kvp.Value.Count - 5} more in {disciplineName}",
+                            FontSize = 10,
+                            Foreground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x60, 0xF5, 0xF7, 0xFA)),
+                            Margin = new Thickness(0, 2, 0, 0)
+                        });
+                    }
+                }
+            }
+        }
 
         // Show jurisdiction info if applicable
         var jurisdictions = _service.GetJurisdictions();
@@ -131,6 +185,57 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         {
             JurisdictionBar.Visibility = Visibility.Collapsed;
         }
+    }
+
+    private Border CreateCrossDisciplineCard(CheatSheet sheet, Discipline discipline)
+    {
+        var card = new Border
+        {
+            Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x10, 0xFF, 0xD5, 0x4F)),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(8, 5, 8, 5),
+            Margin = new Thickness(0, 0, 0, 3),
+            Cursor = System.Windows.Input.Cursors.Hand
+        };
+
+        var hoverBg = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x20, 0xFF, 0xD5, 0x4F));
+        var normalBg = card.Background;
+        card.MouseEnter += (_, _) => card.Background = hoverBg;
+        card.MouseLeave += (_, _) => card.Background = normalBg;
+
+        var stack = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+        stack.Children.Add(new TextBlock
+        {
+            Text = sheet.Title,
+            FontSize = 11,
+            Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF5, 0xF7, 0xFA)),
+            VerticalAlignment = VerticalAlignment.Center
+        });
+
+        card.Child = stack;
+        card.MouseLeftButtonDown += (_, _) =>
+        {
+            // Switch to the sheet's discipline and open it
+            var disciplineIndex = discipline switch
+            {
+                Discipline.Electrical => 0,
+                Discipline.Mechanical => 1,
+                Discipline.Plumbing => 2,
+                Discipline.FireProtection => 3,
+                _ => 0
+            };
+            DisciplineCombo.SelectedIndex = disciplineIndex;
+            OpenSheet(sheet);
+        };
+
+        return card;
+    }
+
+    private void CrossDisciplineToggle_Click(object sender, MouseButtonEventArgs e)
+    {
+        _crossDisciplineVisible = !_crossDisciplineVisible;
+        CrossDisciplineItems.Visibility = _crossDisciplineVisible ? Visibility.Visible : Visibility.Collapsed;
+        CrossDisciplineToggleLabel.Text = _crossDisciplineVisible ? "Hide" : "Show";
     }
 
     private Border CreateSheetCard(CheatSheet sheet)

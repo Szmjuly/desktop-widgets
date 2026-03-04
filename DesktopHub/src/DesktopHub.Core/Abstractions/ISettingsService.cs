@@ -500,6 +500,8 @@ public interface ISettingsService
     void SetCheatSheetWidgetEnabled(bool enabled);
     bool GetCheatSheetSnapGridEnabled();
     void SetCheatSheetSnapGridEnabled(bool enabled);
+    bool GetCheatSheetCrossDisciplineSearch();
+    void SetCheatSheetCrossDisciplineSearch(bool enabled);
 
     // --- Generic widget dispatch (used by dynamic settings UI) ---
 
