@@ -178,9 +178,11 @@ internal class WhatsNewNotification : Window
         {
             return new[]
             {
-                "Performance and stability improvements",
-                "Bug fixes and quality-of-life polish",
-                "Additional refinements across key widgets"
+                "Multi-word project search — \"Boca West\" now finds all related results",
+                "Project family grouping — sibling sub-projects surface automatically",
+                "Match indicators — Related, Similar, and Duplicate tags on results",
+                "Sub-project scanning — discipline folders inside nested structures now detected",
+                "Fixed folders with commas opening wrong directory"
             };
         }
 
