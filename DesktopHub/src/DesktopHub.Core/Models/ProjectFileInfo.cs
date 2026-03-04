@@ -58,6 +58,39 @@ public class RevitInfo
 }
 
 /// <summary>
+/// Represents a sub-project within a parent project folder.
+/// For example, "_2170 Guest House" and "_2200 Main House" inside P250872.00.
+/// Each sub-project has its own discipline folders and/or Revit File folder.
+/// </summary>
+public class SubProjectInfo
+{
+    /// <summary>
+    /// Display name (e.g., "2170 Guest House", with leading _ stripped)
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Full path to the sub-project folder
+    /// </summary>
+    public string Path { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Discipline folders found in this sub-project
+    /// </summary>
+    public List<Discipline> AvailableDisciplines { get; set; } = new();
+
+    /// <summary>
+    /// .dwg files keyed by discipline within this sub-project
+    /// </summary>
+    public Dictionary<Discipline, List<DocumentItem>> DisciplineFiles { get; set; } = new();
+
+    /// <summary>
+    /// Revit project metadata within this sub-project (null if none)
+    /// </summary>
+    public RevitInfo? Revit { get; set; }
+}
+
+/// <summary>
 /// Full scan result for a project — what type it is, what disciplines/files exist
 /// </summary>
 public class ProjectFileInfo
@@ -102,4 +135,15 @@ public class ProjectFileInfo
     /// True if both CAD discipline folders AND Revit File folder exist (hybrid project)
     /// </summary>
     public bool IsHybrid { get; set; }
+
+    /// <summary>
+    /// Sub-projects detected within this project folder (e.g., "_2170 Guest House", "_2200 Main House").
+    /// Empty for standard single-structure projects.
+    /// </summary>
+    public List<SubProjectInfo> SubProjects { get; set; } = new();
+
+    /// <summary>
+    /// True if this project has sub-project folders with their own discipline/Revit structure
+    /// </summary>
+    public bool HasSubProjects => SubProjects.Count > 0;
 }

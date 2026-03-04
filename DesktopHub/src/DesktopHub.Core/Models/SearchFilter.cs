@@ -48,5 +48,5 @@ public class SearchFilter
     /// <summary>
     /// Maximum number of results to return
     /// </summary>
-    public int MaxResults { get; set; } = 10;
+    public int MaxResults { get; set; } = 50;
 }

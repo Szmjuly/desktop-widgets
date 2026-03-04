@@ -24,26 +24,91 @@ public class SearchService : ISearchService
                     continue;
 
                 // Calculate relevance score
-                var score = CalculateRelevanceScore(project, filter);
+                var score = CalculateRelevanceScore(project, filter, out var isLoose);
                 if (score > minScoreThreshold)
                 {
                     results.Add(new SearchResult
                     {
                         Project = project,
                         Score = score,
-                        MatchedFields = GetMatchedFields(project, filter)
+                        MatchedFields = GetMatchedFields(project, filter),
+                        IsLooseTokenMatch = isLoose
                     });
-                }
-
-                // Early exit if we have enough high-quality results
-                if (results.Count >= filter.MaxResults * 2 && results.Any(r => r.Score > 0.8))
-                {
-                    break;
                 }
             }
 
-            // Sort by score descending
-            results = results.OrderByDescending(r => r.Score).Take(filter.MaxResults).ToList();
+            // --- Project-family expansion ---
+            // When projects share a base number with direct matches, pull in siblings.
+            // >= 2 direct matches: confirmed family → "Related Project" tag, score 0.9x
+            // == 1 direct match:  possible duplicate → "Duplicate Number?" tag, score 0.5x
+            if (!string.IsNullOrWhiteSpace(filter.SearchText) && results.Count > 0)
+            {
+                // Count direct (non-loose) matches per base number
+                var baseNumberCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                var baseNumberBestScore = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+                foreach (var r in results)
+                {
+                    if (r.IsLooseTokenMatch) continue; // Don't count loose matches for family expansion
+                    var baseNum = ExtractBaseProjectNumber(r.Project.FullNumber);
+                    if (string.IsNullOrEmpty(baseNum)) continue;
+
+                    baseNumberCounts.TryGetValue(baseNum, out var count);
+                    baseNumberCounts[baseNum] = count + 1;
+
+                    baseNumberBestScore.TryGetValue(baseNum, out var best);
+                    if (r.Score > best) baseNumberBestScore[baseNum] = r.Score;
+                }
+
+                var existingIds = new HashSet<string>(results.Select(r => r.Project.Id));
+
+                foreach (var project in projects)
+                {
+                    if (existingIds.Contains(project.Id))
+                        continue;
+
+                    if (!PassesFilters(project, filter))
+                        continue;
+
+                    var baseNum = ExtractBaseProjectNumber(project.FullNumber);
+                    if (string.IsNullOrEmpty(baseNum) || !baseNumberCounts.ContainsKey(baseNum))
+                        continue;
+
+                    var directCount = baseNumberCounts[baseNum];
+                    var bestScore = baseNumberBestScore.GetValueOrDefault(baseNum, 0.7);
+
+                    if (directCount >= 2)
+                    {
+                        // Confirmed family — score at 0.9x, ranks right after direct siblings
+                        results.Add(new SearchResult
+                        {
+                            Project = project,
+                            Score = bestScore * 0.9,
+                            MatchedFields = new List<string> { "RelatedProject" },
+                            IsRelatedMatch = true
+                        });
+                    }
+                    else
+                    {
+                        // Single direct match — possible duplicate/mismatch, lower score
+                        results.Add(new SearchResult
+                        {
+                            Project = project,
+                            Score = bestScore * 0.5,
+                            MatchedFields = new List<string> { "DuplicateNumber" },
+                            IsRelatedMatch = true,
+                            IsDuplicateNumber = true
+                        });
+                    }
+                    existingIds.Add(project.Id);
+                }
+            }
+
+            // Sort by score descending, then by full number for stable ordering within families
+            results = results
+                .OrderByDescending(r => r.Score)
+                .ThenBy(r => r.Project.FullNumber)
+                .Take(filter.MaxResults)
+                .ToList();
             return results;
         });
     }
@@ -228,8 +293,10 @@ public class SearchService : ISearchService
         return true;
     }
 
-    private double CalculateRelevanceScore(Project project, SearchFilter filter)
+    private double CalculateRelevanceScore(Project project, SearchFilter filter, out bool isLooseTokenMatch)
     {
+        isLooseTokenMatch = false;
+
         if (string.IsNullOrWhiteSpace(filter.SearchText))
         {
             // No search text, just return 1.0 if it passed filters
@@ -237,6 +304,40 @@ public class SearchService : ISearchService
         }
 
         var searchText = filter.SearchText.ToLowerInvariant();
+
+        // Tokenize the query for multi-word matching
+        var tokens = searchText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+        double score;
+        if (tokens.Length <= 1)
+        {
+            // Single token — use original single-string scoring
+            score = CalculateSingleTokenScore(searchText, project);
+        }
+        else
+        {
+            // Multi-token — score as whole phrase first, then fall back to per-token AND matching
+            var phraseScore = CalculateSingleTokenScore(searchText, project);
+            var tokenScore = CalculateMultiTokenScore(tokens, project, out isLooseTokenMatch);
+
+            // If phrase match is strong, it's not a loose match regardless of token order
+            if (phraseScore >= tokenScore)
+                isLooseTokenMatch = false;
+
+            score = Math.Max(phraseScore, tokenScore);
+        }
+
+        // Boost favorites
+        if (project.Metadata?.IsFavorite == true)
+        {
+            score *= 1.1;
+        }
+
+        return Math.Min(score, 1.0); // Cap at 1.0
+    }
+
+    private double CalculateSingleTokenScore(string searchText, Project project)
+    {
         var maxScore = 0.0;
 
         // Check full number
@@ -251,13 +352,83 @@ public class SearchService : ISearchService
         var nameScore = CalculateFuzzyScore(searchText, project.Name);
         maxScore = Math.Max(maxScore, nameScore);
 
-        // Boost favorites
-        if (project.Metadata?.IsFavorite == true)
+        // Also check against the folder name (full display) for broader matching
+        var displayScore = CalculateFuzzyScore(searchText, project.Display);
+        maxScore = Math.Max(maxScore, displayScore * 0.9);
+
+        return maxScore;
+    }
+
+    /// <summary>
+    /// Multi-token AND matching: ALL tokens must match somewhere in the project fields.
+    /// Returns 0 if any token has no match. Otherwise returns average of per-token best scores.
+    /// Penalizes results where tokens appear out of order (e.g. "West Boca" for query "Boca West").
+    /// </summary>
+    private double CalculateMultiTokenScore(string[] tokens, Project project, out bool isLooseTokenMatch)
+    {
+        isLooseTokenMatch = false;
+
+        var fields = new[]
         {
-            maxScore *= 1.1;
+            (project.FullNumber, 1.2),
+            (project.ShortNumber, 1.1),
+            (project.Name, 1.0),
+            (project.Display, 0.9)
+        };
+
+        double totalScore = 0;
+        foreach (var token in tokens)
+        {
+            double bestTokenScore = 0;
+            foreach (var (fieldValue, boost) in fields)
+            {
+                var s = CalculateFuzzyScore(token, fieldValue) * boost;
+                bestTokenScore = Math.Max(bestTokenScore, s);
+            }
+
+            if (bestTokenScore <= 0.0)
+                return 0.0; // AND semantics: if any token fails, whole query fails
+
+            totalScore += bestTokenScore;
         }
 
-        return Math.Min(maxScore, 1.0); // Cap at 1.0
+        var avgScore = totalScore / tokens.Length;
+
+        // Check token order: if tokens appear out of order in ALL fields, it's a loose match
+        // e.g. query "Boca West" matching "West Boca Outpatient" — tokens reversed
+        var inOrderInAnyField = false;
+        foreach (var (fieldValue, _) in fields)
+        {
+            if (TokensAppearInOrder(tokens, fieldValue))
+            {
+                inOrderInAnyField = true;
+                break;
+            }
+        }
+
+        if (!inOrderInAnyField)
+        {
+            isLooseTokenMatch = true;
+            avgScore *= 0.55; // Significant penalty for reversed/scrambled token order
+        }
+
+        return avgScore;
+    }
+
+    /// <summary>
+    /// Check if tokens appear in the same order (not necessarily contiguous) within the target string.
+    /// </summary>
+    private static bool TokensAppearInOrder(string[] tokens, string target)
+    {
+        var lower = target.ToLowerInvariant();
+        int searchFrom = 0;
+        foreach (var token in tokens)
+        {
+            var idx = lower.IndexOf(token, searchFrom, StringComparison.Ordinal);
+            if (idx < 0) return false;
+            searchFrom = idx + token.Length;
+        }
+        return true;
     }
 
     private List<string> GetMatchedFields(Project project, SearchFilter filter)
@@ -268,17 +439,60 @@ public class SearchService : ISearchService
             return fields;
 
         var searchText = filter.SearchText.ToLowerInvariant();
+        var tokens = searchText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
-        if (project.FullNumber.ToLowerInvariant().Contains(searchText))
+        // A field matches if it contains the full phrase OR all individual tokens
+        var fullNum = project.FullNumber.ToLowerInvariant();
+        var shortNum = project.ShortNumber.ToLowerInvariant();
+        var name = project.Name.ToLowerInvariant();
+
+        if (fullNum.Contains(searchText) || tokens.All(t => fullNum.Contains(t)))
             fields.Add("FullNumber");
 
-        if (project.ShortNumber.ToLowerInvariant().Contains(searchText))
+        if (shortNum.Contains(searchText) || tokens.All(t => shortNum.Contains(t)))
             fields.Add("ShortNumber");
 
-        if (project.Name.ToLowerInvariant().Contains(searchText))
+        if (name.Contains(searchText) || tokens.All(t => name.Contains(t)))
             fields.Add("Name");
 
         return fields;
+    }
+
+    /// <summary>
+    /// Extract the base project number from a full number for family grouping.
+    /// Examples:
+    ///   "2024337.02" → "2024337"
+    ///   "2024337.02-B2" → "2024337"
+    ///   "P260261.00" → "260261"
+    ///   "2024638.001" → "2024638" (old format, first 4 digits are year → base is digits 5+)
+    /// </summary>
+    internal static string? ExtractBaseProjectNumber(string fullNumber)
+    {
+        if (string.IsNullOrWhiteSpace(fullNumber))
+            return null;
+
+        var num = fullNumber;
+
+        // Strip leading 'P' prefix if present (new Q-drive format)
+        if (num.StartsWith("P", StringComparison.OrdinalIgnoreCase))
+            num = num.Substring(1);
+
+        // Take everything before the first '.' (the base integer portion)
+        var dotIndex = num.IndexOf('.');
+        if (dotIndex > 0)
+            num = num.Substring(0, dotIndex);
+        else
+        {
+            // No dot — take digits up to first non-digit
+            var end = 0;
+            while (end < num.Length && char.IsDigit(num[end]))
+                end++;
+            if (end == 0)
+                return null;
+            num = num.Substring(0, end);
+        }
+
+        return num.Length >= 4 ? num : null; // Must be at least 4 digits to be meaningful
     }
 
     private static int CalculateLevenshteinDistance(string source, string target)

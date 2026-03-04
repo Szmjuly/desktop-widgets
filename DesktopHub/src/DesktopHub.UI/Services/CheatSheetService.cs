@@ -214,28 +214,238 @@ public class CheatSheetService
     }
 
     /// <summary>
-    /// Find rows in a table where any cell contains the search text.
-    /// Returns matching row indices. Strips common unit suffixes so e.g. "10 kVA" matches cell "10".
+    /// Find rows in a table where cells match the search text.
+    /// Supports token-based matching, unit/filler word awareness, numeric matching,
+    /// and graceful partial-typing behaviour (e.g. "1 H" still matches while the user types "1 HP").
     /// </summary>
     public List<int> FindInTable(CheatSheet sheet, string searchText)
     {
         if (string.IsNullOrWhiteSpace(searchText) || sheet.Rows.Count == 0)
             return Enumerable.Range(0, sheet.Rows.Count).ToList();
 
-        var normalized = NormalizeQueryForSearch(searchText);
+        var raw = searchText.Trim();
+        var normalized = NormalizeQueryForSearch(raw);
+        var tokens = raw.Split(new[] { ' ', ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
 
+        // Phase 0: Column-targeted search for queries like "1 HP", "1HP", "16A"
+        var targeted = TryColumnTargetedSearch(sheet, raw, tokens);
+        if (targeted != null && targeted.Count > 0)
+            return targeted;
+
+        // Phase 1: full-string contains (fast path)
         var indices = new List<int>();
         for (var i = 0; i < sheet.Rows.Count; i++)
         {
             if (sheet.Rows[i].Any(cell =>
-                cell.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
-                cell.Contains(normalized, StringComparison.OrdinalIgnoreCase)))
+                cell.Contains(raw, StringComparison.OrdinalIgnoreCase) ||
+                (!normalized.Equals(raw, StringComparison.OrdinalIgnoreCase) &&
+                 cell.Contains(normalized, StringComparison.OrdinalIgnoreCase))))
             {
                 indices.Add(i);
             }
         }
+        if (indices.Count > 0)
+            return indices;
+
+        // Phase 2: token-based matching
+        var valueTokens = ExtractValueTokens(tokens, sheet);
+
+        if (valueTokens.Count == 0)
+            return Enumerable.Range(0, sheet.Rows.Count).ToList(); // all tokens were unit/filler → show all
+
+        for (var i = 0; i < sheet.Rows.Count; i++)
+        {
+            var row = sheet.Rows[i];
+            if (valueTokens.All(vt => row.Any(cell => CellMatchesFind(cell, vt))))
+                indices.Add(i);
+        }
+        if (indices.Count > 0)
+            return indices;
+
+        // Phase 3: single-value numeric match as last resort
+        if (valueTokens.Count == 1 && TryParseFlexibleNumber(valueTokens[0], out _))
+        {
+            for (var i = 0; i < sheet.Rows.Count; i++)
+            {
+                if (sheet.Rows[i].Any(cell =>
+                    TryParseFlexibleNumber(cell, out var cn) &&
+                    TryParseFlexibleNumber(valueTokens[0], out var vn) &&
+                    Math.Abs(cn - vn) < 0.001))
+                {
+                    indices.Add(i);
+                }
+            }
+        }
+
         return indices;
     }
+
+    /// <summary>
+    /// Splits query tokens into value tokens by filtering out unit words, filler words,
+    /// column header words, and partial unit prefixes (for the last token while the user is still typing).
+    /// </summary>
+    private static List<string> ExtractValueTokens(string[] tokens, CheatSheet sheet)
+    {
+        // Collect column header words and units for this sheet
+        var headerWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var col in sheet.Columns)
+        {
+            foreach (var word in col.Header.Split(new[] { ' ', '(', ')' }, StringSplitOptions.RemoveEmptyEntries))
+                headerWords.Add(word);
+            if (col.Unit != null)
+                headerWords.Add(col.Unit);
+        }
+
+        var result = new List<string>();
+        for (var t = 0; t < tokens.Length; t++)
+        {
+            var token = tokens[t];
+            var isLast = t == tokens.Length - 1;
+
+            // Skip recognized unit/filler words
+            if (UnitAndFillerWords.Contains(token) || headerWords.Contains(token))
+                continue;
+
+            // Normalize individual token (e.g. "208V" → "208")
+            var nt = NormalizeQueryForSearch(token);
+            if (!nt.Equals(token, StringComparison.OrdinalIgnoreCase))
+            {
+                result.Add(nt);
+                continue;
+            }
+
+            // Last token: skip if it is a prefix of a known unit/header word (user still typing)
+            if (isLast && token.Length <= 4 && tokens.Length > 1)
+            {
+                var isPartial = UnitAndFillerWords.Any(u =>
+                    u.Length > token.Length && u.StartsWith(token, StringComparison.OrdinalIgnoreCase)) ||
+                    headerWords.Any(h =>
+                    h.Length > token.Length && h.StartsWith(token, StringComparison.OrdinalIgnoreCase));
+                if (isPartial)
+                    continue;
+            }
+
+            result.Add(token);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Checks if a cell value matches a search token via contains or numeric equality.
+    /// </summary>
+    private static bool CellMatchesFind(string cell, string token)
+    {
+        if (cell.Contains(token, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (TryParseFlexibleNumber(cell, out var cellNum) && TryParseFlexibleNumber(token, out var tokenNum))
+            return Math.Abs(cellNum - tokenNum) < 0.001;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Column-targeted search: when the query includes a column identifier (header or unit),
+    /// do exact/numeric matching in that column instead of broad substring search.
+    /// E.g. "1 HP" → exact match "1" in HP column; "1HP" → strip "HP" suffix, match in HP column.
+    /// </summary>
+    private List<int>? TryColumnTargetedSearch(CheatSheet sheet, string raw, string[] tokens)
+    {
+        // Multi-token: check if any token exactly matches a column header or unit
+        if (tokens.Length >= 2)
+        {
+            var matched = new HashSet<int>();
+            for (var t = 0; t < tokens.Length; t++)
+            {
+                var token = tokens[t];
+                foreach (var col in sheet.Columns)
+                {
+                    if (!col.Header.Equals(token, StringComparison.OrdinalIgnoreCase) &&
+                        !(col.Unit != null && col.Unit.Equals(token, StringComparison.OrdinalIgnoreCase)))
+                        continue;
+
+                    var colIdx = sheet.Columns.IndexOf(col);
+                    // Build value string from the other tokens, stripping units/filler
+                    var valueStr = string.Join(" ", tokens
+                        .Where((_, i) => i != t)
+                        .Select(NormalizeQueryForSearch)
+                        .Where(tk => !string.IsNullOrWhiteSpace(tk) && !UnitAndFillerWords.Contains(tk)));
+
+                    if (string.IsNullOrWhiteSpace(valueStr)) continue;
+
+                    for (var i = 0; i < sheet.Rows.Count; i++)
+                    {
+                        var row = sheet.Rows[i];
+                        if (colIdx < row.Count && CellMatchesExact(row[colIdx], valueStr))
+                            matched.Add(i);
+                    }
+                }
+            }
+            if (matched.Count > 0)
+                return matched.OrderBy(x => x).ToList();
+        }
+
+        // Single-token with column unit/header suffix: "1HP" → ("1", "HP"), "16A" → ("16", "A")
+        if (tokens.Length == 1)
+        {
+            var matched = new HashSet<int>();
+            foreach (var col in sheet.Columns)
+            {
+                var suffixes = new List<string>();
+                if (col.Unit != null) suffixes.Add(col.Unit);
+                if (col.Header.Length < raw.Length) suffixes.Add(col.Header);
+
+                foreach (var suffix in suffixes)
+                {
+                    if (suffix.Length >= raw.Length) continue;
+                    if (!raw.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    var valPart = raw[..^suffix.Length].Trim();
+                    if (valPart.Length == 0) continue;
+
+                    var colIdx = sheet.Columns.IndexOf(col);
+                    for (var i = 0; i < sheet.Rows.Count; i++)
+                    {
+                        var row = sheet.Rows[i];
+                        if (colIdx < row.Count && CellMatchesExact(row[colIdx], valPart))
+                            matched.Add(i);
+                    }
+                }
+            }
+            if (matched.Count > 0)
+                return matched.OrderBy(x => x).ToList();
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Strict cell match: exact string equality or numeric equality (no substring).
+    /// </summary>
+    private static bool CellMatchesExact(string cell, string value)
+    {
+        if (cell.Equals(value, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (TryParseFlexibleNumber(cell, out var cellNum) && TryParseFlexibleNumber(value, out var valueNum))
+            return Math.Abs(cellNum - valueNum) < 0.001;
+        return false;
+    }
+
+    private static readonly HashSet<string> UnitAndFillerWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // Electrical
+        "hp", "horsepower", "amp", "amps", "amperage", "ampere", "amperes",
+        "volt", "volts", "voltage", "kv", "kva", "kw", "kwh", "mva", "mw",
+        "hz", "pf", "va", "awg", "kcmil", "watt", "watts",
+        // Plumbing
+        "dfu", "wsfu", "gpm", "psi", "pipe", "drain", "fixture",
+        // Mechanical
+        "btuh", "btu", "cfm", "ton", "tons",
+        // Generic units
+        "in", "ft", "mm", "lbs",
+        // Filler / prepositions
+        "at", "for", "the", "of", "a", "an"
+    };
 
     /// <summary>
     /// Strips common electrical unit suffixes from a query string, returning just the numeric/bare portion.

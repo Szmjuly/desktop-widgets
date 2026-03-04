@@ -25,8 +25,12 @@ public partial class SearchOverlay
         public string? Location { get; }
         public string? Status { get; }
         public bool IsFavorite { get; }
+        public bool IsRelatedMatch { get; }
+        public bool IsLooseTokenMatch { get; }
+        public bool IsDuplicateNumber { get; }
+        public string MatchTag { get; }
 
-        public ProjectViewModel(Project project)
+        public ProjectViewModel(Project project, bool isRelatedMatch = false, bool isLooseTokenMatch = false, bool isDuplicateNumber = false)
         {
             FullNumber = project.FullNumber;
             Name = project.Name;
@@ -34,6 +38,12 @@ public partial class SearchOverlay
             Location = project.Metadata?.Location;
             Status = project.Metadata?.Status;
             IsFavorite = project.Metadata?.IsFavorite ?? false;
+            IsRelatedMatch = isRelatedMatch;
+            IsLooseTokenMatch = isLooseTokenMatch;
+            IsDuplicateNumber = isDuplicateNumber;
+            MatchTag = isDuplicateNumber ? "Duplicate Number?" :
+                       isRelatedMatch ? "Related Project" :
+                       isLooseTokenMatch ? "Similar Match" : "";
         }
     }
 
@@ -343,7 +353,10 @@ public partial class SearchOverlay
 
             if (isDirectoryResult || Directory.Exists(itemPath))
             {
-                Process.Start("explorer.exe", itemPath);
+                // Quote the path to prevent explorer.exe from splitting on commas
+                // e.g. "P250870.00 - 2340 Gordon Drive, Naples FL" without quotes
+                // would be split at the comma and open the wrong directory
+                Process.Start("explorer.exe", $"\"{itemPath}\"");
             }
             else
             {

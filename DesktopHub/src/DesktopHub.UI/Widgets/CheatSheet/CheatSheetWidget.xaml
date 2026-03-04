@@ -414,18 +414,16 @@
             <Grid x:Name="SheetDetailPanel" Visibility="Collapsed">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 
-                <!-- Back button + sheet title -->
+                <!-- Row 0: Back + title + view mode toggle -->
                 <Grid Grid.Row="0" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     
                     <Border Grid.Column="0"
@@ -461,117 +459,189 @@
                                   Margin="0,2,0,0"
                                   TextWrapping="Wrap"/>
                     </StackPanel>
+
+                    <!-- View mode toggle: Lookup / Table -->
+                    <Border Grid.Column="2"
+                            x:Name="ViewModeToggle"
+                            Visibility="Collapsed"
+                            Background="{StaticResource SurfaceBrush}"
+                            CornerRadius="4"
+                            Padding="10,4,10,4"
+                            Cursor="Hand"
+                            VerticalAlignment="Top"
+                            Margin="6,0,0,0"
+                            MouseLeftButtonDown="ViewModeToggle_Click">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock x:Name="ViewModeLabel"
+                                  Text="Table"
+                                  FontSize="10"
+                                  Foreground="{StaticResource AccentBrush}"
+                                  TextTrimming="None"/>
+                    </Border>
                 </Grid>
                 
-                <!-- Input area (for Calculator/Table with input columns) -->
-                <Border x:Name="InputPanel"
-                        Grid.Row="1"
-                        Visibility="Collapsed"
-                        Background="{StaticResource InputHighlightBrush}"
-                        CornerRadius="6"
-                        Padding="10,8"
-                        Margin="0,0,0,8">
-                    <StackPanel>
-                        <TextBlock Text="INPUT"
-                                  FontSize="9"
-                                  FontWeight="SemiBold"
-                                  Foreground="{StaticResource AccentBrush}"
-                                  Margin="0,0,0,6"
-                                  Opacity="0.8"/>
-                        <StackPanel x:Name="InputFields"/>
-                        <Border x:Name="LookupButton"
-                                Background="{StaticResource SurfaceBrush}"
-                                CornerRadius="4"
-                                Padding="10,5"
-                                Margin="0,6,0,0"
-                                Cursor="Hand"
-                                HorizontalAlignment="Left"
-                                MouseLeftButtonDown="LookupButton_Click">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <TextBlock Text="Lookup" FontSize="11" Foreground="{StaticResource AccentBrush}"/>
-                        </Border>
-                    </StackPanel>
-                </Border>
-                
-                <!-- Find-in-table bar -->
-                <Border x:Name="FindBar"
-                        Grid.Row="2"
-                        Visibility="Collapsed"
-                        Background="{StaticResource SurfaceBrush}"
-                        CornerRadius="4"
-                        Padding="8,4"
-                        Margin="0,0,0,6">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Find:" FontSize="10" Foreground="{StaticResource DimTextBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <TextBox x:Name="FindBox"
-                                Grid.Column="1"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Foreground="{StaticResource TextBrush}"
-                                CaretBrush="{StaticResource TextBrush}"
-                                FontSize="11"
-                                VerticalAlignment="Center"
-                                TextChanged="FindBox_TextChanged">
-                            <TextBox.Style>
-                                <Style TargetType="TextBox">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="TextBox">
-                                                <Grid>
-                                                    <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
-                                                    <TextBlock x:Name="Placeholder"
-                                                              Text="Filter rows..."
-                                                              Foreground="#40F5F7FA"
-                                                              FontSize="11"
-                                                              VerticalAlignment="Center"
-                                                              IsHitTestVisible="False"
-                                                              Visibility="Collapsed"/>
-                                                </Grid>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="Text" Value="">
-                                                        <Setter TargetName="Placeholder" Property="Visibility" Value="Visible"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </TextBox.Style>
-                        </TextBox>
-                        <TextBlock x:Name="FindCount"
-                                  Grid.Column="2"
-                                  FontSize="10"
-                                  Foreground="{StaticResource MutedTextBrush}"
-                                  VerticalAlignment="Center"
-                                  Margin="6,0,0,0"/>
-                    </Grid>
-                </Border>
-                
-                <!-- Table / Note content area -->
-                <ScrollViewer x:Name="DetailScroller"
-                             Grid.Row="3"
+                <!-- Row 1: Main content area (mode-dependent) -->
+                <ScrollViewer Grid.Row="1"
+                             x:Name="DetailScroller"
                              VerticalScrollBarVisibility="Hidden"
                              HorizontalScrollBarVisibility="Disabled">
                     <Grid>
-                        <!-- Table view -->
-                        <Grid x:Name="TableView" Visibility="Collapsed">
-                            <StackPanel x:Name="TableContainer" HorizontalAlignment="Stretch"/>
-                        </Grid>
+                        <!-- LOOKUP MODE: Input + Output -->
+                        <StackPanel x:Name="LookupModePanel" Visibility="Collapsed">
+                            <!-- Input area -->
+                            <Border x:Name="InputPanel"
+                                    Background="{StaticResource InputHighlightBrush}"
+                                    CornerRadius="6"
+                                    Padding="10,8"
+                                    Margin="0,0,0,8">
+                                <StackPanel>
+                                    <TextBlock Text="INPUT"
+                                              FontSize="9"
+                                              FontWeight="SemiBold"
+                                              Foreground="{StaticResource AccentBrush}"
+                                              Margin="0,0,0,6"
+                                              Opacity="0.8"/>
+                                    <StackPanel x:Name="InputFields"/>
+                                    <Border x:Name="LookupButton"
+                                            Background="{StaticResource SurfaceBrush}"
+                                            CornerRadius="4"
+                                            Padding="10,5"
+                                            Margin="0,6,0,0"
+                                            Cursor="Hand"
+                                            HorizontalAlignment="Left"
+                                            MouseLeftButtonDown="LookupButton_Click">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="Lookup" FontSize="11" Foreground="{StaticResource AccentBrush}"/>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Output area -->
+                            <Border x:Name="OutputPanel"
+                                    Visibility="Collapsed"
+                                    Background="{StaticResource OutputHighlightBrush}"
+                                    CornerRadius="6"
+                                    Padding="10,8"
+                                    Margin="0,0,0,0">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0"
+                                                  Text="OUTPUT"
+                                                  FontSize="9"
+                                                  FontWeight="SemiBold"
+                                                  Foreground="#66BB6A"
+                                                  Opacity="0.8"
+                                                  VerticalAlignment="Center"/>
+                                        <Border Grid.Column="1"
+                                                x:Name="CopyOutputButton"
+                                                Background="Transparent"
+                                                CornerRadius="3"
+                                                Padding="6,2"
+                                                Cursor="Hand"
+                                                MouseLeftButtonDown="CopyOutputButton_Click">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="#2066BB6A"/>
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock x:Name="CopyOutputLabel" Text="&#128203; Copy" FontSize="9" Foreground="#AA66BB6A"/>
+                                        </Border>
+                                    </Grid>
+                                    <WrapPanel x:Name="OutputFields" Orientation="Horizontal"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- TABLE MODE: Find bar + table -->
+                        <StackPanel x:Name="TableModePanel" Visibility="Collapsed">
+                            <!-- Find-in-table bar -->
+                            <Border x:Name="FindBar"
+                                    Background="{StaticResource SurfaceBrush}"
+                                    CornerRadius="4"
+                                    Padding="8,4"
+                                    Margin="0,0,0,6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="&#128269;" FontSize="11" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBox x:Name="FindBox"
+                                            Grid.Column="1"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Foreground="{StaticResource TextBrush}"
+                                            CaretBrush="{StaticResource TextBrush}"
+                                            FontSize="11"
+                                            VerticalAlignment="Center"
+                                            TextChanged="FindBox_TextChanged">
+                                        <TextBox.Style>
+                                            <Style TargetType="TextBox">
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="TextBox">
+                                                            <Grid>
+                                                                <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
+                                                                <TextBlock x:Name="Placeholder"
+                                                                          Text="Search table..."
+                                                                          Foreground="#40F5F7FA"
+                                                                          FontSize="11"
+                                                                          VerticalAlignment="Center"
+                                                                          IsHitTestVisible="False"
+                                                                          Visibility="Collapsed"/>
+                                                            </Grid>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="Text" Value="">
+                                                                    <Setter TargetName="Placeholder" Property="Visibility" Value="Visible"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </TextBox.Style>
+                                    </TextBox>
+                                    <TextBlock x:Name="FindCount"
+                                              Grid.Column="2"
+                                              FontSize="10"
+                                              Foreground="{StaticResource MutedTextBrush}"
+                                              VerticalAlignment="Center"
+                                              Margin="6,0,0,0"/>
+                                </Grid>
+                            </Border>
+                            
+                            <!-- Table view -->
+                            <Grid x:Name="TableView" Visibility="Collapsed">
+                                <StackPanel x:Name="TableContainer" HorizontalAlignment="Stretch"/>
+                            </Grid>
+                        </StackPanel>
                         
-                        <!-- Note view -->
+                        <!-- NOTE MODE -->
                         <Grid x:Name="NoteView" Visibility="Collapsed">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*"/>
@@ -611,60 +681,15 @@
                     </Grid>
                 </ScrollViewer>
 
-                <!-- Output results area (outside scroller so it doesn't overlap table) -->
-                <Border x:Name="OutputPanel"
-                        Grid.Row="4"
-                        Visibility="Collapsed"
-                        Background="{StaticResource OutputHighlightBrush}"
-                        CornerRadius="6"
-                        Padding="10,8"
-                        Margin="0,6,0,0">
-                    <StackPanel>
-                        <TextBlock Text="OUTPUT"
-                                  FontSize="9"
-                                  FontWeight="SemiBold"
-                                  Foreground="#66BB6A"
-                                  Margin="0,0,0,6"
-                                  Opacity="0.8"/>
-                        <StackPanel x:Name="OutputFields"/>
-                    </StackPanel>
-                </Border>
-                
-                <!-- Detail footer -->
-                <Border Grid.Row="5"
+                <!-- Row 2: Footer -->
+                <Border Grid.Row="2"
                         Margin="0,6,0,0"
                         BorderBrush="#15F5F7FA"
                         BorderThickness="0,1,0,0"
                         Padding="0,6,0,0">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock x:Name="DetailFooterLabel"
-                                  Grid.Column="0"
-                                  FontSize="10"
-                                  Foreground="{StaticResource MutedTextBrush}"/>
-                        <Border Grid.Column="1"
-                                x:Name="FindToggle"
-                                Visibility="Collapsed"
-                                Background="Transparent"
-                                CornerRadius="3"
-                                Padding="6,2"
-                                Cursor="Hand"
-                                MouseLeftButtonDown="FindToggle_Click">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <TextBlock Text="&#128269; Find" FontSize="10" Foreground="{StaticResource AccentBrush}"/>
-                        </Border>
-                    </Grid>
+                    <TextBlock x:Name="DetailFooterLabel"
+                              FontSize="10"
+                              Foreground="{StaticResource MutedTextBrush}"/>
                 </Border>
             </Grid>
         </Grid>

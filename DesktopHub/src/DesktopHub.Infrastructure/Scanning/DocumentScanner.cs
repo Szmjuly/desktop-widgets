@@ -66,30 +66,86 @@ public class DocumentScanner : IDocumentScanner
 
         await Task.Run(() =>
         {
-            // 1. Check for discipline folders (CAD)
-            foreach (var (folderName, discipline) in DisciplineFolders)
-            {
-                var discPath = Path.Combine(projectPath, folderName);
-                if (Directory.Exists(discPath))
-                {
-                    info.AvailableDisciplines.Add(discipline);
-                    var dwgFiles = ScanDisciplineFolder(discPath, projectPath, maxDepth, excludedFolders, maxFiles, cancellationToken);
-                    info.DisciplineFiles[discipline] = dwgFiles;
-                }
-            }
+            // 1. Check for discipline folders at project root (CAD)
+            ScanDisciplinesAt(projectPath, projectPath, maxDepth, excludedFolders, maxFiles,
+                info.AvailableDisciplines, info.DisciplineFiles, cancellationToken);
 
             // 1.5 Build a broad searchable file set across the full project directory.
             // Keep this independent from discipline view so users can find letters/docs anywhere.
             info.AllFiles = ScanProjectFiles(projectPath, includeSet, maxDepth, excludedFolders, maxFiles, cancellationToken);
 
-            // 2. Check for "Revit File" folder
+            // 2. Check for "Revit File" folder at root
             var revitFolderPath = FindRevitFolder(projectPath);
             if (revitFolderPath != null)
             {
                 info.Revit = ParseRevitFolder(revitFolderPath, projectPath, cancellationToken);
             }
 
-            // 3. Determine project type
+            // 3. Detect sub-projects: immediate subdirectories (especially _ prefixed)
+            //    that contain their own discipline folders or Revit File folder.
+            //    e.g. _2170 Guest House/Electrical, _2200 Main House/Revit File
+            try
+            {
+                foreach (var subDir in Directory.EnumerateDirectories(projectPath))
+                {
+                    if (cancellationToken.IsCancellationRequested) break;
+                    var subDirName = Path.GetFileName(subDir);
+                    if (subDirName.StartsWith('.')) continue; // skip hidden
+
+                    // Check if this subdirectory has discipline folders or Revit File
+                    var hasDiscipline = false;
+                    foreach (var (folderName, _) in DisciplineFolders)
+                    {
+                        if (Directory.Exists(Path.Combine(subDir, folderName)))
+                        { hasDiscipline = true; break; }
+                    }
+                    var hasRevitSub = FindRevitFolder(subDir) != null;
+
+                    if (!hasDiscipline && !hasRevitSub)
+                        continue;
+
+                    // This is a sub-project — scan it
+                    var sub = new SubProjectInfo
+                    {
+                        Name = subDirName.TrimStart('_').Trim(),
+                        Path = subDir
+                    };
+
+                    ScanDisciplinesAt(subDir, projectPath, maxDepth, excludedFolders, maxFiles,
+                        sub.AvailableDisciplines, sub.DisciplineFiles, cancellationToken);
+
+                    var subRevitPath = FindRevitFolder(subDir);
+                    if (subRevitPath != null)
+                        sub.Revit = ParseRevitFolder(subRevitPath, projectPath, cancellationToken);
+
+                    info.SubProjects.Add(sub);
+
+                    // Merge sub-project disciplines into parent so Doc Quick Open sees them
+                    foreach (var disc in sub.AvailableDisciplines)
+                    {
+                        if (!info.AvailableDisciplines.Contains(disc))
+                            info.AvailableDisciplines.Add(disc);
+
+                        if (info.DisciplineFiles.TryGetValue(disc, out var parentList))
+                            parentList.AddRange(sub.DisciplineFiles.GetValueOrDefault(disc) ?? new List<DocumentItem>());
+                        else
+                            info.DisciplineFiles[disc] = new List<DocumentItem>(sub.DisciplineFiles.GetValueOrDefault(disc) ?? new List<DocumentItem>());
+                    }
+
+                    // Merge sub-project Revit files into parent
+                    if (sub.Revit != null && sub.Revit.RvtFiles.Count > 0)
+                    {
+                        if (info.Revit == null)
+                            info.Revit = sub.Revit;
+                        else
+                            info.Revit.RvtFiles.AddRange(sub.Revit.RvtFiles);
+                    }
+                }
+            }
+            catch (UnauthorizedAccessException) { }
+            catch (IOException) { }
+
+            // 4. Determine project type
             bool hasDisciplines = info.AvailableDisciplines.Count > 0;
             bool hasRevit = info.Revit != null;
 
@@ -113,6 +169,32 @@ public class DocumentScanner : IDocumentScanner
         }, cancellationToken);
 
         return info;
+    }
+
+    /// <summary>
+    /// Scan a directory for discipline folders (Electrical/Mechanical/Plumbing) and collect their .dwg files.
+    /// Results are added to the provided disciplines list and files dictionary.
+    /// </summary>
+    private void ScanDisciplinesAt(
+        string basePath, string projectRoot, int maxDepth,
+        IReadOnlyList<string>? excludedFolders, int maxFiles,
+        List<Discipline> disciplines, Dictionary<Discipline, List<DocumentItem>> disciplineFiles,
+        CancellationToken ct)
+    {
+        foreach (var (folderName, discipline) in DisciplineFolders)
+        {
+            var discPath = Path.Combine(basePath, folderName);
+            if (Directory.Exists(discPath))
+            {
+                if (!disciplines.Contains(discipline))
+                    disciplines.Add(discipline);
+                var dwgFiles = ScanDisciplineFolder(discPath, projectRoot, maxDepth, excludedFolders, maxFiles, ct);
+                if (disciplineFiles.TryGetValue(discipline, out var existing))
+                    existing.AddRange(dwgFiles);
+                else
+                    disciplineFiles[discipline] = dwgFiles;
+            }
+        }
     }
 
     /// <summary>
@@ -365,7 +447,7 @@ public class DocumentScanner : IDocumentScanner
                 {
                     if (ct.IsCancellationRequested || results.Count >= maxFiles) return;
                     var dirName = Path.GetFileName(dir);
-                    if (dirName.StartsWith('.') || dirName.StartsWith('_')) continue;
+                    if (dirName.StartsWith('.')) continue;
                     if (excludedFolders != null && excludedFolders.Contains(dirName)) continue;
                     ScanForExtensions(dir, projectRoot, extensions, maxDepth, currentDepth + 1, maxFiles, results, ct, excludedFolders);
                 }

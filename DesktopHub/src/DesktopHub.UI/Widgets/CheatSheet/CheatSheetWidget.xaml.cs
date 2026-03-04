@@ -23,6 +23,8 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
     private bool _isUpdatingCascade;
     private string? _selectedVoltageHeader;
     private bool _crossDisciplineVisible = true;
+    private bool _isLookupMode = true;
+    private CheatSheetLayout _activeLayout;
 
     /// <summary>
     /// Fired when the widget wants the hosting overlay to resize.
@@ -375,19 +377,20 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         DetailTitle.Text = _activeSheet.Title;
         DetailSubtitle.Text = _activeSheet.Subtitle ?? _activeSheet.Description ?? "";
 
-        // Reset views
+        // Reset all mode panels
+        LookupModePanel.Visibility = Visibility.Collapsed;
+        TableModePanel.Visibility = Visibility.Collapsed;
         TableView.Visibility = Visibility.Collapsed;
         NoteView.Visibility = Visibility.Collapsed;
         OutputPanel.Visibility = Visibility.Collapsed;
-        InputPanel.Visibility = Visibility.Collapsed;
-        FindBar.Visibility = Visibility.Collapsed;
-        FindToggle.Visibility = Visibility.Collapsed;
+        ViewModeToggle.Visibility = Visibility.Collapsed;
 
         _inputTextBoxes.Clear();
         _inputCombos.Clear();
         InputFields.Children.Clear();
         OutputFields.Children.Clear();
         _selectedVoltageHeader = null;
+        _lastOutputText = null;
 
         switch (_activeSheet.SheetType)
         {
@@ -396,10 +399,44 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
                 RenderTable(_activeSheet);
                 break;
             case CheatSheetType.Note:
+                NoteView.Visibility = Visibility.Visible;
                 RenderNote(_activeSheet);
                 DesiredWidthChanged?.Invoke(ListViewWidth);
                 break;
         }
+    }
+
+    private void SetViewMode(bool lookupMode)
+    {
+        _isLookupMode = lookupMode;
+
+        if (lookupMode)
+        {
+            LookupModePanel.Visibility = Visibility.Visible;
+            TableModePanel.Visibility = Visibility.Collapsed;
+            ViewModeLabel.Text = "\U0001F4CA Table";
+            DesiredWidthChanged?.Invoke(ListViewWidth);
+        }
+        else
+        {
+            LookupModePanel.Visibility = Visibility.Collapsed;
+            TableModePanel.Visibility = Visibility.Visible;
+            TableView.Visibility = Visibility.Visible;
+            ViewModeLabel.Text = "\U0001F50D Lookup";
+            if (_activeSheet != null)
+            {
+                DesiredWidthChanged?.Invoke(ComputeIdealWidth(_activeSheet));
+                RenderDataGrid(_activeSheet, null);
+            }
+        }
+
+        if (_activeSheet != null)
+            DetailFooterLabel.Text = $"{_activeSheet.Rows.Count} row{(_activeSheet.Rows.Count != 1 ? "s" : "")} \u00d7 {_activeSheet.Columns.Count} col{(_activeSheet.Columns.Count != 1 ? "s" : "")}";
+    }
+
+    private void ViewModeToggle_Click(object sender, MouseButtonEventArgs e)
+    {
+        SetViewMode(!_isLookupMode);
     }
 
     /// <summary>
@@ -418,6 +455,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
 
     /// <summary>
     /// Resolve effective layout: Auto infers from column structure.
+    /// Any table with at least 1 input and 1 output column gets CompactLookup (lookup + table toggle).
     /// </summary>
     private static CheatSheetLayout ResolveLayout(CheatSheet sheet)
     {
@@ -427,20 +465,21 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         var inputCount = sheet.Columns.Count(c => c.IsInputColumn);
         var outputCount = sheet.Columns.Count(c => c.IsOutputColumn);
 
+        // Any table with input→output columns benefits from lookup mode
+        if (inputCount >= 1 && outputCount >= 1)
+            return CheatSheetLayout.CompactLookup;
+
+        // No clear input/output distinction — plain table or simple list
         if (sheet.Columns.Count <= 2)
             return CheatSheetLayout.SimpleList;
-        if (inputCount >= 2 && outputCount >= 1)
-            return CheatSheetLayout.CompactLookup;
-        if (sheet.Columns.Count >= 4 && inputCount <= 1)
-            return CheatSheetLayout.FullTable;
 
-        return CheatSheetLayout.CompactLookup;
+        return CheatSheetLayout.FullTable;
     }
 
     private void RenderTable(CheatSheet sheet)
     {
-        TableView.Visibility = Visibility.Visible;
-        var layout = ResolveLayout(sheet);
+        _activeLayout = ResolveLayout(sheet);
+        var hasLookupMode = _activeLayout == CheatSheetLayout.CompactLookup;
 
         // Determine which input columns to show based on sheet structure
         var inputCols = sheet.Columns.Where(c => c.IsInputColumn).ToList();
@@ -448,20 +487,11 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         // Special handling for GEC Sizing: show CU or AL toggle, not both at once
         var isGecSheet = sheet.Id == "nec-250-66";
         if (isGecSheet && inputCols.Count == 2)
+            inputCols = new List<CheatSheetColumn> { inputCols[0] };
+
+        // Build input fields for Lookup mode
+        if (hasLookupMode && inputCols.Count > 0)
         {
-            // Only show one input column at a time with a toggle
-            inputCols = new List<CheatSheetColumn> { inputCols[0] }; // Start with Cu
-        }
-
-        // FullTable and SimpleList layouts: show Find toggle by default, skip input panel
-        var showInputPanel = layout == CheatSheetLayout.CompactLookup;
-        var dropdownCount = 0;
-
-        if (showInputPanel && inputCols.Count > 0)
-        {
-            InputPanel.Visibility = Visibility.Visible;
-
-            // For GEC sheet, add Cu/Al toggle before input fields
             if (isGecSheet)
             {
                 var toggleGrid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
@@ -492,7 +522,6 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
                 materialCombo.SelectionChanged += (_, _) =>
                 {
                     var tag = (materialCombo.SelectedItem as ComboBoxItem)?.Tag as string ?? "cu";
-                    // Rebuild input fields for the other column
                     RebuildGecInput(sheet, tag == "al" ? 1 : 0);
                 };
                 Grid.SetColumn(materialCombo, 1);
@@ -500,43 +529,34 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
                 InputFields.Children.Add(toggleGrid);
             }
 
+            var dropdownCount = 0;
             foreach (var col in inputCols)
-            {
                 dropdownCount += BuildInputField(sheet, col);
-            }
 
             if (IsMotorFlaSheet(sheet))
-            {
                 BuildMotorVoltageSelector(sheet);
-            }
+
+            _allInputsAreDropdowns = dropdownCount == inputCols.Count;
+            LookupButton.Visibility = _allInputsAreDropdowns ? Visibility.Collapsed : Visibility.Visible;
         }
 
-        _allInputsAreDropdowns = showInputPanel && inputCols.Count > 0 && dropdownCount == inputCols.Count;
-
-        // Layout-aware button/toggle visibility
-        if (layout == CheatSheetLayout.FullTable || layout == CheatSheetLayout.SimpleList)
+        // Show view mode toggle for CompactLookup sheets; FullTable/SimpleList go straight to table
+        if (hasLookupMode)
         {
-            // Reference tables: always show Find toggle, hide lookup button
-            LookupButton.Visibility = Visibility.Collapsed;
-            FindToggle.Visibility = Visibility.Visible;
-        }
-        else if (_allInputsAreDropdowns)
-        {
-            LookupButton.Visibility = Visibility.Collapsed;
-            FindToggle.Visibility = Visibility.Collapsed;
+            ViewModeToggle.Visibility = Visibility.Visible;
+            SetViewMode(true); // Start in Lookup mode
         }
         else
         {
-            LookupButton.Visibility = Visibility.Visible;
-            FindToggle.Visibility = Visibility.Visible;
+            ViewModeToggle.Visibility = Visibility.Collapsed;
+            // Go straight to Table mode
+            TableModePanel.Visibility = Visibility.Visible;
+            TableView.Visibility = Visibility.Visible;
+            DesiredWidthChanged?.Invoke(ComputeIdealWidth(sheet));
+            RenderDataGrid(sheet, null);
         }
 
-        // Notify overlay of ideal width for this sheet
-        DesiredWidthChanged?.Invoke(ComputeIdealWidth(sheet));
-
-        // Render the data grid
-        RenderDataGrid(sheet, null);
-        DetailFooterLabel.Text = $"{sheet.Rows.Count} row{(sheet.Rows.Count != 1 ? "s" : "")} × {sheet.Columns.Count} col{(sheet.Columns.Count != 1 ? "s" : "")}";
+        DetailFooterLabel.Text = $"{sheet.Rows.Count} row{(sheet.Rows.Count != 1 ? "s" : "")} \u00d7 {sheet.Columns.Count} col{(sheet.Columns.Count != 1 ? "s" : "")}";
     }
 
     /// <summary>
@@ -982,15 +1002,14 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
 
         if (inputs.Count == 0)
         {
-            // Show all rows
             RenderDataGrid(_activeSheet, null);
             OutputPanel.Visibility = Visibility.Collapsed;
             return;
         }
 
         var results = _service.Lookup(_activeSheet, inputs);
-
         OutputFields.Children.Clear();
+        _lastOutputText = null;
 
         if (results.Count == 0)
         {
@@ -1002,15 +1021,12 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
                 Foreground = (System.Windows.Media.Brush)FindResource("MutedTextBrush"),
                 FontStyle = FontStyles.Italic
             });
-
-            // Still show full table
             RenderDataGrid(_activeSheet, null);
             return;
         }
 
         OutputPanel.Visibility = Visibility.Visible;
 
-        // Show output columns from matched rows
         var outputCols = _activeSheet.Columns.Where(c => c.IsOutputColumn).ToList();
         if (IsMotorFlaSheet(_activeSheet) && !string.IsNullOrWhiteSpace(_selectedVoltageHeader))
         {
@@ -1018,36 +1034,118 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
                 .Where(c => c.Header.Equals(_selectedVoltageHeader, StringComparison.OrdinalIgnoreCase))
                 .ToList();
         }
-        foreach (var result in results)
+
+        var copyLines = new List<string>();
+
+        for (var ri = 0; ri < results.Count; ri++)
         {
-            var resultPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var result = results[ri];
+
+            // Separator between multiple matched rows
+            if (ri > 0)
+            {
+                OutputFields.Children.Add(new Border
+                {
+                    BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, 0x66, 0xBB, 0x6A)),
+                    BorderThickness = new Thickness(0, 1, 0, 0),
+                    Margin = new Thickness(0, 6, 0, 6),
+                    Height = 1
+                });
+                copyLines.Add("---");
+            }
+
             foreach (var col in outputCols)
             {
-                if (result.TryGetValue(col.Header, out var val))
+                if (!result.TryGetValue(col.Header, out var val)) continue;
+
+                // Clean label: strip unit from header if unit is separate
+                var label = col.Header;
+                if (col.Unit != null && label.Contains($"({col.Unit})"))
+                    label = label.Replace($"({col.Unit})", "").Trim();
+
+                var valueText = val;
+                var unitText = col.Unit ?? "";
+
+                // Card-style output: value card with label
+                var card = new Border
                 {
-                    var row = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, Margin = new Thickness(0, 1, 0, 1) };
-                    row.Children.Add(new TextBlock
+                    Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, 0x66, 0xBB, 0x6A)),
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(10, 6, 10, 6),
+                    Margin = new Thickness(0, 0, 6, 6),
+                    MinWidth = 70
+                };
+
+                var cardStack = new StackPanel();
+
+                // Value (large, bold, green)
+                var valuePanel = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+                valuePanel.Children.Add(new TextBlock
+                {
+                    Text = valueText,
+                    FontSize = 16,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x66, 0xBB, 0x6A))
+                });
+                if (!string.IsNullOrEmpty(unitText))
+                {
+                    valuePanel.Children.Add(new TextBlock
                     {
-                        Text = $"{col.Header}: ",
+                        Text = $" {unitText}",
                         FontSize = 11,
-                        Foreground = (System.Windows.Media.Brush)FindResource("DimTextBrush")
+                        Foreground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x80, 0x66, 0xBB, 0x6A)),
+                        VerticalAlignment = VerticalAlignment.Bottom,
+                        Margin = new Thickness(0, 0, 0, 2)
                     });
-                    row.Children.Add(new TextBlock
-                    {
-                        Text = val + (col.Unit != null ? $" {col.Unit}" : ""),
-                        FontSize = 11,
-                        FontWeight = FontWeights.SemiBold,
-                        Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x66, 0xBB, 0x6A))
-                    });
-                    resultPanel.Children.Add(row);
                 }
+                cardStack.Children.Add(valuePanel);
+
+                // Label (small, below value)
+                cardStack.Children.Add(new TextBlock
+                {
+                    Text = label,
+                    FontSize = 9,
+                    Foreground = (System.Windows.Media.Brush)FindResource("DimTextBrush"),
+                    Margin = new Thickness(0, 2, 0, 0)
+                });
+
+                card.Child = cardStack;
+                OutputFields.Children.Add(card);
+
+                copyLines.Add($"{label}: {valueText}{(string.IsNullOrEmpty(unitText) ? "" : $" {unitText}")}");
             }
-            OutputFields.Children.Add(resultPanel);
         }
+
+        _lastOutputText = string.Join("\n", copyLines);
+        CopyOutputLabel.Text = "\U0001F4CB Copy";
 
         // Highlight matching rows in the table
         var matchedRowIndices = GetMatchedRowIndicesStrict(_activeSheet, inputs);
         RenderDataGrid(_activeSheet, matchedRowIndices.Count > 0 ? matchedRowIndices : null);
+    }
+
+    private string? _lastOutputText;
+
+    private void CopyOutputButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (string.IsNullOrEmpty(_lastOutputText)) return;
+        try
+        {
+            System.Windows.Clipboard.SetText(_lastOutputText);
+            TelemetryAccessor.TrackClipboardCopy("output_values", "CheatSheet");
+            CopyOutputLabel.Text = "\u2714 Copied!";
+            var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            timer.Tick += (_, _) =>
+            {
+                CopyOutputLabel.Text = "\U0001F4CB Copy";
+                timer.Stop();
+            };
+            timer.Start();
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"CheatSheetWidget.CopyOutput: {ex.Message}");
+        }
     }
 
     private static bool IsMotorFlaSheet(CheatSheet sheet)
@@ -1215,23 +1313,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         return true;
     }
 
-    private void FindToggle_Click(object sender, MouseButtonEventArgs e)
-    {
-        FindBar.Visibility = FindBar.Visibility == Visibility.Visible
-            ? Visibility.Collapsed
-            : Visibility.Visible;
-
-        if (FindBar.Visibility == Visibility.Visible)
-        {
-            FindBox.Focus();
-        }
-        else
-        {
-            FindBox.Text = "";
-            if (_activeSheet != null)
-                RenderDataGrid(_activeSheet, null);
-        }
-    }
+    // FindToggle_Click removed — Find bar is now always visible in Table mode
 
     private void FindBox_TextChanged(object sender, TextChangedEventArgs e)
     {

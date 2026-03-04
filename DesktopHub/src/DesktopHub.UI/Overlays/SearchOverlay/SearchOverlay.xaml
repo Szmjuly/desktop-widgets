@@ -36,12 +36,48 @@
                            Visibility="{Binding IsFavorite, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
                 
                 <StackPanel Grid.Column="1">
-                    <!-- Project number and name -->
-                    <TextBlock FontSize="14" FontWeight="SemiBold">
-                        <Run Text="{Binding FullNumber, Mode=OneWay}" Foreground="#007ACC"/>
-                        <Run Text=" - "/>
-                        <Run Text="{Binding Name, Mode=OneWay}"/>
-                    </TextBlock>
+                    <!-- Project number, name, and match tag -->
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center">
+                            <Run Text="{Binding FullNumber, Mode=OneWay}" Foreground="#007ACC"/>
+                            <Run Text=" - "/>
+                            <Run Text="{Binding Name, Mode=OneWay}"/>
+                        </TextBlock>
+                        <!-- Match type badge for related/loose/duplicate matches -->
+                        <Border CornerRadius="3" Padding="5,1" Margin="6,0,0,0"
+                                VerticalAlignment="Center"
+                                Visibility="{Binding MatchTag, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="#33DAA520"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsLooseTokenMatch}" Value="True">
+                                            <Setter Property="Background" Value="#33FF8C00"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsDuplicateNumber}" Value="True">
+                                            <Setter Property="Background" Value="#33FF4444"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="{Binding MatchTag, Mode=OneWay}" 
+                                       FontSize="9" FontWeight="SemiBold" VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#DAA520"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsLooseTokenMatch}" Value="True">
+                                                <Setter Property="Foreground" Value="#FF8C00"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsDuplicateNumber}" Value="True">
+                                                <Setter Property="Foreground" Value="#FF4444"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Border>
+                    </StackPanel>
                     
                     <!-- Location and status -->
                     <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
