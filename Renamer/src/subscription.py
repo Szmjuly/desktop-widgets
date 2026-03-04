@@ -75,6 +75,7 @@ class SubscriptionManager:
         self.device_id = self._get_device_id()
         self._subscription_data: Optional[Dict[str, Any]] = None
         self.device_fingerprint = get_device_fingerprint() if DEVICE_ID_AVAILABLE else {}
+        self.username = os.environ.get('USERNAME', os.environ.get('USER', os.getlogin())).lower()
         
         # Create app data directory if it doesn't exist
         self.app_data_dir.mkdir(parents=True, exist_ok=True)
@@ -294,36 +295,88 @@ class SubscriptionManager:
         suffix = ''.join(secrets.choice(chars) for _ in range(8))
         return f"FREE-{device_hash}-{suffix}"
     
+    def _get_event_month(self) -> str:
+        """Get current YYYY-MM string for date-partitioned event paths."""
+        return datetime.now(timezone.utc).strftime('%Y-%m')
+    
+    def _register_user_and_device(self, license_key: str, app_version: str = '1.0.0') -> None:
+        """Register/update user and device in the new structured Firebase nodes."""
+        try:
+            now = datetime.now(timezone.utc).isoformat()
+            device_name = os.environ.get('COMPUTERNAME', os.environ.get('HOSTNAME', 'Unknown'))
+            fingerprint = self.device_fingerprint
+
+            # Update users/{username}
+            user_data = {
+                'last_seen': now,
+                'display_name': os.environ.get('USERNAME', os.environ.get('USER', self.username))
+            }
+            if self.use_admin_sdk:
+                self.db.child('users').child(self.username).update(user_data)
+                self.db.child('users').child(self.username).child('devices').child(self.device_id).set(True)
+            else:
+                token = self.auth_user['idToken']
+                self.db.child('users').child(self.username).update(user_data, token=token)
+                self.db.child('users').child(self.username).child('devices').child(self.device_id).set(True, token=token)
+
+            # Update devices/{device_id}
+            device_data = {
+                'device_name': device_name,
+                'username': self.username,
+                'mac_address': MAC_ADDRESS if DEVICE_ID_AVAILABLE else 'unknown',
+                'platform': fingerprint.get('platform', 'Unknown'),
+                'platform_version': fingerprint.get('platform_version', ''),
+                'machine': fingerprint.get('machine', ''),
+                'last_seen': now,
+                'status': 'active',
+                'license_key': license_key or 'FREE-AUTO'
+            }
+            app_state = {
+                'installed_version': app_version,
+                'last_launch': now,
+                'status': 'active'
+            }
+            if self.use_admin_sdk:
+                self.db.child('devices').child(self.device_id).update(device_data)
+                self.db.child('devices').child(self.device_id).child('apps').child(self.app_id).update(app_state)
+            else:
+                token = self.auth_user['idToken']
+                self.db.child('devices').child(self.device_id).update(device_data, token=token)
+                self.db.child('devices').child(self.device_id).child('apps').child(self.app_id).update(app_state, token=token)
+        except Exception as e:
+            print(f"Note: User/device registration in new structure failed (non-fatal): {e}")
+    
     def _register_device(self, license_key: str) -> None:
         """Register device activation."""
+        now = datetime.now(timezone.utc).isoformat()
+        device_name = os.environ.get('COMPUTERNAME', os.environ.get('HOSTNAME', 'Unknown'))
+
         activation_data = {
             'app_id': self.app_id,
             'license_key': license_key,
-            'device_id': self.device_id,  # Store local device_id in data
-            'device_name': os.environ.get('COMPUTERNAME', os.environ.get('HOSTNAME', 'Unknown')),
-            'activated_at': datetime.now(timezone.utc).isoformat(),
-            'last_validated': datetime.now(timezone.utc).isoformat(),
+            'device_id': self.device_id,
+            'device_name': device_name,
+            'username': self.username,
+            'activated_at': now,
+            'last_validated': now,
             'app_version': '1.0.0'
         }
-        
+
+        # --- New structure: users/ and devices/ ---
+        self._register_user_and_device(license_key)
+
+        # --- Legacy: device_activations (backward compat) ---
         if self.use_admin_sdk:
-            # Use local device_id as path with admin SDK
             self.db.child('device_activations').child(self.device_id).set(activation_data)
         else:
-            # Use Firebase auth UID as path (required by security rules)
-            # Store local device_id in the data for reference
-            # Pyrebase returns user info with 'localId' or we decode from idToken
             auth_uid = self.auth_user.get('localId') or self.auth_user.get('userId')
-            
+
             if not auth_uid:
-                # Decode JWT token to get user_id (fallback)
                 try:
-                    # idToken is a JWT, decode without verification to get user_id
                     import base64
                     parts = self.auth_user['idToken'].split('.')
                     if len(parts) >= 2:
                         payload = parts[1]
-                        # Add padding if needed
                         padding = 4 - len(payload) % 4
                         if padding != 4:
                             payload += '=' * padding
@@ -331,10 +384,10 @@ class SubscriptionManager:
                         auth_uid = decoded.get('user_id') or decoded.get('sub')
                 except Exception as e:
                     print(f"Warning: Could not decode auth token: {e}")
-            
+
             if not auth_uid:
                 raise ValueError("Could not get auth UID from Firebase authentication")
-            
+
             self.db.child('device_activations').child(auth_uid).set(
                 activation_data,
                 token=self.auth_user['idToken']
@@ -722,27 +775,41 @@ class SubscriptionManager:
         try:
             sub = self._load_subscription()
             license_key = sub.get('license_key') if sub else None
-            
-            # Generate stable user identifier for license management
-            user_id = get_user_identifier(self.device_id, license_key) if DEVICE_ID_AVAILABLE else self.device_id
-            
-            sync_data = {
+            now = datetime.now(timezone.utc).isoformat()
+
+            # --- New structure: events/{app_id}/{YYYY-MM}/ ---
+            event_data = {
+                'event_type': 'app_launch',
+                'device_id': self.device_id,
+                'username': self.username,
+                'timestamp': now,
+                'app_version': '1.0.0'
+            }
+            try:
+                if self.use_admin_sdk:
+                    self.db.child('events').child(self.app_id).child(self._get_event_month()).push(event_data)
+                else:
+                    self.db.child('events').child(self.app_id).child(self._get_event_month()).push(
+                        event_data, token=self.auth_user['idToken'])
+            except Exception:
+                pass  # Non-fatal
+
+            # --- Legacy: app_launches (backward compat) ---
+            legacy_data = {
                 'app_id': self.app_id,
                 'device_id': self.device_id,
-                'user_id': user_id,
+                'username': self.username,
                 'license_key': license_key,
-                'mac_address': MAC_ADDRESS if DEVICE_ID_AVAILABLE else None,
-                'device_info': self.device_fingerprint,
-                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'timestamp': now,
                 'app_version': '1.0.0',
                 'event_type': 'app_launch'
             }
-            
+
             if self.use_admin_sdk:
-                self.db.child('app_launches').push(sync_data)
+                self.db.child('app_launches').push(legacy_data)
             else:
-                self.db.child('app_launches').push(sync_data, token=self.auth_user['idToken'])
-            
+                self.db.child('app_launches').push(legacy_data, token=self.auth_user['idToken'])
+
             return True
         except Exception:
             return False  # Silent fail
@@ -759,23 +826,42 @@ class SubscriptionManager:
             license_key = sub.get('license_key') if sub else None
             user_id = get_user_identifier(self.device_id, license_key) if DEVICE_ID_AVAILABLE else self.device_id
             
-            update_data = {
+            now = datetime.now(timezone.utc).isoformat()
+
+            # --- New structure: events/{app_id}/{YYYY-MM}/ ---
+            event_data = {
+                'event_type': 'processing_session',
+                'device_id': self.device_id,
+                'username': self.username,
+                'timestamp': now,
+                'app_version': '1.0.0',
+                **usage_data
+            }
+            try:
+                if self.use_admin_sdk:
+                    self.db.child('events').child(self.app_id).child(self._get_event_month()).push(event_data)
+                else:
+                    self.db.child('events').child(self.app_id).child(self._get_event_month()).push(
+                        event_data, token=self.auth_user['idToken'])
+            except Exception:
+                pass  # Non-fatal
+
+            # --- Legacy: processing_sessions (backward compat) ---
+            legacy_data = {
                 'app_id': self.app_id,
                 'device_id': self.device_id,
-                'user_id': user_id,
+                'username': self.username,
                 'license_key': license_key,
-                'mac_address': MAC_ADDRESS if DEVICE_ID_AVAILABLE else None,
-                'device_info': self.device_fingerprint,
-                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'timestamp': now,
                 'app_version': '1.0.0',
                 'event_type': 'processing_session',
                 **usage_data
             }
-            
+
             if self.use_admin_sdk:
-                self.db.child('processing_sessions').push(update_data)
+                self.db.child('processing_sessions').push(legacy_data)
             else:
-                self.db.child('processing_sessions').push(update_data, token=self.auth_user['idToken'])
+                self.db.child('processing_sessions').push(legacy_data, token=self.auth_user['idToken'])
             
             return True
         except Exception:

@@ -21,7 +21,6 @@ public class FirebaseService : IFirebaseService
     private const string DefaultDatabaseUrl = "https://licenses-ff136-default-rtdb.firebaseio.com";
     private readonly string _appDataDir;
     private readonly string _configFilePath;
-    private readonly bool _useOrganizedPaths = false; // Set to true to use new structure
     private FirebaseApp? _firebaseApp;
     private HttpClient? _httpClient;
     private string? _databaseUrl;
@@ -29,6 +28,7 @@ public class FirebaseService : IFirebaseService
     private System.Threading.Timer? _heartbeatTimer;
     private DateTime _sessionStartTime;
     private bool _isInitialized;
+    private readonly string _username = Environment.UserName.ToLowerInvariant();
 
     public bool IsInitialized => _isInitialized;
 
@@ -259,25 +259,89 @@ public class FirebaseService : IFirebaseService
         try
         {
             var licenseKey = await GetLicenseKeyAsync();
+            var appVersion = GetAppVersion();
+            var now = DateTime.UtcNow.ToString("o");
+
+            // --- New structure: users/ and devices/ ---
+            await RegisterUserAndDeviceAsync(licenseKey, appVersion, now);
+
+            // --- Legacy: device_activations (backward compat for old app versions) ---
             var activationData = new Dictionary<string, object>
             {
                 ["app_id"] = AppId,
                 ["license_key"] = licenseKey ?? "FREE-AUTO",
                 ["device_id"] = _deviceInfo.DeviceId,
                 ["device_name"] = _deviceInfo.DeviceName,
-                ["activated_at"] = DateTime.UtcNow.ToString("o"),
-                ["last_validated"] = DateTime.UtcNow.ToString("o"),
-                ["app_version"] = GetAppVersion(),
+                ["username"] = _username,
+                ["activated_at"] = now,
+                ["last_validated"] = now,
+                ["app_version"] = appVersion,
                 ["device_info"] = _deviceInfo.ToDictionary()
             };
 
             await PutDataAsync($"device_activations/{_deviceInfo.DeviceId}", activationData);
 
-            InfraLogger.Log($"Firebase: Device registered - {_deviceInfo.DeviceId}");
+            InfraLogger.Log($"Firebase: Device registered - {_deviceInfo.DeviceId} (user: {_username})");
         }
         catch (Exception ex)
         {
             InfraLogger.Log($"Firebase: Failed to register device: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Register/update the user and device in the new structured nodes.
+    /// users/{username} — canonical user record with linked devices
+    /// devices/{device_id} — device record with per-app state
+    /// </summary>
+    private async Task RegisterUserAndDeviceAsync(string? licenseKey, string appVersion, string timestamp)
+    {
+        if (_deviceInfo == null) return;
+
+        try
+        {
+            // Update users/{username} — create or update
+            await PatchDataAsync($"users/{_username}", new Dictionary<string, object>
+            {
+                ["last_seen"] = timestamp,
+                ["display_name"] = Environment.UserName // preserve original casing
+            });
+
+            // Set first_seen only if not already set (use PUT on the specific field with a rule,
+            // but since RTDB doesn't support "write if absent" easily, we just patch —
+            // the first call creates it, subsequent calls update last_seen only)
+            // Link device to user
+            await PutDataAsync($"users/{_username}/devices/{_deviceInfo.DeviceId}", true);
+
+            // Update devices/{device_id} — device info stored once
+            var deviceData = new Dictionary<string, object>
+            {
+                ["device_name"] = _deviceInfo.DeviceName,
+                ["username"] = _username,
+                ["mac_address"] = _deviceInfo.MacAddress ?? "unknown",
+                ["platform"] = "Windows",
+                ["platform_version"] = Environment.OSVersion.Version.ToString(),
+                ["machine"] = Environment.Is64BitOperatingSystem ? "x64" : "x86",
+                ["last_seen"] = timestamp,
+                ["status"] = "active",
+                ["license_key"] = licenseKey ?? "FREE-AUTO"
+            };
+            await PatchDataAsync($"devices/{_deviceInfo.DeviceId}", deviceData);
+
+            // Update per-app state on device: devices/{device_id}/apps/{app_id}
+            var appState = new Dictionary<string, object>
+            {
+                ["installed_version"] = appVersion,
+                ["last_launch"] = timestamp,
+                ["status"] = "active"
+            };
+            await PatchDataAsync($"devices/{_deviceInfo.DeviceId}/apps/{AppId}", appState);
+
+            InfraLogger.Log($"Firebase: User '{_username}' and device registered in new structure");
+        }
+        catch (Exception ex)
+        {
+            InfraLogger.Log($"Firebase: RegisterUserAndDeviceAsync failed (non-fatal): {ex.Message}");
         }
     }
 
@@ -290,18 +354,40 @@ public class FirebaseService : IFirebaseService
 
         try
         {
+            var now = DateTime.UtcNow.ToString("o");
+            var appVersion = GetAppVersion();
+
+            // --- New structure: update devices/{id} status + per-app version ---
+            await PatchDataAsync($"devices/{_deviceInfo.DeviceId}", new Dictionary<string, object>
+            {
+                ["last_seen"] = now,
+                ["status"] = "active"
+            });
+            await PatchDataAsync($"devices/{_deviceInfo.DeviceId}/apps/{AppId}", new Dictionary<string, object>
+            {
+                ["installed_version"] = appVersion,
+                ["last_launch"] = now,
+                ["status"] = "active"
+            });
+            // Update user last_seen
+            await PatchDataAsync($"users/{_username}", new Dictionary<string, object>
+            {
+                ["last_seen"] = now
+            });
+
+            // --- Legacy: device_heartbeats (backward compat) ---
             var licenseKey = await GetLicenseKeyAsync();
             var heartbeatData = new Dictionary<string, object>
             {
                 ["app_id"] = AppId,
                 ["device_id"] = _deviceInfo.DeviceId,
                 ["device_name"] = _deviceInfo.DeviceName,
+                ["username"] = _username,
                 ["license_key"] = licenseKey ?? "FREE-AUTO",
-                ["last_seen"] = DateTime.UtcNow.ToString("o"),
+                ["last_seen"] = now,
                 ["status"] = "active",
                 ["session_start"] = _sessionStartTime.ToString("o"),
-                ["app_version"] = GetAppVersion(),
-                ["device_info"] = _deviceInfo.ToDictionary()
+                ["app_version"] = appVersion
             };
 
             await PutDataAsync($"device_heartbeats/{_deviceInfo.DeviceId}", heartbeatData);
@@ -381,7 +467,8 @@ public class FirebaseService : IFirebaseService
                 ["documents_limit"] = 0,
                 ["documents_used"] = 0,
                 ["is_bundle"] = false,
-                ["email"] = null!
+                ["email"] = null!,
+                ["username"] = _username
             };
 
             await PutDataAsync($"licenses/{licenseKey}", licenseData);
@@ -398,6 +485,8 @@ public class FirebaseService : IFirebaseService
         }
     }
 
+    private static string GetEventMonth() => DateTime.UtcNow.ToString("yyyy-MM");
+
     public async Task LogAppLaunchAsync(string appVersion)
     {
         if (!_isInitialized || _httpClient == null || _deviceInfo == null)
@@ -407,25 +496,34 @@ public class FirebaseService : IFirebaseService
 
         try
         {
-            var licenseKey = await GetLicenseKeyAsync();
-            var userId = DeviceIdentifier.GetUserIdentifier(_deviceInfo.DeviceId, licenseKey);
+            var now = DateTime.UtcNow.ToString("o");
 
-            var launchData = new Dictionary<string, object>
+            // --- New structure: events/{app_id}/{YYYY-MM}/ ---
+            var eventData = new Dictionary<string, object>
+            {
+                ["event_type"] = "app_launch",
+                ["device_id"] = _deviceInfo.DeviceId,
+                ["username"] = _username,
+                ["timestamp"] = now,
+                ["app_version"] = appVersion
+            };
+            await PostDataAsync($"events/{AppId}/{GetEventMonth()}", eventData);
+
+            // --- Legacy: app_launches (backward compat) ---
+            var licenseKey = await GetLicenseKeyAsync();
+            var legacyData = new Dictionary<string, object>
             {
                 ["app_id"] = AppId,
                 ["device_id"] = _deviceInfo.DeviceId,
-                ["user_id"] = userId,
+                ["username"] = _username,
                 ["license_key"] = licenseKey ?? "FREE-AUTO",
-                ["mac_address"] = _deviceInfo.MacAddress ?? "unknown",
-                ["device_info"] = _deviceInfo.ToDictionary(),
-                ["timestamp"] = DateTime.UtcNow.ToString("o"),
+                ["timestamp"] = now,
                 ["app_version"] = appVersion,
                 ["event_type"] = "app_launch"
             };
+            await PostDataAsync("app_launches", legacyData);
 
-            await PostDataAsync("app_launches", launchData);
-
-            InfraLogger.Log($"Firebase: App launch logged");
+            InfraLogger.Log($"Firebase: App launch logged (user: {_username})");
         }
         catch (Exception ex)
         {
@@ -442,27 +540,47 @@ public class FirebaseService : IFirebaseService
 
         try
         {
-            var licenseKey = await GetLicenseKeyAsync();
-            var userId = DeviceIdentifier.GetUserIdentifier(_deviceInfo.DeviceId, licenseKey);
+            var now = DateTime.UtcNow.ToString("o");
+            var appVersion = GetAppVersion();
 
-            var closeData = new Dictionary<string, object>
+            // --- New structure: events/ + mark device inactive ---
+            var eventData = new Dictionary<string, object>
+            {
+                ["event_type"] = "app_close",
+                ["device_id"] = _deviceInfo.DeviceId,
+                ["username"] = _username,
+                ["timestamp"] = now,
+                ["app_version"] = appVersion,
+                ["session_duration_seconds"] = (int)sessionDuration.TotalSeconds
+            };
+            await PostDataAsync($"events/{AppId}/{GetEventMonth()}", eventData);
+
+            // Mark app as inactive on device
+            await PatchDataAsync($"devices/{_deviceInfo.DeviceId}/apps/{AppId}", new Dictionary<string, object>
+            {
+                ["status"] = "inactive",
+                ["last_seen"] = now
+            });
+
+            // --- Legacy: app_launches + device_heartbeats (backward compat) ---
+            var licenseKey = await GetLicenseKeyAsync();
+            var legacyData = new Dictionary<string, object>
             {
                 ["app_id"] = AppId,
                 ["device_id"] = _deviceInfo.DeviceId,
-                ["user_id"] = userId,
+                ["username"] = _username,
                 ["license_key"] = licenseKey ?? "FREE-AUTO",
-                ["timestamp"] = DateTime.UtcNow.ToString("o"),
-                ["app_version"] = GetAppVersion(),
+                ["timestamp"] = now,
+                ["app_version"] = appVersion,
                 ["event_type"] = "app_close",
                 ["session_duration_seconds"] = (int)sessionDuration.TotalSeconds
             };
-
-            await PostDataAsync("app_launches", closeData);
+            await PostDataAsync("app_launches", legacyData);
 
             await PatchDataAsync($"device_heartbeats/{_deviceInfo.DeviceId}", new Dictionary<string, object>
             {
                 ["status"] = "inactive",
-                ["last_seen"] = DateTime.UtcNow.ToString("o")
+                ["last_seen"] = now
             });
 
             InfraLogger.Log($"Firebase: App close logged (session: {sessionDuration.TotalMinutes:F1} min)");
@@ -482,29 +600,30 @@ public class FirebaseService : IFirebaseService
 
         try
         {
-            var licenseKey = await GetLicenseKeyAsync();
-            var userId = DeviceIdentifier.GetUserIdentifier(_deviceInfo.DeviceId, licenseKey);
+            var now = DateTime.UtcNow.ToString("o");
 
+            // --- New structure: events/{app_id}/{YYYY-MM}/ ---
             var eventData = new Dictionary<string, object>
             {
-                ["app_id"] = AppId,
+                ["event_type"] = eventType,
                 ["device_id"] = _deviceInfo.DeviceId,
-                ["user_id"] = userId,
-                ["license_key"] = licenseKey ?? "FREE-AUTO",
-                ["timestamp"] = DateTime.UtcNow.ToString("o"),
-                ["app_version"] = GetAppVersion(),
-                ["event_type"] = eventType
+                ["username"] = _username,
+                ["timestamp"] = now,
+                ["app_version"] = GetAppVersion()
             };
-
             if (data != null)
             {
                 foreach (var kvp in data)
-                {
                     eventData[kvp.Key] = kvp.Value;
-                }
             }
+            await PostDataAsync($"events/{AppId}/{GetEventMonth()}", eventData);
 
-            await PostDataAsync("processing_sessions", eventData);
+            // --- Legacy: processing_sessions (backward compat) ---
+            var legacyData = new Dictionary<string, object>(eventData)
+            {
+                ["app_id"] = AppId
+            };
+            await PostDataAsync("processing_sessions", legacyData);
         }
         catch (Exception ex)
         {
@@ -523,8 +642,8 @@ public class FirebaseService : IFirebaseService
         {
             var errorData = new Dictionary<string, object>
             {
-                ["app_id"] = AppId,
                 ["device_id"] = _deviceInfo.DeviceId,
+                ["username"] = _username,
                 ["timestamp"] = DateTime.UtcNow.ToString("o"),
                 ["error_type"] = ex.GetType().Name,
                 ["error_message"] = ex.Message,
@@ -533,7 +652,15 @@ public class FirebaseService : IFirebaseService
                 ["app_version"] = appVersion
             };
 
-            await PostDataAsync("error_logs", errorData);
+            // --- New structure: errors/{app_id}/{YYYY-MM}/ ---
+            await PostDataAsync($"errors/{AppId}/{GetEventMonth()}", errorData);
+
+            // --- Legacy: error_logs (backward compat) ---
+            var legacyData = new Dictionary<string, object>(errorData)
+            {
+                ["app_id"] = AppId
+            };
+            await PostDataAsync("error_logs", legacyData);
 
             InfraLogger.Log($"Firebase: Error logged - {ex.GetType().Name}");
         }
@@ -597,17 +724,23 @@ public class FirebaseService : IFirebaseService
             InfraLogger.Log($"FirebaseService:   DownloadUrl={updateInfo.DownloadUrl}");
             InfraLogger.Log($"FirebaseService:   ReleaseNotes={updateInfo.ReleaseNotes}");
 
+            var now = DateTime.UtcNow.ToString("o");
             var checkData = new Dictionary<string, object>
             {
-                ["app_id"] = AppId,
+                ["event_type"] = "update_check",
                 ["device_id"] = _deviceInfo.DeviceId,
+                ["username"] = _username,
                 ["current_version"] = currentVersion,
                 ["latest_version"] = latestVersion,
                 ["update_available"] = updateInfo.UpdateAvailable,
-                ["timestamp"] = DateTime.UtcNow.ToString("o")
+                ["timestamp"] = now
             };
 
             InfraLogger.Log("FirebaseService: Logging update check to Firebase");
+            // New structure
+            await PostDataAsync($"events/{AppId}/{GetEventMonth()}", checkData);
+            // Legacy
+            checkData["app_id"] = AppId;
             await PostDataAsync("update_checks", checkData);
 
             InfraLogger.Log("FirebaseService: CheckForUpdatesAsync SUCCESS - returning UpdateInfo");
@@ -704,16 +837,27 @@ public class FirebaseService : IFirebaseService
 
         try
         {
+            var now = DateTime.UtcNow.ToString("o");
             var installData = new Dictionary<string, object>
             {
-                ["app_id"] = AppId,
+                ["event_type"] = "update_installed",
                 ["device_id"] = _deviceInfo.DeviceId,
+                ["username"] = _username,
                 ["version"] = version,
-                ["timestamp"] = DateTime.UtcNow.ToString("o"),
-                ["event_type"] = "update_installed"
+                ["timestamp"] = now
             };
 
+            // New structure
+            await PostDataAsync($"events/{AppId}/{GetEventMonth()}", installData);
+            // Legacy
+            installData["app_id"] = AppId;
             await PostDataAsync("processing_sessions", installData);
+
+            // Update installed version on device
+            await PatchDataAsync($"devices/{_deviceInfo?.DeviceId}/apps/{AppId}", new Dictionary<string, object>
+            {
+                ["installed_version"] = version
+            });
 
             InfraLogger.Log($"Firebase: Update installation logged - v{version}");
         }
@@ -890,28 +1034,5 @@ public class FirebaseService : IFirebaseService
         await _httpClient.SendAsync(request);
     }
 
-    private string GetOrganizedPath(string pathType)
-    {
-        if (!_useOrganizedPaths)
-        {
-            // Legacy paths
-            return pathType;
-        }
-
-        // New organized structure
-        var now = DateTime.UtcNow;
-        var datePrefix = $"{now.Year:D4}/{now.Month:D2}/{now.Day:D2}";
-        
-        return pathType switch
-        {
-            "app_launches" => $"apps/{AppId}/analytics/launches/{datePrefix}",
-            "device_activations" => $"apps/{AppId}/devices",
-            "device_heartbeats" => $"apps/{AppId}/devices",
-            "error_logs" => $"apps/{AppId}/analytics/errors/{datePrefix}",
-            "processing_sessions" => $"apps/{AppId}/analytics/sessions/{datePrefix}",
-            "update_checks" => $"apps/{AppId}/analytics/update_checks/{datePrefix}",
-            _ => pathType
-        };
-    }
 }
 
