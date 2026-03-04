@@ -24,4 +24,7 @@ public interface IFirebaseService
     // Feature flags
     Task<bool> GetFeatureFlagAsync(string flagName, bool defaultValue = false);
     Task<bool> IsMetricsViewerEnabledAsync();
+
+    // Admin management — checks Firebase for Windows username-based admin privileges
+    Task<bool> IsUserAdminAsync(string? windowsUsername = null);
 }

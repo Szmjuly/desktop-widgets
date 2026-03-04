@@ -669,6 +669,32 @@ public class FirebaseService : IFirebaseService
         return await GetFeatureFlagAsync("metrics_viewer_enabled", defaultValue: true);
     }
 
+    public async Task<bool> IsUserAdminAsync(string? windowsUsername = null)
+    {
+        if (!_isInitialized || _httpClient == null)
+            return false;
+
+        try
+        {
+            var username = (windowsUsername ?? Environment.UserName).ToLowerInvariant();
+            var adminFlag = await GetDataAsync<object>($"admin_users/{username}");
+            if (adminFlag != null)
+            {
+                var isAdmin = ParseBool(adminFlag.ToString()) ?? false;
+                InfraLogger.Log($"Firebase: Admin check for '{username}' = {isAdmin}");
+                return isAdmin;
+            }
+
+            InfraLogger.Log($"Firebase: Admin check for '{username}' = false (not found)");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            InfraLogger.Log($"Firebase: Admin check failed: {ex.Message}");
+            return false;
+        }
+    }
+
     public async Task LogUpdateInstalledAsync(string version)
     {
         if (!_isInitialized || _httpClient == null || _deviceInfo == null)

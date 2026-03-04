@@ -404,8 +404,7 @@ public class TelemetryService : ITelemetryService, IDisposable
     public async Task<List<DailyMetricsSummary>> GetAllUsersSummariesAsync(DateTime from, DateTime to)
     {
         // Admin-only: fetch all-user summaries from Firebase
-        // For non-admin builds this returns empty; the UI guard in BuildConfig prevents calling
-        if (!Core.BuildConfig.IsAdminBuild) return new List<DailyMetricsSummary>();
+        // Access is gated at the UI layer via Firebase admin_users check
         if (_firebaseService == null || !_firebaseService.IsInitialized) return new List<DailyMetricsSummary>();
 
         try
@@ -435,7 +434,7 @@ public class TelemetryService : ITelemetryService, IDisposable
 
     public Task<List<MetricsUserInfo>> GetKnownUsersAsync()
     {
-        if (!Core.BuildConfig.IsAdminBuild) return Task.FromResult(new List<MetricsUserInfo>());
+        // Access is gated at the UI layer via Firebase admin_users check
         if (_firebaseService == null || !_firebaseService.IsInitialized) return Task.FromResult(new List<MetricsUserInfo>());
 
         try

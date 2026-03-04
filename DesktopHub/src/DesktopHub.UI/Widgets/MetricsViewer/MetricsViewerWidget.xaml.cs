@@ -115,16 +115,40 @@ public partial class MetricsViewerWidget : System.Windows.Controls.UserControl
     {
         UpdateDeviceInfo();
 
-        // Show admin toggle only in admin builds
-        if (BuildConfig.IsAdminBuild)
-        {
-            AdminToggleButton.Visibility = Visibility.Visible;
-        }
+        // Check Firebase for admin privileges based on Windows username
+        await CheckAdminStatusAsync();
 
         BuildChartTypeButtons();
         BuildAxisButtons();
         await LoadMetricsAsync();
         StartPolling();
+    }
+
+    private bool _isAdmin;
+
+    private async System.Threading.Tasks.Task CheckAdminStatusAsync()
+    {
+        try
+        {
+            var app = System.Windows.Application.Current as App;
+            var firebaseManager = app?.FirebaseManager;
+            var firebaseService = firebaseManager?.FirebaseService;
+
+            if (firebaseService != null && firebaseService.IsInitialized)
+            {
+                _isAdmin = await firebaseService.IsUserAdminAsync();
+            }
+            else
+            {
+                _isAdmin = false;
+            }
+        }
+        catch
+        {
+            _isAdmin = false;
+        }
+
+        AdminToggleButton.Visibility = _isAdmin ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)

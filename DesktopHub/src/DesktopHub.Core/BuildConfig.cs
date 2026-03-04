@@ -11,5 +11,5 @@ public static class BuildConfig
     /// telemetry data from ALL users (fetched from Firebase).
     /// Set to false for standard user builds.
     /// </summary>
-    public static readonly bool IsAdminBuild = true;
+    public static readonly bool IsAdminBuild = false;
 }

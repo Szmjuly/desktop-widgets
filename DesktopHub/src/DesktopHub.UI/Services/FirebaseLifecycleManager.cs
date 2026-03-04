@@ -11,6 +11,8 @@ public class FirebaseLifecycleManager
     private readonly DateTime _startTime;
     private readonly string _appVersion;
 
+    public IFirebaseService FirebaseService => _firebaseService;
+
     public FirebaseLifecycleManager(IFirebaseService firebaseService)
     {
         _firebaseService = firebaseService;
