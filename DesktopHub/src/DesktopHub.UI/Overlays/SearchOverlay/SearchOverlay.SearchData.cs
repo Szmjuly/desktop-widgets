@@ -359,7 +359,9 @@ public partial class SearchOverlay
                 querySource: _lastQuerySource);
 
             // Update UI - batch operations to reduce overhead
-            var projectViewModels = results.Select(r => new ProjectViewModel(r.Project, r.IsRelatedMatch, r.IsLooseTokenMatch, r.IsDuplicateNumber)).ToList();
+            var projectViewModels = results.Select(r => new ProjectViewModel(
+                r.Project, r.IsRelatedMatch, r.IsLooseTokenMatch, r.IsDuplicateNumber,
+                hasTags: _tagService?.HasTags(r.Project.FullNumber) ?? false)).ToList();
             ResultsList.ItemsSource = projectViewModels;
 
             if (results.Any())

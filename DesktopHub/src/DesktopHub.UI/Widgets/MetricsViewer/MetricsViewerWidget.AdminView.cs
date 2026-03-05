@@ -28,10 +28,9 @@ public partial class MetricsViewerWidget
 
             AdminStatusText.Text = "Loading...";
 
-            var from = _adminRangeEnd.AddDays(-(_adminRangeDays - 1));
-            _adminSummaries = await service.GetAllUsersSummariesAsync(from, _adminRangeEnd);
+            _adminSummaries = await service.GetAllUsersSummariesAsync(_adminRangeStart, _adminRangeEnd);
 
-            AdminDateRangeLabel.Text = $"{from:MMM dd} - {_adminRangeEnd:MMM dd}";
+            AdminDateRangeLabel.Text = $"{_adminRangeStart:MMM dd} - {_adminRangeEnd:MMM dd}";
 
             // Build user list and toggles
             var users = _adminSummaries
@@ -49,7 +48,7 @@ public partial class MetricsViewerWidget
             ApplyUserFilter();
 
             RenderAdminSummaryTable();
-            RenderAdminInsights(from);
+            RenderAdminInsights(_adminRangeStart);
 
             if (!string.IsNullOrEmpty(_selectedChartType))
                 RenderChart(_selectedChartType);
@@ -107,8 +106,7 @@ public partial class MetricsViewerWidget
                 BuildUserToggles(allUsers);
                 ApplyUserFilter();
                 RenderAdminSummaryTable();
-                var from2 = _adminRangeEnd.AddDays(-(_adminRangeDays - 1));
-                RenderAdminInsights(from2);
+                RenderAdminInsights(_adminRangeStart);
                 if (!string.IsNullOrEmpty(_selectedChartType))
                     RenderChart(_selectedChartType);
                 AdminStatusText.Text = $"Showing {_enabledUsers.Count} user(s) — {_filteredAdminSummaries.Count} records";

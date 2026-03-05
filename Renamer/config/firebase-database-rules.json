@@ -59,6 +59,14 @@
       }
     },
 
+    "metrics": {
+      "$deviceId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".indexOn": ["date", "user_name"]
+      }
+    },
+
     "feature_flags": {
       ".read": "auth != null",
       ".write": false

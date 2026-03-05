@@ -36,6 +36,12 @@ public class SearchFilter
     public List<string> Tags { get; set; } = new();
 
     /// <summary>
+    /// Structured tag filters parsed from key:value syntax (e.g., voltage:208, hvac:DX).
+    /// Each tuple is (resolvedKey, queryValue). All filters are ANDed together.
+    /// </summary>
+    public List<(string Key, string Value)> TagFilters { get; set; } = new();
+
+    /// <summary>
     /// Filter by teams (e.g., ["Design", "Engineering"])
     /// </summary>
     public List<string> Teams { get; set; } = new();

@@ -293,6 +293,10 @@ public class SettingsService : ISettingsService
     public void SetMetricsRefreshIntervalSeconds(int seconds) => _settings.MetricsRefreshIntervalSeconds = Math.Clamp(seconds, 5, 600);
     public bool GetMetricsSnapGridEnabled() => _settings.MetricsSnapGridEnabled;
     public void SetMetricsSnapGridEnabled(bool enabled) => _settings.MetricsSnapGridEnabled = enabled;
+    public int GetMetricsWeekStartDay() => Math.Clamp(_settings.MetricsWeekStartDay, 0, 6);
+    public void SetMetricsWeekStartDay(int dayOfWeek) => _settings.MetricsWeekStartDay = Math.Clamp(dayOfWeek, 0, 6);
+    public int GetMetricsRangeWeeks() => Math.Clamp(_settings.MetricsRangeWeeks, 1, 4);
+    public void SetMetricsRangeWeeks(int weeks) => _settings.MetricsRangeWeeks = Math.Clamp(weeks, 1, 4);
 
     // --- Cheat Sheet Widget ---
     public double GetCheatSheetWidgetTransparency() => _settings.CheatSheetWidgetTransparency;
@@ -393,6 +397,10 @@ public class SettingsService : ISettingsService
             case WidgetIds.CheatSheet:         SetCheatSheetWidgetEnabled(enabled); break;
         }
     }
+
+    // --- Project Tags ---
+    public bool GetTagSearchEnabled() => _settings.TagSearchEnabled;
+    public void SetTagSearchEnabled(bool enabled) => _settings.TagSearchEnabled = enabled;
 
     // --- Hotkey Groups ---
     public List<HotkeyGroup> GetHotkeyGroups()
@@ -614,6 +622,11 @@ public class SettingsService : ISettingsService
         // Metrics Viewer
         public int MetricsRefreshIntervalSeconds { get; set; } = 30; // Auto-refresh every 30s by default
         public bool MetricsSnapGridEnabled { get; set; } = true;
+        public int MetricsWeekStartDay { get; set; } = 1; // 0=Sunday, 1=Monday (default), ..., 6=Saturday
+        public int MetricsRangeWeeks { get; set; } = 1; // Number of weeks to show in admin view (1-4)
+
+        // Project Tags
+        public bool TagSearchEnabled { get; set; } = true;
 
         // Hotkey groups — each group has its own key combo and a set of widget IDs to show/focus
         public List<HotkeyGroup> HotkeyGroups { get; set; } = new();

@@ -11,6 +11,7 @@ using System.Windows.Automation;
 using DesktopHub.Core.Abstractions;
 using DesktopHub.Core.Models;
 using DesktopHub.Infrastructure.Data;
+using DesktopHub.Infrastructure.Firebase;
 using DesktopHub.Infrastructure.Scanning;
 using DesktopHub.Infrastructure.Search;
 using DesktopHub.Infrastructure.Settings;
@@ -44,6 +45,7 @@ public partial class SearchOverlay : Window
     private CheatSheetService? _cheatSheetService;
     private SmartProjectSearchWidget? _smartProjectSearchAttachedWidget;
     private IProjectLaunchDataStore? _launchDataStore;
+    private IProjectTagService? _tagService;
     private List<Project> _allProjects = new();
     private List<Project> _filteredProjects = new();
     private CancellationTokenSource? _searchCts;

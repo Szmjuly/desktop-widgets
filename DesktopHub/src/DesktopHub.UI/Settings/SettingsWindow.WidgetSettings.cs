@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using DesktopHub.Core.Models;
 using DesktopHub.UI.Services;
+using DesktopHub.UI.Widgets;
 
 namespace DesktopHub.UI;
 
@@ -358,8 +359,72 @@ public partial class SettingsWindow
         _isUpdatingSliders = true;
         MetricsRefreshIntervalSlider.Value = interval;
         MetricsRefreshIntervalValue.Text = $"{interval}s";
+
+        var rangeWeeks = _settings.GetMetricsRangeWeeks();
+        MetricsRangeWeeksSlider.Value = rangeWeeks;
+        MetricsRangeWeeksValue.Text = rangeWeeks == 1 ? "1 week" : $"{rangeWeeks} weeks";
         _isUpdatingSliders = false;
+
         MetricsSnapGridToggle.IsChecked = _settings.GetMetricsSnapGridEnabled();
+        MetricsWeekStartDayCombo.SelectedIndex = _settings.GetMetricsWeekStartDay();
+    }
+
+    private void MetricsWeekStartDayCombo_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        var dayIndex = MetricsWeekStartDayCombo.SelectedIndex;
+        if (dayIndex < 0) return;
+        _settings.SetMetricsWeekStartDay(dayIndex);
+        _ = _settings.SaveAsync();
+        var dayName = ((ComboBoxItem)MetricsWeekStartDayCombo.SelectedItem).Content.ToString();
+        StatusText.Text = $"Metrics week starts on {dayName}";
+        NotifyMetricsViewerDateRangeChanged();
+    }
+
+    private void MetricsRangeWeeksSlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_settings == null || !IsLoaded || _isUpdatingSliders) return;
+        var weeks = (int)e.NewValue;
+        _settings.SetMetricsRangeWeeks(weeks);
+        _ = _settings.SaveAsync();
+        MetricsRangeWeeksValue.Text = weeks == 1 ? "1 week" : $"{weeks} weeks";
+        StatusText.Text = $"Metrics range set to {weeks} week{(weeks == 1 ? "" : "s")}";
+        NotifyMetricsViewerDateRangeChanged();
+    }
+
+    private void NotifyMetricsViewerDateRangeChanged()
+    {
+        // Find the MetricsViewerWidget and refresh its date range
+        var app = System.Windows.Application.Current as App;
+        if (app == null) return;
+        foreach (System.Windows.Window w in app.Windows)
+        {
+            if (w.Content is MetricsViewerWidget mv)
+            {
+                mv.RefreshAdminDateRange();
+                return;
+            }
+            // Also check if it's nested inside a content presenter
+            var widget = FindChild<MetricsViewerWidget>(w);
+            if (widget != null)
+            {
+                widget.RefreshAdminDateRange();
+                return;
+            }
+        }
+    }
+
+    private static T? FindChild<T>(System.Windows.DependencyObject parent) where T : System.Windows.DependencyObject
+    {
+        var count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < count; i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+            if (child is T result) return result;
+            var nested = FindChild<T>(child);
+            if (nested != null) return nested;
+        }
+        return null;
     }
 
     // ===== Cheat Sheet Snap Grid =====

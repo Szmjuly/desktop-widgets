@@ -531,6 +531,14 @@ public interface ISettingsService
     void SetMetricsRefreshIntervalSeconds(int seconds);
     bool GetMetricsSnapGridEnabled();
     void SetMetricsSnapGridEnabled(bool enabled);
+    int GetMetricsWeekStartDay();
+    void SetMetricsWeekStartDay(int dayOfWeek);
+    int GetMetricsRangeWeeks();
+    void SetMetricsRangeWeeks(int weeks);
+
+    // --- Project Tags ---
+    bool GetTagSearchEnabled();
+    void SetTagSearchEnabled(bool enabled);
 
     // --- Hotkey Groups ---
     List<HotkeyGroup> GetHotkeyGroups();

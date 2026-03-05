@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -28,9 +29,10 @@ public partial class SearchOverlay
         public bool IsRelatedMatch { get; }
         public bool IsLooseTokenMatch { get; }
         public bool IsDuplicateNumber { get; }
+        public bool HasTags { get; }
         public string MatchTag { get; }
 
-        public ProjectViewModel(Project project, bool isRelatedMatch = false, bool isLooseTokenMatch = false, bool isDuplicateNumber = false)
+        public ProjectViewModel(Project project, bool isRelatedMatch = false, bool isLooseTokenMatch = false, bool isDuplicateNumber = false, bool hasTags = false)
         {
             FullNumber = project.FullNumber;
             Name = project.Name;
@@ -41,6 +43,7 @@ public partial class SearchOverlay
             IsRelatedMatch = isRelatedMatch;
             IsLooseTokenMatch = isLooseTokenMatch;
             IsDuplicateNumber = isDuplicateNumber;
+            HasTags = hasTags;
             MatchTag = isDuplicateNumber ? "Duplicate Number?" :
                        isRelatedMatch ? "Related Project" :
                        isLooseTokenMatch ? "Similar Match" : "";
@@ -578,6 +581,14 @@ public partial class SearchOverlay
                     var copyItem = new MenuItem { Header = "Copy Path" };
                     copyItem.Click += (s, args) => CopyText(capturedPath, "Path copied to clipboard");
                     menu.Items.Add(copyItem);
+
+                    // --- Tags submenu ---
+                    if (_tagService != null && !string.IsNullOrEmpty(capturedProjectNumber))
+                    {
+                        menu.Items.Add(new Separator());
+                        var tagsSubmenu = BuildTagsSubmenu(capturedProjectNumber);
+                        menu.Items.Add(tagsSubmenu);
+                    }
                 }
                 else if (isFilePath)
                 {
@@ -620,6 +631,320 @@ public partial class SearchOverlay
                 menu.IsOpen = true;
                 e.Handled = true;
             }
+        }
+    }
+
+    /// <summary>
+    /// Build a "Tags" submenu showing existing tags and an "Edit Tags..." option.
+    /// </summary>
+    private MenuItem BuildTagsSubmenu(string projectNumber)
+    {
+        var tagsMenu = new MenuItem { Header = "Tags" };
+
+        if (_tagService == null)
+        {
+            tagsMenu.IsEnabled = false;
+            return tagsMenu;
+        }
+
+        var tags = _tagService.GetAllCachedTags()
+            .FirstOrDefault(kvp => kvp.Key.Equals(projectNumber, StringComparison.OrdinalIgnoreCase));
+
+        if (tags.Value != null)
+        {
+            // Show existing tags as read-only items
+            var existingTags = GetNonEmptyTagDisplay(tags.Value);
+            if (existingTags.Count > 0)
+            {
+                foreach (var (label, value) in existingTags)
+                {
+                    var tagItem = new MenuItem
+                    {
+                        Header = $"{label}: {value}",
+                        IsEnabled = false,
+                        Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(180, 180, 180))
+                    };
+                    tagsMenu.Items.Add(tagItem);
+                }
+                tagsMenu.Items.Add(new Separator());
+            }
+        }
+
+        // "Edit Tags..." opens the edit dialog
+        var editItem = new MenuItem { Header = "Edit Tags..." };
+        var capturedNumber = projectNumber;
+        editItem.Click += async (s, args) =>
+        {
+            await ShowTagEditDialog(capturedNumber);
+        };
+        tagsMenu.Items.Add(editItem);
+
+        return tagsMenu;
+    }
+
+    /// <summary>
+    /// Get non-empty tag fields as (DisplayName, Value) pairs for display.
+    /// </summary>
+    private static List<(string Label, string Value)> GetNonEmptyTagDisplay(ProjectTags tags)
+    {
+        var result = new List<(string, string)>();
+        void Add(string label, string? value) { if (!string.IsNullOrWhiteSpace(value)) result.Add((label, value)); }
+
+        Add("Voltage", tags.Voltage);
+        Add("Phase", tags.Phase);
+        Add("Service Amps", tags.AmperageService);
+        Add("Generator Amps", tags.AmperageGenerator);
+        Add("Generator", tags.GeneratorBrand);
+        Add("Generator Load", tags.GeneratorLoadKw != null ? $"{tags.GeneratorLoadKw} kW" : null);
+        Add("HVAC Type", tags.HvacType);
+        Add("HVAC Brand", tags.HvacBrand);
+        Add("Tonnage", tags.HvacTonnage);
+        Add("HVAC Load", tags.HvacLoadKw != null ? $"{tags.HvacLoadKw} kW" : null);
+        Add("Sq Ft", tags.SquareFootage);
+        Add("Build Type", tags.BuildType);
+        Add("City", tags.LocationCity);
+        Add("State", tags.LocationState);
+        Add("Municipality", tags.LocationMunicipality);
+        Add("Address", tags.LocationAddress);
+        Add("Stamping Engineer", tags.StampingEngineer);
+        if (tags.Engineers.Count > 0) result.Add(("Engineers", string.Join(", ", tags.Engineers)));
+        if (tags.CodeReferences.Count > 0) result.Add(("Codes", string.Join(", ", tags.CodeReferences)));
+
+        foreach (var (key, value) in tags.Custom)
+            Add(key, value);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Show a modal dialog for editing tags on a project.
+    /// </summary>
+    private async Task ShowTagEditDialog(string projectNumber)
+    {
+        if (_tagService == null) return;
+
+        var existingTags = await _tagService.GetTagsAsync(projectNumber) ?? new ProjectTags();
+
+        var dialog = new Window
+        {
+            Title = $"Edit Tags — {projectNumber}",
+            Width = 480,
+            Height = 600,
+            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+            Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 30, 30)),
+            Foreground = new SolidColorBrush(Colors.White),
+            ResizeMode = ResizeMode.CanResizeWithGrip,
+            WindowStyle = WindowStyle.ToolWindow
+        };
+
+        var scrollViewer = new ScrollViewer
+        {
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Margin = new Thickness(12)
+        };
+
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var fields = TagFieldRegistry.Fields;
+        var textBoxes = new Dictionary<string, System.Windows.Controls.TextBox>();
+        var row = 0;
+
+        // Group by category
+        var categories = fields.GroupBy(f => f.Category ?? "Other").ToList();
+        foreach (var category in categories)
+        {
+            // Category header
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var header = new TextBlock
+            {
+                Text = category.Key,
+                FontWeight = FontWeights.Bold,
+                FontSize = 14,
+                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(100, 180, 255)),
+                Margin = new Thickness(0, row == 0 ? 0 : 12, 0, 4)
+            };
+            Grid.SetRow(header, row);
+            Grid.SetColumnSpan(header, 2);
+            grid.Children.Add(header);
+            row++;
+
+            foreach (var field in category)
+            {
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+                var label = new TextBlock
+                {
+                    Text = field.DisplayName,
+                    Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(200, 200, 200)),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 2, 8, 2)
+                };
+                Grid.SetRow(label, row);
+                Grid.SetColumn(label, 0);
+                grid.Children.Add(label);
+
+                var currentValue = _tagService.GetTagValue(projectNumber, field.Key) ?? "";
+                var textBox = new System.Windows.Controls.TextBox
+                {
+                    Text = currentValue,
+                    Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(50, 50, 50)),
+                    Foreground = new SolidColorBrush(Colors.White),
+                    BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(80, 80, 80)),
+                    Padding = new Thickness(4, 2, 4, 2),
+                    Margin = new Thickness(0, 2, 0, 2),
+                    ToolTip = field.SuggestedValues.Length > 0
+                        ? $"Suggested: {string.Join(", ", field.SuggestedValues)}"
+                        : null
+                };
+                Grid.SetRow(textBox, row);
+                Grid.SetColumn(textBox, 1);
+                grid.Children.Add(textBox);
+
+                textBoxes[field.Key] = textBox;
+                row++;
+            }
+        }
+
+        // Custom tags section
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var customHeader = new TextBlock
+        {
+            Text = "Custom Tags (key=value, one per line)",
+            FontWeight = FontWeights.Bold,
+            FontSize = 14,
+            Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(100, 180, 255)),
+            Margin = new Thickness(0, 12, 0, 4)
+        };
+        Grid.SetRow(customHeader, row);
+        Grid.SetColumnSpan(customHeader, 2);
+        grid.Children.Add(customHeader);
+        row++;
+
+        grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(80) });
+        var customText = new System.Windows.Controls.TextBox
+        {
+            Text = string.Join("\n", existingTags.Custom.Select(kv => $"{kv.Key}={kv.Value}")),
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(50, 50, 50)),
+            Foreground = new SolidColorBrush(Colors.White),
+            BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(80, 80, 80)),
+            Padding = new Thickness(4),
+            Margin = new Thickness(0, 2, 0, 2),
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+        };
+        Grid.SetRow(customText, row);
+        Grid.SetColumnSpan(customText, 2);
+        grid.Children.Add(customText);
+        row++;
+
+        // Save / Cancel buttons
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var buttonPanel = new StackPanel
+        {
+            Orientation = System.Windows.Controls.Orientation.Horizontal,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+            Margin = new Thickness(0, 12, 0, 0)
+        };
+
+        var saveButton = new System.Windows.Controls.Button
+        {
+            Content = "Save",
+            Width = 80,
+            Padding = new Thickness(8, 4, 8, 4),
+            Margin = new Thickness(0, 0, 8, 0),
+            Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(40, 120, 200)),
+            Foreground = new SolidColorBrush(Colors.White),
+            BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(60, 140, 220))
+        };
+
+        var cancelButton = new System.Windows.Controls.Button
+        {
+            Content = "Cancel",
+            Width = 80,
+            Padding = new Thickness(8, 4, 8, 4),
+            Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(60, 60, 60)),
+            Foreground = new SolidColorBrush(Colors.White),
+            BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(80, 80, 80))
+        };
+
+        cancelButton.Click += (s, args) => dialog.Close();
+
+        var capturedProjectNumber = projectNumber;
+        saveButton.Click += async (s, args) =>
+        {
+            var newTags = new ProjectTags();
+            foreach (var (key, tb) in textBoxes)
+            {
+                var val = tb.Text.Trim();
+                if (string.IsNullOrEmpty(val)) continue;
+                SetTagField(newTags, key, val);
+            }
+
+            // Parse custom tags
+            foreach (var line in customText.Text.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var eqIdx = line.IndexOf('=');
+                if (eqIdx > 0)
+                {
+                    var k = line[..eqIdx].Trim();
+                    var v = line[(eqIdx + 1)..].Trim();
+                    if (!string.IsNullOrEmpty(k) && !string.IsNullOrEmpty(v))
+                        newTags.Custom[k] = v;
+                }
+            }
+
+            await _tagService!.SaveTagsAsync(capturedProjectNumber, newTags);
+            StatusText.Text = $"Tags saved for {capturedProjectNumber}";
+            dialog.Close();
+        };
+
+        buttonPanel.Children.Add(saveButton);
+        buttonPanel.Children.Add(cancelButton);
+        Grid.SetRow(buttonPanel, row);
+        Grid.SetColumnSpan(buttonPanel, 2);
+        grid.Children.Add(buttonPanel);
+
+        scrollViewer.Content = grid;
+        dialog.Content = scrollViewer;
+        dialog.ShowDialog();
+    }
+
+    /// <summary>
+    /// Set a tag field on a ProjectTags instance by canonical key.
+    /// </summary>
+    private static void SetTagField(ProjectTags tags, string key, string value)
+    {
+        switch (key.ToLowerInvariant())
+        {
+            case "voltage": tags.Voltage = value; break;
+            case "phase": tags.Phase = value; break;
+            case "amperage_service": tags.AmperageService = value; break;
+            case "amperage_generator": tags.AmperageGenerator = value; break;
+            case "generator_brand": tags.GeneratorBrand = value; break;
+            case "generator_load_kw": tags.GeneratorLoadKw = value; break;
+            case "hvac_type": tags.HvacType = value; break;
+            case "hvac_brand": tags.HvacBrand = value; break;
+            case "hvac_tonnage": tags.HvacTonnage = value; break;
+            case "hvac_load_kw": tags.HvacLoadKw = value; break;
+            case "square_footage": tags.SquareFootage = value; break;
+            case "build_type": tags.BuildType = value; break;
+            case "location_city": tags.LocationCity = value; break;
+            case "location_state": tags.LocationState = value; break;
+            case "location_municipality": tags.LocationMunicipality = value; break;
+            case "location_address": tags.LocationAddress = value; break;
+            case "stamping_engineer": tags.StampingEngineer = value; break;
+            case "engineers":
+                tags.Engineers = value.Split(',', StringSplitOptions.TrimEntries).Where(s => s.Length > 0).ToList();
+                break;
+            case "code_refs":
+                tags.CodeReferences = value.Split(',', StringSplitOptions.TrimEntries).Where(s => s.Length > 0).ToList();
+                break;
+            default:
+                tags.Custom[key] = value;
+                break;
         }
     }
 

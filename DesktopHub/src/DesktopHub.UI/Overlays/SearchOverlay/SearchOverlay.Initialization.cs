@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 using DesktopHub.Infrastructure.Data;
+using DesktopHub.Infrastructure.Firebase;
 using DesktopHub.Infrastructure.Scanning;
 using DesktopHub.Infrastructure.Search;
 using DesktopHub.Infrastructure.Settings;
@@ -23,9 +24,21 @@ public partial class SearchOverlay
 
         // Initialize services
         _scanner = new ProjectScanner();
-        _searchService = new SearchService();
         _dataStore = new SqliteDataStore();
         _settings = new SettingsService();
+
+        // Create tag service — needs FirebaseService from App
+        var app = (App)System.Windows.Application.Current;
+        var firebaseService = app.FirebaseManager?.FirebaseService;
+        if (firebaseService != null)
+        {
+            _tagService = new ProjectTagService(firebaseService);
+            _searchService = new SearchService(_tagService);
+        }
+        else
+        {
+            _searchService = new SearchService();
+        }
         _timerService = new TimerService();
         _taskService = new TaskService(new Infrastructure.Data.TaskDataStore());
         _docService = new DocOpenService(new Infrastructure.Scanning.DocumentScanner());
@@ -149,6 +162,20 @@ public partial class SearchOverlay
                 _launchDataStore = new ProjectLaunchDataStore();
                 await _launchDataStore.InitializeAsync();
                 DebugLogger.Log("SearchOverlay: Launch tracking data store initialized");
+
+                // Initialize tag service (loads local cache, starts background Firebase sync)
+                if (_tagService != null)
+                {
+                    try
+                    {
+                        await _tagService.InitializeAsync();
+                        DebugLogger.Log("SearchOverlay: Tag service initialized");
+                    }
+                    catch (Exception tagEx)
+                    {
+                        DebugLogger.Log($"SearchOverlay: Tag service init failed (non-fatal): {tagEx.Message}");
+                    }
+                }
             }
             catch (Exception dbEx)
             {

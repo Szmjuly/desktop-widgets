@@ -340,6 +340,9 @@ public class TelemetryService : ITelemetryService, IDisposable
 
                 await _firebaseService.LogUsageEventAsync("daily_metrics_summary", data);
 
+                // Also write to dedicated metrics/{deviceId}/{date} for admin multi-user reads
+                await _firebaseService.SyncDailyMetricsAsync(summary.Date, data);
+
                 // Mark events as synced
                 await _db.MarkEventsSyncedAsync(date, date.AddDays(1));
             }
@@ -403,58 +406,190 @@ public class TelemetryService : ITelemetryService, IDisposable
 
     public async Task<List<DailyMetricsSummary>> GetAllUsersSummariesAsync(DateTime from, DateTime to)
     {
-        // Admin-only: fetch all-user summaries from Firebase
-        // Access is gated at the UI layer via Firebase admin_users check
+        // Admin-only: fetch all-user summaries from Firebase metrics/ node
         if (_firebaseService == null || !_firebaseService.IsInitialized) return new List<DailyMetricsSummary>();
 
         try
         {
-            // In a full implementation this would query Firebase REST API for all devices.
-            // For now, return local data as a starting point (single-device fallback).
-            var results = new List<DailyMetricsSummary>();
-            for (var date = from.Date; date <= to.Date; date = date.AddDays(1))
+            var allMetrics = await _firebaseService.GetAllDeviceMetricsAsync();
+            if (allMetrics == null || allMetrics.Count == 0)
             {
-                var summary = await _db.GetDailySummaryAsync(date);
-                if (summary != null)
+                InfraLogger.Log("TelemetryService: No metrics found in Firebase, falling back to local");
+                return await GetLocalSummariesAsync(from, to);
+            }
+
+            // Build device ID → user/device name lookup from devices/ node
+            var deviceLookup = new Dictionary<string, (string userName, string deviceName)>();
+            var devices = await _firebaseService.GetDevicesAsync();
+            if (devices != null)
+            {
+                foreach (var (deviceId, deviceData) in devices)
                 {
-                    summary.DeviceName = Environment.MachineName;
-                    summary.UserName = Environment.UserName;
-                    summary.DeviceId = _firebaseService.GetDeviceId();
-                    results.Add(summary);
+                    var userName = deviceData.TryGetValue("username", out var u) ? u?.ToString() ?? "" : "";
+                    var deviceName = deviceData.TryGetValue("device_name", out var d) ? d?.ToString() ?? "" : "";
+                    deviceLookup[deviceId] = (userName, deviceName);
                 }
             }
+
+            var fromStr = from.ToString("yyyy-MM-dd");
+            var toStr = to.ToString("yyyy-MM-dd");
+            var results = new List<DailyMetricsSummary>();
+
+            foreach (var (deviceId, dateEntries) in allMetrics)
+            {
+                foreach (var (dateKey, fields) in dateEntries)
+                {
+                    // Filter to requested date range
+                    if (string.Compare(dateKey, fromStr, StringComparison.Ordinal) < 0 ||
+                        string.Compare(dateKey, toStr, StringComparison.Ordinal) > 0)
+                        continue;
+
+                    var summary = ParseFirebaseMetrics(fields, deviceId, deviceLookup);
+                    if (summary != null)
+                        results.Add(summary);
+                }
+            }
+
+            InfraLogger.Log($"TelemetryService: Fetched {results.Count} metric records from Firebase ({results.Select(r => r.UserName).Distinct().Count()} users)");
             return results;
         }
         catch (Exception ex)
         {
             InfraLogger.Log($"TelemetryService: GetAllUsersSummariesAsync failed: {ex.Message}");
-            return new List<DailyMetricsSummary>();
+            return await GetLocalSummariesAsync(from, to);
         }
     }
 
-    public Task<List<MetricsUserInfo>> GetKnownUsersAsync()
+    private async Task<List<DailyMetricsSummary>> GetLocalSummariesAsync(DateTime from, DateTime to)
     {
-        // Access is gated at the UI layer via Firebase admin_users check
-        if (_firebaseService == null || !_firebaseService.IsInitialized) return Task.FromResult(new List<MetricsUserInfo>());
+        var results = new List<DailyMetricsSummary>();
+        for (var date = from.Date; date <= to.Date; date = date.AddDays(1))
+        {
+            var summary = await _db.GetDailySummaryAsync(date);
+            if (summary != null)
+            {
+                summary.DeviceName = Environment.MachineName;
+                summary.UserName = Environment.UserName;
+                summary.DeviceId = _firebaseService?.GetDeviceId() ?? "";
+                results.Add(summary);
+            }
+        }
+        return results;
+    }
+
+    private static DailyMetricsSummary? ParseFirebaseMetrics(
+        Dictionary<string, object> fields, string deviceId,
+        Dictionary<string, (string userName, string deviceName)> deviceLookup)
+    {
+        try
+        {
+            static int GetInt(Dictionary<string, object> d, string key)
+            {
+                if (!d.TryGetValue(key, out var v)) return 0;
+                if (v is long l) return (int)l;
+                if (v is int i) return i;
+                if (v is double dbl) return (int)dbl;
+                if (int.TryParse(v?.ToString(), out var parsed)) return parsed;
+                return 0;
+            }
+            static long GetLong(Dictionary<string, object> d, string key)
+            {
+                if (!d.TryGetValue(key, out var v)) return 0;
+                if (v is long l) return l;
+                if (v is int i) return i;
+                if (v is double dbl) return (long)dbl;
+                if (long.TryParse(v?.ToString(), out var parsed)) return parsed;
+                return 0;
+            }
+
+            // Resolve user/device name: prefer embedded fields, fall back to devices/ lookup
+            var userName = fields.TryGetValue("user_name", out var un) ? un?.ToString() ?? "" : "";
+            var deviceName = fields.TryGetValue("device_name", out var dn) ? dn?.ToString() ?? "" : "";
+            if (string.IsNullOrEmpty(userName) && deviceLookup.TryGetValue(deviceId, out var lookup))
+            {
+                userName = lookup.userName;
+                deviceName = lookup.deviceName;
+            }
+
+            return new DailyMetricsSummary
+            {
+                Date = fields.TryGetValue("date", out var dt) ? dt?.ToString() ?? "" : "",
+                DeviceId = deviceId,
+                UserName = userName,
+                DeviceName = deviceName,
+                SessionCount = GetInt(fields, "session_count"),
+                TotalSessionDurationMs = GetLong(fields, "total_session_duration_ms"),
+                TotalSearches = GetInt(fields, "total_searches"),
+                TotalSmartSearches = GetInt(fields, "total_smart_searches"),
+                TotalDocSearches = GetInt(fields, "total_doc_searches"),
+                TotalPathSearches = GetInt(fields, "total_path_searches"),
+                TotalProjectLaunches = GetInt(fields, "total_project_launches"),
+                TotalQuickLaunchUses = GetInt(fields, "total_quick_launch_uses"),
+                TotalQuickLaunchAdds = GetInt(fields, "total_quick_launch_adds"),
+                TotalQuickLaunchRemoves = GetInt(fields, "total_quick_launch_removes"),
+                TotalTasksCreated = GetInt(fields, "total_tasks_created"),
+                TotalTasksCompleted = GetInt(fields, "total_tasks_completed"),
+                TotalDocOpens = GetInt(fields, "total_doc_opens"),
+                TotalTimerUses = GetInt(fields, "total_timer_uses"),
+                TotalCheatSheetViews = GetInt(fields, "total_cheat_sheet_views"),
+                TotalHotkeyPresses = GetInt(fields, "total_hotkey_presses"),
+                TotalFilterChanges = GetInt(fields, "total_filter_changes"),
+                TotalClipboardCopies = GetInt(fields, "total_clipboard_copies"),
+                TotalErrors = GetInt(fields, "total_errors"),
+            };
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<List<MetricsUserInfo>> GetKnownUsersAsync()
+    {
+        if (_firebaseService == null || !_firebaseService.IsInitialized)
+            return new List<MetricsUserInfo>();
 
         try
         {
-            // Return local device info as starting point
-            return Task.FromResult(new List<MetricsUserInfo>
+            var devices = await _firebaseService.GetDevicesAsync();
+            if (devices == null || devices.Count == 0)
             {
-                new MetricsUserInfo
+                // Fallback to local
+                return new List<MetricsUserInfo>
                 {
-                    DeviceId = _firebaseService.GetDeviceId(),
-                    DeviceName = Environment.MachineName,
-                    UserName = Environment.UserName,
-                    LastSeen = DateTime.UtcNow
-                }
-            });
+                    new MetricsUserInfo
+                    {
+                        DeviceId = _firebaseService.GetDeviceId(),
+                        DeviceName = Environment.MachineName,
+                        UserName = Environment.UserName,
+                        LastSeen = DateTime.UtcNow
+                    }
+                };
+            }
+
+            var results = new List<MetricsUserInfo>();
+            foreach (var (deviceId, deviceData) in devices)
+            {
+                var userName = deviceData.TryGetValue("username", out var u) ? u?.ToString() ?? "" : "";
+                var deviceName = deviceData.TryGetValue("device_name", out var d) ? d?.ToString() ?? "" : "";
+                var lastSeen = DateTime.UtcNow;
+                if (deviceData.TryGetValue("last_seen", out var ls) && DateTime.TryParse(ls?.ToString(), out var parsed))
+                    lastSeen = parsed;
+
+                results.Add(new MetricsUserInfo
+                {
+                    DeviceId = deviceId,
+                    DeviceName = deviceName,
+                    UserName = userName,
+                    LastSeen = lastSeen
+                });
+            }
+            return results;
         }
         catch (Exception ex)
         {
             InfraLogger.Log($"TelemetryService: GetKnownUsersAsync failed: {ex.Message}");
-            return Task.FromResult(new List<MetricsUserInfo>());
+            return new List<MetricsUserInfo>();
         }
     }
 

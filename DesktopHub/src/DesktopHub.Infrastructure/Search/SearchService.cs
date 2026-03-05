@@ -9,6 +9,15 @@ namespace DesktopHub.Infrastructure.Search;
 /// </summary>
 public class SearchService : ISearchService
 {
+    private readonly IProjectTagService? _tagService;
+
+    public SearchService() { }
+
+    public SearchService(IProjectTagService tagService)
+    {
+        _tagService = tagService;
+    }
+
     public async Task<List<SearchResult>> SearchAsync(string query, List<Project> projects)
     {
         return await Task.Run(() =>
@@ -76,7 +85,12 @@ public class SearchService : ISearchService
                     var directCount = baseNumberCounts[baseNum];
                     var bestScore = baseNumberBestScore.GetValueOrDefault(baseNum, 0.7);
 
-                    if (directCount >= 2)
+                    // Projects with sub-numbers (e.g. 2018002.00, 2018002.02) are always
+                    // part of the same family — never flag as duplicate.
+                    var hasSubNumber = project.FullNumber.Contains('.');
+                    var isFamily = directCount >= 2 || hasSubNumber;
+
+                    if (isFamily)
                     {
                         // Confirmed family — score at 0.9x, ranks right after direct siblings
                         results.Add(new SearchResult
@@ -89,7 +103,7 @@ public class SearchService : ISearchService
                     }
                     else
                     {
-                        // Single direct match — possible duplicate/mismatch, lower score
+                        // Single direct match, sibling has no sub-number — possible naming conflict
                         results.Add(new SearchResult
                         {
                             Project = project,
@@ -152,13 +166,24 @@ public class SearchService : ISearchService
                 continue;
             }
 
-            // Check for tag filter
+            // Check for tag filter (simple: "tag:residential" or "tags:commercial,residential")
             var tagMatch = Regex.Match(trimmed, @"^tags?:\s*(.+)$", RegexOptions.IgnoreCase);
             if (tagMatch.Success)
             {
                 var tags = tagMatch.Groups[1].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 filter.Tags.AddRange(tags);
                 continue;
+            }
+
+            // Check for structured tag filter (e.g., "voltage:208", "hvac:DX", "gen:Generac")
+            if (_tagService != null)
+            {
+                var tagFilter = _tagService.ParseTagFilter(trimmed);
+                if (tagFilter != null)
+                {
+                    filter.TagFilters.Add(tagFilter.Value);
+                    continue;
+                }
             }
 
             // Check for team filter
@@ -267,11 +292,21 @@ public class SearchService : ISearchService
                 return false;
         }
 
-        // Tag filter
+        // Tag filter (simple string tags from ProjectMetadata)
         if (filter.Tags.Any())
         {
             var tags = project.Metadata?.Tags ?? new List<string>();
             if (!filter.Tags.Any(t => tags.Any(pt => pt.Equals(t, StringComparison.OrdinalIgnoreCase))))
+                return false;
+        }
+
+        // Structured tag filters (key:value from ProjectTagService)
+        if (filter.TagFilters.Any() && _tagService != null)
+        {
+            var matchingProjects = _tagService.SearchByTags(filter.TagFilters);
+            if (!matchingProjects.Any(pn =>
+                pn.Equals(project.FullNumber, StringComparison.OrdinalIgnoreCase) ||
+                pn.Equals(project.ShortNumber, StringComparison.OrdinalIgnoreCase)))
                 return false;
         }
 

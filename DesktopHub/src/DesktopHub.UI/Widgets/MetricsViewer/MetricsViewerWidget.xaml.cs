@@ -25,6 +25,7 @@ public partial class MetricsViewerWidget : System.Windows.Controls.UserControl
     // Admin view state
     private bool _isAdminView;
     private int _adminRangeDays = 7;
+    private DateTime _adminRangeStart = DateTime.Today;
     private DateTime _adminRangeEnd = DateTime.Today;
     private List<DailyMetricsSummary> _adminSummaries = new();
     private List<DailyMetricsSummary> _filteredAdminSummaries = new();
@@ -114,6 +115,7 @@ public partial class MetricsViewerWidget : System.Windows.Controls.UserControl
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         UpdateDeviceInfo();
+        InitializeAdminDateRange();
 
         // Check Firebase for admin privileges based on Windows username
         await CheckAdminStatusAsync();
@@ -122,6 +124,30 @@ public partial class MetricsViewerWidget : System.Windows.Controls.UserControl
         BuildAxisButtons();
         await LoadMetricsAsync();
         StartPolling();
+    }
+
+    private void InitializeAdminDateRange()
+    {
+        var weekStartDay = (DayOfWeek)(_settings?.GetMetricsWeekStartDay() ?? 1);
+        var rangeWeeks = _settings?.GetMetricsRangeWeeks() ?? 1;
+        _adminRangeDays = rangeWeeks * 7;
+
+        // Compute the most recent start-of-week boundary
+        var today = DateTime.Today;
+        var daysSinceStart = ((int)today.DayOfWeek - (int)weekStartDay + 7) % 7;
+        _adminRangeStart = today.AddDays(-daysSinceStart);
+        _adminRangeEnd = _adminRangeStart.AddDays(_adminRangeDays - 1);
+
+        // Clamp end to today so we don't show future dates
+        if (_adminRangeEnd > today)
+            _adminRangeEnd = today;
+    }
+
+    public void RefreshAdminDateRange()
+    {
+        InitializeAdminDateRange();
+        if (_isAdminView)
+            _ = LoadAdminMetricsAsync();
     }
 
     private bool _isAdmin;
@@ -274,16 +300,19 @@ public partial class MetricsViewerWidget : System.Windows.Controls.UserControl
 
     private void AdminPrevRange_Click(object sender, MouseButtonEventArgs e)
     {
-        _adminRangeEnd = _adminRangeEnd.AddDays(-_adminRangeDays);
+        _adminRangeStart = _adminRangeStart.AddDays(-_adminRangeDays);
+        _adminRangeEnd = _adminRangeStart.AddDays(_adminRangeDays - 1);
         _ = LoadAdminMetricsAsync();
     }
 
     private void AdminNextRange_Click(object sender, MouseButtonEventArgs e)
     {
-        if (_adminRangeEnd < DateTime.Today)
+        var today = DateTime.Today;
+        if (_adminRangeEnd < today)
         {
-            _adminRangeEnd = _adminRangeEnd.AddDays(_adminRangeDays);
-            if (_adminRangeEnd > DateTime.Today) _adminRangeEnd = DateTime.Today;
+            _adminRangeStart = _adminRangeStart.AddDays(_adminRangeDays);
+            _adminRangeEnd = _adminRangeStart.AddDays(_adminRangeDays - 1);
+            if (_adminRangeEnd > today) _adminRangeEnd = today;
             _ = LoadAdminMetricsAsync();
         }
     }

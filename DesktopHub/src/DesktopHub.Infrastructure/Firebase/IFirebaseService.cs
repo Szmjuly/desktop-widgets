@@ -27,4 +27,9 @@ public interface IFirebaseService
 
     // Admin management — checks Firebase for Windows username-based admin privileges
     Task<bool> IsUserAdminAsync(string? windowsUsername = null);
+
+    // Metrics sync — dedicated metrics/ node for admin multi-user view
+    Task SyncDailyMetricsAsync(string date, Dictionary<string, object> data);
+    Task<Dictionary<string, Dictionary<string, Dictionary<string, object>>>?> GetAllDeviceMetricsAsync();
+    Task<Dictionary<string, Dictionary<string, object>>?> GetDevicesAsync();
 }
