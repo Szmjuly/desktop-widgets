@@ -10,6 +10,14 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 import hashlib
 
+try:
+    from src import __version__ as APP_VERSION
+except ImportError:
+    try:
+        from . import __version__ as APP_VERSION
+    except ImportError:
+        APP_VERSION = '1.0.0'
+
 # Device identification utilities
 try:
     from src.metrics import get_device_fingerprint, get_user_identifier, MAC_ADDRESS
@@ -139,9 +147,18 @@ class SubscriptionManager:
                 self.firebase = pyrebase.initialize_app(config)
                 self.db = self.firebase.database()
                 
-                # Authenticate anonymously
+                # Authenticate anonymously (reuse cached session to avoid creating new users)
                 auth_client = self.firebase.auth()
-                self.auth_user = auth_client.sign_in_anonymous()
+                self.auth_user = self._load_cached_auth()
+                if self.auth_user:
+                    # Verify the cached token is still valid by refreshing
+                    try:
+                        self.auth_user = auth_client.refresh(self.auth_user['refreshToken'])
+                    except Exception:
+                        self.auth_user = None
+                if not self.auth_user:
+                    self.auth_user = auth_client.sign_in_anonymous()
+                self._save_cached_auth(self.auth_user)
                 self.use_admin_sdk = False
             else:
                 # Use Firebase Admin SDK directly (requires admin key)
@@ -193,6 +210,27 @@ class SubscriptionManager:
         id_file.write_text(device_id)
         return device_id
     
+    def _load_cached_auth(self) -> Optional[Dict[str, Any]]:
+        """Load cached Firebase anonymous auth session from disk."""
+        try:
+            cache_file = self.app_data_dir / 'firebase_auth_cache.json'
+            if cache_file.exists():
+                with open(cache_file, 'r') as f:
+                    return json.load(f)
+        except (json.JSONDecodeError, IOError, KeyError):
+            pass
+        return None
+
+    def _save_cached_auth(self, auth_data: Dict[str, Any]) -> None:
+        """Save Firebase anonymous auth session to disk for reuse."""
+        try:
+            self.app_data_dir.mkdir(parents=True, exist_ok=True)
+            cache_file = self.app_data_dir / 'firebase_auth_cache.json'
+            with open(cache_file, 'w') as f:
+                json.dump(auth_data, f, indent=2)
+        except (IOError, TypeError):
+            pass
+
     def _hash_license_key(self, license_key: str) -> str:
         """Create a secure hash of the license key for storage."""
         return hashlib.sha256(license_key.encode()).hexdigest()
@@ -299,7 +337,7 @@ class SubscriptionManager:
         """Get current YYYY-MM string for date-partitioned event paths."""
         return datetime.now(timezone.utc).strftime('%Y-%m')
     
-    def _register_user_and_device(self, license_key: str, app_version: str = '1.0.0') -> None:
+    def _register_user_and_device(self, license_key: str, app_version: str = None) -> None:
         """Register/update user and device in the new structured Firebase nodes."""
         try:
             now = datetime.now(timezone.utc).isoformat()
@@ -332,7 +370,7 @@ class SubscriptionManager:
                 'license_key': license_key or 'FREE-AUTO'
             }
             app_state = {
-                'installed_version': app_version,
+                'installed_version': app_version or APP_VERSION,
                 'last_launch': now,
                 'status': 'active'
             }
@@ -347,51 +385,8 @@ class SubscriptionManager:
             print(f"Note: User/device registration in new structure failed (non-fatal): {e}")
     
     def _register_device(self, license_key: str) -> None:
-        """Register device activation."""
-        now = datetime.now(timezone.utc).isoformat()
-        device_name = os.environ.get('COMPUTERNAME', os.environ.get('HOSTNAME', 'Unknown'))
-
-        activation_data = {
-            'app_id': self.app_id,
-            'license_key': license_key,
-            'device_id': self.device_id,
-            'device_name': device_name,
-            'username': self.username,
-            'activated_at': now,
-            'last_validated': now,
-            'app_version': '1.0.0'
-        }
-
-        # --- New structure: users/ and devices/ ---
+        """Register device activation in new structure."""
         self._register_user_and_device(license_key)
-
-        # --- Legacy: device_activations (backward compat) ---
-        if self.use_admin_sdk:
-            self.db.child('device_activations').child(self.device_id).set(activation_data)
-        else:
-            auth_uid = self.auth_user.get('localId') or self.auth_user.get('userId')
-
-            if not auth_uid:
-                try:
-                    import base64
-                    parts = self.auth_user['idToken'].split('.')
-                    if len(parts) >= 2:
-                        payload = parts[1]
-                        padding = 4 - len(payload) % 4
-                        if padding != 4:
-                            payload += '=' * padding
-                        decoded = json.loads(base64.urlsafe_b64decode(payload))
-                        auth_uid = decoded.get('user_id') or decoded.get('sub')
-                except Exception as e:
-                    print(f"Warning: Could not decode auth token: {e}")
-
-            if not auth_uid:
-                raise ValueError("Could not get auth UID from Firebase authentication")
-
-            self.db.child('device_activations').child(auth_uid).set(
-                activation_data,
-                token=self.auth_user['idToken']
-            )
     
     def is_subscribed(self) -> bool:
         """Check if the user has an active subscription (free or paid)."""
@@ -522,54 +517,33 @@ class SubscriptionManager:
                     print("Invalid expiration date format")
                     return False
             
-            # Check device limit
+            # Check device limit using devices/ node
             max_devices = license_data.get('max_devices', 1)
             if max_devices > 0:  # -1 means unlimited
-                # Check how many devices are using this license
+                # Check how many devices are using this license via devices/ node
                 if self.use_admin_sdk:
-                    # Using Admin SDK - query all activations and filter
-                    all_activations = self.db.child('device_activations').get() or {}
-                    device_activations = {
-                        k: v for k, v in all_activations.items() 
+                    all_devices = self.db.child('devices').get() or {}
+                    licensed_devices = {
+                        k: v for k, v in all_devices.items()
                         if isinstance(v, dict) and v.get('license_key') == license_key
                     }
                 else:
-                    # Using Pyrebase
-                    device_activations = self.db.child('device_activations').order_by_child('license_key').equal_to(license_key).get(
+                    licensed_devices = self.db.child('devices').order_by_child('license_key').equal_to(license_key).get(
                         token=self.auth_user['idToken']
                     ).val() or {}
                 
-                if device_activations:
-                    active_devices = len(device_activations)
+                if licensed_devices:
+                    active_devices = len(licensed_devices)
                     
-                    # Check if this device is already activated
-                    device_already_activated = False
-                    for device_id, activation in device_activations.items():
-                        if device_id == self.device_id:
-                            device_already_activated = True
-                            break
+                    # Check if this device is already registered
+                    device_already_registered = self.device_id in licensed_devices
                     
-                    if not device_already_activated and active_devices >= max_devices:
+                    if not device_already_registered and active_devices >= max_devices:
                         print(f"Maximum device limit reached ({max_devices})")
                         return False
             
-            # Register this device activation
-            activation_data = {
-                'app_id': self.app_id,
-                'license_key': license_key,
-                'device_name': os.environ.get('COMPUTERNAME', os.environ.get('HOSTNAME', 'Unknown')),
-                'activated_at': datetime.utcnow().isoformat(),
-                'last_validated': datetime.now(timezone.utc).isoformat(),
-                'app_version': '1.0.0'
-            }
-            
-            if self.use_admin_sdk:
-                self.db.child('device_activations').child(self.device_id).set(activation_data)
-            else:
-                self.db.child('device_activations').child(self.device_id).set(
-                    activation_data, 
-                    token=self.auth_user['idToken']
-                )
+            # Register device in new structure
+            self._register_user_and_device(license_key)
             
             # Save the subscription data locally
             self._save_subscription({
@@ -697,21 +671,23 @@ class SubscriptionManager:
         
         license_key = sub.get('license_key')
         
-        # Sync usage count to server
+        # Log document processing to events/{app_id}/{YYYY-MM}/
         try:
-            sync_data = {
-                'app_id': self.app_id,
+            event_data = {
+                'event_type': 'document_processed',
                 'device_id': self.device_id,
+                'username': self.username,
                 'license_key': license_key,
                 'documents_processed': count,
                 'timestamp': datetime.now(timezone.utc).isoformat(),
-                'app_version': '1.0.0'
+                'app_version': APP_VERSION
             }
             
             if self.use_admin_sdk:
-                self.db.child('usage_logs').push(sync_data)
+                self.db.child('events').child(self.app_id).child(self._get_event_month()).push(event_data)
             else:
-                self.db.child('usage_logs').push(sync_data, token=self.auth_user['idToken'])
+                self.db.child('events').child(self.app_id).child(self._get_event_month()).push(
+                    event_data, token=self.auth_user['idToken'])
         except Exception:
             pass  # Silent fail - don't interrupt user experience
         
@@ -771,19 +747,23 @@ class SubscriptionManager:
         return True
     
     def _sync_activation_status(self) -> bool:
-        """Sync license activation status with server."""
+        """Sync license activation status with server and register user/device."""
         try:
             sub = self._load_subscription()
             license_key = sub.get('license_key') if sub else None
             now = datetime.now(timezone.utc).isoformat()
 
-            # --- New structure: events/{app_id}/{YYYY-MM}/ ---
+            # Register/update user and device on every launch
+            self._register_user_and_device(license_key)
+
+            # Log app_launch event to events/{app_id}/{YYYY-MM}/
             event_data = {
                 'event_type': 'app_launch',
                 'device_id': self.device_id,
                 'username': self.username,
+                'license_key': license_key,
                 'timestamp': now,
-                'app_version': '1.0.0'
+                'app_version': APP_VERSION
             }
             try:
                 if self.use_admin_sdk:
@@ -793,22 +773,6 @@ class SubscriptionManager:
                         event_data, token=self.auth_user['idToken'])
             except Exception:
                 pass  # Non-fatal
-
-            # --- Legacy: app_launches (backward compat) ---
-            legacy_data = {
-                'app_id': self.app_id,
-                'device_id': self.device_id,
-                'username': self.username,
-                'license_key': license_key,
-                'timestamp': now,
-                'app_version': '1.0.0',
-                'event_type': 'app_launch'
-            }
-
-            if self.use_admin_sdk:
-                self.db.child('app_launches').push(legacy_data)
-            else:
-                self.db.child('app_launches').push(legacy_data, token=self.auth_user['idToken'])
 
             return True
         except Exception:
@@ -824,44 +788,24 @@ class SubscriptionManager:
         try:
             sub = self._load_subscription()
             license_key = sub.get('license_key') if sub else None
-            user_id = get_user_identifier(self.device_id, license_key) if DEVICE_ID_AVAILABLE else self.device_id
             
             now = datetime.now(timezone.utc).isoformat()
 
-            # --- New structure: events/{app_id}/{YYYY-MM}/ ---
+            # Write to events/{app_id}/{YYYY-MM}/
             event_data = {
                 'event_type': 'processing_session',
                 'device_id': self.device_id,
                 'username': self.username,
-                'timestamp': now,
-                'app_version': '1.0.0',
-                **usage_data
-            }
-            try:
-                if self.use_admin_sdk:
-                    self.db.child('events').child(self.app_id).child(self._get_event_month()).push(event_data)
-                else:
-                    self.db.child('events').child(self.app_id).child(self._get_event_month()).push(
-                        event_data, token=self.auth_user['idToken'])
-            except Exception:
-                pass  # Non-fatal
-
-            # --- Legacy: processing_sessions (backward compat) ---
-            legacy_data = {
-                'app_id': self.app_id,
-                'device_id': self.device_id,
-                'username': self.username,
                 'license_key': license_key,
                 'timestamp': now,
-                'app_version': '1.0.0',
-                'event_type': 'processing_session',
+                'app_version': APP_VERSION,
                 **usage_data
             }
-
             if self.use_admin_sdk:
-                self.db.child('processing_sessions').push(legacy_data)
+                self.db.child('events').child(self.app_id).child(self._get_event_month()).push(event_data)
             else:
-                self.db.child('processing_sessions').push(legacy_data, token=self.auth_user['idToken'])
+                self.db.child('events').child(self.app_id).child(self._get_event_month()).push(
+                    event_data, token=self.auth_user['idToken'])
             
             return True
         except Exception:
