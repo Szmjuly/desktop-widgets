@@ -647,6 +647,80 @@ public partial class SearchOverlay
         }
     }
 
+    // ===== Project Info Overlay =====
+
+    private void CreateProjectInfoOverlay(double? left = null, double? top = null)
+    {
+        if (_tagService == null) return;
+
+        _projectInfoOverlay = new ProjectInfoOverlay(_tagService, _vocabService, _settings);
+        ApplyResponsiveWidgetWidth(_projectInfoOverlay);
+        RegisterWidgetWindow(_projectInfoOverlay);
+        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+        _projectInfoOverlay.Topmost = !isLivingWidgetsMode;
+
+        _projectInfoOverlay.Left = left ?? (this.Left + this.Width + GetConfiguredWidgetGap());
+        _projectInfoOverlay.Top = top ?? (this.Top + 200);
+
+        if (isLivingWidgetsMode)
+            _projectInfoOverlay.EnableDragging();
+
+        _projectInfoOverlay.Show();
+        _projectInfoOverlay.Tag = "WasVisible";
+        TelemetryAccessor.TrackWidgetVisibility(WidgetIds.ProjectInfo, true);
+        UpdateDynamicOverlayMaxHeight(_projectInfoOverlay);
+
+        if (isLivingWidgetsMode)
+        {
+            ApplyLiveLayoutForWindow(_projectInfoOverlay);
+            RefreshAttachmentMappings();
+            TrackVisibleWindowBounds();
+        }
+
+        if (isLivingWidgetsMode && _desktopFollower != null)
+        {
+            _desktopFollower.TrackWindow(_projectInfoOverlay);
+        }
+
+        var piRef = _projectInfoOverlay;
+        _updateIndicatorManager?.RegisterWidget("ProjectInfoOverlay", 6, _projectInfoOverlay,
+            visible => Dispatcher.Invoke(() => piRef.SetUpdateIndicatorVisible(visible)));
+
+        DebugLogger.Log($"CreateProjectInfoOverlay: Created at ({_projectInfoOverlay.Left}, {_projectInfoOverlay.Top}), Topmost={_projectInfoOverlay.Topmost}");
+    }
+
+    private void OnProjectInfoRequested(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (_projectInfoOverlay == null)
+            {
+                CreateProjectInfoOverlay();
+            }
+            else
+            {
+                if (_projectInfoOverlay.Visibility == Visibility.Visible)
+                {
+                    _projectInfoOverlay.HideAndLock();
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.ProjectInfo, false);
+                    DebugLogger.Log("OnProjectInfoRequested: Project info hidden");
+                }
+                else
+                {
+                    _projectInfoOverlay.Visibility = Visibility.Visible;
+                    _projectInfoOverlay.Tag = "WasVisible";
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.ProjectInfo, true);
+                    DebugLogger.Log("OnProjectInfoRequested: Project info shown");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"OnProjectInfoRequested: Error: {ex}");
+            System.Windows.MessageBox.Show($"Error with project info: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private void PositionTimerOverlayOnSameScreen()
     {
         if (_timerOverlay == null)
@@ -654,19 +728,15 @@ public partial class SearchOverlay
 
         try
         {
-            // Get the screen containing the search overlay
-            var searchOverlayCenter = new System.Drawing.Point(
-                (int)(this.Left + this.Width / 2),
-                (int)(this.Top + this.Height / 2)
-            );
-            var screen = Screen.FromPoint(searchOverlayCenter);
-            var workArea = screen.WorkingArea;
+            // Get the screen working area in DIPs for the screen containing the search overlay
+            var searchRect = new Rect(this.Left, this.Top, this.Width, this.Height);
+            var workArea = ScreenHelper.GetWorkingAreaFromDipRect(searchRect, this);
 
             // Position timer in bottom-right corner of the same screen
             _timerOverlay.Left = workArea.Right - _timerOverlay.Width - 20;
             _timerOverlay.Top = workArea.Bottom - _timerOverlay.Height - 20;
 
-            DebugLogger.Log($"PositionTimerOverlayOnSameScreen: Timer positioned at ({_timerOverlay.Left}, {_timerOverlay.Top}) on screen {screen.DeviceName}");
+            DebugLogger.Log($"PositionTimerOverlayOnSameScreen: Timer positioned at ({_timerOverlay.Left}, {_timerOverlay.Top})");
         }
         catch (Exception ex)
         {
@@ -768,13 +838,9 @@ public partial class SearchOverlay
     {
         try
         {
-            // Get the screen containing the window
-            var windowCenter = new System.Drawing.Point(
-                (int)(this.Left + this.Width / 2),
-                (int)(this.Top + this.Height / 2)
-            );
-            var screen = Screen.FromPoint(windowCenter);
-            var workArea = screen.WorkingArea;
+            // Get the screen working area in DIPs for the screen containing the window
+            var windowRect = new Rect(this.Left, this.Top, this.Width, this.Height);
+            var workArea = ScreenHelper.GetWorkingAreaFromDipRect(windowRect, this);
 
             const int snapThreshold = 20; // pixels from edge to trigger snap
 

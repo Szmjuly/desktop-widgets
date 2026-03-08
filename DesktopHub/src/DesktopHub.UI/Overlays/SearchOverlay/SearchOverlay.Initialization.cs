@@ -27,12 +27,13 @@ public partial class SearchOverlay
         _dataStore = new SqliteDataStore();
         _settings = new SettingsService();
 
-        // Create tag service — needs FirebaseService from App
+        // Create tag + vocabulary services — needs FirebaseService from App
         var app = (App)System.Windows.Application.Current;
         var firebaseService = app.FirebaseManager?.FirebaseService;
         if (firebaseService != null)
         {
             _tagService = new ProjectTagService(firebaseService);
+            _vocabService = new TagVocabularyService(firebaseService);
             _searchService = new SearchService(_tagService);
         }
         else
@@ -169,7 +170,10 @@ public partial class SearchOverlay
                     try
                     {
                         await _tagService.InitializeAsync();
-                        DebugLogger.Log("SearchOverlay: Tag service initialized");
+                        if (_vocabService != null)
+                            await _vocabService.InitializeAsync();
+                        RefreshTagCarousel();
+                        DebugLogger.Log("SearchOverlay: Tag + vocabulary services initialized");
                     }
                     catch (Exception tagEx)
                     {
@@ -207,6 +211,7 @@ public partial class SearchOverlay
             _widgetLauncher.SmartProjectSearchRequested += OnSmartProjectSearchRequested;
             _widgetLauncher.CheatSheetRequested += OnCheatSheetRequested;
             _widgetLauncher.MetricsViewerRequested += OnMetricsViewerRequested;
+            _widgetLauncher.ProjectInfoRequested += OnProjectInfoRequested;
 
             RegisterWidgetWindow(this);
             RegisterWidgetWindow(_widgetLauncher);
@@ -225,17 +230,29 @@ public partial class SearchOverlay
                 var (overlayLeft, overlayTop) = _settings.GetSearchOverlayPosition();
                 if (overlayLeft.HasValue && overlayTop.HasValue)
                 {
-                    this.Left = overlayLeft.Value;
-                    this.Top = overlayTop.Value;
-                    DebugLogger.Log($"Restored search overlay position: ({overlayLeft.Value}, {overlayTop.Value})");
+                    // Validate restored position against current screen bounds
+                    // (display config may have changed, e.g. office 2-monitor → RDP single-monitor)
+                    var restoredRect = new Rect(overlayLeft.Value, overlayTop.Value,
+                        this.ActualWidth > 0 ? this.ActualWidth : this.Width,
+                        this.ActualHeight > 0 ? this.ActualHeight : this.Height);
+                    var clamped = ClampRectToScreen(restoredRect, GetConfiguredWidgetGap());
+                    this.Left = clamped.Left;
+                    this.Top = clamped.Top;
+                    DebugLogger.Log($"Restored search overlay position: saved({overlayLeft.Value:F0}, {overlayTop.Value:F0}) → clamped({clamped.Left:F0}, {clamped.Top:F0})");
                 }
 
                 var (launcherLeft, launcherTop) = _settings.GetWidgetLauncherPosition();
                 if (launcherLeft.HasValue && launcherTop.HasValue && _widgetLauncher != null)
                 {
-                    _widgetLauncher.Left = launcherLeft.Value;
-                    _widgetLauncher.Top = launcherTop.Value;
-                    DebugLogger.Log($"Restored widget launcher position: ({launcherLeft.Value}, {launcherTop.Value})");
+                    var launcherWidth = _widgetLauncher.ActualWidth > 0 ? _widgetLauncher.ActualWidth : _widgetLauncher.Width;
+                    var launcherHeight = _widgetLauncher.ActualHeight > 0 ? _widgetLauncher.ActualHeight : _widgetLauncher.Height;
+                    var launcherRect = new Rect(launcherLeft.Value, launcherTop.Value,
+                        double.IsNaN(launcherWidth) ? 180 : launcherWidth,
+                        double.IsNaN(launcherHeight) ? 300 : launcherHeight);
+                    var clampedLauncher = ClampRectToScreen(launcherRect, GetConfiguredWidgetGap());
+                    _widgetLauncher.Left = clampedLauncher.Left;
+                    _widgetLauncher.Top = clampedLauncher.Top;
+                    DebugLogger.Log($"Restored widget launcher position: saved({launcherLeft.Value:F0}, {launcherTop.Value:F0}) → clamped({clampedLauncher.Left:F0}, {clampedLauncher.Top:F0})");
                 }
 
                 // Restore search overlay visibility state

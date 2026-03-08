@@ -160,6 +160,14 @@ public partial class MetricsViewerWidget
             "Times a path or value was copied to the clipboard from any widget");
         AddActivityRow("Filter changes", summary.TotalFilterChanges, "#FF7043",
             "Times a filter (year, drive, discipline) was changed");
+        AddActivityRow("Tags created", summary.TotalTagsCreated, "#7E57C2",
+            "New project tag entries created");
+        AddActivityRow("Tags updated", summary.TotalTagsUpdated, "#7E57C2",
+            "Existing project tag entries updated");
+        AddActivityRow("Tag searches", summary.TotalTagSearches, "#5C6BC0",
+            "Tag-based search queries executed (e.g. voltage:208)");
+        AddActivityRow("Tag carousel clicks", summary.TotalTagCarouselClicks, "#5C6BC0",
+            "Tag carousel chip clicks for quick filtering");
         AddActivityRow("Errors", summary.TotalErrors, "#EF5350",
             "Application or widget errors logged");
 

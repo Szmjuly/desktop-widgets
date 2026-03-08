@@ -20,6 +20,7 @@ public static class TelemetryCategory
     public const string Clipboard = "clipboard";
     public const string Error = "error";
     public const string Performance = "performance";
+    public const string Tag = "tag";
 }
 
 /// <summary>
@@ -91,6 +92,13 @@ public static class TelemetryEventType
     // Performance
     public const string StartupTiming = "startup_timing";
     public const string SearchTiming = "search_timing";
+
+    // Tags
+    public const string TagCreated = "tag_created";
+    public const string TagUpdated = "tag_updated";
+    public const string TagDeleted = "tag_deleted";
+    public const string TagSearchExecuted = "tag_search_executed";
+    public const string TagCarouselClicked = "tag_carousel_clicked";
 }
 
 /// <summary>
@@ -155,6 +163,10 @@ public class DailyMetricsSummary
     public int TotalFilterChanges { get; set; }
     public int TotalClipboardCopies { get; set; }
     public int TotalErrors { get; set; }
+    public int TotalTagsCreated { get; set; }
+    public int TotalTagsUpdated { get; set; }
+    public int TotalTagSearches { get; set; }
+    public int TotalTagCarouselClicks { get; set; }
 
     // Device/user identity for admin telemetry
     public string DeviceName { get; set; } = string.Empty;
@@ -190,6 +202,8 @@ public static class QuerySources
     public const string DocSearch = "doc_search";
     public const string HotkeyDirect = "hotkey_direct";
     public const string WidgetLauncher = "widget_launcher";
+    public const string TagCarousel = "tag_carousel";
+    public const string TagSearch = "tag_search";
 
     public static string DisplayName(string source) => source switch
     {
@@ -203,6 +217,8 @@ public static class QuerySources
         DocSearch => "Doc Search",
         HotkeyDirect => "Hotkey",
         WidgetLauncher => "Launcher",
+        TagCarousel => "Tag Carousel",
+        TagSearch => "Tag Search",
         _ => source
     };
 }

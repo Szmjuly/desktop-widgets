@@ -274,6 +274,20 @@ public class ProjectTagService : IProjectTagService
             var allMatch = true;
             foreach (var (key, value) in filters)
             {
+                // For list-based fields, check individual items with space-normalized matching
+                if (key.Equals("code_refs", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!FuzzyListMatch(tags.CodeReferences, value))
+                    { allMatch = false; break; }
+                    continue;
+                }
+                if (key.Equals("engineers", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!FuzzyListMatch(tags.Engineers, value))
+                    { allMatch = false; break; }
+                    continue;
+                }
+
                 var tagValue = GetTagValueByKey(tags, key);
                 if (tagValue == null)
                 {
@@ -313,9 +327,38 @@ public class ProjectTagService : IProjectTagService
 
         // Resolve alias
         var def = TagFieldRegistry.Resolve(rawKey);
-        var resolvedKey = def?.Key ?? rawKey;
 
-        return (resolvedKey, rawValue);
+        if (def != null)
+        {
+            // If the key resolved to code_refs via a specific code prefix (not the generic aliases),
+            // combine the prefix with the value so "NEC:2020" searches for "NEC 2020" / "NEC2020"
+            if (def.Key == "code_refs" && !IsGenericCodeAlias(rawKey))
+                return ("code_refs", $"{rawKey} {rawValue}");
+
+            return (def.Key, rawValue);
+        }
+
+        // Fallback: check if the prefix matches any code reference value across cached projects.
+        // This lets users search "NEC:2020" even if "NEC" isn't a registered alias.
+        var normalizedPrefix = rawKey.Replace(" ", "");
+        var isCodePrefix = _cache.Values.Any(t =>
+            t.CodeReferences.Any(cr =>
+                cr.Replace(" ", "").StartsWith(normalizedPrefix, StringComparison.OrdinalIgnoreCase)));
+
+        if (isCodePrefix)
+            return ("code_refs", $"{rawKey} {rawValue}");
+
+        // Unknown prefix — still return as a generic filter (may match custom tags)
+        return (rawKey, rawValue);
+    }
+
+    private static bool IsGenericCodeAlias(string rawKey)
+    {
+        return rawKey.Equals("code", StringComparison.OrdinalIgnoreCase)
+            || rawKey.Equals("codes", StringComparison.OrdinalIgnoreCase)
+            || rawKey.Equals("ref", StringComparison.OrdinalIgnoreCase)
+            || rawKey.Equals("refs", StringComparison.OrdinalIgnoreCase)
+            || rawKey.Equals("code_refs", StringComparison.OrdinalIgnoreCase);
     }
 
     // --- Private helpers ---
@@ -389,6 +432,29 @@ public class ProjectTagService : IProjectTagService
         // Case-insensitive contains match
         return tagValue.Contains(query, StringComparison.OrdinalIgnoreCase)
             || query.Contains(tagValue, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// For list fields (code_refs, engineers), check if any individual item matches the query.
+    /// Supports space-normalized matching so "NEC 2020" matches "NEC2020" and vice versa.
+    /// </summary>
+    private static bool FuzzyListMatch(List<string> items, string query)
+    {
+        if (items.Count == 0) return false;
+
+        var normalizedQuery = query.Replace(" ", "");
+        foreach (var item in items)
+        {
+            if (item.Contains(query, StringComparison.OrdinalIgnoreCase))
+                return true;
+            // Space-normalized: "NEC 2020" ↔ "NEC2020"
+            if (item.Replace(" ", "").Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        // Also check the joined comma-separated form for broad matches
+        var joined = string.Join(", ", items);
+        return joined.Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 
     private static ProjectTags DeserializeTags(Dictionary<string, object> data)

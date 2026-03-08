@@ -45,6 +45,19 @@ public class ProjectTags
 }
 
 /// <summary>
+/// How a tag field should be rendered in the Project Info panel.
+/// </summary>
+public enum TagInputMode
+{
+    /// <summary>Editable dropdown: preset list + user can type a custom value.</summary>
+    Dropdown,
+    /// <summary>Free-text input (no preset list, e.g. address, square footage).</summary>
+    FreeText,
+    /// <summary>Multi-select: user can pick multiple values (e.g. engineers, code refs).</summary>
+    MultiSelect
+}
+
+/// <summary>
 /// Defines a known tag field with its canonical key, display name, aliases, and suggested values.
 /// </summary>
 public class TagFieldDefinition
@@ -54,4 +67,5 @@ public class TagFieldDefinition
     public string[] Aliases { get; init; } = Array.Empty<string>();
     public string[] SuggestedValues { get; init; } = Array.Empty<string>();
     public string? Category { get; init; }
+    public TagInputMode InputMode { get; init; } = TagInputMode.Dropdown;
 }

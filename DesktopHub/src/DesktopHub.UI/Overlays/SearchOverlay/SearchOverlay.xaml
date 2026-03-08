@@ -203,6 +203,7 @@
                 <Grid Margin="0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/><!-- Tag carousel -->
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
@@ -607,8 +608,49 @@
                 </Button>
             </Grid>
             
+            <!-- Tag carousel chips -->
+            <ScrollViewer x:Name="TagCarouselContainer"
+                          Grid.Row="1"
+                          Margin="0,6,0,0"
+                          HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Disabled"
+                          Visibility="Collapsed">
+                <ItemsControl x:Name="TagCarouselList">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#18649BF0"
+                                    BorderBrush="#30649BF0"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="10,4"
+                                    Margin="0,0,5,0"
+                                    Cursor="Hand"
+                                    MouseLeftButtonDown="TagCarouselChip_Click">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#30649BF0"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock FontSize="11" Foreground="#C0B0D0FF">
+                                    <Run Text="{Binding Key, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=":" Foreground="#60B0D0FF"/><Run Text="{Binding Value, Mode=OneWay}"/>
+                                </TextBlock>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
             <!-- Horizontal search history pills with collapse/expand button -->
-            <Grid Grid.Row="1"
+            <Grid Grid.Row="2"
                   Margin="0,8,0,0"
                   x:Name="HistoryAndCollapseContainer"
                   Visibility="Collapsed">
@@ -689,7 +731,7 @@
             </Grid>
             
             <!-- Results list -->
-            <Grid Grid.Row="2" Margin="0,8,0,0">
+            <Grid Grid.Row="3" Margin="0,8,0,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
@@ -734,7 +776,7 @@
             <!-- Smart Project Search is now a separate floating window below the overlay -->
             
             <!-- Status bar -->
-            <Grid Grid.Row="4" Margin="0,8,0,0">
+            <Grid Grid.Row="5" Margin="0,8,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>

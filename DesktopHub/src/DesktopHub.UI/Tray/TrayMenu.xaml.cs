@@ -93,23 +93,22 @@ public partial class TrayMenu : Window
     {
         try
         {
-            // Get cursor position
-            var point = System.Windows.Forms.Cursor.Position;
+            // Get cursor position in WPF DIPs (not physical pixels)
+            var cursorDip = ScreenHelper.GetCursorPositionInDips(this);
             
-            // Get screen working area
-            var screen = System.Windows.Forms.Screen.FromPoint(point);
-            var workingArea = screen.WorkingArea;
+            // Get screen working area in DIPs
+            var workingArea = ScreenHelper.GetWorkingAreaFromDipPoint(cursorDip.X, cursorDip.Y, this);
             
             // Position menu near cursor but keep it on screen
             var menuWidth = this.ActualWidth > 0 ? this.ActualWidth : 220;
             var menuHeight = this.ActualHeight > 0 ? this.ActualHeight : 300;
             
-            DebugLogger.Log($"TrayMenu: Positioning - Cursor({point.X},{point.Y}), MenuSize({menuWidth}x{menuHeight}), WorkArea({workingArea.Left},{workingArea.Top},{workingArea.Width}x{workingArea.Height})");
+            DebugLogger.Log($"TrayMenu: Positioning - CursorDip({cursorDip.X:F0},{cursorDip.Y:F0}), MenuSize({menuWidth}x{menuHeight}), WorkArea({workingArea.Left:F0},{workingArea.Top:F0},{workingArea.Width:F0}x{workingArea.Height:F0})");
             
             // Position menu so cursor is inside menu bounds (20px from bottom-right corner)
             // This way user's cursor is already on the menu when it opens
-            double left = point.X - menuWidth + 20;
-            double top = point.Y - menuHeight + 20;
+            double left = cursorDip.X - menuWidth + 20;
+            double top = cursorDip.Y - menuHeight + 20;
             
             // Keep menu on screen horizontally
             if (left < workingArea.Left)
@@ -291,16 +290,12 @@ public partial class TrayMenu : Window
     {
         try
         {
-            var mousePos = System.Windows.Forms.Cursor.Position;
-            var windowRect = new System.Drawing.Rectangle(
-                (int)this.Left,
-                (int)this.Top,
-                (int)this.ActualWidth,
-                (int)this.ActualHeight
-            );
+            // Compare in WPF DIP coordinate space
+            var cursorDip = ScreenHelper.GetCursorPositionInDips(this);
+            var windowRect = new Rect(this.Left, this.Top, this.ActualWidth, this.ActualHeight);
             
-            bool contains = windowRect.Contains(mousePos);
-            DebugLogger.Log($"TrayMenu: IsMouseOverWindow check - Mouse({mousePos.X},{mousePos.Y}) Window({windowRect.Left},{windowRect.Top},{windowRect.Width},{windowRect.Height}) = {contains}");
+            bool contains = windowRect.Contains(cursorDip);
+            DebugLogger.Log($"TrayMenu: IsMouseOverWindow check - Mouse({cursorDip.X:F0},{cursorDip.Y:F0}) Window({windowRect.Left:F0},{windowRect.Top:F0},{windowRect.Width:F0},{windowRect.Height:F0}) = {contains}");
             return contains;
         }
         catch (Exception ex)

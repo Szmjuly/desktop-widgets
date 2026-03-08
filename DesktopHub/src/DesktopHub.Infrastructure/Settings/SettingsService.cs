@@ -329,6 +329,7 @@ public class SettingsService : ISettingsService
         WidgetIds.DocQuickOpen       => GetDocWidgetTransparency(),
         WidgetIds.SmartProjectSearch => GetSmartProjectSearchWidgetTransparency(),
         WidgetIds.CheatSheet         => GetCheatSheetWidgetTransparency(),
+        WidgetIds.ProjectInfo        => _settings.ProjectInfoWidgetTransparency,
         _ => 0.78
     };
 
@@ -343,6 +344,7 @@ public class SettingsService : ISettingsService
             case WidgetIds.DocQuickOpen:       SetDocWidgetTransparency(transparency); break;
             case WidgetIds.SmartProjectSearch: SetSmartProjectSearchWidgetTransparency(transparency); break;
             case WidgetIds.CheatSheet:         SetCheatSheetWidgetTransparency(transparency); break;
+            case WidgetIds.ProjectInfo:        _settings.ProjectInfoWidgetTransparency = transparency; break;
         }
     }
 
@@ -355,6 +357,7 @@ public class SettingsService : ISettingsService
         WidgetIds.DocQuickOpen       => GetDocTransparencyLinked(),
         WidgetIds.SmartProjectSearch => GetSmartProjectSearchTransparencyLinked(),
         WidgetIds.CheatSheet         => GetCheatSheetTransparencyLinked(),
+        WidgetIds.ProjectInfo        => _settings.ProjectInfoTransparencyLinked,
         _ => false
     };
 
@@ -369,6 +372,7 @@ public class SettingsService : ISettingsService
             case WidgetIds.DocQuickOpen:       SetDocTransparencyLinked(linked); break;
             case WidgetIds.SmartProjectSearch: SetSmartProjectSearchTransparencyLinked(linked); break;
             case WidgetIds.CheatSheet:         SetCheatSheetTransparencyLinked(linked); break;
+            case WidgetIds.ProjectInfo:        _settings.ProjectInfoTransparencyLinked = linked; break;
         }
     }
 
@@ -381,6 +385,7 @@ public class SettingsService : ISettingsService
         WidgetIds.QuickLaunch        => GetQuickLaunchWidgetEnabled(),
         WidgetIds.SmartProjectSearch => GetSmartProjectSearchWidgetEnabled(),
         WidgetIds.CheatSheet         => GetCheatSheetWidgetEnabled(),
+        WidgetIds.ProjectInfo        => _settings.ProjectInfoWidgetEnabled,
         _ => true
     };
 
@@ -395,12 +400,21 @@ public class SettingsService : ISettingsService
             case WidgetIds.QuickLaunch:        SetQuickLaunchWidgetEnabled(enabled); break;
             case WidgetIds.SmartProjectSearch: SetSmartProjectSearchWidgetEnabled(enabled); break;
             case WidgetIds.CheatSheet:         SetCheatSheetWidgetEnabled(enabled); break;
+            case WidgetIds.ProjectInfo:        _settings.ProjectInfoWidgetEnabled = enabled; break;
         }
     }
 
     // --- Project Tags ---
     public bool GetTagSearchEnabled() => _settings.TagSearchEnabled;
     public void SetTagSearchEnabled(bool enabled) => _settings.TagSearchEnabled = enabled;
+    public string GetTagDisplayMode() => _settings.TagDisplayMode;
+    public void SetTagDisplayMode(string mode) => _settings.TagDisplayMode = mode;
+    public bool GetTagCarouselShowRecent() => _settings.TagCarouselShowRecent;
+    public void SetTagCarouselShowRecent(bool enabled) => _settings.TagCarouselShowRecent = enabled;
+    public int GetTagCarouselMaxChips() => Math.Clamp(_settings.TagCarouselMaxChips, 3, 20);
+    public void SetTagCarouselMaxChips(int count) => _settings.TagCarouselMaxChips = Math.Clamp(count, 3, 20);
+    public bool GetTagCarouselAutoRefresh() => _settings.TagCarouselAutoRefresh;
+    public void SetTagCarouselAutoRefresh(bool enabled) => _settings.TagCarouselAutoRefresh = enabled;
 
     // --- Hotkey Groups ---
     public List<HotkeyGroup> GetHotkeyGroups()
@@ -627,6 +641,18 @@ public class SettingsService : ISettingsService
 
         // Project Tags
         public bool TagSearchEnabled { get; set; } = true;
+
+        // Project Info Widget
+        public double ProjectInfoWidgetTransparency { get; set; } = 0.78;
+        public bool ProjectInfoTransparencyLinked { get; set; } = false;
+        public bool ProjectInfoWidgetEnabled { get; set; } = true;
+        public bool ProjectInfoWidgetVisible { get; set; } = false;
+        public double? ProjectInfoWidgetLeft { get; set; }
+        public double? ProjectInfoWidgetTop { get; set; }
+        public string TagDisplayMode { get; set; } = "carousel"; // "carousel", "widget", "off"
+        public bool TagCarouselShowRecent { get; set; } = true;
+        public int TagCarouselMaxChips { get; set; } = 8;
+        public bool TagCarouselAutoRefresh { get; set; } = true;
 
         // Hotkey groups — each group has its own key combo and a set of widget IDs to show/focus
         public List<HotkeyGroup> HotkeyGroups { get; set; } = new();

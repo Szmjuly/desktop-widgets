@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
+using DesktopHub.UI.Helpers;
 using DesktopHub.UI.Widgets;
 
 namespace DesktopHub.UI;
@@ -304,12 +305,7 @@ public partial class SearchOverlay
 
     private Rect GetScreenWorkArea(Rect rect)
     {
-        var center = new System.Drawing.Point(
-            (int)Math.Round(rect.Left + rect.Width / 2.0),
-            (int)Math.Round(rect.Top + rect.Height / 2.0)
-        );
-        var screen = System.Windows.Forms.Screen.FromPoint(center);
-        return new Rect(screen.WorkingArea.Left, screen.WorkingArea.Top, screen.WorkingArea.Width, screen.WorkingArea.Height);
+        return ScreenHelper.GetWorkingAreaFromDipRect(rect, this);
     }
 
     private double GetConfiguredWidgetGap()

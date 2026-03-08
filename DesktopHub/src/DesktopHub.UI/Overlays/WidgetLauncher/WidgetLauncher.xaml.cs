@@ -20,6 +20,7 @@ public partial class WidgetLauncher : Window
     public event EventHandler? SmartProjectSearchRequested;
     public event EventHandler? CheatSheetRequested;
     public event EventHandler? MetricsViewerRequested;
+    public event EventHandler? ProjectInfoRequested;
     private readonly ISettingsService _settings;
     
     public WidgetLauncher(ISettingsService settings)
@@ -38,6 +39,7 @@ public partial class WidgetLauncher : Window
                                  !_settings.GetSmartProjectSearchAttachToSearchOverlayMode();
         UpdateSmartProjectSearchButtonVisibility(smartSearchVisible);
         UpdateCheatSheetButtonVisibility(_settings.GetCheatSheetWidgetEnabled());
+        UpdateProjectInfoButtonVisibility(_settings.GetWidgetEnabled(Core.Models.WidgetIds.ProjectInfo));
         Loaded += (_, _) => RefreshLayoutFromSettings();
         RefreshLayoutFromSettings();
     }
@@ -60,6 +62,7 @@ public partial class WidgetLauncher : Window
             DocQuickOpenButton,
             SmartProjectSearchButton,
             MetricsViewerButton,
+            ProjectInfoButton,
             CheatSheetButton
         };
 
@@ -150,6 +153,11 @@ public partial class WidgetLauncher : Window
     {
         MetricsViewerRequested?.Invoke(this, EventArgs.Empty);
     }
+
+    private void ProjectInfoButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        ProjectInfoRequested?.Invoke(this, EventArgs.Empty);
+    }
     
     public void UpdateSearchButtonVisibility(bool visible)
     {
@@ -211,6 +219,13 @@ public partial class WidgetLauncher : Window
     {
         if (MetricsViewerButton != null)
             MetricsViewerButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        RefreshLayoutFromSettings();
+    }
+
+    public void UpdateProjectInfoButtonVisibility(bool visible)
+    {
+        if (ProjectInfoButton != null)
+            ProjectInfoButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         RefreshLayoutFromSettings();
     }
 

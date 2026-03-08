@@ -135,6 +135,49 @@ firebase-rules-production.json   — project_tags node added
 .\scripts\tag-manager.ps1 -Action list
 ```
 
+## UX Features
+
+### Tag Carousel (Mode 1 — default)
+
+Horizontal scrolling chip bar below the search bar, above the history pills. Shows the most frequently-used tag values across all cached projects. Clicking a chip injects `key:value` into the search bar and adds it to search history.
+
+- **Position**: Grid Row 1 in SearchOverlay (between search bar and history)
+- **Populated from**: `ProjectTagService.GetAllCachedTags()` — frequency-sorted
+- **Max chips**: Configurable in Settings → Tags (default 8, range 3-20)
+- **Auto-refresh**: On tag save, on app launch after cache load
+
+### Settings Panel (Tags Section)
+
+Dedicated "🏷️ Tags" nav item in the Settings window with:
+
+| Setting | Default | Description |
+|---|---|---|
+| Tag Search | On | Enable `key:value` search filters |
+| Display Mode | Carousel | "Carousel" or "Off" |
+| Max Carousel Chips | 8 | 3-20 |
+| Auto-Refresh Carousel | On | Refresh chips on tag create/update |
+
+Also shows search syntax reference card.
+
+### Telemetry & Metrics
+
+Tag events tracked via `TelemetryCategory.Tag`:
+
+| Event | Fired When |
+|---|---|
+| `tag_created` | First tags saved for a project |
+| `tag_updated` | Existing tags modified |
+| `tag_search_executed` | Tag filter used in search query |
+| `tag_carousel_clicked` | Carousel chip clicked |
+
+`DailyMetricsSummary` extended with: `TotalTagsCreated`, `TotalTagsUpdated`, `TotalTagSearches`, `TotalTagCarouselClicks`.
+
+Personal metrics viewer activity card shows all four tag metrics. Admin multi-user view inherits the same fields via Firebase sync.
+
+### Tag Search History
+
+Tag queries (`voltage:208`, `gen:Generac`) are added to search history chips via `AddToSearchHistory()` when a carousel chip is clicked or a tag search is executed.
+
 ## Local Cache
 
 File: `%LOCALAPPDATA%/DesktopHub/tag_cache.json`

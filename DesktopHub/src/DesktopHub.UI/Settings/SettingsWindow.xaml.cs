@@ -872,6 +872,7 @@ public partial class SettingsWindow : Window
             if (AppearancePanel != null) AppearancePanel.Visibility = Visibility.Collapsed;
             if (GeneralPanel != null) GeneralPanel.Visibility = Visibility.Collapsed;
             if (UpdatesPanel != null) UpdatesPanel.Visibility = Visibility.Collapsed;
+            if (TagsPanel != null) TagsPanel.Visibility = Visibility.Collapsed;
 
             // Hide all dynamic widget panels
             foreach (var panel in _widgetPanels.Values)
@@ -893,6 +894,11 @@ public partial class SettingsWindow : Window
             else if (radioButton.Name == "UpdatesMenuButton" && UpdatesPanel != null)
             {
                 UpdatesPanel.Visibility = Visibility.Visible;
+            }
+            else if (radioButton.Name == "TagsMenuButton" && TagsPanel != null)
+            {
+                TagsPanel.Visibility = Visibility.Visible;
+                LoadTagSettings();
             }
             else if (radioButton.Tag is string widgetId && _widgetPanels.TryGetValue(widgetId, out var panel))
             {

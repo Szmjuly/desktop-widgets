@@ -1,0 +1,297 @@
+<UserControl x:Class="DesktopHub.UI.Widgets.ProjectInfoWidget"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             MinWidth="280">
+    <UserControl.Resources>
+        <!-- Field label -->
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#A0A8B0"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+
+        <!-- Sidebar tab button -->
+        <Style x:Key="SideTabButton" TargetType="Border">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="6,6"/>
+            <Setter Property="Margin" Value="0,1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#20FFFFFF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Collapsible category header -->
+        <Style x:Key="CategoryToggle" TargetType="Border">
+            <Setter Property="Background" Value="#10FFFFFF"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Margin" Value="0,2,0,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#18FFFFFF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Dropdown ComboBox (with visible arrow + hover) -->
+        <Style x:Key="DarkCombo" TargetType="ComboBox">
+            <Setter Property="IsEditable" Value="True"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,1,0,1"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          Focusable="False" ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="Bd" Background="#2A2A2A" CornerRadius="4" 
+                                                BorderBrush="#484848" BorderThickness="1" Padding="6,0">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <ContentPresenter Grid.Column="0"/>
+                                                <Border Grid.Column="1" Background="#38FFFFFF" CornerRadius="2" 
+                                                        Padding="4,1" Margin="4,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="&#x25BE;" Foreground="#90FFFFFF" FontSize="9" 
+                                                               VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="BorderBrush" Value="#649BF0"/>
+                                                <Setter TargetName="Bd" Property="Background" Value="#30303A"/>
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="Bd" Property="BorderBrush" Value="#649BF0"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <TextBox x:Name="PART_EditableTextBox"
+                                     IsReadOnly="{TemplateBinding IsReadOnly}"
+                                     Visibility="Visible"
+                                     Background="Transparent"
+                                     Foreground="White"
+                                     FontSize="11"
+                                     BorderThickness="0"
+                                     Margin="8,0,28,0"
+                                     VerticalAlignment="Center"
+                                     HorizontalAlignment="Stretch"
+                                     Focusable="True"
+                                     CaretBrush="White"/>
+                            <Popup x:Name="Popup" Placement="Bottom"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Border Background="#222228" CornerRadius="6" BorderBrush="#484848" BorderThickness="1"
+                                        MinWidth="{TemplateBinding ActualWidth}" Padding="3" Margin="0,2,0,0"
+                                        MaxHeight="200">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <StackPanel IsItemsHost="True"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="PART_EditableTextBox" Property="Foreground" Value="#80FFFFFF"/>
+                                <Setter TargetName="ToggleButton" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Dropdown item -->
+        <Style x:Key="DarkComboItem" TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#007ACC"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#28FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- FreeText input (distinct look: no arrow, lighter border, subtle left accent) -->
+        <Style x:Key="DarkTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="#222228"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#3A3A3A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="Margin" Value="0,1,0,1"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="CaretBrush" Value="White"/>
+            <Style.Triggers>
+                <Trigger Property="IsFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="#4CAF50"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#606060"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Foreground" Value="#80FFFFFF"/>
+                    <Setter Property="Opacity" Value="0.6"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Small add button for multi-select fields -->
+        <Style x:Key="SmallAddButton" TargetType="Button">
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="#2878C8" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#3898F0"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#0CFFFFFF" CornerRadius="4" Padding="8,6" Margin="0,0,0,4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="&#x1F3F7;&#xFE0F;" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBlock x:Name="ProjectHeaderText" Grid.Column="1"
+                           Text="Select a project"
+                           FontSize="12" FontWeight="SemiBold" Foreground="#D8DDE2"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <!-- Lock/Edit toggle -->
+                <Border x:Name="LockButton" Grid.Column="2"
+                        CornerRadius="4"
+                        Padding="6,3" Margin="4,0" Cursor="Hand"
+                        MouseLeftButtonDown="LockButton_Click"
+                        ToolTip="Click to unlock editing"
+                        Visibility="Collapsed">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#25649BF0"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#40649BF0"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="LockIcon" Text="&#x1F512;" FontSize="10"
+                                   VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <TextBlock x:Name="LockText" Text="Edit" FontSize="10"
+                                   Foreground="#A0B8D0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+                <Button x:Name="SaveButton" Grid.Column="3" Content="Save"
+                        FontSize="11" Padding="14,4" Cursor="Hand"
+                        Click="SaveButton_Click"
+                        Visibility="Collapsed">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Bd" Background="#2878C8" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="#3898F0"/>
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="#2060A0"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- Main content: sidebar tabs + fields -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="36"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Sidebar category tabs -->
+            <Border Grid.Column="0" Background="#08FFFFFF" CornerRadius="4,0,0,4" Margin="0,0,2,0">
+                <StackPanel x:Name="SidebarTabs" Margin="2,2,0,2"/>
+            </Border>
+
+            <!-- Scrollable collapsible fields -->
+            <ScrollViewer x:Name="FieldsScrollViewer" Grid.Column="1" 
+                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" 
+                          Padding="4,0,0,0"
+                          Style="{StaticResource ThinScrollViewer}">
+                <StackPanel x:Name="FieldsPanel"/>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Status -->
+        <TextBlock x:Name="StatusText" Grid.Row="2"
+                   FontSize="10" Foreground="#505860" Margin="0,4,0,0"
+                   Text="Select a project to view its info."/>
+    </Grid>
+</UserControl>

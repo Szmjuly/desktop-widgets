@@ -410,14 +410,11 @@ public partial class SearchOverlay
     {
         try
         {
-            // Get current mouse position
-            var mousePos = System.Windows.Forms.Cursor.Position;
+            // Get cursor position in WPF DIPs (not physical pixels)
+            var cursorDip = ScreenHelper.GetCursorPositionInDips(this);
 
-            // Get the screen containing the mouse cursor
-            var screen = Screen.FromPoint(mousePos);
-
-            // Position at top-center of screen with margin
-            var workingArea = screen.WorkingArea;
+            // Get the screen working area in DIPs
+            var workingArea = ScreenHelper.GetWorkingAreaFromDipPoint(cursorDip.X, cursorDip.Y, this);
 
             // Use ActualWidth if available, otherwise use Width property
             var overlayWidth = this.ActualWidth > 0 ? this.ActualWidth : this.Width;
@@ -427,31 +424,27 @@ public partial class SearchOverlay
             var gap = _widgetLauncher != null ? 12.0 : 0.0;
             var totalWidth = overlayWidth + gap + widgetLauncherWidth;
 
-            DebugLogger.Log($"SearchOverlay: Positioning - WorkArea({workingArea.Left},{workingArea.Top},{workingArea.Width}x{workingArea.Height}), OverlayWidth={overlayWidth}, TotalWidth={totalWidth}");
+            DebugLogger.Log($"SearchOverlay: Positioning - WorkArea({workingArea.Left:F0},{workingArea.Top:F0},{workingArea.Width:F0}x{workingArea.Height:F0}), OverlayWidth={overlayWidth}, TotalWidth={totalWidth}");
 
             // Center the combined group on screen
             var groupLeft = workingArea.Left + (workingArea.Width - totalWidth) / 2.0;
             this.Left = groupLeft;
             this.Top = workingArea.Top + 80; // 80px from top edge
 
-            DebugLogger.Log($"SearchOverlay: Positioned at ({this.Left}, {this.Top}), Mouse at ({mousePos.X}, {mousePos.Y})");
+            DebugLogger.Log($"SearchOverlay: Positioned at ({this.Left}, {this.Top}), Cursor at ({cursorDip.X:F0}, {cursorDip.Y:F0})");
         }
         catch (Exception ex)
         {
             DebugLogger.Log($"SearchOverlay: PositionOnMouseScreen failed: {ex.Message}, using default positioning");
             // Fallback to top of primary screen
-            var primaryScreen = Screen.PrimaryScreen;
-            if (primaryScreen != null)
-            {
-                var workingArea = primaryScreen.WorkingArea;
-                var overlayWidth = this.ActualWidth > 0 ? this.ActualWidth : this.Width;
-                var widgetLauncherWidth = _widgetLauncher != null ? 180.0 : 0.0;
-                var gap = _widgetLauncher != null ? 12.0 : 0.0;
-                var totalWidth = overlayWidth + gap + widgetLauncherWidth;
-                var groupLeft = workingArea.Left + (workingArea.Width - totalWidth) / 2.0;
-                this.Left = groupLeft;
-                this.Top = workingArea.Top + 80;
-            }
+            var workingArea = ScreenHelper.GetPrimaryWorkingAreaInDips(this);
+            var overlayWidth = this.ActualWidth > 0 ? this.ActualWidth : this.Width;
+            var widgetLauncherWidth = _widgetLauncher != null ? 180.0 : 0.0;
+            var gap = _widgetLauncher != null ? 12.0 : 0.0;
+            var totalWidth = overlayWidth + gap + widgetLauncherWidth;
+            var groupLeft = workingArea.Left + (workingArea.Width - totalWidth) / 2.0;
+            this.Left = groupLeft;
+            this.Top = workingArea.Top + 80;
         }
     }
 

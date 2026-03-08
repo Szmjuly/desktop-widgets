@@ -204,10 +204,7 @@ internal class WhatsNewNotification : Window
 
     private void PositionBottomRight()
     {
-        var screen = System.Windows.Forms.Screen.PrimaryScreen;
-        if (screen == null) return;
-
-        var workArea = screen.WorkingArea;
+        var workArea = Helpers.ScreenHelper.GetPrimaryWorkingAreaInDips(this);
         Left = workArea.Right - ActualWidth - 16;
         Top = workArea.Bottom - ActualHeight - 16;
     }

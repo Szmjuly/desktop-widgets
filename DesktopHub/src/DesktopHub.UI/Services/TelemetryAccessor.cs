@@ -105,4 +105,18 @@ public static class TelemetryAccessor
         _service?.TrackEvent(TelemetryCategory.Performance, eventType,
             new Dictionary<string, object?> { ["phase"] = phase, ["durationMs"] = durationMs, ["resultCount"] = resultCount });
     }
+
+    public static void TrackTag(string eventType, string? projectNumber = null, string? tagKey = null,
+        string? tagValue = null, int? tagCount = null, string? source = null)
+    {
+        _service?.TrackEvent(TelemetryCategory.Tag, eventType,
+            new Dictionary<string, object?>
+            {
+                ["projectNumber"] = projectNumber,
+                ["tagKey"] = tagKey,
+                ["tagValue"] = tagValue,
+                ["tagCount"] = tagCount,
+                ["source"] = source
+            });
+    }
 }

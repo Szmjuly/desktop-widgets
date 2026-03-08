@@ -77,6 +77,13 @@
         ".read": false,
         ".write": false
       }
+    },
+
+    "tag_vocabulary": {
+      "$fieldKey": {
+        ".read": false,
+        ".write": false
+      }
     }
   }
 }

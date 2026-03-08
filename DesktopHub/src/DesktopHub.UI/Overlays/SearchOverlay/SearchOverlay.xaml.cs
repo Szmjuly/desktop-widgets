@@ -46,6 +46,8 @@ public partial class SearchOverlay : Window
     private SmartProjectSearchWidget? _smartProjectSearchAttachedWidget;
     private IProjectLaunchDataStore? _launchDataStore;
     private IProjectTagService? _tagService;
+    private Core.Abstractions.ITagVocabularyService? _vocabService;
+    private ProjectInfoOverlay? _projectInfoOverlay;
     private List<Project> _allProjects = new();
     private List<Project> _filteredProjects = new();
     private CancellationTokenSource? _searchCts;

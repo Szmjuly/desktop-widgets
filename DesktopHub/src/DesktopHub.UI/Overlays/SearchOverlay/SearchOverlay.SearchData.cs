@@ -272,6 +272,13 @@ public partial class SearchOverlay
                 catch { }
             }
 
+            // Clear Project Info widget when search is cleared
+            if (_projectInfoOverlay?.Widget != null)
+            {
+                try { await _projectInfoOverlay.Widget.SetProjectAsync("", null); }
+                catch { }
+            }
+
             // Auto-collapse when search cleared (only if user hasn't manually toggled)
             if (!_userManuallySizedResults && !_isResultsCollapsed)
             {

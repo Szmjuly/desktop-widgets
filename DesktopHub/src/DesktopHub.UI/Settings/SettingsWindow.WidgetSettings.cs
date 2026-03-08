@@ -680,4 +680,82 @@ public partial class SettingsWindow
             }
         }
     }
+
+    // ===== Tags Settings =====
+
+    private void LoadTagSettings()
+    {
+        if (_settings == null) return;
+
+        TagSearchEnabledToggle.IsChecked = _settings.GetTagSearchEnabled();
+        TagCarouselAutoRefreshToggle.IsChecked = _settings.GetTagCarouselAutoRefresh();
+        TagCarouselMaxChipsBox.Text = _settings.GetTagCarouselMaxChips().ToString();
+
+        // Set display mode combo
+        var mode = _settings.GetTagDisplayMode();
+        for (int i = 0; i < TagDisplayModeCombo.Items.Count; i++)
+        {
+            if (TagDisplayModeCombo.Items[i] is System.Windows.Controls.ComboBoxItem item &&
+                item.Tag?.ToString() == mode)
+            {
+                TagDisplayModeCombo.SelectedIndex = i;
+                break;
+            }
+        }
+
+        // Show/hide carousel-specific settings based on mode
+        TagCarouselSettingsPanel.Visibility = mode == "carousel" ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void TagSearchEnabledToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        var enabled = TagSearchEnabledToggle.IsChecked == true;
+        _settings.SetTagSearchEnabled(enabled);
+        _ = _settings.SaveAsync();
+        TelemetryAccessor.TrackSettingChanged("tag_search_enabled", enabled.ToString());
+        StatusText.Text = enabled ? "Tag search enabled" : "Tag search disabled";
+    }
+
+    private void TagDisplayModeCombo_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        if (TagDisplayModeCombo.SelectedItem is System.Windows.Controls.ComboBoxItem item &&
+            item.Tag is string mode)
+        {
+            _settings.SetTagDisplayMode(mode);
+            _ = _settings.SaveAsync();
+            TelemetryAccessor.TrackSettingChanged("tag_display_mode", mode);
+            StatusText.Text = $"Tag display mode: {mode}";
+
+            // Show/hide carousel-specific settings
+            TagCarouselSettingsPanel.Visibility = mode == "carousel" ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+
+    private void TagCarouselMaxChipsBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        if (int.TryParse(TagCarouselMaxChipsBox.Text, out var count))
+        {
+            count = Math.Clamp(count, 3, 20);
+            _settings.SetTagCarouselMaxChips(count);
+            TagCarouselMaxChipsBox.Text = count.ToString();
+            _ = _settings.SaveAsync();
+            StatusText.Text = $"Tag carousel max chips: {count}";
+        }
+        else
+        {
+            TagCarouselMaxChipsBox.Text = _settings.GetTagCarouselMaxChips().ToString();
+        }
+    }
+
+    private void TagCarouselAutoRefreshToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        var enabled = TagCarouselAutoRefreshToggle.IsChecked == true;
+        _settings.SetTagCarouselAutoRefresh(enabled);
+        _ = _settings.SaveAsync();
+        StatusText.Text = enabled ? "Tag carousel auto-refresh enabled" : "Tag carousel auto-refresh disabled";
+    }
 }

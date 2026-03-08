@@ -312,6 +312,24 @@ public partial class SearchOverlay
             }, token));
         }
 
+        if (_projectInfoOverlay?.Widget != null)
+        {
+            tasks.Add(Task.Run(async () =>
+            {
+                try
+                {
+                    token.ThrowIfCancellationRequested();
+                    await Dispatcher.InvokeAsync(async () =>
+                        await _projectInfoOverlay.Widget.SetProjectAsync(vm.FullNumber, displayName));
+                }
+                catch (OperationCanceledException) { }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"ResultsList_SelectionChanged: Error feeding project to project info widget: {ex.Message}");
+                }
+            }, token));
+        }
+
         try
         {
             await Task.WhenAll(tasks);
@@ -582,12 +600,11 @@ public partial class SearchOverlay
                     copyItem.Click += (s, args) => CopyText(capturedPath, "Path copied to clipboard");
                     menu.Items.Add(copyItem);
 
-                    // --- Tags submenu ---
+                    // --- Tags section ---
                     if (_tagService != null && !string.IsNullOrEmpty(capturedProjectNumber))
                     {
                         menu.Items.Add(new Separator());
-                        var tagsSubmenu = BuildTagsSubmenu(capturedProjectNumber);
-                        menu.Items.Add(tagsSubmenu);
+                        AddTagsMenuItems(menu, capturedProjectNumber);
                     }
                 }
                 else if (isFilePath)
@@ -635,51 +652,64 @@ public partial class SearchOverlay
     }
 
     /// <summary>
-    /// Build a "Tags" submenu showing existing tags and an "Edit Tags..." option.
+    /// Add tag-related menu items directly to the context menu.
+    /// Always shows "Edit Project Tags..." as a direct-click item.
+    /// If the project has existing tags, shows them as read-only items above the edit option.
     /// </summary>
-    private MenuItem BuildTagsSubmenu(string projectNumber)
+    private void AddTagsMenuItems(ItemsControl menu, string projectNumber)
     {
-        var tagsMenu = new MenuItem { Header = "Tags" };
+        if (_tagService == null) return;
 
-        if (_tagService == null)
-        {
-            tagsMenu.IsEnabled = false;
-            return tagsMenu;
-        }
-
-        var tags = _tagService.GetAllCachedTags()
-            .FirstOrDefault(kvp => kvp.Key.Equals(projectNumber, StringComparison.OrdinalIgnoreCase));
-
-        if (tags.Value != null)
-        {
-            // Show existing tags as read-only items
-            var existingTags = GetNonEmptyTagDisplay(tags.Value);
-            if (existingTags.Count > 0)
-            {
-                foreach (var (label, value) in existingTags)
-                {
-                    var tagItem = new MenuItem
-                    {
-                        Header = $"{label}: {value}",
-                        IsEnabled = false,
-                        Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(180, 180, 180))
-                    };
-                    tagsMenu.Items.Add(tagItem);
-                }
-                tagsMenu.Items.Add(new Separator());
-            }
-        }
-
-        // "Edit Tags..." opens the edit dialog
-        var editItem = new MenuItem { Header = "Edit Tags..." };
         var capturedNumber = projectNumber;
-        editItem.Click += async (s, args) =>
-        {
-            await ShowTagEditDialog(capturedNumber);
-        };
-        tagsMenu.Items.Add(editItem);
 
-        return tagsMenu;
+        // Always show direct-click edit item
+        var editItem = new MenuItem { Header = "Edit Project Tags..." };
+        editItem.Click += (s, args) => OpenTagEditor(capturedNumber);
+        menu.Items.Add(editItem);
+
+        // Open in Project Info widget
+        var widgetItem = new MenuItem { Header = "Open in Project Info Widget" };
+        widgetItem.Click += (s, args) =>
+        {
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, new Action(async () =>
+            {
+                try
+                {
+                    if (_projectInfoOverlay == null)
+                        OnProjectInfoRequested(this, EventArgs.Empty);
+
+                    if (_projectInfoOverlay?.Widget != null)
+                    {
+                        if (_projectInfoOverlay.Visibility != Visibility.Visible)
+                        {
+                            _projectInfoOverlay.Visibility = Visibility.Visible;
+                            _projectInfoOverlay.Tag = "WasVisible";
+                        }
+                        await _projectInfoOverlay.Widget.SetProjectAsync(capturedNumber, capturedNumber);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"Tags: Open in widget error: {ex.Message}");
+                }
+            }));
+        };
+        menu.Items.Add(widgetItem);
+    }
+
+    private void OpenTagEditor(string projectNumber)
+    {
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Normal, new Action(async () =>
+        {
+            try
+            {
+                await ShowTagEditDialog(projectNumber);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"Tags: Edit dialog error: {ex.Message}");
+            }
+        }));
     }
 
     /// <summary>
@@ -717,7 +747,9 @@ public partial class SearchOverlay
     }
 
     /// <summary>
-    /// Show a modal dialog for editing tags on a project.
+    /// Show a modal tag-editing dialog for a project, matching the dark app theme.
+    /// Shows existing tags as visual chips, allows adding from available tags dropdown,
+    /// and supports adding custom tags.
     /// </summary>
     private async Task ShowTagEditDialog(string projectNumber)
     {
@@ -725,191 +757,586 @@ public partial class SearchOverlay
 
         var existingTags = await _tagService.GetTagsAsync(projectNumber) ?? new ProjectTags();
 
+        // Collect existing project-info-derived tags (read-only display)
+        var infoTags = GetNonEmptyTagDisplay(existingTags);
+
+        // Collect existing custom tags (editable)
+        var customTags = new List<KeyValuePair<string, string>>(existingTags.Custom);
+
+        // Collect all available custom tag keys from all projects (for the dropdown)
+        var allCustomKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kvp in _tagService.GetAllCachedTags())
+        {
+            foreach (var ck in kvp.Value.Custom.Keys)
+                allCustomKeys.Add(ck);
+        }
+        // Add some default custom tag suggestions
+        foreach (var dt in new[] { "Permit Submitted", "Permit Approved", "As-Built", "Revision Required", "Load Calc Done", "Panel Schedule Done", "Short Circuit Done", "Arc Flash Done", "Energy Calc Done", "Coordination Study" })
+            allCustomKeys.Add(dt);
+
+        // --- Build dialog ---
+        var accentColor = System.Windows.Media.Color.FromRgb(100, 155, 240);
+        var accentBrush = new SolidColorBrush(accentColor);
+        var darkBg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(18, 18, 18));
+        var cardBg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 30, 34));
+        var inputBg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(42, 42, 42));
+        var inputBorder = new SolidColorBrush(System.Windows.Media.Color.FromRgb(72, 72, 72));
+        var dimText = new SolidColorBrush(System.Windows.Media.Color.FromRgb(140, 145, 150));
+        var whiteBrush = new SolidColorBrush(Colors.White);
+
         var dialog = new Window
         {
-            Title = $"Edit Tags — {projectNumber}",
-            Width = 480,
-            Height = 600,
+            Title = $"Tags — {projectNumber}",
+            Width = 420,
+            Height = 520,
             WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 30, 30)),
-            Foreground = new SolidColorBrush(Colors.White),
-            ResizeMode = ResizeMode.CanResizeWithGrip,
-            WindowStyle = WindowStyle.ToolWindow
+            WindowStyle = WindowStyle.None,
+            AllowsTransparency = true,
+            Background = System.Windows.Media.Brushes.Transparent,
+            ResizeMode = ResizeMode.NoResize,
+            ShowInTaskbar = false,
+            Owner = Window.GetWindow(this)
         };
 
-        var scrollViewer = new ScrollViewer
+        // Root border matching app overlay style
+        var rootBorder = new Border
         {
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            Margin = new Thickness(12)
+            Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0xE8, 0x12, 0x12, 0x12)),
+            CornerRadius = new CornerRadius(12),
+            BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(58, 58, 58)),
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(16)
         };
 
-        var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var mainStack = new StackPanel();
 
-        var fields = TagFieldRegistry.Fields;
-        var textBoxes = new Dictionary<string, System.Windows.Controls.TextBox>();
-        var row = 0;
+        // --- Title bar ---
+        var titleBar = new Grid { Margin = new Thickness(0, 0, 0, 12) };
+        titleBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        titleBar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        // Group by category
-        var categories = fields.GroupBy(f => f.Category ?? "Other").ToList();
-        foreach (var category in categories)
+        var titleText = new TextBlock
         {
-            // Category header
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            var header = new TextBlock
+            Text = $"\U0001F3F7\uFE0F Tags — {projectNumber}",
+            FontSize = 14,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = whiteBrush,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(titleText, 0);
+        titleBar.Children.Add(titleText);
+
+        var closeBtn = new System.Windows.Controls.Button
+        {
+            Content = "\u2715",
+            FontSize = 11,
+            Width = 28, Height = 28,
+            Cursor = System.Windows.Input.Cursors.Hand,
+            Foreground = dimText
+        };
+        closeBtn.Template = CreateDarkButtonTemplate(
+            System.Windows.Media.Color.FromArgb(0x00, 0, 0, 0),
+            System.Windows.Media.Color.FromArgb(0x30, 255, 80, 80),
+            cornerRadius: 6);
+        closeBtn.Click += (s, a) => dialog.Close();
+        Grid.SetColumn(closeBtn, 1);
+        titleBar.Children.Add(closeBtn);
+
+        // Enable drag on title bar
+        titleBar.MouseLeftButtonDown += (s, a) => { try { dialog.DragMove(); } catch { } };
+
+        mainStack.Children.Add(titleBar);
+
+        // --- Project Info Tags (auto-generated, read-only) ---
+        if (infoTags.Count > 0)
+        {
+            var infoLabel = new TextBlock
             {
-                Text = category.Key,
-                FontWeight = FontWeights.Bold,
-                FontSize = 14,
-                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(100, 180, 255)),
-                Margin = new Thickness(0, row == 0 ? 0 : 12, 0, 4)
+                Text = "Project Info Tags",
+                FontSize = 11,
+                Foreground = dimText,
+                Margin = new Thickness(0, 0, 0, 6)
             };
-            Grid.SetRow(header, row);
-            Grid.SetColumnSpan(header, 2);
-            grid.Children.Add(header);
-            row++;
+            mainStack.Children.Add(infoLabel);
 
-            foreach (var field in category)
+            var infoChipsPanel = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
+            foreach (var (label, value) in infoTags)
             {
-                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-                var label = new TextBlock
-                {
-                    Text = field.DisplayName,
-                    Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(200, 200, 200)),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(0, 2, 8, 2)
-                };
-                Grid.SetRow(label, row);
-                Grid.SetColumn(label, 0);
-                grid.Children.Add(label);
-
-                var currentValue = _tagService.GetTagValue(projectNumber, field.Key) ?? "";
-                var textBox = new System.Windows.Controls.TextBox
-                {
-                    Text = currentValue,
-                    Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(50, 50, 50)),
-                    Foreground = new SolidColorBrush(Colors.White),
-                    BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(80, 80, 80)),
-                    Padding = new Thickness(4, 2, 4, 2),
-                    Margin = new Thickness(0, 2, 0, 2),
-                    ToolTip = field.SuggestedValues.Length > 0
-                        ? $"Suggested: {string.Join(", ", field.SuggestedValues)}"
-                        : null
-                };
-                Grid.SetRow(textBox, row);
-                Grid.SetColumn(textBox, 1);
-                grid.Children.Add(textBox);
-
-                textBoxes[field.Key] = textBox;
-                row++;
+                var chip = CreateTagChip($"{label}: {value}", accentColor, isRemovable: false);
+                infoChipsPanel.Children.Add(chip);
             }
+            mainStack.Children.Add(infoChipsPanel);
         }
 
-        // Custom tags section
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        var customHeader = new TextBlock
+        // --- Custom Tags (editable) ---
+        var customLabel = new TextBlock
         {
-            Text = "Custom Tags (key=value, one per line)",
-            FontWeight = FontWeights.Bold,
-            FontSize = 14,
-            Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(100, 180, 255)),
-            Margin = new Thickness(0, 12, 0, 4)
+            Text = "Custom Tags",
+            FontSize = 11,
+            Foreground = dimText,
+            Margin = new Thickness(0, 0, 0, 6)
         };
-        Grid.SetRow(customHeader, row);
-        Grid.SetColumnSpan(customHeader, 2);
-        grid.Children.Add(customHeader);
-        row++;
+        mainStack.Children.Add(customLabel);
 
-        grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(80) });
-        var customText = new System.Windows.Controls.TextBox
+        var customChipsPanel = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+
+        // Build initial custom tag chips
+        void RebuildCustomChips()
         {
-            Text = string.Join("\n", existingTags.Custom.Select(kv => $"{kv.Key}={kv.Value}")),
-            AcceptsReturn = true,
-            TextWrapping = TextWrapping.Wrap,
-            Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(50, 50, 50)),
-            Foreground = new SolidColorBrush(Colors.White),
-            BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(80, 80, 80)),
-            Padding = new Thickness(4),
-            Margin = new Thickness(0, 2, 0, 2),
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto
-        };
-        Grid.SetRow(customText, row);
-        Grid.SetColumnSpan(customText, 2);
-        grid.Children.Add(customText);
-        row++;
+            customChipsPanel.Children.Clear();
+            foreach (var kvp in customTags)
+            {
+                var chipText = string.IsNullOrEmpty(kvp.Value) ? kvp.Key : $"{kvp.Key}: {kvp.Value}";
+                var capturedKey = kvp.Key;
+                var chip = CreateTagChip(chipText, System.Windows.Media.Color.FromRgb(76, 175, 80), isRemovable: true, onRemove: () =>
+                {
+                    customTags.RemoveAll(t => t.Key.Equals(capturedKey, StringComparison.OrdinalIgnoreCase));
+                    RebuildCustomChips();
+                });
+                customChipsPanel.Children.Add(chip);
+            }
+            if (customTags.Count == 0)
+            {
+                customChipsPanel.Children.Add(new TextBlock
+                {
+                    Text = "No custom tags",
+                    FontSize = 10,
+                    Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(80, 88, 96)),
+                    FontStyle = FontStyles.Italic,
+                    Margin = new Thickness(4, 2, 0, 2)
+                });
+            }
+        }
+        RebuildCustomChips();
+        mainStack.Children.Add(customChipsPanel);
 
-        // Save / Cancel buttons
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        // --- Add from available tags ---
+        var addSectionLabel = new TextBlock
+        {
+            Text = "Add from available tags",
+            FontSize = 11,
+            Foreground = dimText,
+            Margin = new Thickness(0, 4, 0, 4)
+        };
+        mainStack.Children.Add(addSectionLabel);
+
+        var addRow = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+        addRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        addRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var availableCombo = new System.Windows.Controls.ComboBox
+        {
+            IsEditable = true,
+            FontSize = 11,
+            Height = 28,
+            Margin = new Thickness(0, 0, 6, 0)
+        };
+        availableCombo.Template = CreateDarkComboBoxTemplate(inputBg, inputBorder);
+        availableCombo.Foreground = whiteBrush;
+        availableCombo.ItemContainerStyle = CreateDarkComboItemStyle();
+        // Populate with available tags not already added
+        foreach (var key in allCustomKeys.OrderBy(k => k))
+        {
+            if (!customTags.Any(t => t.Key.Equals(key, StringComparison.OrdinalIgnoreCase)))
+                availableCombo.Items.Add(key);
+        }
+        Grid.SetColumn(availableCombo, 0);
+        addRow.Children.Add(availableCombo);
+
+        var addBtn = CreateActionButton("+", System.Windows.Media.Color.FromRgb(40, 120, 200));
+        Grid.SetColumn(addBtn, 1);
+        addBtn.Click += (s, a) =>
+        {
+            var tagName = availableCombo.Text?.Trim();
+            if (string.IsNullOrEmpty(tagName)) return;
+            if (customTags.Any(t => t.Key.Equals(tagName, StringComparison.OrdinalIgnoreCase))) return;
+            customTags.Add(new KeyValuePair<string, string>(tagName, ""));
+            availableCombo.Items.Remove(tagName);
+            availableCombo.Text = "";
+            RebuildCustomChips();
+        };
+        addRow.Children.Add(addBtn);
+        mainStack.Children.Add(addRow);
+
+        // --- Add new custom tag ---
+        var newTagLabel = new TextBlock
+        {
+            Text = "New custom tag",
+            FontSize = 11,
+            Foreground = dimText,
+            Margin = new Thickness(0, 4, 0, 4)
+        };
+        mainStack.Children.Add(newTagLabel);
+
+        var newTagRow = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+        newTagRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        newTagRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        newTagRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var newKeyBox = new System.Windows.Controls.TextBox
+        {
+            Background = inputBg,
+            Foreground = whiteBrush,
+            BorderBrush = inputBorder,
+            FontSize = 11,
+            Height = 28,
+            Padding = new Thickness(6, 3, 6, 3),
+            CaretBrush = whiteBrush,
+            Margin = new Thickness(0, 0, 4, 0)
+        };
+        // Watermark via Tag
+        newKeyBox.Tag = "Tag name";
+        newKeyBox.Foreground = dimText;
+        newKeyBox.Text = "Tag name";
+        newKeyBox.GotFocus += (s, a) => { if (newKeyBox.Text == "Tag name") { newKeyBox.Text = ""; newKeyBox.Foreground = whiteBrush; } };
+        newKeyBox.LostFocus += (s, a) => { if (string.IsNullOrWhiteSpace(newKeyBox.Text)) { newKeyBox.Text = "Tag name"; newKeyBox.Foreground = dimText; } };
+        Grid.SetColumn(newKeyBox, 0);
+        newTagRow.Children.Add(newKeyBox);
+
+        var newValBox = new System.Windows.Controls.TextBox
+        {
+            Background = inputBg,
+            Foreground = whiteBrush,
+            BorderBrush = inputBorder,
+            FontSize = 11,
+            Height = 28,
+            Padding = new Thickness(6, 3, 6, 3),
+            CaretBrush = whiteBrush,
+            Margin = new Thickness(0, 0, 6, 0)
+        };
+        newValBox.Tag = "Value (optional)";
+        newValBox.Foreground = dimText;
+        newValBox.Text = "Value (optional)";
+        newValBox.GotFocus += (s, a) => { if (newValBox.Text == "Value (optional)") { newValBox.Text = ""; newValBox.Foreground = whiteBrush; } };
+        newValBox.LostFocus += (s, a) => { if (string.IsNullOrWhiteSpace(newValBox.Text)) { newValBox.Text = "Value (optional)"; newValBox.Foreground = dimText; } };
+        Grid.SetColumn(newValBox, 1);
+        newTagRow.Children.Add(newValBox);
+
+        var newAddBtn = CreateActionButton("+", System.Windows.Media.Color.FromRgb(76, 175, 80));
+        Grid.SetColumn(newAddBtn, 2);
+        newAddBtn.Click += (s, a) =>
+        {
+            var k = newKeyBox.Text?.Trim();
+            if (string.IsNullOrEmpty(k) || k == "Tag name") return;
+            if (customTags.Any(t => t.Key.Equals(k, StringComparison.OrdinalIgnoreCase))) return;
+            var v = (newValBox.Text?.Trim() == "Value (optional)") ? "" : (newValBox.Text?.Trim() ?? "");
+            customTags.Add(new KeyValuePair<string, string>(k, v));
+            newKeyBox.Text = "Tag name"; newKeyBox.Foreground = dimText;
+            newValBox.Text = "Value (optional)"; newValBox.Foreground = dimText;
+            RebuildCustomChips();
+        };
+        newTagRow.Children.Add(newAddBtn);
+        mainStack.Children.Add(newTagRow);
+
+        // --- Save / Close buttons ---
         var buttonPanel = new StackPanel
         {
             Orientation = System.Windows.Controls.Orientation.Horizontal,
             HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
-            Margin = new Thickness(0, 12, 0, 0)
+            Margin = new Thickness(0, 16, 0, 0)
         };
 
-        var saveButton = new System.Windows.Controls.Button
-        {
-            Content = "Save",
-            Width = 80,
-            Padding = new Thickness(8, 4, 8, 4),
-            Margin = new Thickness(0, 0, 8, 0),
-            Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(40, 120, 200)),
-            Foreground = new SolidColorBrush(Colors.White),
-            BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(60, 140, 220))
-        };
-
-        var cancelButton = new System.Windows.Controls.Button
-        {
-            Content = "Cancel",
-            Width = 80,
-            Padding = new Thickness(8, 4, 8, 4),
-            Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(60, 60, 60)),
-            Foreground = new SolidColorBrush(Colors.White),
-            BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(80, 80, 80))
-        };
-
-        cancelButton.Click += (s, args) => dialog.Close();
+        var saveButton = CreateActionButton("Save", System.Windows.Media.Color.FromRgb(40, 120, 200), width: 80);
+        var cancelButton = CreateActionButton("Close", System.Windows.Media.Color.FromRgb(60, 60, 60), width: 80);
+        cancelButton.Margin = new Thickness(8, 0, 0, 0);
+        cancelButton.Click += (s, a) => dialog.Close();
 
         var capturedProjectNumber = projectNumber;
         saveButton.Click += async (s, args) =>
         {
-            var newTags = new ProjectTags();
-            foreach (var (key, tb) in textBoxes)
+            // Preserve existing structured field values
+            var newTags = existingTags;
+            newTags.Custom.Clear();
+            foreach (var kvp in customTags)
             {
-                var val = tb.Text.Trim();
-                if (string.IsNullOrEmpty(val)) continue;
-                SetTagField(newTags, key, val);
+                if (!string.IsNullOrEmpty(kvp.Key))
+                    newTags.Custom[kvp.Key] = kvp.Value;
             }
 
-            // Parse custom tags
-            foreach (var line in customText.Text.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-            {
-                var eqIdx = line.IndexOf('=');
-                if (eqIdx > 0)
-                {
-                    var k = line[..eqIdx].Trim();
-                    var v = line[(eqIdx + 1)..].Trim();
-                    if (!string.IsNullOrEmpty(k) && !string.IsNullOrEmpty(v))
-                        newTags.Custom[k] = v;
-                }
-            }
+            var isNew = !_tagService!.HasTags(capturedProjectNumber);
+            await _tagService.SaveTagsAsync(capturedProjectNumber, newTags);
 
-            await _tagService!.SaveTagsAsync(capturedProjectNumber, newTags);
+            TelemetryAccessor.TrackTag(
+                isNew ? TelemetryEventType.TagCreated : TelemetryEventType.TagUpdated,
+                projectNumber: capturedProjectNumber,
+                tagCount: customTags.Count);
+
+            RefreshTagCarousel();
             StatusText.Text = $"Tags saved for {capturedProjectNumber}";
             dialog.Close();
         };
 
         buttonPanel.Children.Add(saveButton);
         buttonPanel.Children.Add(cancelButton);
-        Grid.SetRow(buttonPanel, row);
-        Grid.SetColumnSpan(buttonPanel, 2);
-        grid.Children.Add(buttonPanel);
+        mainStack.Children.Add(buttonPanel);
 
-        scrollViewer.Content = grid;
-        dialog.Content = scrollViewer;
+        rootBorder.Child = mainStack;
+        dialog.Content = rootBorder;
         dialog.ShowDialog();
+    }
+
+    /// <summary>
+    /// Create a rounded tag chip with optional remove button.
+    /// </summary>
+    private static Border CreateTagChip(string text, System.Windows.Media.Color color, bool isRemovable = false, Action? onRemove = null)
+    {
+        var chipBg = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, color.R, color.G, color.B));
+        var chipFg = new SolidColorBrush(color);
+
+        var chipStack = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+        chipStack.Children.Add(new TextBlock
+        {
+            Text = text,
+            FontSize = 10,
+            Foreground = chipFg,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+
+        if (isRemovable && onRemove != null)
+        {
+            var removeBtn = new TextBlock
+            {
+                Text = " \u2715",
+                FontSize = 9,
+                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(180, 80, 80)),
+                VerticalAlignment = VerticalAlignment.Center,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Margin = new Thickness(2, 0, 0, 0)
+            };
+            removeBtn.MouseLeftButtonDown += (s, e) => { onRemove(); e.Handled = true; };
+            chipStack.Children.Add(removeBtn);
+        }
+
+        return new Border
+        {
+            Background = chipBg,
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(8, 3, 8, 3),
+            Margin = new Thickness(0, 0, 4, 4),
+            Child = chipStack
+        };
+    }
+
+    /// <summary>
+    /// Create a styled dark-themed action button with rounded template.
+    /// </summary>
+    private static System.Windows.Controls.Button CreateActionButton(string content, System.Windows.Media.Color bgColor, double width = 28)
+    {
+        var hoverColor = System.Windows.Media.Color.FromArgb(255,
+            (byte)Math.Min(255, bgColor.R + 30),
+            (byte)Math.Min(255, bgColor.G + 30),
+            (byte)Math.Min(255, bgColor.B + 30));
+        var btn = new System.Windows.Controls.Button
+        {
+            Content = content,
+            Width = width,
+            Height = 28,
+            FontSize = 11,
+            Foreground = new SolidColorBrush(Colors.White),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            Padding = new Thickness(4, 2, 4, 2)
+        };
+        btn.Template = CreateDarkButtonTemplate(bgColor, hoverColor, cornerRadius: 6);
+        return btn;
+    }
+
+    /// <summary>
+    /// Create a ControlTemplate for a dark-themed button with hover effect.
+    /// </summary>
+    private static ControlTemplate CreateDarkButtonTemplate(
+        System.Windows.Media.Color bgColor, System.Windows.Media.Color hoverColor, double cornerRadius = 6)
+    {
+        var template = new ControlTemplate(typeof(System.Windows.Controls.Button));
+        var borderFactory = new FrameworkElementFactory(typeof(Border), "Bd");
+        borderFactory.SetValue(Border.BackgroundProperty, new SolidColorBrush(bgColor));
+        borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(cornerRadius));
+        borderFactory.SetValue(Border.PaddingProperty, new Thickness(4, 2, 4, 2));
+
+        var contentFactory = new FrameworkElementFactory(typeof(ContentPresenter));
+        contentFactory.SetValue(ContentPresenter.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
+        contentFactory.SetValue(ContentPresenter.VerticalAlignmentProperty, System.Windows.VerticalAlignment.Center);
+        borderFactory.AppendChild(contentFactory);
+
+        template.VisualTree = borderFactory;
+
+        var hoverTrigger = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+        hoverTrigger.Setters.Add(new Setter(Border.BackgroundProperty, new SolidColorBrush(hoverColor), "Bd"));
+        template.Triggers.Add(hoverTrigger);
+
+        return template;
+    }
+
+    /// <summary>
+    /// Create a dark-themed ComboBox ControlTemplate matching the app-wide DarkCombo style.
+    /// Matches ProjectInfoWidget.xaml and Settings dialog patterns: CornerRadius 4, arrow pill,
+    /// accent border on hover/checked, dark popup with rounded corners.
+    /// </summary>
+    private static ControlTemplate CreateDarkComboBoxTemplate(System.Windows.Media.Brush inputBg, System.Windows.Media.Brush inputBorder)
+    {
+        var accentBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(100, 155, 240));
+        var hoverBg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x30, 0x30, 0x3A));
+
+        var template = new ControlTemplate(typeof(System.Windows.Controls.ComboBox));
+        var gridFactory = new FrameworkElementFactory(typeof(Grid));
+
+        // --- ToggleButton with inner template ---
+        var toggleTemplate = new ControlTemplate(typeof(System.Windows.Controls.Primitives.ToggleButton));
+        var toggleBorder = new FrameworkElementFactory(typeof(Border), "Bd");
+        toggleBorder.SetValue(Border.BackgroundProperty, inputBg);
+        toggleBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
+        toggleBorder.SetValue(Border.BorderBrushProperty, inputBorder);
+        toggleBorder.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        toggleBorder.SetValue(Border.PaddingProperty, new Thickness(6, 0, 6, 0));
+
+        var toggleGrid = new FrameworkElementFactory(typeof(Grid));
+        var col1 = new FrameworkElementFactory(typeof(ColumnDefinition));
+        col1.SetValue(ColumnDefinition.WidthProperty, new GridLength(1, GridUnitType.Star));
+        var col2 = new FrameworkElementFactory(typeof(ColumnDefinition));
+        col2.SetValue(ColumnDefinition.WidthProperty, GridLength.Auto);
+        toggleGrid.AppendChild(col1);
+        toggleGrid.AppendChild(col2);
+
+        var contentPresenter = new FrameworkElementFactory(typeof(ContentPresenter));
+        contentPresenter.SetValue(Grid.ColumnProperty, 0);
+        toggleGrid.AppendChild(contentPresenter);
+
+        // Arrow inside a pill border (matches DarkCombo style)
+        var arrowPill = new FrameworkElementFactory(typeof(Border));
+        arrowPill.SetValue(Border.BackgroundProperty, new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x38, 255, 255, 255)));
+        arrowPill.SetValue(Border.CornerRadiusProperty, new CornerRadius(2));
+        arrowPill.SetValue(Border.PaddingProperty, new Thickness(4, 1, 4, 1));
+        arrowPill.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 0, 0));
+        arrowPill.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        arrowPill.SetValue(Grid.ColumnProperty, 1);
+
+        var arrowText = new FrameworkElementFactory(typeof(TextBlock));
+        arrowText.SetValue(TextBlock.TextProperty, "\u25BE");
+        arrowText.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x90, 255, 255, 255)));
+        arrowText.SetValue(TextBlock.FontSizeProperty, 9.0);
+        arrowText.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        arrowText.SetValue(FrameworkElement.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
+        arrowPill.AppendChild(arrowText);
+        toggleGrid.AppendChild(arrowPill);
+
+        toggleBorder.AppendChild(toggleGrid);
+        toggleTemplate.VisualTree = toggleBorder;
+
+        // Hover: accent border + slightly lighter background
+        var toggleHover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+        toggleHover.Setters.Add(new Setter(Border.BorderBrushProperty, accentBrush, "Bd"));
+        toggleHover.Setters.Add(new Setter(Border.BackgroundProperty, hoverBg, "Bd"));
+        toggleTemplate.Triggers.Add(toggleHover);
+
+        // Checked (dropdown open): accent border
+        var toggleChecked = new Trigger { Property = System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, Value = true };
+        toggleChecked.Setters.Add(new Setter(Border.BorderBrushProperty, accentBrush, "Bd"));
+        toggleTemplate.Triggers.Add(toggleChecked);
+
+        var toggleFactory = new FrameworkElementFactory(typeof(System.Windows.Controls.Primitives.ToggleButton));
+        toggleFactory.SetBinding(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty,
+            new System.Windows.Data.Binding("IsDropDownOpen")
+            {
+                Mode = System.Windows.Data.BindingMode.TwoWay,
+                RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.TemplatedParent)
+            });
+        toggleFactory.SetValue(System.Windows.Controls.Primitives.ToggleButton.FocusableProperty, false);
+        toggleFactory.SetValue(System.Windows.Controls.Primitives.ToggleButton.ClickModeProperty, ClickMode.Press);
+        toggleFactory.SetValue(System.Windows.Controls.Primitives.ToggleButton.TemplateProperty, toggleTemplate);
+        gridFactory.AppendChild(toggleFactory);
+
+        // --- Editable TextBox ---
+        var textBox = new FrameworkElementFactory(typeof(System.Windows.Controls.TextBox), "PART_EditableTextBox");
+        textBox.SetValue(System.Windows.Controls.TextBox.IsReadOnlyProperty, false);
+        textBox.SetValue(UIElement.VisibilityProperty, Visibility.Visible);
+        textBox.SetValue(System.Windows.Controls.Control.BackgroundProperty, System.Windows.Media.Brushes.Transparent);
+        textBox.SetValue(System.Windows.Controls.Control.ForegroundProperty, new SolidColorBrush(Colors.White));
+        textBox.SetValue(System.Windows.Controls.Control.FontSizeProperty, 11.0);
+        textBox.SetValue(System.Windows.Controls.Control.BorderThicknessProperty, new Thickness(0));
+        textBox.SetValue(FrameworkElement.MarginProperty, new Thickness(8, 0, 28, 0));
+        textBox.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        textBox.SetValue(System.Windows.Controls.TextBox.CaretBrushProperty, new SolidColorBrush(Colors.White));
+        gridFactory.AppendChild(textBox);
+
+        // --- Popup dropdown ---
+        var popup = new FrameworkElementFactory(typeof(System.Windows.Controls.Primitives.Popup), "Popup");
+        popup.SetValue(System.Windows.Controls.Primitives.Popup.PlacementProperty, System.Windows.Controls.Primitives.PlacementMode.Bottom);
+        popup.SetBinding(System.Windows.Controls.Primitives.Popup.IsOpenProperty,
+            new System.Windows.Data.Binding("IsDropDownOpen")
+            { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.TemplatedParent) });
+        popup.SetValue(System.Windows.Controls.Primitives.Popup.AllowsTransparencyProperty, true);
+        popup.SetValue(System.Windows.Controls.Primitives.Popup.FocusableProperty, false);
+
+        var popupBorder = new FrameworkElementFactory(typeof(Border));
+        popupBorder.SetValue(Border.BackgroundProperty, new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x22, 0x22, 0x28)));
+        popupBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
+        popupBorder.SetValue(Border.BorderBrushProperty, inputBorder);
+        popupBorder.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        popupBorder.SetValue(Border.PaddingProperty, new Thickness(3));
+        popupBorder.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 2, 0, 0));
+        popupBorder.SetValue(Border.MaxHeightProperty, 200.0);
+
+        var scrollViewer = new FrameworkElementFactory(typeof(ScrollViewer));
+        scrollViewer.SetValue(ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Auto);
+        var itemsHost = new FrameworkElementFactory(typeof(StackPanel));
+        itemsHost.SetValue(StackPanel.IsItemsHostProperty, true);
+        scrollViewer.AppendChild(itemsHost);
+        popupBorder.AppendChild(scrollViewer);
+        popup.AppendChild(popupBorder);
+        gridFactory.AppendChild(popup);
+
+        // --- Disabled state ---
+        var disabledTrigger = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
+        disabledTrigger.Setters.Add(new Setter(UIElement.OpacityProperty, 0.5));
+        template.Triggers.Add(disabledTrigger);
+
+        template.VisualTree = gridFactory;
+        return template;
+    }
+
+    /// <summary>
+    /// Create an ItemContainerStyle for ComboBoxItems matching the app-wide DarkComboItem style.
+    /// </summary>
+    private static Style CreateDarkComboItemStyle()
+    {
+        var style = new Style(typeof(ComboBoxItem));
+        style.Setters.Add(new Setter(ComboBoxItem.ForegroundProperty, new SolidColorBrush(Colors.White)));
+        style.Setters.Add(new Setter(ComboBoxItem.BackgroundProperty, System.Windows.Media.Brushes.Transparent));
+        style.Setters.Add(new Setter(ComboBoxItem.PaddingProperty, new Thickness(10, 6, 10, 6)));
+        style.Setters.Add(new Setter(ComboBoxItem.CursorProperty, System.Windows.Input.Cursors.Hand));
+
+        var itemTemplate = new ControlTemplate(typeof(ComboBoxItem));
+        var borderFactory = new FrameworkElementFactory(typeof(Border), "Bd");
+        borderFactory.SetValue(Border.BackgroundProperty, System.Windows.Media.Brushes.Transparent);
+        borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(3));
+        borderFactory.SetValue(Border.PaddingProperty, new Thickness(10, 6, 10, 6));
+
+        var cpFactory = new FrameworkElementFactory(typeof(ContentPresenter));
+        borderFactory.AppendChild(cpFactory);
+        itemTemplate.VisualTree = borderFactory;
+
+        var highlightTrigger = new Trigger { Property = ComboBoxItem.IsHighlightedProperty, Value = true };
+        highlightTrigger.Setters.Add(new Setter(Border.BackgroundProperty, new SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 122, 204)), "Bd"));
+        itemTemplate.Triggers.Add(highlightTrigger);
+
+        var hoverTrigger = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+        hoverTrigger.Setters.Add(new Setter(Border.BackgroundProperty, new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x28, 255, 255, 255)), "Bd"));
+        itemTemplate.Triggers.Add(hoverTrigger);
+
+        style.Setters.Add(new Setter(ComboBoxItem.TemplateProperty, itemTemplate));
+        return style;
+    }
+
+    /// <summary>
+    /// Get the text value from a ComboBox or TextBox control.
+    /// </summary>
+    private static string GetControlText(System.Windows.Controls.Control control)
+    {
+        return control switch
+        {
+            System.Windows.Controls.ComboBox combo => combo.Text ?? "",
+            System.Windows.Controls.TextBox tb => tb.Text ?? "",
+            _ => ""
+        };
     }
 
     /// <summary>

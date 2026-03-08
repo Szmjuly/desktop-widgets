@@ -540,6 +540,19 @@ public interface ISettingsService
     bool GetTagSearchEnabled();
     void SetTagSearchEnabled(bool enabled);
 
+    /// <summary>
+    /// Tag display mode: "carousel" (chips below search bar), "widget" (separate tag widget), "off"
+    /// </summary>
+    string GetTagDisplayMode();
+    void SetTagDisplayMode(string mode);
+
+    bool GetTagCarouselShowRecent();
+    void SetTagCarouselShowRecent(bool enabled);
+    int GetTagCarouselMaxChips();
+    void SetTagCarouselMaxChips(int count);
+    bool GetTagCarouselAutoRefresh();
+    void SetTagCarouselAutoRefresh(bool enabled);
+
     // --- Hotkey Groups ---
     List<HotkeyGroup> GetHotkeyGroups();
     void SetHotkeyGroups(List<HotkeyGroup> groups);

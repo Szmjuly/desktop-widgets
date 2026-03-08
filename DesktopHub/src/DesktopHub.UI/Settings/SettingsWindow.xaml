@@ -149,6 +149,32 @@
 
                         <!-- Widget-specific nav items (generated dynamically from WidgetRegistry) -->
                         <StackPanel x:Name="WidgetNavMenuContainer"/>
+
+                        <RadioButton x:Name="TagsMenuButton" Content="🏷️ Tags" Checked="MenuButton_Checked"
+                                     GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
+                                     Foreground="{StaticResource TextBrush}" Cursor="Hand">
+                            <RadioButton.Style>
+                                <Style TargetType="RadioButton">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="RadioButton">
+                                                <Border x:Name="Border" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryBrush}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Border" Property="Background" Value="#33FFFFFF"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </RadioButton.Style>
+                        </RadioButton>
                         
                         <RadioButton x:Name="UpdatesMenuButton" Content="🔄 Updates" Checked="MenuButton_Checked"
                                      GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
@@ -1767,6 +1793,164 @@
                                                           Checked="CheatSheetSnapGridToggle_Changed"
                                                           Unchecked="CheatSheetSnapGridToggle_Changed"/>
                                         </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                    <!-- Tags Panel -->
+                    <Border x:Name="TagsPanel" Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
+                            <StackPanel>
+                                <Border Background="#10FFFFFF" CornerRadius="6" Padding="16" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="Project Tags" FontSize="16" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Tag projects with engineering data (voltage, HVAC type, generator, etc.) for quick filtering. Tags are stored securely in Firebase with HMAC-hashed project keys."
+                                                   FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                                        <!-- Tag Search Enabled -->
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="Tag Search" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                                <TextBlock Text="Enable tag-based search filters (e.g. voltage:208, gen:Generac) in the project search bar."
+                                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="TagSearchEnabledToggle" Grid.Column="1"
+                                                          Style="{StaticResource ToggleSwitch}" Margin="12,0,0,0" VerticalAlignment="Center"
+                                                          Checked="TagSearchEnabledToggle_Changed" Unchecked="TagSearchEnabledToggle_Changed"/>
+                                        </Grid>
+
+                                        <!-- Display Mode -->
+                                        <TextBlock Text="Display Mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Choose how tag quick-filters are shown in the search overlay."
+                                                   FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                        <ComboBox x:Name="TagDisplayModeCombo" Width="260" HorizontalAlignment="Left" Margin="0,0,0,16"
+                                                  FontSize="13" Padding="10,8" Cursor="Hand"
+                                                  SelectionChanged="TagDisplayModeCombo_Changed">
+                                            <ComboBox.Style>
+                                                <Style TargetType="ComboBox">
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="ComboBox">
+                                                                <Grid>
+                                                                    <ToggleButton x:Name="ToggleButton"
+                                                                                  IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                                                                  Focusable="False" ClickMode="Press">
+                                                                        <ToggleButton.Template>
+                                                                            <ControlTemplate TargetType="ToggleButton">
+                                                                                <Border Background="#333333" CornerRadius="6" BorderBrush="#555555" BorderThickness="1" Padding="10,8">
+                                                                                    <Grid>
+                                                                                        <Grid.ColumnDefinitions>
+                                                                                            <ColumnDefinition Width="*"/>
+                                                                                            <ColumnDefinition Width="Auto"/>
+                                                                                        </Grid.ColumnDefinitions>
+                                                                                        <ContentPresenter Grid.Column="0"/>
+                                                                                        <TextBlock Grid.Column="1" Text="▾" Foreground="#80FFFFFF" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                                                    </Grid>
+                                                                                </Border>
+                                                                            </ControlTemplate>
+                                                                        </ToggleButton.Template>
+                                                                    </ToggleButton>
+                                                                    <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False"
+                                                                                      Content="{TemplateBinding SelectionBoxItem}"
+                                                                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                                                      Margin="12,8,28,8" VerticalAlignment="Center" HorizontalAlignment="Left">
+                                                                        <ContentPresenter.Resources>
+                                                                            <Style TargetType="TextBlock"><Setter Property="Foreground" Value="White"/></Style>
+                                                                        </ContentPresenter.Resources>
+                                                                    </ContentPresenter>
+                                                                    <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                                                           AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                                                        <Border Background="#2A2A2A" CornerRadius="6" BorderBrush="#555555" BorderThickness="1"
+                                                                                MinWidth="{TemplateBinding ActualWidth}" Padding="4" Margin="0,2,0,0">
+                                                                            <StackPanel IsItemsHost="True"/>
+                                                                        </Border>
+                                                                    </Popup>
+                                                                </Grid>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </ComboBox.Style>
+                                            <ComboBox.ItemContainerStyle>
+                                                <Style TargetType="ComboBoxItem">
+                                                    <Setter Property="Foreground" Value="White"/>
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="Padding" Value="10,6"/>
+                                                    <Setter Property="Cursor" Value="Hand"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="ComboBoxItem">
+                                                                <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                                    <ContentPresenter/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsHighlighted" Value="True">
+                                                                        <Setter TargetName="Bd" Property="Background" Value="#007ACC"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="Bd" Property="Background" Value="#33FFFFFF"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </ComboBox.ItemContainerStyle>
+                                            <ComboBoxItem Content="Carousel (below search bar)" Tag="carousel"/>
+                                            <ComboBoxItem Content="Off" Tag="off"/>
+                                        </ComboBox>
+
+                                        <!-- Carousel Max Chips -->
+                                        <Grid Margin="0,0,0,12" x:Name="TagCarouselSettingsPanel">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="Max Carousel Chips" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                                <TextBlock Text="Maximum number of tag chips shown in the carousel (3-20)."
+                                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                            <TextBox x:Name="TagCarouselMaxChipsBox" Grid.Column="1" Width="60"
+                                                     HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,0,0"
+                                                     TextAlignment="Center" LostFocus="TagCarouselMaxChipsBox_LostFocus"/>
+                                        </Grid>
+
+                                        <!-- Carousel Auto Refresh -->
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="Auto-Refresh Carousel" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                                <TextBlock Text="Automatically refresh carousel chips when tags are added or updated."
+                                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="TagCarouselAutoRefreshToggle" Grid.Column="1"
+                                                          Style="{StaticResource ToggleSwitch}" Margin="12,0,0,0" VerticalAlignment="Center"
+                                                          Checked="TagCarouselAutoRefreshToggle_Changed" Unchecked="TagCarouselAutoRefreshToggle_Changed"/>
+                                        </Grid>
+
+                                        <!-- Search Syntax Help -->
+                                        <TextBlock Text="Search Syntax" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,8,0,4"/>
+                                        <Border Background="#08FFFFFF" CornerRadius="4" Padding="10" Margin="0,0,0,4">
+                                            <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap">
+                                                <Run FontWeight="SemiBold" Foreground="#B0D0FF">voltage:208</Run><Run Text=" — filter by voltage" /><LineBreak/>
+                                                <Run FontWeight="SemiBold" Foreground="#B0D0FF">hvac:DX</Run><Run Text=" — filter by HVAC type" /><LineBreak/>
+                                                <Run FontWeight="SemiBold" Foreground="#B0D0FF">gen:Generac</Run><Run Text=" — generator brand (shorthand)" /><LineBreak/>
+                                                <Run FontWeight="SemiBold" Foreground="#B0D0FF">v:208; phase:3</Run><Run Text=" — combine with semicolons" /><LineBreak/>
+                                                <Run FontWeight="SemiBold" Foreground="#B0D0FF">eng:Smith</Run><Run Text=" — stamping engineer" />
+                                            </TextBlock>
+                                        </Border>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>

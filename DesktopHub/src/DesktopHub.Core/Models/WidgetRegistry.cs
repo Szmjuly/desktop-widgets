@@ -169,6 +169,17 @@ public static class WidgetRegistry
             SettingsTabLabel = "Metrics",
             SortOrder = 100,
         },
+        new WidgetRegistryEntry
+        {
+            Id = WidgetIds.ProjectInfo,
+            DisplayName = "Project Info",
+            Icon = "🏷️",
+            Description = "View and edit project tags (voltage, HVAC, location, etc.)",
+            HasTransparencySlider = true,
+            HasLauncherToggle = true,
+            HasSettingsTab = false,
+            SortOrder = 55,
+        },
     };
 
     /// <summary>Get a registry entry by widget ID.</summary>
