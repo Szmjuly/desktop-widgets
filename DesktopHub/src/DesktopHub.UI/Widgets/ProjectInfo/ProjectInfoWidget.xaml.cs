@@ -215,7 +215,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             // --- Field rows inside the collapsible container ---
             foreach (var field in category)
             {
-                var row = new Grid { Margin = new Thickness(4, 1, 0, 1) };
+                var row = new Grid { Margin = new Thickness(4, 4, 0, 4) };
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
