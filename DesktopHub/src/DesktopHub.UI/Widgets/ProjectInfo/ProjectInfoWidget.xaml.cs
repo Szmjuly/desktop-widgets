@@ -20,6 +20,8 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
     private readonly IProjectTagService _tagService;
     private readonly ITagVocabularyService? _vocabService;
 
+    public event EventHandler? CloseRequested;
+
     private string? _currentProjectNumber;
     private string? _currentProjectPath;
     private readonly Dictionary<string, System.Windows.Controls.Control> _fieldControls = new();
@@ -31,8 +33,8 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
     private readonly Dictionary<string, System.Windows.Controls.ComboBox> _multiSelectCombos = new();
     private readonly Dictionary<string, StackPanel> _multiSelectContainers = new();
 
-    // Missing field indicators
-    private readonly Dictionary<string, TextBlock> _fieldMissingDots = new();
+    // Missing field indicators — references to the input control borders for orange outline
+    private readonly Dictionary<string, WpfControl> _fieldIndicatorControls = new();
 
     public ProjectInfoWidget(IProjectTagService tagService, ITagVocabularyService? vocabService)
     {
@@ -134,7 +136,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
         _multiSelectValues.Clear();
         _multiSelectCombos.Clear();
         _multiSelectContainers.Clear();
-        _fieldMissingDots.Clear();
+        _fieldIndicatorControls.Clear();
 
         var categories = TagFieldRegistry.Fields.GroupBy(f => f.Category ?? "Other").ToList();
 
@@ -154,6 +156,8 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             {
                 Text = icon,
                 FontSize = 14,
+                Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(160, 170, 185)),
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -179,6 +183,8 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             var headerIcon = new TextBlock
             {
                 Text = icon, FontSize = 12,
+                Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(140, 155, 175)),
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0)
             };
             Grid.SetColumn(headerIcon, 0);
@@ -215,32 +221,16 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             // --- Field rows inside the collapsible container ---
             foreach (var field in category)
             {
-                var row = new Grid { Margin = new Thickness(4, 4, 0, 4) };
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+                var row = new Grid { Margin = new Thickness(4, 4, 4, 4) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(115) });
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                // Missing field indicator dot
-                var missingDot = new TextBlock
-                {
-                    Text = "\u25CF",
-                    FontSize = 6,
-                    Foreground = new System.Windows.Media.SolidColorBrush(
-                        System.Windows.Media.Color.FromRgb(255, 152, 0)),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(0, 0, 3, 0),
-                    Visibility = Visibility.Collapsed
-                };
-                Grid.SetColumn(missingDot, 0);
-                row.Children.Add(missingDot);
-                _fieldMissingDots[field.Key] = missingDot;
 
                 var label = new TextBlock
                 {
                     Text = field.DisplayName,
                     Style = (Style)FindResource("FieldLabel")
                 };
-                Grid.SetColumn(label, 1);
+                Grid.SetColumn(label, 0);
                 row.Children.Add(label);
 
                 if (field.InputMode == TagInputMode.MultiSelect)
@@ -294,13 +284,14 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
                     var chipPanel = new WrapPanel { Margin = new Thickness(0) };
                     container.Children.Add(chipPanel);
 
-                    Grid.SetColumn(container, 2);
+                    Grid.SetColumn(container, 1);
                     row.Children.Add(container);
 
                     _multiSelectChipPanels[field.Key] = chipPanel;
                     _multiSelectValues[field.Key] = new List<string>();
                     _multiSelectCombos[field.Key] = combo;
                     _multiSelectContainers[field.Key] = container;
+                    _fieldIndicatorControls[field.Key] = combo;
                 }
                 else if (field.InputMode == TagInputMode.Dropdown)
                 {
@@ -314,9 +305,10 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
                     foreach (var val in vocabValues)
                         combo.Items.Add(val);
 
-                    Grid.SetColumn(combo, 2);
+                    Grid.SetColumn(combo, 1);
                     row.Children.Add(combo);
                     _fieldControls[field.Key] = combo;
+                    _fieldIndicatorControls[field.Key] = combo;
                 }
                 else
                 {
@@ -324,9 +316,10 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
                     {
                         Style = (Style)FindResource("DarkTextBox")
                     };
-                    Grid.SetColumn(textBox, 2);
+                    Grid.SetColumn(textBox, 1);
                     row.Children.Add(textBox);
                     _fieldControls[field.Key] = textBox;
+                    _fieldIndicatorControls[field.Key] = textBox;
                 }
 
                 fieldsContainer.Children.Add(row);
@@ -416,6 +409,12 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             return position.Y >= -element.ActualHeight && position.Y < FieldsScrollViewer.ViewportHeight;
         }
         catch { return false; }
+    }
+
+    private void CloseButton_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        CloseRequested?.Invoke(this, EventArgs.Empty);
+        e.Handled = true;
     }
 
     private void LockButton_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -540,7 +539,9 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
                 FontSize = 10,
                 Foreground = new System.Windows.Media.SolidColorBrush(
                     System.Windows.Media.Color.FromRgb(180, 200, 220)),
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Center,
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 160
             });
 
             var removeBtn = new TextBlock
@@ -582,6 +583,11 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
         }
     }
 
+    private static readonly System.Windows.Media.SolidColorBrush _orangeOutlineBrush =
+        new(System.Windows.Media.Color.FromArgb(0x90, 255, 152, 0));
+    private static readonly System.Windows.Media.SolidColorBrush _normalBorderBrush =
+        new(System.Windows.Media.Color.FromRgb(0x48, 0x48, 0x48));
+
     private void UpdateMissingIndicators()
     {
         if (_currentProjectNumber == null)
@@ -592,7 +598,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
 
         foreach (var field in TagFieldRegistry.Fields)
         {
-            if (!_fieldMissingDots.TryGetValue(field.Key, out var dot)) continue;
+            if (!_fieldIndicatorControls.TryGetValue(field.Key, out var control)) continue;
 
             bool hasValue;
             if (field.InputMode == TagInputMode.MultiSelect)
@@ -600,14 +606,45 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             else
                 hasValue = _fieldControls.TryGetValue(field.Key, out var ctrl) && !string.IsNullOrWhiteSpace(GetControlText(ctrl));
 
-            dot.Visibility = hasValue ? Visibility.Collapsed : Visibility.Visible;
+            ApplyMissingOutline(control, !hasValue);
         }
     }
 
     private void HideMissingIndicators()
     {
-        foreach (var dot in _fieldMissingDots.Values)
-            dot.Visibility = Visibility.Collapsed;
+        foreach (var control in _fieldIndicatorControls.Values)
+            ApplyMissingOutline(control, false);
+    }
+
+    private static void ApplyMissingOutline(WpfControl control, bool showOutline)
+    {
+        // For ComboBox: walk visual tree to find the ToggleButton's Border named "Bd"
+        // For TextBox: set BorderBrush directly (style triggers will override when focused/hovered)
+        if (control is System.Windows.Controls.TextBox tb)
+        {
+            tb.BorderBrush = showOutline ? _orangeOutlineBrush : _normalBorderBrush;
+        }
+        else if (control is System.Windows.Controls.ComboBox combo)
+        {
+            // Apply via Tag so the DarkCombo template can read it
+            combo.Tag = showOutline ? "missing" : null;
+            // Walk visual tree to find the toggle button border
+            var bd = FindVisualChildByName<Border>(combo, "Bd");
+            if (bd != null)
+                bd.BorderBrush = showOutline ? _orangeOutlineBrush : _normalBorderBrush;
+        }
+    }
+
+    private static T? FindVisualChildByName<T>(System.Windows.DependencyObject parent, string name) where T : FrameworkElement
+    {
+        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+            if (child is T fe && fe.Name == name) return fe;
+            var result = FindVisualChildByName<T>(child, name);
+            if (result != null) return result;
+        }
+        return null;
     }
 
     private static string GetControlText(System.Windows.Controls.Control control) => control switch

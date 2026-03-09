@@ -330,6 +330,8 @@ public class SettingsService : ISettingsService
         WidgetIds.SmartProjectSearch => GetSmartProjectSearchWidgetTransparency(),
         WidgetIds.CheatSheet         => GetCheatSheetWidgetTransparency(),
         WidgetIds.ProjectInfo        => _settings.ProjectInfoWidgetTransparency,
+        WidgetIds.TrayMenu           => _settings.TrayMenuTransparency,
+        WidgetIds.Dialogs            => _settings.DialogsTransparency,
         _ => 0.78
     };
 
@@ -345,6 +347,8 @@ public class SettingsService : ISettingsService
             case WidgetIds.SmartProjectSearch: SetSmartProjectSearchWidgetTransparency(transparency); break;
             case WidgetIds.CheatSheet:         SetCheatSheetWidgetTransparency(transparency); break;
             case WidgetIds.ProjectInfo:        _settings.ProjectInfoWidgetTransparency = transparency; break;
+            case WidgetIds.TrayMenu:           _settings.TrayMenuTransparency = transparency; break;
+            case WidgetIds.Dialogs:            _settings.DialogsTransparency = transparency; break;
         }
     }
 
@@ -374,6 +378,21 @@ public class SettingsService : ISettingsService
             case WidgetIds.CheatSheet:         SetCheatSheetTransparencyLinked(linked); break;
             case WidgetIds.ProjectInfo:        _settings.ProjectInfoTransparencyLinked = linked; break;
         }
+    }
+
+    public string GetWidgetTransparencyGroup(string widgetId)
+    {
+        if (_settings.TransparencyGroups.TryGetValue(widgetId, out var group))
+            return group;
+        return "";
+    }
+
+    public void SetWidgetTransparencyGroup(string widgetId, string group)
+    {
+        if (string.IsNullOrEmpty(group))
+            _settings.TransparencyGroups.Remove(widgetId);
+        else
+            _settings.TransparencyGroups[widgetId] = group;
     }
 
     public bool GetWidgetEnabled(string widgetId) => widgetId switch
@@ -653,6 +672,13 @@ public class SettingsService : ISettingsService
         public bool TagCarouselShowRecent { get; set; } = true;
         public int TagCarouselMaxChips { get; set; } = 8;
         public bool TagCarouselAutoRefresh { get; set; } = true;
+
+        // Tray Menu and Dialogs transparency
+        public double TrayMenuTransparency { get; set; } = 0.78;
+        public double DialogsTransparency { get; set; } = 0.78;
+
+        // Transparency groups — maps widget ID → group letter (A, B, C, etc.)
+        public Dictionary<string, string> TransparencyGroups { get; set; } = new();
 
         // Hotkey groups — each group has its own key combo and a set of widget IDs to show/focus
         public List<HotkeyGroup> HotkeyGroups { get; set; } = new();

@@ -540,6 +540,12 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             LookupButton.Visibility = _allInputsAreDropdowns ? Visibility.Collapsed : Visibility.Visible;
         }
 
+        // Build the GEC parallel conductor calculator if this is the GEC sheet
+        if (isGecSheet)
+            BuildGecCalculator();
+        else
+            GecCalculatorPanel.Visibility = Visibility.Collapsed;
+
         // Show view mode toggle for CompactLookup sheets; FullTable/SimpleList go straight to table
         if (hasLookupMode)
         {
@@ -740,6 +746,356 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         finally
         {
             _isUpdatingCascade = false;
+        }
+    }
+
+    // --- GEC Parallel Conductor Calculator ---
+
+    /// <summary>
+    /// AWG/kcmil wire sizes mapped to circular mil area, in order from smallest to largest.
+    /// Used for NEC 250.66(B) parallel conductor GEC sizing.
+    /// </summary>
+    private static readonly (string Label, double Cmil)[] WireSizeCmil = new (string, double)[]
+    {
+        ("14",    4_110.0),
+        ("12",    6_530.0),
+        ("10",   10_380.0),
+        ("8",    16_510.0),
+        ("6",    26_240.0),
+        ("4",    41_740.0),
+        ("3",    52_620.0),
+        ("2",    66_360.0),
+        ("1",    83_690.0),
+        ("1/0",  105_600.0),
+        ("2/0",  133_100.0),
+        ("3/0",  167_800.0),
+        ("4/0",  211_600.0),
+        ("250",  250_000.0),
+        ("300",  300_000.0),
+        ("350",  350_000.0),
+        ("400",  400_000.0),
+        ("500",  500_000.0),
+        ("600",  600_000.0),
+        ("700",  700_000.0),
+        ("750",  750_000.0),
+        ("800",  800_000.0),
+        ("900",  900_000.0),
+        ("1000", 1_000_000.0),
+        ("1100", 1_100_000.0),
+        ("1250", 1_250_000.0),
+        ("1500", 1_500_000.0),
+        ("1750", 1_750_000.0),
+        ("2000", 2_000_000.0),
+    };
+
+    /// <summary>
+    /// NEC Table 250.66 thresholds — upper cmil boundary (inclusive) for each row.
+    /// Cu and Al have separate threshold columns. Index matches the GEC table row order.
+    /// </summary>
+    private static readonly (double CuMax, double AlMax, string GecCu, string GecAl)[] GecTableThresholds = new[]
+    {
+        // Row 0: Cu "2 or smaller" (≤66,360), Al "1/0 or smaller" (≤105,600) → GEC Cu 8, Al 6
+        (  66_360.0,  105_600.0, "8",   "6"   ),
+        // Row 1: Cu "1 or 1/0" (≤105,600), Al "2/0 or 3/0" (≤167,800) → GEC Cu 6, Al 4
+        ( 105_600.0,  167_800.0, "6",   "4"   ),
+        // Row 2: Cu "2/0 or 3/0" (≤167,800), Al "4/0 or 250" (≤250,000) → GEC Cu 4, Al 2
+        ( 167_800.0,  250_000.0, "4",   "2"   ),
+        // Row 3: Cu "Over 3/0 thru 350" (≤350,000), Al "Over 250 thru 500" (≤500,000) → GEC Cu 2, Al 1/0
+        ( 350_000.0,  500_000.0, "2",   "1/0" ),
+        // Row 4: Cu "Over 350 thru 600" (≤600,000), Al "Over 500 thru 900" (≤900,000) → GEC Cu 1/0, Al 3/0
+        ( 600_000.0,  900_000.0, "1/0", "3/0" ),
+        // Row 5: Cu "Over 600 thru 1100" (≤1,100,000), Al "Over 900 thru 1750" (≤1,750,000) → GEC Cu 2/0, Al 4/0
+        (1_100_000.0,1_750_000.0, "2/0", "4/0" ),
+        // Row 6: Cu "Over 1100" (>1,100,000), Al "Over 1750" (>1,750,000) → GEC Cu 3/0, Al 250
+        (double.MaxValue, double.MaxValue, "3/0", "250" ),
+    };
+
+    private System.Windows.Controls.ComboBox? _gecCalcSizeCombo;
+    private System.Windows.Controls.ComboBox? _gecCalcSetsCombo;
+    private System.Windows.Controls.ComboBox? _gecCalcMaterialCombo;
+
+    /// <summary>
+    /// Builds the GEC calculator input fields (conductor size, # of sets, material).
+    /// Called from RenderTable when the GEC sheet is detected.
+    /// </summary>
+    private void BuildGecCalculator()
+    {
+        GecCalcInputFields.Children.Clear();
+        GecCalcOutputPanel.Visibility = Visibility.Collapsed;
+        GecCalcOutputFields.Children.Clear();
+
+        // Material selector
+        var matGrid = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+        matGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
+        matGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var matLabel = new TextBlock
+        {
+            Text = "Conductor Material:",
+            FontSize = 11,
+            Foreground = (System.Windows.Media.Brush)FindResource("DimTextBrush"),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0),
+            MinWidth = 60
+        };
+        Grid.SetColumn(matLabel, 0);
+        matGrid.Children.Add(matLabel);
+
+        _gecCalcMaterialCombo = new System.Windows.Controls.ComboBox
+        {
+            FontSize = 12,
+            Padding = new Thickness(6, 3, 6, 3),
+            Style = (System.Windows.Style)FindResource("DarkComboBox")
+        };
+        _gecCalcMaterialCombo.Items.Add(new ComboBoxItem { Content = "Copper (Cu)", Tag = "cu" });
+        _gecCalcMaterialCombo.Items.Add(new ComboBoxItem { Content = "Aluminum (Al)", Tag = "al" });
+        _gecCalcMaterialCombo.SelectedIndex = 0;
+        _gecCalcMaterialCombo.SelectionChanged += (_, _) => PerformGecCalc();
+        Grid.SetColumn(_gecCalcMaterialCombo, 1);
+        matGrid.Children.Add(_gecCalcMaterialCombo);
+        GecCalcInputFields.Children.Add(matGrid);
+
+        // Conductor size selector
+        var sizeGrid = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+        sizeGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
+        sizeGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var sizeLabel = new TextBlock
+        {
+            Text = "Conductor Size:",
+            FontSize = 11,
+            Foreground = (System.Windows.Media.Brush)FindResource("DimTextBrush"),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0),
+            MinWidth = 60
+        };
+        Grid.SetColumn(sizeLabel, 0);
+        sizeGrid.Children.Add(sizeLabel);
+
+        _gecCalcSizeCombo = new System.Windows.Controls.ComboBox
+        {
+            FontSize = 12,
+            Padding = new Thickness(6, 3, 6, 3),
+            Style = (System.Windows.Style)FindResource("DarkComboBox")
+        };
+        _gecCalcSizeCombo.Items.Add(new ComboBoxItem
+        {
+            Content = "-- Select Size --",
+            Tag = "",
+            Foreground = (System.Windows.Media.Brush)FindResource("MutedTextBrush")
+        });
+        foreach (var (label, cmil) in WireSizeCmil)
+        {
+            var displayText = cmil >= 250_000 ? $"{label} kcmil" : $"#{label} AWG";
+            _gecCalcSizeCombo.Items.Add(new ComboBoxItem { Content = displayText, Tag = label });
+        }
+        _gecCalcSizeCombo.SelectedIndex = 0;
+        _gecCalcSizeCombo.SelectionChanged += (_, _) => PerformGecCalc();
+        Grid.SetColumn(_gecCalcSizeCombo, 1);
+        sizeGrid.Children.Add(_gecCalcSizeCombo);
+        GecCalcInputFields.Children.Add(sizeGrid);
+
+        // Number of parallel sets
+        var setsGrid = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+        setsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
+        setsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var setsLabel = new TextBlock
+        {
+            Text = "Number of Sets:",
+            FontSize = 11,
+            Foreground = (System.Windows.Media.Brush)FindResource("DimTextBrush"),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0),
+            MinWidth = 60
+        };
+        Grid.SetColumn(setsLabel, 0);
+        setsGrid.Children.Add(setsLabel);
+
+        _gecCalcSetsCombo = new System.Windows.Controls.ComboBox
+        {
+            FontSize = 12,
+            Padding = new Thickness(6, 3, 6, 3),
+            Style = (System.Windows.Style)FindResource("DarkComboBox")
+        };
+        for (var i = 1; i <= 6; i++)
+        {
+            _gecCalcSetsCombo.Items.Add(new ComboBoxItem
+            {
+                Content = i == 1 ? "1 (single run)" : $"{i} sets",
+                Tag = i.ToString()
+            });
+        }
+        _gecCalcSetsCombo.SelectedIndex = 1; // default to 2 sets since that's the point of the calculator
+        _gecCalcSetsCombo.SelectionChanged += (_, _) => PerformGecCalc();
+        Grid.SetColumn(_gecCalcSetsCombo, 1);
+        setsGrid.Children.Add(_gecCalcSetsCombo);
+        GecCalcInputFields.Children.Add(setsGrid);
+
+        GecCalculatorPanel.Visibility = Visibility.Visible;
+    }
+
+    private void GecCalcButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        PerformGecCalc();
+    }
+
+    /// <summary>
+    /// Performs the GEC parallel conductor calculation:
+    /// conductor cmil × number of sets → lookup in NEC 250.66 thresholds → GEC size.
+    /// </summary>
+    private void PerformGecCalc()
+    {
+        GecCalcOutputFields.Children.Clear();
+
+        var sizeTag = (_gecCalcSizeCombo?.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+        var setsTag = (_gecCalcSetsCombo?.SelectedItem as ComboBoxItem)?.Tag as string ?? "1";
+        var matTag = (_gecCalcMaterialCombo?.SelectedItem as ComboBoxItem)?.Tag as string ?? "cu";
+
+        if (string.IsNullOrEmpty(sizeTag))
+        {
+            GecCalcOutputPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        if (!int.TryParse(setsTag, out var numSets) || numSets < 1) numSets = 1;
+
+        // Find cmil for the selected size
+        var cmilEntry = Array.Find(WireSizeCmil, w =>
+            w.Label.Equals(sizeTag, StringComparison.OrdinalIgnoreCase));
+        if (cmilEntry.Cmil == 0)
+        {
+            GecCalcOutputPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var totalCmil = cmilEntry.Cmil * numSets;
+        var isCu = matTag == "cu";
+
+        // Walk the threshold table to find the matching GEC row
+        string gecCu = "3/0", gecAl = "250";
+        string matchedRange = "Over 1100";
+        foreach (var row in GecTableThresholds)
+        {
+            var threshold = isCu ? row.CuMax : row.AlMax;
+            if (totalCmil <= threshold)
+            {
+                gecCu = row.GecCu;
+                gecAl = row.GecAl;
+                // Build range description
+                matchedRange = GetGecRangeDescription(totalCmil, isCu);
+                break;
+            }
+        }
+
+        GecCalcOutputPanel.Visibility = Visibility.Visible;
+
+        // Show equivalent cmil
+        AddGecCalcOutputCard("Total Circular Mil",
+            $"{totalCmil:N0}",
+            "cmil",
+            $"{numSets} x {cmilEntry.Label} = {totalCmil:N0} cmil",
+            "#FFB74D");
+
+        // Show matched table range
+        AddGecCalcOutputCard("Table 250.66 Range",
+            matchedRange,
+            isCu ? "(Cu column)" : "(Al column)",
+            null,
+            "#B0BEC5");
+
+        // Show GEC Cu result
+        AddGecCalcOutputCard("GEC Copper",
+            gecCu,
+            "AWG/kcmil",
+            null,
+            "#66BB6A");
+
+        // Show GEC Al result
+        AddGecCalcOutputCard("GEC Aluminum",
+            gecAl,
+            "AWG/kcmil",
+            null,
+            "#66BB6A");
+    }
+
+    private void AddGecCalcOutputCard(string label, string value, string unit, string? subtitle, string colorHex)
+    {
+        var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(colorHex);
+        var card = new Border
+        {
+            Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, color.R, color.G, color.B)),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(10, 6, 10, 6),
+            Margin = new Thickness(0, 0, 6, 6),
+            MinWidth = 70
+        };
+
+        var stack = new StackPanel();
+
+        var valuePanel = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+        valuePanel.Children.Add(new TextBlock
+        {
+            Text = value,
+            FontSize = 16,
+            FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(color)
+        });
+        if (!string.IsNullOrEmpty(unit))
+        {
+            valuePanel.Children.Add(new TextBlock
+            {
+                Text = $" {unit}",
+                FontSize = 11,
+                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x80, color.R, color.G, color.B)),
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(0, 0, 0, 2)
+            });
+        }
+        stack.Children.Add(valuePanel);
+
+        stack.Children.Add(new TextBlock
+        {
+            Text = label,
+            FontSize = 9,
+            Foreground = (System.Windows.Media.Brush)FindResource("DimTextBrush"),
+            Margin = new Thickness(0, 2, 0, 0)
+        });
+
+        if (!string.IsNullOrEmpty(subtitle))
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = subtitle,
+                FontSize = 9,
+                FontStyle = FontStyles.Italic,
+                Foreground = (System.Windows.Media.Brush)FindResource("MutedTextBrush"),
+                Margin = new Thickness(0, 1, 0, 0)
+            });
+        }
+
+        card.Child = stack;
+        GecCalcOutputFields.Children.Add(card);
+    }
+
+    private static string GetGecRangeDescription(double totalCmil, bool isCu)
+    {
+        if (isCu)
+        {
+            if (totalCmil <= 66_360) return "2 or smaller";
+            if (totalCmil <= 105_600) return "1 or 1/0";
+            if (totalCmil <= 167_800) return "2/0 or 3/0";
+            if (totalCmil <= 350_000) return "Over 3/0 thru 350";
+            if (totalCmil <= 600_000) return "Over 350 thru 600";
+            if (totalCmil <= 1_100_000) return "Over 600 thru 1100";
+            return "Over 1100";
+        }
+        else
+        {
+            if (totalCmil <= 105_600) return "1/0 or smaller";
+            if (totalCmil <= 167_800) return "2/0 or 3/0";
+            if (totalCmil <= 250_000) return "4/0 or 250";
+            if (totalCmil <= 500_000) return "Over 250 thru 500";
+            if (totalCmil <= 900_000) return "Over 500 thru 900";
+            if (totalCmil <= 1_750_000) return "Over 900 thru 1750";
+            return "Over 1750";
         }
     }
 

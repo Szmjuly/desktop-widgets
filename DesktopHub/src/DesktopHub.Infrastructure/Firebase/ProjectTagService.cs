@@ -95,7 +95,9 @@ public class ProjectTagService : IProjectTagService
             if (data == null)
                 return null;
 
-            var tags = DeserializeTags(data);
+            // Decrypt tag values received from Firebase
+            var decryptedData = DecryptTagData(data);
+            var tags = DeserializeTags(decryptedData);
             _cache[projectNumber] = tags;
             _hashToNumber[hash] = projectNumber;
             SaveLocalCache();
@@ -132,9 +134,11 @@ public class ProjectTagService : IProjectTagService
         try
         {
             var firebaseData = SerializeTags(tags);
+            // Encrypt tag values before sending to Firebase
+            var encryptedData = EncryptTagData(firebaseData);
             await PatchFirebaseDataAsync($"{FirebaseNode}/{hash}", new Dictionary<string, object>
             {
-                ["tags"] = firebaseData,
+                ["tags"] = encryptedData,
                 ["updated_by"] = tags.UpdatedBy,
                 ["updated_at"] = tags.UpdatedAt.ToString("o")
             });
@@ -205,7 +209,9 @@ public class ProjectTagService : IProjectTagService
 
                     if (tagsDict == null) continue;
 
-                    var tags = DeserializeTags(tagsDict);
+                    // Decrypt tag values received from Firebase
+                    var decryptedDict = DecryptTagData(tagsDict);
+                    var tags = DeserializeTags(decryptedDict);
 
                     if (entry.TryGetValue("updated_by", out var ub))
                         tags.UpdatedBy = ub?.ToString();
@@ -415,17 +421,24 @@ public class ProjectTagService : IProjectTagService
             case "engineers":
                 if (value is Newtonsoft.Json.Linq.JArray engArr)
                     tags.Engineers = engArr.ToObject<List<string>>() ?? new();
-                else if (strVal != null)
+                else if (strVal != null && !IsGarbageListString(strVal))
                     tags.Engineers = strVal.Split(',', StringSplitOptions.TrimEntries).ToList();
                 break;
             case "code_refs":
                 if (value is Newtonsoft.Json.Linq.JArray codeArr)
                     tags.CodeReferences = codeArr.ToObject<List<string>>() ?? new();
-                else if (strVal != null)
+                else if (strVal != null && !IsGarbageListString(strVal))
                     tags.CodeReferences = strVal.Split(',', StringSplitOptions.TrimEntries).ToList();
                 break;
         }
     }
+
+    /// <summary>
+    /// Detect garbage strings from .ToString() on a List or other .NET types stored in Firebase.
+    /// </summary>
+    private static bool IsGarbageListString(string value) =>
+        value.Contains("System.Collections.", StringComparison.Ordinal) ||
+        value.Contains("System.String[]", StringComparison.Ordinal);
 
     private static bool FuzzyTagMatch(string tagValue, string query)
     {
@@ -513,6 +526,69 @@ public class ProjectTagService : IProjectTagService
             data["custom"] = tags.Custom;
 
         return data;
+    }
+
+    // --- Firebase value encryption/decryption ---
+
+    /// <summary>
+    /// Encrypt all string values in the tag data dictionary before sending to Firebase.
+    /// Lists and dictionaries of strings are also encrypted.
+    /// </summary>
+    private static Dictionary<string, object> EncryptTagData(Dictionary<string, object> data)
+    {
+        var encrypted = new Dictionary<string, object>();
+        foreach (var (key, value) in data)
+        {
+            if (value is string strVal)
+            {
+                encrypted[key] = TagValueEncryptor.Encrypt(strVal) ?? strVal;
+            }
+            else if (value is List<string> listVal)
+            {
+                encrypted[key] = TagValueEncryptor.EncryptList(listVal);
+            }
+            else if (value is Dictionary<string, string> dictVal)
+            {
+                encrypted[key] = TagValueEncryptor.EncryptDictionary(dictVal);
+            }
+            else
+            {
+                encrypted[key] = value;
+            }
+        }
+        return encrypted;
+    }
+
+    /// <summary>
+    /// Decrypt all string values in the tag data dictionary after receiving from Firebase.
+    /// Handles backwards compatibility — if a value is not encrypted, it passes through as-is.
+    /// </summary>
+    private static Dictionary<string, object> DecryptTagData(Dictionary<string, object> data)
+    {
+        var decrypted = new Dictionary<string, object>();
+        foreach (var (key, value) in data)
+        {
+            if (value is string strVal)
+            {
+                decrypted[key] = TagValueEncryptor.Decrypt(strVal) ?? strVal;
+            }
+            else if (value is Newtonsoft.Json.Linq.JArray jArr)
+            {
+                var list = jArr.ToObject<List<string>>() ?? new List<string>();
+                decrypted[key] = TagValueEncryptor.DecryptList(list);
+            }
+            else if (key == "custom" && value is Newtonsoft.Json.Linq.JObject jObj)
+            {
+                var dict = jObj.ToObject<Dictionary<string, string>>()
+                    ?? new Dictionary<string, string>();
+                decrypted[key] = TagValueEncryptor.DecryptDictionary(dict);
+            }
+            else
+            {
+                decrypted[key] = value;
+            }
+        }
+        return decrypted;
     }
 
     // --- Local cache persistence ---

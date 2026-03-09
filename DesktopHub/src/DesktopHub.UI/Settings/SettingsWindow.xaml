@@ -325,76 +325,70 @@
                             CornerRadius="8"
                             Padding="16">
                         <StackPanel>
-                            <TextBlock Text="Window Transparency" 
-                                       FontSize="16" 
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextBrush}"
-                                       Margin="0,0,0,12"/>
-                            
-                            <!-- Settings Window Transparency -->
-                            <Grid Margin="0,0,0,8">
-                                <TextBlock Text="Settings Window" 
-                                           FontSize="13" 
-                                           FontWeight="Medium"
+                            <Grid Margin="0,0,0,12">
+                                <TextBlock Text="Window Transparency" 
+                                           FontSize="16" 
+                                           FontWeight="SemiBold"
                                            Foreground="{StaticResource TextBrush}"
                                            VerticalAlignment="Center"/>
-                                
-                                <Button x:Name="LinkSettingsButton"
-                                        HorizontalAlignment="Right"
-                                        Width="24"
-                                        Height="24"
-                                        Background="#22FFFFFF"
-                                        BorderBrush="{StaticResource BorderBrush}"
-                                        BorderThickness="1"
-                                        Click="LinkSettingsButton_Click"
-                                        Cursor="Hand"
-                                        ToolTip="Link to other sliders">
-                                    <Grid>
-                                        <TextBlock Text="&#x1F513;" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Grid>
-                                    <Button.Resources>
-                                        <Style TargetType="Border">
-                                            <Setter Property="CornerRadius" Value="4"/>
-                                        </Style>
-                                    </Button.Resources>
-                                </Button>
+                                <!-- Master group controls -->
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button x:Name="LinkAllButton" Content="Link All"
+                                            FontSize="10" Padding="8,3" Cursor="Hand"
+                                            Click="LinkAllButton_Click" Margin="0,0,4,0">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="Bd" Background="#20649BF0" CornerRadius="4" 
+                                                                    Padding="{TemplateBinding Padding}" BorderBrush="#40649BF0" BorderThickness="1">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="Bd" Property="Background" Value="#35649BF0"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Setter Property="Foreground" Value="#A0B8D8"/>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button x:Name="UnlinkAllButton" Content="Unlink All"
+                                            FontSize="10" Padding="8,3" Cursor="Hand"
+                                            Click="UnlinkAllButton_Click">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="Bd" Background="#15FFFFFF" CornerRadius="4" 
+                                                                    Padding="{TemplateBinding Padding}" BorderBrush="#25FFFFFF" BorderThickness="1">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="Bd" Property="Background" Value="#25FFFFFF"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Setter Property="Foreground" Value="#80FFFFFF"/>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </StackPanel>
                             </Grid>
                             
-                            <Grid Margin="0,0,0,16">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                
-                                <TextBlock Grid.Column="0"
-                                          Text="Transparent"
-                                          FontSize="10"
-                                          Foreground="{StaticResource TextSecondaryBrush}"
-                                          VerticalAlignment="Center"
-                                          Margin="0,0,8,0"/>
-                                
-                                <Slider x:Name="SettingsTransparencySlider"
-                                       Grid.Column="1"
-                                       Minimum="0.4"
-                                       Maximum="0.95"
-                                       Value="0.78"
-                                       IsSnapToTickEnabled="False"
-                                       SmallChange="0.01"
-                                       LargeChange="0.05"
-                                       ValueChanged="SettingsTransparencySlider_ValueChanged"
-                                       VerticalAlignment="Center"
-                                       Style="{StaticResource StyledSlider}"/>
-                                
-                                <TextBlock Grid.Column="2"
-                                          Text="Opaque"
-                                          FontSize="10"
-                                          Foreground="{StaticResource TextSecondaryBrush}"
-                                          VerticalAlignment="Center"
-                                          Margin="8,0,0,0"/>
-                            </Grid>
+                            <TextBlock Text="Click group badges (A, B, C) to link widgets together. Widgets in the same group sync their transparency."
+                                       FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" 
+                                       TextWrapping="Wrap" Margin="0,0,0,10"/>
                             
-                            <!-- Widget transparency sliders (generated dynamically from WidgetRegistry) -->
+                            <!-- All transparency sliders (generated dynamically — includes Settings Window + all widgets) -->
                             <StackPanel x:Name="TransparencySlidersContainer"/>
                         </StackPanel>
                     </Border>

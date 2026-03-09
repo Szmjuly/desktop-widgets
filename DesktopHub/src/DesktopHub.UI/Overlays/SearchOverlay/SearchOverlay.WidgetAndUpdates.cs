@@ -302,6 +302,16 @@ public partial class SearchOverlay
                     _cheatSheetOverlay.UpdateTransparency();
                 }
 
+                if (_projectInfoOverlay != null)
+                {
+                    _projectInfoOverlay.UpdateTransparency();
+                }
+
+                if (_metricsViewerOverlay != null)
+                {
+                    _metricsViewerOverlay.UpdateTransparency();
+                }
+
                 UpdateSmartSearchAttachedWindowTransparency();
             });
         }

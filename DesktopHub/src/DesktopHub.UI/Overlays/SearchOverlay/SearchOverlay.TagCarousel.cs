@@ -166,8 +166,9 @@ public partial class SearchOverlay
                 tagValue: chip.Value,
                 source: "carousel");
 
-            // Add to search history
-            AddToSearchHistory(tagQuery);
+            // Tag carousel clicks are NOT added to search history — the carousel
+            // already serves as the tag "history" and adding them would cause
+            // duplicate chips (tag carousel + history pills) for the same queries.
 
             e.Handled = true;
         }

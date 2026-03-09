@@ -11,6 +11,9 @@
 param(
     [switch]$Full,
     [switch]$WipeDevices,
+    [switch]$WipeTags,
+    [switch]$WipeAll,
+    [switch]$Force,
     [string]$ServiceAccountPath
 )
 
@@ -82,20 +85,55 @@ function Get-ServiceAccountAccessToken([string]$jsonPath) {
 # SERVICE ACCOUNT DISCOVERY
 # ============================================================
 
-if ([string]::IsNullOrWhiteSpace($ServiceAccountPath)) {
-    $scriptDir = $PSScriptRoot
-    $candidates = @(
-        (Join-Path $scriptDir "..\secrets\firebase-license.json"),
-        (Join-Path $scriptDir "..\..\Renamer\firebase-admin-key.json"),
-        (Join-Path $scriptDir "..\..\firebase-admin-key.json")
-    )
-    foreach ($c in $candidates) {
-        if (Test-Path $c) { $ServiceAccountPath = (Resolve-Path $c).Path; break }
-    }
+$candidates = @()
+if (-not [string]::IsNullOrWhiteSpace($ServiceAccountPath)) {
+    $candidates += $ServiceAccountPath
+}
+
+$scriptDir = $PSScriptRoot
+if ([string]::IsNullOrWhiteSpace($scriptDir)) {
+    $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+}
+if ([string]::IsNullOrWhiteSpace($scriptDir)) {
+    $scriptDir = $PWD.Path
+}
+if (-not [System.IO.Path]::IsPathRooted($scriptDir)) {
+    $scriptDir = Join-Path $PWD.Path $scriptDir
+}
+try {
+    $scriptDir = (Resolve-Path $scriptDir).Path
+} catch {}
+
+$candidates += @(
+    (Join-Path $scriptDir "..\secrets\firebase-license.json"),
+    (Join-Path $scriptDir "..\..\Renamer\firebase-admin-key.json"),
+    (Join-Path $scriptDir "..\..\firebase-admin-key.json"),
+    (Join-Path $scriptDir "firebase-license.json"),
+    (Join-Path (Split-Path -Parent $scriptDir) "secrets\firebase-license.json"),
+    (Join-Path (Split-Path -Parent $scriptDir) "..\Renamer\firebase-admin-key.json"),
+    (Join-Path $PWD.Path "DesktopHub\secrets\firebase-license.json"),
+    (Join-Path $PWD.Path "Renamer\firebase-admin-key.json"),
+    (Join-Path $PWD.Path "firebase-license.json")
+)
+$candidates = @($candidates | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+
+foreach ($c in $candidates) {
+    try {
+        if (Test-Path $c) {
+            $ServiceAccountPath = (Resolve-Path $c).Path
+            break
+        }
+    } catch {}
 }
 
 if ([string]::IsNullOrWhiteSpace($ServiceAccountPath) -or -not (Test-Path $ServiceAccountPath)) {
     Write-Host "Error: Service account JSON not found." -ForegroundColor Red
+    if ($candidates.Count -gt 0) {
+        Write-Host "Looked in:" -ForegroundColor Yellow
+        foreach ($candidate in $candidates) {
+            Write-Host "  $candidate" -ForegroundColor Yellow
+        }
+    }
     exit 1
 }
 
@@ -235,28 +273,106 @@ foreach ($node in $topNodes) {
 # OPTIONAL: WIPE DEVICES
 # ============================================================
 
-if ($WipeDevices) {
+# ============================================================
+# WIPE OPERATIONS
+# ============================================================
+
+# Nodes that are NEVER wiped (critical system data)
+$PreservedNodes = @("app_versions", "admin_users")
+
+function Wipe-Node([string]$nodeName) {
+    $count = Count-Children (fb-get $nodeName)
+    if ($count -eq 0 -and $null -eq (fb-get $nodeName)) { return }
+    Write-Host "  Deleting $nodeName/ ($count entries)..." -NoNewline -ForegroundColor Yellow
+    try {
+        fb-delete $nodeName
+        Write-Host " done" -ForegroundColor Green
+    } catch {
+        Write-Host " FAILED: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+function Clear-LocalCaches {
+    $appData = Join-Path $env:LOCALAPPDATA "DesktopHub"
+    $cacheFiles = @("tag_cache.json", "tag_vocabulary_cache.json")
+    foreach ($file in $cacheFiles) {
+        $path = Join-Path $appData $file
+        if (Test-Path $path) {
+            Remove-Item $path -Force
+            Write-Host "  Cleared local cache: $file" -ForegroundColor Green
+        }
+    }
+}
+
+if ($WipeDevices -and -not $WipeAll) {
     Write-Host "========================================" -ForegroundColor Red
     Write-Host "  WIPE DEVICES" -ForegroundColor Red
     Write-Host "========================================" -ForegroundColor Red
     Write-Host ""
-
-    $devCount = Count-Children (fb-get "devices")
-    Write-Host "  devices/ has $devCount entries." -ForegroundColor Yellow
     Write-Host "  Both DesktopHub and Renamer recreate their entry on next launch." -ForegroundColor Gray
+    $confirm = if ($Force) { "YES" } else { Read-Host "  Type 'YES' to wipe devices/" }
+    if ($confirm -eq "YES") { Wipe-Node "devices" }
+    else { Write-Host "  Cancelled." -ForegroundColor Gray }
+    Write-Host ""
+}
+
+if ($WipeTags -and -not $WipeAll) {
+    Write-Host "========================================" -ForegroundColor Red
+    Write-Host "  WIPE PROJECT TAGS + VOCABULARY" -ForegroundColor Red
+    Write-Host "========================================" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  Tags will be recreated when users save project info." -ForegroundColor Gray
+    $confirm = if ($Force) { "YES" } else { Read-Host "  Type 'YES' to wipe project_tags/ and tag_vocabulary/" }
+    if ($confirm -eq "YES") {
+        Wipe-Node "project_tags"
+        Wipe-Node "tag_vocabulary"
+        Clear-LocalCaches
+    } else { Write-Host "  Cancelled." -ForegroundColor Gray }
+    Write-Host ""
+}
+
+if ($WipeAll) {
+    Write-Host "========================================" -ForegroundColor Red
+    Write-Host "  FULL DATABASE WIPE" -ForegroundColor Red
+    Write-Host "========================================" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  This will DELETE every node except: $($PreservedNodes -join ', ')" -ForegroundColor Red
     Write-Host ""
 
-    $confirm = Read-Host "  Type 'YES' to wipe devices/"
-    if ($confirm -eq "YES") {
-        Write-Host "  Deleting devices/..." -NoNewline -ForegroundColor Yellow
-        try {
-            fb-delete "devices"
-            Write-Host " done" -ForegroundColor Green
-        } catch {
-            Write-Host " FAILED: $($_.Exception.Message)" -ForegroundColor Red
+    if (-not $Force) {
+        $confirm = Read-Host "  Type 'WIPE' to confirm full database reset"
+        if ($confirm -ne "WIPE") {
+            Write-Host "  Cancelled." -ForegroundColor Gray
+            Write-Host ""
+            return
         }
-    } else {
-        Write-Host "  Cancelled." -ForegroundColor Gray
     }
+
+    # Enumerate ALL top-level nodes dynamically
+    Write-Host ""
+    Write-Host "  Enumerating database..." -ForegroundColor Yellow
+    $allData = fb-get ""
+    if ($null -eq $allData) {
+        Write-Host "  Database is empty." -ForegroundColor Gray
+    } else {
+        $allNodes = @($allData.PSObject.Properties | ForEach-Object { $_.Name })
+        Write-Host "  Found $($allNodes.Count) top-level nodes: $($allNodes -join ', ')" -ForegroundColor Gray
+        Write-Host ""
+
+        foreach ($node in $allNodes) {
+            if ($node -in $PreservedNodes) {
+                Write-Host "  PRESERVED: $node/" -ForegroundColor Cyan
+                continue
+            }
+            Wipe-Node $node
+        }
+    }
+
+    # Clear local caches
+    Write-Host ""
+    Clear-LocalCaches
+
+    Write-Host ""
+    Write-Host "  Database reset complete. Preserved: $($PreservedNodes -join ', ')" -ForegroundColor Cyan
     Write-Host ""
 }

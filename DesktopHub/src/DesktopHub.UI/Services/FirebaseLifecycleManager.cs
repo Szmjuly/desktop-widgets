@@ -33,6 +33,20 @@ public class FirebaseLifecycleManager
                 await _firebaseService.RegisterDeviceAsync();
                 await _firebaseService.LogAppLaunchAsync(_appVersion);
                 _firebaseService.StartHeartbeat();
+
+                // Enforce retention policy in background (non-blocking)
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        if (_firebaseService is FirebaseService fs)
+                            await fs.EnforceRetentionPolicyAsync();
+                    }
+                    catch (Exception retEx)
+                    {
+                        DebugLogger.Log($"Firebase: Retention policy error: {retEx.Message}");
+                    }
+                });
                 
                 DebugLogger.Log("Firebase: Lifecycle manager initialized successfully");
             }

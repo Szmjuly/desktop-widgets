@@ -235,7 +235,14 @@ public partial class SearchOverlay
 
     private void UpdateOverlayHeightForCurrentState(bool animate)
     {
-        var targetHeight = _isResultsCollapsed ? OverlayCollapsedBaseHeight : OverlayExpandedBaseHeight;
+        // Dynamic collapsed height: base + tag carousel + history row when visible
+        var collapsedHeight = OverlayCollapsedBaseHeight;
+        if (TagCarouselContainer.Visibility == Visibility.Visible)
+            collapsedHeight += 36; // tag carousel row + margin
+        if (HistoryAndCollapseContainer.Visibility == Visibility.Visible)
+            collapsedHeight += 36; // history/collapse row + margin
+
+        var targetHeight = _isResultsCollapsed ? collapsedHeight : OverlayExpandedBaseHeight;
 
         if (!animate || !IsLoaded)
         {

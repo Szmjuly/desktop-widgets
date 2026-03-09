@@ -85,6 +85,12 @@ public class TagVocabularyService : ITagVocabularyService
 
         var trimmed = value.Trim();
 
+        // Guard: reject .NET type names that indicate a serialization bug upstream
+        if (trimmed.StartsWith("System.", StringComparison.Ordinal) ||
+            trimmed.Contains("__DOT__") ||
+            trimmed.Length > 200)
+            return;
+
         // Add to local cache
         var set = _vocabulary.GetOrAdd(fieldKey, _ => new SortedSet<string>(StringComparer.OrdinalIgnoreCase));
         if (!set.Add(trimmed))

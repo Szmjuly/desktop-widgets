@@ -25,6 +25,7 @@ public partial class SearchOverlay
             _timerOverlay.EnableDragging();
 
         _timerOverlay.Show();
+        _timerOverlay.UpdateTransparency();
         _timerOverlay.Tag = "WasVisible";
         TelemetryAccessor.TrackWidgetVisibility(WidgetIds.Timer, true);
 
@@ -119,6 +120,7 @@ public partial class SearchOverlay
             _quickTasksOverlay.EnableDragging();
 
         _quickTasksOverlay.Show();
+        _quickTasksOverlay.UpdateTransparency();
         _quickTasksOverlay.Tag = "WasVisible";
         TelemetryAccessor.TrackWidgetVisibility(WidgetIds.QuickTasks, true);
 
@@ -191,6 +193,7 @@ public partial class SearchOverlay
             _docOverlay.EnableDragging();
 
         _docOverlay.Show();
+        _docOverlay.UpdateTransparency();
         _docOverlay.Tag = "WasVisible";
         TelemetryAccessor.TrackWidgetVisibility(WidgetIds.DocQuickOpen, true);
         UpdateDynamicOverlayMaxHeight(_docOverlay);
@@ -666,9 +669,13 @@ public partial class SearchOverlay
             _projectInfoOverlay.EnableDragging();
 
         _projectInfoOverlay.Show();
+        _projectInfoOverlay.UpdateTransparency();
         _projectInfoOverlay.Tag = "WasVisible";
         TelemetryAccessor.TrackWidgetVisibility(WidgetIds.ProjectInfo, true);
         UpdateDynamicOverlayMaxHeight(_projectInfoOverlay);
+
+        // Auto-feed currently selected project
+        FeedSelectedProjectToProjectInfo();
 
         if (isLivingWidgetsMode)
         {
@@ -710,6 +717,7 @@ public partial class SearchOverlay
                     _projectInfoOverlay.Visibility = Visibility.Visible;
                     _projectInfoOverlay.Tag = "WasVisible";
                     TelemetryAccessor.TrackWidgetVisibility(WidgetIds.ProjectInfo, true);
+                    FeedSelectedProjectToProjectInfo();
                     DebugLogger.Log("OnProjectInfoRequested: Project info shown");
                 }
             }
@@ -718,6 +726,21 @@ public partial class SearchOverlay
         {
             DebugLogger.Log($"OnProjectInfoRequested: Error: {ex}");
             System.Windows.MessageBox.Show($"Error with project info: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// Feed the currently selected project from ResultsList to the Project Info widget.
+    /// </summary>
+    private void FeedSelectedProjectToProjectInfo()
+    {
+        if (_projectInfoOverlay?.Widget == null) return;
+
+        if (ResultsList.SelectedItem is ProjectViewModel vm && !string.IsNullOrWhiteSpace(vm.FullNumber))
+        {
+            var displayName = $"{vm.FullNumber} {vm.Name}";
+            _ = _projectInfoOverlay.Widget.SetProjectAsync(vm.FullNumber, displayName);
+            DebugLogger.Log($"FeedSelectedProjectToProjectInfo: Fed {vm.FullNumber} to Project Info");
         }
     }
 

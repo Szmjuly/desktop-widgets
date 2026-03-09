@@ -19,6 +19,7 @@ public partial class ProjectInfoOverlay : Window
         _settings = settings;
 
         _widget = new ProjectInfoWidget(tagService, vocabService);
+        _widget.CloseRequested += (s, e) => HideAndLock();
         WidgetHost.Content = _widget;
     }
 

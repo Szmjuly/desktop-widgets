@@ -315,7 +315,8 @@ public class TrayIcon : IDisposable
                         CheckForUpdates,
                         ShowSettings,
                         Exit,
-                        isUpdateAvailable
+                        isUpdateAvailable,
+                        _settings
                     );
                     
                     // Track the menu and clean up when it closes

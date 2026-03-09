@@ -662,6 +662,13 @@ public class FirebaseService : IFirebaseService
             InfraLogger.Log("FirebaseService: Logging update check to Firebase");
             await PostDataAsync($"events/{AppId}/{GetEventMonth()}", checkData);
 
+            // Also update the device record with last update check info
+            await PatchDataAsync($"devices/{_deviceInfo.DeviceId}/apps/{AppId}", new Dictionary<string, object>
+            {
+                ["last_update_check"] = now,
+                ["last_known_version"] = latestVersion
+            });
+
             InfraLogger.Log("FirebaseService: CheckForUpdatesAsync SUCCESS - returning UpdateInfo");
             return updateInfo;
         }
@@ -993,6 +1000,82 @@ public class FirebaseService : IFirebaseService
             InfraLogger.Log($"Firebase: Failed to read devices: {ex.Message}");
             return null;
         }
+    }
+
+    // --- Retention policy ---
+
+    /// <summary>
+    /// Reads the retention policy from Firebase (config/retention_policy/events_months)
+    /// and deletes event/error month nodes older than the configured period.
+    /// Default: 3 months if no config is set.
+    /// Admin can change the value in Firebase at any time and all clients will follow.
+    /// </summary>
+    public async Task EnforceRetentionPolicyAsync()
+    {
+        if (!_isInitialized || _httpClient == null) return;
+
+        try
+        {
+            // Read admin-configurable retention period from Firebase
+            var retentionMonths = 3; // Default
+            var configVal = await GetDataAsync<object>("config/retention_policy/events_months");
+            if (configVal != null && int.TryParse(configVal.ToString(), out var parsed) && parsed > 0)
+            {
+                retentionMonths = parsed;
+            }
+
+            InfraLogger.Log($"Firebase: Retention policy = {retentionMonths} months");
+
+            var cutoff = DateTime.UtcNow.AddMonths(-retentionMonths);
+            var cutoffMonth = cutoff.ToString("yyyy-MM");
+
+            // Clean up events/ months
+            await CleanupOldMonthNodes($"events/{AppId}", cutoffMonth);
+
+            // Clean up errors/ months
+            await CleanupOldMonthNodes($"errors/{AppId}", cutoffMonth);
+        }
+        catch (Exception ex)
+        {
+            InfraLogger.Log($"Firebase: Retention policy enforcement failed: {ex.Message}");
+        }
+    }
+
+    private async Task CleanupOldMonthNodes(string basePath, string cutoffMonth)
+    {
+        try
+        {
+            var allMonths = await GetDataAsync<Dictionary<string, object>>(basePath);
+            if (allMonths == null) return;
+
+            var deletedCount = 0;
+            foreach (var monthKey in allMonths.Keys)
+            {
+                // Month keys are "YYYY-MM" format — simple string comparison works
+                if (string.Compare(monthKey, cutoffMonth, StringComparison.Ordinal) < 0)
+                {
+                    await DeleteDataAsync($"{basePath}/{monthKey}");
+                    deletedCount++;
+                    InfraLogger.Log($"Firebase: Deleted expired month node {basePath}/{monthKey}");
+                }
+            }
+
+            if (deletedCount > 0)
+                InfraLogger.Log($"Firebase: Cleaned up {deletedCount} expired month(s) from {basePath}");
+        }
+        catch (Exception ex)
+        {
+            InfraLogger.Log($"Firebase: Cleanup failed for {basePath}: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteDataAsync(string path)
+    {
+        if (_httpClient == null || string.IsNullOrEmpty(_databaseUrl)) return;
+
+        var token = await GetAccessTokenAsync();
+        var url = $"{_databaseUrl}/{path}.json?access_token={token}";
+        await _httpClient.DeleteAsync(url);
     }
 
 }

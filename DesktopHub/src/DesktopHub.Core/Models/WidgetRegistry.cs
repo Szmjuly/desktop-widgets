@@ -180,6 +180,28 @@ public static class WidgetRegistry
             HasSettingsTab = false,
             SortOrder = 55,
         },
+        new WidgetRegistryEntry
+        {
+            Id = WidgetIds.TrayMenu,
+            DisplayName = "Tray Menu",
+            Icon = "📌",
+            Description = "System tray right-click menu",
+            HasTransparencySlider = true,
+            HasLauncherToggle = false,
+            HasSettingsTab = false,
+            SortOrder = 110,
+        },
+        new WidgetRegistryEntry
+        {
+            Id = WidgetIds.Dialogs,
+            DisplayName = "Dialogs",
+            Icon = "💬",
+            Description = "Modal dialogs (Tags editor, etc.)",
+            HasTransparencySlider = true,
+            HasLauncherToggle = false,
+            HasSettingsTab = false,
+            SortOrder = 120,
+        },
     };
 
     /// <summary>Get a registry entry by widget ID.</summary>

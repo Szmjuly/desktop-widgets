@@ -45,6 +45,8 @@ public partial class SettingsWindow : Window
     // Dynamic UI element tracking (populated from WidgetRegistry)
     private readonly Dictionary<string, System.Windows.Controls.Slider> _transparencySliders = new();
     private readonly Dictionary<string, System.Windows.Controls.Button> _linkButtons = new();
+    private readonly Dictionary<string, Border> _groupBadges = new();
+    private readonly Dictionary<string, TextBlock> _percentLabels = new();
     private readonly Dictionary<string, System.Windows.Controls.Primitives.ToggleButton> _widgetToggles = new();
     private readonly Dictionary<string, System.Windows.Controls.RadioButton> _widgetNavButtons = new();
     private readonly Dictionary<string, Border> _widgetPanels = new();
@@ -153,77 +155,130 @@ public partial class SettingsWindow : Window
         RegisterWidgetPanels();
     }
 
+    // Group colors: A=blue, B=green, C=purple
+    private static readonly Dictionary<string, System.Windows.Media.Color> GroupColors = new()
+    {
+        { "A", System.Windows.Media.Color.FromRgb(100, 155, 240) },
+        { "B", System.Windows.Media.Color.FromRgb(76, 175, 80) },
+        { "C", System.Windows.Media.Color.FromRgb(171, 71, 188) },
+    };
+
     private void BuildTransparencySliders()
     {
         if (TransparencySlidersContainer == null) return;
         TransparencySlidersContainer.Children.Clear();
+        _transparencySliders.Clear();
+        _groupBadges.Clear();
+        _percentLabels.Clear();
 
+        // Settings Window (special entry, not in WidgetRegistry)
+        AddTransparencyRow("settings", "⚙", "Settings Window", 0.78);
+
+        // All registered widgets
         foreach (var entry in WidgetRegistry.WithTransparencySlider)
+            AddTransparencyRow(entry.Id, entry.Icon, entry.DisplayName, entry.DefaultTransparency);
+    }
+
+    private void AddTransparencyRow(string id, string icon, string name, double defaultValue)
+    {
+        // Outer card with colored left border for group indication
+        var card = new Border
         {
-            // Label row with link button
-            var labelGrid = new System.Windows.Controls.Grid { Margin = new Thickness(0, 12, 0, 8) };
-            var label = new TextBlock
-            {
-                Text = entry.DisplayName,
-                FontSize = 13,
-                FontWeight = FontWeights.Medium,
-                Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            labelGrid.Children.Add(label);
+            Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x0C, 255, 255, 255)),
+            CornerRadius = new CornerRadius(6),
+            Margin = new Thickness(0, 2, 0, 2),
+            Padding = new Thickness(10, 7, 10, 7),
+            BorderThickness = new Thickness(2, 0, 0, 0),
+            BorderBrush = System.Windows.Media.Brushes.Transparent,
+            Tag = id
+        };
 
-            var linkBtn = new System.Windows.Controls.Button
-            {
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
-                Width = 24, Height = 24,
-                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
-                BorderBrush = (System.Windows.Media.Brush)FindResource("BorderBrush"),
-                BorderThickness = new Thickness(1),
-                Cursor = System.Windows.Input.Cursors.Hand,
-                ToolTip = "Link to other sliders",
-                Tag = entry.Id
-            };
-            var linkIcon = new TextBlock { Text = "\U0001F513", FontSize = 12, HorizontalAlignment = System.Windows.HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            var linkIconGrid = new System.Windows.Controls.Grid();
-            linkIconGrid.Children.Add(linkIcon);
-            linkBtn.Content = linkIconGrid;
-            linkBtn.Resources.Add(typeof(Border), new Style(typeof(Border)) { Setters = { new Setter(Border.CornerRadiusProperty, new CornerRadius(4)) } });
-            var capturedId = entry.Id;
-            linkBtn.Click += (s, e) => OnDynamicLinkButtonClick(capturedId);
-            labelGrid.Children.Add(linkBtn);
-            _linkButtons[entry.Id] = linkBtn;
-            TransparencySlidersContainer.Children.Add(labelGrid);
+        var rowGrid = new System.Windows.Controls.Grid();
+        // Icon | Name | GroupBadge | Slider | Percent
+        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });  // icon
+        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // name
+        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });  // group badge
+        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) }); // slider
+        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) }); // percent
 
-            // Slider row
-            var sliderGrid = new System.Windows.Controls.Grid();
-            sliderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            sliderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            sliderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        // Icon
+        var iconBlock = new TextBlock
+        {
+            Text = icon, FontSize = 13,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 6, 0)
+        };
+        System.Windows.Controls.Grid.SetColumn(iconBlock, 0);
+        rowGrid.Children.Add(iconBlock);
 
-            var leftLabel = new TextBlock { Text = "Transparent", FontSize = 10, Foreground = (System.Windows.Media.Brush)FindResource("TextSecondaryBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
-            System.Windows.Controls.Grid.SetColumn(leftLabel, 0);
-            sliderGrid.Children.Add(leftLabel);
+        // Name
+        var nameBlock = new TextBlock
+        {
+            Text = name, FontSize = 12, FontWeight = FontWeights.Medium,
+            Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
+        System.Windows.Controls.Grid.SetColumn(nameBlock, 1);
+        rowGrid.Children.Add(nameBlock);
 
-            var slider = new System.Windows.Controls.Slider
-            {
-                Minimum = 0.4, Maximum = 0.95, Value = entry.DefaultTransparency,
-                IsSnapToTickEnabled = false,
-                SmallChange = 0.01, LargeChange = 0.05,
-                VerticalAlignment = VerticalAlignment.Center,
-                Tag = entry.Id,
-                Style = (Style)FindResource("StyledSlider")
-            };
-            slider.ValueChanged += OnDynamicTransparencySliderChanged;
-            System.Windows.Controls.Grid.SetColumn(slider, 1);
-            sliderGrid.Children.Add(slider);
-            _transparencySliders[entry.Id] = slider;
+        // Group badge (clickable, cycles — → A → B → C → —)
+        var badgeText = new TextBlock
+        {
+            Text = "—", FontSize = 10, FontWeight = FontWeights.Bold,
+            Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(120, 120, 130)),
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var badge = new Border
+        {
+            Width = 22, Height = 22,
+            CornerRadius = new CornerRadius(4),
+            Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, 255, 255, 255)),
+            BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, 255, 255, 255)),
+            BorderThickness = new Thickness(1),
+            Margin = new Thickness(6, 0, 8, 0),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            ToolTip = "Click to cycle group: — → A → B → C → —",
+            Child = badgeText,
+            Tag = id
+        };
+        badge.MouseLeftButtonDown += (s, e) => { OnGroupBadgeClick(id); e.Handled = true; };
+        System.Windows.Controls.Grid.SetColumn(badge, 2);
+        rowGrid.Children.Add(badge);
+        _groupBadges[id] = badge;
 
-            var rightLabel = new TextBlock { Text = "Opaque", FontSize = 10, Foreground = (System.Windows.Media.Brush)FindResource("TextSecondaryBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
-            System.Windows.Controls.Grid.SetColumn(rightLabel, 2);
-            sliderGrid.Children.Add(rightLabel);
+        // Slider
+        var slider = new System.Windows.Controls.Slider
+        {
+            Minimum = 0.4, Maximum = 0.95, Value = defaultValue,
+            IsSnapToTickEnabled = false,
+            SmallChange = 0.01, LargeChange = 0.05,
+            VerticalAlignment = VerticalAlignment.Center,
+            Tag = id,
+            Style = (Style)FindResource("StyledSlider")
+        };
+        slider.ValueChanged += OnDynamicTransparencySliderChanged;
+        System.Windows.Controls.Grid.SetColumn(slider, 3);
+        rowGrid.Children.Add(slider);
+        _transparencySliders[id] = slider;
 
-            TransparencySlidersContainer.Children.Add(sliderGrid);
-        }
+        // Percentage label
+        var pctLabel = new TextBlock
+        {
+            Text = $"{(int)(defaultValue * 100)}%",
+            FontSize = 10, FontWeight = FontWeights.Medium,
+            Foreground = (System.Windows.Media.Brush)FindResource("TextSecondaryBrush"),
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+            Margin = new Thickness(4, 0, 0, 0)
+        };
+        System.Windows.Controls.Grid.SetColumn(pctLabel, 4);
+        rowGrid.Children.Add(pctLabel);
+        _percentLabels[id] = pctLabel;
+
+        card.Child = rowGrid;
+        TransparencySlidersContainer.Children.Add(card);
     }
 
     private void BuildWidgetToggles()
@@ -364,34 +419,75 @@ public partial class SettingsWindow : Window
         if (_isUpdatingSliders || _settings == null) return;
         if (sender is not System.Windows.Controls.Slider slider || slider.Tag is not string widgetId) return;
 
-        _settings.SetWidgetTransparency(widgetId, e.NewValue);
-        _ = _settings.SaveAsync();
-        StatusText.Text = $"{WidgetRegistry.Get(widgetId)?.DisplayName ?? widgetId} transparency updated";
-
-        if (_settings.GetWidgetTransparencyLinked(widgetId))
+        // Save the value
+        if (widgetId == "settings")
         {
-            SyncLinkedSliders(e.NewValue);
+            _settings.SetSettingsTransparency(e.NewValue);
+            ApplySettingsWindowTransparency(e.NewValue);
+        }
+        else
+        {
+            _settings.SetWidgetTransparency(widgetId, e.NewValue);
         }
 
+        // Update percentage label
+        if (_percentLabels.TryGetValue(widgetId, out var pctLabel))
+            pctLabel.Text = $"{(int)(e.NewValue * 100)}%";
+
+        // Sync group members
+        var group = _settings.GetWidgetTransparencyGroup(widgetId);
+        if (!string.IsNullOrEmpty(group))
+            SyncGroupSliders(group, e.NewValue, widgetId);
+
+        _ = _settings.SaveAsync();
         _onTransparencyChanged?.Invoke();
     }
 
-    private void OnDynamicLinkButtonClick(string widgetId)
+    private void OnGroupBadgeClick(string widgetId)
     {
-        var isLinked = _settings.GetWidgetTransparencyLinked(widgetId);
-        _settings.SetWidgetTransparencyLinked(widgetId, !isLinked);
+        var currentGroup = _settings.GetWidgetTransparencyGroup(widgetId);
+        // Cycle: "" → "A" → "B" → "C" → ""
+        var nextGroup = currentGroup switch
+        {
+            "" => "A",
+            "A" => "B",
+            "B" => "C",
+            "C" => "",
+            _ => ""
+        };
+
+        _settings.SetWidgetTransparencyGroup(widgetId, nextGroup);
         _ = _settings.SaveAsync();
 
-        if (_linkButtons.TryGetValue(widgetId, out var btn))
-            UpdateLinkButton(btn, !isLinked);
+        UpdateGroupBadge(widgetId, nextGroup);
 
-        if (!isLinked && _transparencySliders.TryGetValue(widgetId, out var slider))
+        // If joining a group, sync this widget's value to the group leader
+        if (!string.IsNullOrEmpty(nextGroup))
         {
-            SyncLinkedSliders(slider.Value);
+            var groupLeaderValue = GetGroupLeaderValue(nextGroup, widgetId);
+            if (groupLeaderValue.HasValue && _transparencySliders.TryGetValue(widgetId, out var slider))
+            {
+                _isUpdatingSliders = true;
+                slider.Value = groupLeaderValue.Value;
+                if (widgetId == "settings")
+                {
+                    _settings.SetSettingsTransparency(groupLeaderValue.Value);
+                    ApplySettingsWindowTransparency(groupLeaderValue.Value);
+                }
+                else
+                    _settings.SetWidgetTransparency(widgetId, groupLeaderValue.Value);
+                if (_percentLabels.TryGetValue(widgetId, out var pctLabel))
+                    pctLabel.Text = $"{(int)(groupLeaderValue.Value * 100)}%";
+                _isUpdatingSliders = false;
+                _ = _settings.SaveAsync();
+                _onTransparencyChanged?.Invoke();
+            }
         }
 
-        var name = WidgetRegistry.Get(widgetId)?.DisplayName ?? widgetId;
-        StatusText.Text = !isLinked ? $"{name} transparency linked" : $"{name} transparency unlinked";
+        var name = widgetId == "settings" ? "Settings Window" : (WidgetRegistry.Get(widgetId)?.DisplayName ?? widgetId);
+        StatusText.Text = string.IsNullOrEmpty(nextGroup)
+            ? $"{name} ungrouped"
+            : $"{name} added to group {nextGroup}";
     }
 
     private void OnDynamicWidgetToggleChanged(string id, bool enabled)
@@ -443,19 +539,25 @@ public partial class SettingsWindow : Window
             var pDrivePath = _settings.GetPDrivePath();
             PDrivePathBox.Text = string.IsNullOrEmpty(pDrivePath) ? "P:\\" : pDrivePath;
             
-            // Load transparency settings (static Settings Window slider + dynamic widget sliders)
+            // Load transparency settings (all sliders are now dynamic)
             _isUpdatingSliders = true;
-            SettingsTransparencySlider.Value = _settings.GetSettingsTransparency();
             foreach (var kvp in _transparencySliders)
             {
-                kvp.Value.Value = _settings.GetWidgetTransparency(kvp.Key);
+                if (kvp.Key == "settings")
+                    kvp.Value.Value = _settings.GetSettingsTransparency();
+                else
+                    kvp.Value.Value = _settings.GetWidgetTransparency(kvp.Key);
+
+                if (_percentLabels.TryGetValue(kvp.Key, out var pctLabel))
+                    pctLabel.Text = $"{(int)(kvp.Value.Value * 100)}%";
             }
             WidgetSnapGapSlider.Value = _settings.GetWidgetSnapGap();
             UpdateWidgetSnapGapValueText(_settings.GetWidgetSnapGap());
             WidgetOverlapPreventionToggle.IsChecked = _settings.GetWidgetOverlapPrevention();
             _isUpdatingSliders = false;
 
-            ApplySettingsWindowTransparency(SettingsTransparencySlider.Value);
+            ApplySettingsWindowTransparency(_settings.GetSettingsTransparency());
+            UpdateAllGroupBadges();
             
             // Load widget enabled toggles from registry
             if (_widgetToggles.TryGetValue("search_button", out var searchToggle))
@@ -510,7 +612,7 @@ public partial class SettingsWindow : Window
             LoadMetricsSettings();
             LoadCheatSheetSnapGridSetting();
 
-            UpdateAllLinkButtons();
+            UpdateAllGroupBadges();
         }
         catch (Exception ex)
         {
@@ -921,27 +1023,6 @@ public partial class SettingsWindow : Window
     {
     }
 
-    private void SettingsTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (RootBorder == null || _isUpdatingSliders || _settings == null) return;
-        
-        _settings.SetSettingsTransparency(e.NewValue);
-        _ = _settings.SaveAsync();
-        StatusText.Text = "Settings transparency updated";
-
-        // Update this window's transparency in real-time
-        ApplySettingsWindowTransparency(e.NewValue);
-        
-        // Sync linked sliders
-        if (_settings.GetSettingsTransparencyLinked())
-        {
-            SyncLinkedSliders(e.NewValue);
-        }
-        
-        // Notify windows to update their transparency
-        _onTransparencyChanged?.Invoke();
-    }
-
     private void ApplySettingsWindowTransparency(double transparency)
     {
         if (RootBorder == null)
@@ -953,85 +1034,127 @@ public partial class SettingsWindow : Window
         RootBorder.Background = new System.Windows.Media.SolidColorBrush(color);
     }
 
-    private void LinkSettingsButton_Click(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// Sync all sliders in the same transparency group to a new value (except the source).
+    /// </summary>
+    private void SyncGroupSliders(string group, double value, string sourceWidgetId)
     {
-        var isLinked = _settings.GetSettingsTransparencyLinked();
-        _settings.SetSettingsTransparencyLinked(!isLinked);
-        _ = _settings.SaveAsync();
-        
-        UpdateLinkButton(LinkSettingsButton, !isLinked);
-        
-        if (!isLinked)
-        {
-            SyncLinkedSliders(SettingsTransparencySlider.Value);
-        }
-        
-        StatusText.Text = !isLinked ? "Settings transparency linked" : "Settings transparency unlinked";
-    }
+        if (string.IsNullOrEmpty(group)) return;
 
-    private void SyncLinkedSliders(double value)
-    {
         _isUpdatingSliders = true;
-        
-        // Sync static Settings Window slider
-        if (_settings.GetSettingsTransparencyLinked())
-        {
-            SettingsTransparencySlider.Value = value;
-            _settings.SetSettingsTransparency(value);
-        }
-        
-        // Sync all dynamic widget sliders that are linked
         foreach (var kvp in _transparencySliders)
         {
-            if (_settings.GetWidgetTransparencyLinked(kvp.Key))
+            if (kvp.Key == sourceWidgetId) continue;
+            if (_settings.GetWidgetTransparencyGroup(kvp.Key) != group) continue;
+
+            kvp.Value.Value = value;
+            if (kvp.Key == "settings")
             {
-                kvp.Value.Value = value;
+                _settings.SetSettingsTransparency(value);
+                ApplySettingsWindowTransparency(value);
+            }
+            else
+            {
                 _settings.SetWidgetTransparency(kvp.Key, value);
             }
+
+            if (_percentLabels.TryGetValue(kvp.Key, out var pctLabel))
+                pctLabel.Text = $"{(int)(value * 100)}%";
         }
-        
         _isUpdatingSliders = false;
     }
 
-    private void UpdateLinkButton(System.Windows.Controls.Button button, bool isLinked)
+    /// <summary>
+    /// Get the transparency value of the first other widget already in the given group (the "leader").
+    /// </summary>
+    private double? GetGroupLeaderValue(string group, string excludeWidgetId)
     {
-        // Update the button's content to show linked/unlinked state
-        var contentGrid = button.Content as System.Windows.Controls.Grid;
-        if (contentGrid == null)
+        foreach (var kvp in _transparencySliders)
         {
-            // Create a grid with icon if it doesn't exist
-            contentGrid = new System.Windows.Controls.Grid();
-            var textBlock = new System.Windows.Controls.TextBlock
-            {
-                Text = isLinked ? "\U0001F517" : "\U0001F513",
-                FontSize = 12,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-                VerticalAlignment = System.Windows.VerticalAlignment.Center
-            };
-            contentGrid.Children.Add(textBlock);
-            button.Content = contentGrid;
+            if (kvp.Key == excludeWidgetId) continue;
+            if (_settings.GetWidgetTransparencyGroup(kvp.Key) == group)
+                return kvp.Value.Value;
         }
-        else if (contentGrid.Children.Count > 0 && contentGrid.Children[0] is System.Windows.Controls.TextBlock tb)
-        {
-            tb.Text = isLinked ? "\U0001F517" : "\U0001F513";
-        }
-        
-        // Update background color
-        button.Background = isLinked 
-            ? (System.Windows.Media.Brush)FindResource("PrimaryBrush") 
-            : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF));
+        return null;
     }
 
-    private void UpdateAllLinkButtons()
+    /// <summary>
+    /// Update a single group badge's visual state (letter, color, card accent).
+    /// </summary>
+    private void UpdateGroupBadge(string widgetId, string group)
     {
-        // Static Settings Window link button
-        UpdateLinkButton(LinkSettingsButton, _settings.GetSettingsTransparencyLinked());
-        
-        // Dynamic widget link buttons
-        foreach (var kvp in _linkButtons)
+        if (!_groupBadges.TryGetValue(widgetId, out var badge)) return;
+        var badgeText = badge.Child as TextBlock;
+        if (badgeText == null) return;
+
+        if (string.IsNullOrEmpty(group))
         {
-            UpdateLinkButton(kvp.Value, _settings.GetWidgetTransparencyLinked(kvp.Key));
+            badgeText.Text = "—";
+            badgeText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(120, 120, 130));
+            badge.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, 255, 255, 255));
+            badge.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, 255, 255, 255));
         }
+        else if (GroupColors.TryGetValue(group, out var color))
+        {
+            badgeText.Text = group;
+            badgeText.Foreground = new System.Windows.Media.SolidColorBrush(color);
+            badge.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x28, color.R, color.G, color.B));
+            badge.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x50, color.R, color.G, color.B));
+        }
+
+        // Update the card's left border accent
+        var card = badge.Parent is System.Windows.Controls.Grid g ? g.Parent as Border : null;
+        if (card != null)
+        {
+            if (!string.IsNullOrEmpty(group) && GroupColors.TryGetValue(group, out var accentColor))
+                card.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x80, accentColor.R, accentColor.G, accentColor.B));
+            else
+                card.BorderBrush = System.Windows.Media.Brushes.Transparent;
+        }
+    }
+
+    /// <summary>
+    /// Refresh all group badges from saved settings.
+    /// </summary>
+    private void UpdateAllGroupBadges()
+    {
+        foreach (var kvp in _groupBadges)
+        {
+            var group = _settings.GetWidgetTransparencyGroup(kvp.Key);
+            UpdateGroupBadge(kvp.Key, group);
+        }
+    }
+
+    private void LinkAllButton_Click(object sender, RoutedEventArgs e)
+    {
+        // Set all widgets to group A so they all sync together
+        foreach (var kvp in _transparencySliders)
+        {
+            _settings.SetWidgetTransparencyGroup(kvp.Key, "A");
+        }
+        _ = _settings.SaveAsync();
+        UpdateAllGroupBadges();
+
+        // Sync all to the first slider's value
+        var leaderValue = _transparencySliders.Values.FirstOrDefault()?.Value ?? 0.78;
+        SyncGroupSliders("A", leaderValue, "");
+        _ = _settings.SaveAsync();
+        _onTransparencyChanged?.Invoke();
+
+        StatusText.Text = "All widgets linked to Group A";
+    }
+
+    private void UnlinkAllButton_Click(object sender, RoutedEventArgs e)
+    {
+        // Remove all widgets from groups
+        foreach (var kvp in _transparencySliders)
+        {
+            _settings.SetWidgetTransparencyGroup(kvp.Key, "");
+        }
+        _ = _settings.SaveAsync();
+        UpdateAllGroupBadges();
+
+        StatusText.Text = "All widgets ungrouped";
     }
 
     private void LoadNotificationDurationSetting()

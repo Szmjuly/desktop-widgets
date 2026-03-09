@@ -574,6 +574,64 @@
                                     <WrapPanel x:Name="OutputFields" Orientation="Horizontal"/>
                                 </StackPanel>
                             </Border>
+                            <!-- GEC Parallel Conductor Calculator (shown only for GEC sheet) -->
+                            <Border x:Name="GecCalculatorPanel"
+                                    Visibility="Collapsed"
+                                    Background="#30FF9800"
+                                    CornerRadius="6"
+                                    Padding="10,8"
+                                    Margin="0,8,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="PARALLEL CONDUCTOR CALCULATOR"
+                                              FontSize="9"
+                                              FontWeight="SemiBold"
+                                              Foreground="#FFB74D"
+                                              Opacity="0.9"
+                                              Margin="0,0,0,6"/>
+                                    <TextBlock Text="Per NEC 250.66(B): When parallel conductors are used, the equivalent size is the total circular mil area of all conductors combined."
+                                              FontSize="10"
+                                              Foreground="#B0B6C3CA"
+                                              TextWrapping="Wrap"
+                                              Margin="0,0,0,8"/>
+                                    <StackPanel x:Name="GecCalcInputFields"/>
+                                    <Border x:Name="GecCalcButton"
+                                            Background="{StaticResource SurfaceBrush}"
+                                            CornerRadius="4"
+                                            Padding="10,5"
+                                            Margin="0,6,0,0"
+                                            Cursor="Hand"
+                                            HorizontalAlignment="Left"
+                                            MouseLeftButtonDown="GecCalcButton_Click">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="Calculate GEC" FontSize="11" Foreground="#FFB74D"/>
+                                    </Border>
+                                    <!-- GEC Calculator output -->
+                                    <Border x:Name="GecCalcOutputPanel"
+                                            Visibility="Collapsed"
+                                            Background="#1866BB6A"
+                                            CornerRadius="6"
+                                            Padding="10,8"
+                                            Margin="0,8,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="GEC RESULT"
+                                                      FontSize="9"
+                                                      FontWeight="SemiBold"
+                                                      Foreground="#66BB6A"
+                                                      Opacity="0.8"
+                                                      Margin="0,0,0,6"/>
+                                            <WrapPanel x:Name="GecCalcOutputFields" Orientation="Horizontal"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
 
                         <!-- TABLE MODE: Find bar + table -->

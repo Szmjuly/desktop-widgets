@@ -366,8 +366,12 @@ public partial class SearchOverlay
         try
         {
             // Track search query when project is actually opened
+            // Skip tag carousel/tag search queries — the tag carousel already
+            // serves as "history" for those, so adding them here causes doubling.
             var query = SearchBox.Text;
-            if (!string.IsNullOrWhiteSpace(query))
+            if (!string.IsNullOrWhiteSpace(query) &&
+                _lastQuerySource != Core.Models.QuerySources.TagCarousel &&
+                _lastQuerySource != Core.Models.QuerySources.TagSearch)
             {
                 AddToSearchHistory(query);
             }
@@ -600,6 +604,25 @@ public partial class SearchOverlay
                     copyItem.Click += (s, args) => CopyText(capturedPath, "Path copied to clipboard");
                     menu.Items.Add(copyItem);
 
+                    // --- Production (UNC) path items ---
+                    var uncPath = UncPathHelper.ResolveToUnc(capturedPath);
+                    if (uncPath != null)
+                    {
+                        menu.Items.Add(new Separator());
+
+                        var openProdItem = new MenuItem { Header = "Open Production Path" };
+                        openProdItem.Click += (s, args) =>
+                        {
+                            try { Process.Start("explorer.exe", uncPath); }
+                            catch { }
+                        };
+                        menu.Items.Add(openProdItem);
+
+                        var copyProdItem = new MenuItem { Header = "Copy Production Path" };
+                        copyProdItem.Click += (s, args) => CopyText(uncPath, "Production path copied to clipboard");
+                        menu.Items.Add(copyProdItem);
+                    }
+
                     // --- Tags section ---
                     if (_tagService != null && !string.IsNullOrEmpty(capturedProjectNumber))
                     {
@@ -798,10 +821,11 @@ public partial class SearchOverlay
             Owner = Window.GetWindow(this)
         };
 
-        // Root border matching app overlay style
+        // Root border matching app overlay style — use Dialogs transparency from settings
+        var dialogAlpha = (byte)(_settings.GetWidgetTransparency(Core.Models.WidgetIds.Dialogs) * 255);
         var rootBorder = new Border
         {
-            Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0xE8, 0x12, 0x12, 0x12)),
+            Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(dialogAlpha, 0x12, 0x12, 0x12)),
             CornerRadius = new CornerRadius(12),
             BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(58, 58, 58)),
             BorderThickness = new Thickness(1),
@@ -1089,7 +1113,9 @@ public partial class SearchOverlay
             Text = text,
             FontSize = 10,
             Foreground = chipFg,
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 320
         });
 
         if (isRemovable && onRemove != null)

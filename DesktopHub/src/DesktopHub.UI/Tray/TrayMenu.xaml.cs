@@ -2,6 +2,8 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
+using DesktopHub.Core.Abstractions;
+using DesktopHub.Core.Models;
 using DesktopHub.UI.Helpers;
 
 namespace DesktopHub.UI;
@@ -15,6 +17,7 @@ public partial class TrayMenu : Window
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
 
+    private readonly ISettingsService? _settings;
     private readonly Action _onOpenSearch;
     private readonly Action _onRescanProjects;
     private readonly Action _onCheckForUpdates;
@@ -27,11 +30,12 @@ public partial class TrayMenu : Window
     private DispatcherTimer? _dismissTimer;
     private IntPtr _hwnd;
 
-    public TrayMenu(Action onOpenSearch, Action onRescanProjects, Action onCheckForUpdates, Action onSettings, Action onExit, bool isUpdateAvailable = false)
+    public TrayMenu(Action onOpenSearch, Action onRescanProjects, Action onCheckForUpdates, Action onSettings, Action onExit, bool isUpdateAvailable = false, ISettingsService? settings = null)
     {
         DebugLogger.Log("TrayMenu: Constructor called");
         InitializeComponent();
         
+        _settings = settings;
         _onOpenSearch = onOpenSearch;
         _onRescanProjects = onRescanProjects;
         _onCheckForUpdates = onCheckForUpdates;
@@ -61,6 +65,14 @@ public partial class TrayMenu : Window
 
         Loaded += (s, e) =>
         {
+            // Apply TrayMenu transparency from settings
+            if (_settings != null)
+            {
+                var alpha = (byte)(_settings.GetWidgetTransparency(WidgetIds.TrayMenu) * 255);
+                RootBorder.Background = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromArgb(alpha, 0x18, 0x18, 0x18));
+            }
+
             PositionNearCursor();
             _openedTime = DateTime.Now;
             DebugLogger.Log($"TrayMenu: Loaded at {_openedTime:HH:mm:ss.fff}");

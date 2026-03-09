@@ -51,7 +51,7 @@
 
 param(
     [Parameter(Mandatory)]
-    [ValidateSet("get", "set", "delete", "list", "import", "export", "show-secret", "hash")]
+    [ValidateSet("get", "set", "delete", "list", "import", "export", "show-secret", "hash", "decrypt-dump")]
     [string]$Action,
 
     [string]$ProjectNumber,
@@ -194,6 +194,101 @@ function Invoke-FirebaseDelete {
     Invoke-RestMethod -Uri $url -Method Delete | Out-Null
 }
 
+# --- AES-256-CBC Encryption/Decryption (matches TagValueEncryptor.cs) ---
+function Get-EncryptionKey {
+    $secret = Get-OrCreateSecret
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $key = $sha.ComputeHash($secret)
+    $sha.Dispose()
+    return $key
+}
+
+function Decrypt-TagValue {
+    param([string]$CipherText)
+    if (-not $CipherText) { return $CipherText }
+    try {
+        $combined = [Convert]::FromBase64String($CipherText)
+        if ($combined.Length -lt 32) { return $CipherText } # Not encrypted
+        
+        $key = Get-EncryptionKey
+        $aes = [System.Security.Cryptography.Aes]::Create()
+        $aes.Key = $key
+        $aes.Mode = [System.Security.Cryptography.CipherMode]::CBC
+        $aes.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
+        
+        # Extract IV (first 16 bytes) and ciphertext (rest)
+        $iv = $combined[0..15]
+        $cipherBytes = $combined[16..($combined.Length - 1)]
+        $aes.IV = $iv
+        
+        $decryptor = $aes.CreateDecryptor()
+        $plainBytes = $decryptor.TransformFinalBlock($cipherBytes, 0, $cipherBytes.Length)
+        $decryptor.Dispose()
+        $aes.Dispose()
+        
+        return [System.Text.Encoding]::UTF8.GetString($plainBytes)
+    } catch [System.FormatException] {
+        return $CipherText # Not Base64, return as-is
+    } catch [System.Security.Cryptography.CryptographicException] {
+        return $CipherText # Decryption failed, likely plaintext
+    } catch {
+        return $CipherText # Any other error, return as-is
+    }
+}
+
+function Encrypt-TagValue {
+    param([string]$PlainText)
+    if (-not $PlainText) { return $PlainText }
+    try {
+        $key = Get-EncryptionKey
+        $aes = [System.Security.Cryptography.Aes]::Create()
+        $aes.Key = $key
+        $aes.GenerateIV()
+        $aes.Mode = [System.Security.Cryptography.CipherMode]::CBC
+        $aes.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
+        
+        $encryptor = $aes.CreateEncryptor()
+        $plainBytes = [System.Text.Encoding]::UTF8.GetBytes($PlainText)
+        $cipherBytes = $encryptor.TransformFinalBlock($plainBytes, 0, $plainBytes.Length)
+        $encryptor.Dispose()
+        
+        # Prepend IV to ciphertext
+        $result = New-Object byte[] ($aes.IV.Length + $cipherBytes.Length)
+        [Array]::Copy($aes.IV, 0, $result, 0, $aes.IV.Length)
+        [Array]::Copy($cipherBytes, 0, $result, $aes.IV.Length, $cipherBytes.Length)
+        $aes.Dispose()
+        
+        return [Convert]::ToBase64String($result)
+    } catch {
+        Write-Host "Encrypt error: $_" -ForegroundColor Red
+        return $PlainText
+    }
+}
+
+function Decrypt-TagEntry {
+    param($Tags)
+    if (-not $Tags) { return $Tags }
+    $result = @{}
+    $Tags.PSObject.Properties | ForEach-Object {
+        $key = $_.Name
+        $val = $_.Value
+        if ($val -is [array]) {
+            $result[$key] = @($val | ForEach-Object { Decrypt-TagValue $_ })
+        } elseif ($val -is [PSCustomObject]) {
+            $inner = @{}
+            $val.PSObject.Properties | ForEach-Object {
+                $inner[$_.Name] = Decrypt-TagValue $_.Value
+            }
+            $result[$key] = $inner
+        } elseif ($val -is [string]) {
+            $result[$key] = Decrypt-TagValue $val
+        } else {
+            $result[$key] = $val
+        }
+    }
+    return [PSCustomObject]$result
+}
+
 # --- Known tag fields ---
 $KnownFields = @(
     "voltage", "phase", "amperage_service", "amperage_generator",
@@ -230,9 +325,12 @@ switch ($Action) {
             return
         }
 
+        # Decrypt tag values
+        $decrypted = Decrypt-TagEntry $tags
+
         Write-Host ""
         foreach ($field in $KnownFields) {
-            $val = $tags.$field
+            $val = $decrypted.$field
             if ($val) {
                 $displayVal = if ($val -is [array]) { $val -join ", " } else { $val }
                 Write-Host "  $($field.PadRight(24)) $displayVal" -ForegroundColor White
@@ -240,11 +338,17 @@ switch ($Action) {
         }
 
         # Custom tags
-        if ($tags.custom) {
+        if ($decrypted.custom) {
             Write-Host ""
             Write-Host "  Custom:" -ForegroundColor DarkCyan
-            $tags.custom.PSObject.Properties | ForEach-Object {
-                Write-Host "    $($_.Name.PadRight(22)) $($_.Value)" -ForegroundColor Gray
+            if ($decrypted.custom -is [hashtable]) {
+                $decrypted.custom.GetEnumerator() | ForEach-Object {
+                    Write-Host "    $($_.Key.PadRight(22)) $($_.Value)" -ForegroundColor Gray
+                }
+            } elseif ($decrypted.custom -is [PSCustomObject]) {
+                $decrypted.custom.PSObject.Properties | ForEach-Object {
+                    Write-Host "    $($_.Name.PadRight(22)) $($_.Value)" -ForegroundColor Gray
+                }
             }
         }
 
@@ -407,6 +511,61 @@ switch ($Action) {
 
         $rows | Export-Csv -Path $CsvFile -NoTypeInformation
         Write-Host "Exported $($rows.Count) projects to $CsvFile" -ForegroundColor Green
+    }
+
+    "decrypt-dump" {
+        Write-Host "Fetching and decrypting all project tags from Firebase..." -ForegroundColor Cyan
+        $allData = Invoke-FirebaseGet $FirebaseNode
+        if (-not $allData) {
+            Write-Host "No tags found in database." -ForegroundColor Yellow
+            return
+        }
+
+        # Load local cache for reverse hash mapping
+        $cachePath = Join-Path $AppDataDir "tag_cache.json"
+        $hashToNumber = @{}
+        if (Test-Path $cachePath) {
+            $cache = Get-Content $cachePath -Raw | ConvertFrom-Json
+            foreach ($entry in $cache.Entries) {
+                if ($entry.Hash -and $entry.ProjectNumber) {
+                    $hashToNumber[$entry.Hash] = $entry.ProjectNumber
+                }
+            }
+        }
+
+        $count = 0
+        $allData.PSObject.Properties | ForEach-Object {
+            $hash = $_.Name
+            $entry = $_.Value
+            $count++
+
+            $projNum = if ($hashToNumber.ContainsKey($hash)) { $hashToNumber[$hash] } else { "UNKNOWN_$($hash.Substring(0,12))" }
+            Write-Host "`n=== $projNum (hash: $($hash.Substring(0,16))...) ===" -ForegroundColor Cyan
+
+            if ($entry.tags) {
+                $decrypted = Decrypt-TagEntry $entry.tags
+                foreach ($field in $KnownFields) {
+                    $val = $decrypted.$field
+                    if ($val) {
+                        $displayVal = if ($val -is [array]) { $val -join ", " } else { $val }
+                        Write-Host "  $($field.PadRight(24)) $displayVal" -ForegroundColor White
+                    }
+                }
+                if ($decrypted.custom) {
+                    Write-Host "  Custom:" -ForegroundColor DarkCyan
+                    if ($decrypted.custom -is [hashtable]) {
+                        $decrypted.custom.GetEnumerator() | ForEach-Object {
+                            Write-Host "    $($_.Key.PadRight(22)) $($_.Value)" -ForegroundColor Gray
+                        }
+                    }
+                }
+            }
+
+            if ($entry.updated_by) {
+                Write-Host "  Updated by: $($entry.updated_by) at $($entry.updated_at)" -ForegroundColor DarkGray
+            }
+        }
+        Write-Host "`n$count total entries decrypted." -ForegroundColor Cyan
     }
 
     "show-secret" {

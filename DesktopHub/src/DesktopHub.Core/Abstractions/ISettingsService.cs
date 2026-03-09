@@ -520,6 +520,12 @@ public interface ISettingsService
     /// <summary>Set whether a widget's transparency slider is linked.</summary>
     void SetWidgetTransparencyLinked(string widgetId, bool linked);
 
+    /// <summary>Get the transparency group for a widget (e.g. "A", "B", "C", or "" for ungrouped).</summary>
+    string GetWidgetTransparencyGroup(string widgetId);
+
+    /// <summary>Set the transparency group for a widget.</summary>
+    void SetWidgetTransparencyGroup(string widgetId, string group);
+
     /// <summary>Get whether a widget is enabled in the launcher.</summary>
     bool GetWidgetEnabled(string widgetId);
 

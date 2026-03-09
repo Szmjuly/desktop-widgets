@@ -1,56 +1,75 @@
-# Development Scripts
+# DesktopHub Admin Scripts
 
-## dev-env.ps1
-
-Bootstraps a local .NET SDK installation for development without requiring admin privileges.
-
-### What it does:
-1. Downloads the .NET SDK installer script from Microsoft
-2. Installs .NET SDK to `./.dotnet` directory (local to this project)
-3. Reads the desired SDK version from `global.json`
-4. Adds the local SDK to PATH for the current PowerShell session
-5. Creates a `dotnet` wrapper function
-
-### Usage:
-
-The `run` script in the project root automatically calls this. You can also run it manually:
+## Quick Start
 
 ```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\scripts\dev-env.ps1
+# Launch interactive admin console
+.\scripts\admin.ps1
+
+# Or run a specific action directly
+.\scripts\admin.ps1 -Action db-dump
+.\scripts\admin.ps1 -Action tags-get -ProjectNumber "2024278.01"
+.\scripts\admin.ps1 -Action db-wipe-tags
 ```
 
-### Benefits:
-- **No admin required** - Installs to user directory
-- **Project-isolated** - Each project can have its own SDK version
-- **Version-locked** - Uses exact version from `global.json`
-- **Clean** - `.dotnet` folder is gitignored
+## Master Script: `admin.ps1`
 
-### First Run:
-The first time you run this, it will:
-1. Download `dotnet-install.ps1` (~50KB)
-2. Download and install .NET 8 SDK (~200MB)
-3. This takes 2-5 minutes depending on internet speed
+The single entry point for all admin operations. Run without arguments for an interactive menu, or pass `-Action` for direct execution.
 
-### Subsequent Runs:
-After the first install, the script:
-1. Checks if the correct SDK version is already installed
-2. If yes, just adds it to PATH (instant)
-3. If no, downloads and installs the correct version
+| Action | Description |
+|--------|-------------|
+| `db-dump` | Show Firebase database structure |
+| `db-wipe-devices` | Wipe the devices node |
+| `db-wipe-tags` | Wipe project tags (Firebase + local cache) |
+| `db-wipe-all` | Full reset (preserves licenses/versions/admins) |
+| `tags-get` | Get decrypted tags for a project |
+| `tags-list` | List all tag entries (summary) |
+| `tags-decrypt` | Decrypt & dump all tags (readable) |
+| `tags-set` | Set a tag value |
+| `tags-delete` | Delete a tag or all tags for a project |
+| `tags-export` | Export tags to CSV |
+| `tags-import` | Import tags from CSV |
+| `admin-list` | List admin users |
+| `admin-add` | Add an admin user |
+| `admin-remove` | Remove an admin user |
+| `auth-cleanup` | Delete all Firebase Auth users |
+| `auth-cleanup-anon` | Delete anonymous Auth users only |
+| `metrics-reset` | Reset ALL local metrics |
+| `version-update` | Update app version in Firebase |
+| `build` | Build single-file executable |
+| `build-installer` | Build installer package |
+| `show-secret` | Show HMAC secret for sharing |
 
-### Troubleshooting:
+## Active Scripts
 
-**Script won't run:**
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-```
+| Script | Purpose |
+|--------|---------|
+| `admin.ps1` | Master admin console (interactive menu + CLI) |
+| `dump-database.ps1` | Firebase DB viewer with wipe options (-WipeDevices, -WipeTags, -WipeAll) |
+| `tag-manager.ps1` | Project tag CRUD with AES encryption/decryption |
+| `manage-admin.ps1` | Admin user management (add/remove/list) |
+| `cleanup-auth-users.ps1` | Firebase Authentication user cleanup |
+| `wipe-devices.ps1` | Device node wiper |
+| `Reset-Metrics.ps1` | Local SQLite metrics database reset |
+| `Update-FirebaseVersion.ps1` | Firebase app version updater (authenticated) |
+| `build-single-file.ps1` | Build DesktopHub as single-file .exe |
+| `build-installer.ps1` | Build full installer package |
 
-**Wrong SDK version:**
-Delete `.dotnet` folder and run again:
-```powershell
-Remove-Item -Recurse -Force .\.dotnet
-.\scripts\dev-env.ps1
-```
+## `_Archive/` Folder
 
-**Internet connection issues:**
-The script downloads from `https://dot.net/v1/dotnet-install.ps1`. Ensure you have internet access and no firewall blocking Microsoft domains.
+Contains obsolete, one-time, or superseded scripts kept for reference:
+- Migration scripts (completed)
+- Simplified/unauthenticated version updaters (superseded)
+- Legacy installer scripts (superseded)
+- One-time utilities (icon conversion, dev environment setup)
+
+## Service Account
+
+Scripts auto-detect the Firebase service account from `secrets/firebase-license.json`.
+Override with: `-ServiceAccountPath "path\to\sa.json"`
+
+## Tag Encryption
+
+Tag values are encrypted with AES-256-CBC using a local secret (`%LOCALAPPDATA%\DesktopHub\tag_secret.key`).
+Project numbers are hashed with HMAC-SHA256 using the same secret.
+Use `.\admin.ps1 -Action show-secret` to export the secret for sharing between machines.
