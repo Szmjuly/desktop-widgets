@@ -341,6 +341,18 @@ public partial class SearchOverlay
                 RefreshAttachmentMappings();
                 TrackVisibleWindowBounds();
             }
+            else
+            {
+                // Non-live mode: detect display config changes and re-layout if needed
+                var currentFingerprint = Helpers.ScreenHelper.GetDisplayConfigFingerprint();
+                var savedFingerprint = _settings.GetLastDisplayConfigFingerprint();
+                if (!string.IsNullOrEmpty(savedFingerprint) && savedFingerprint != currentFingerprint)
+                {
+                    DebugLogger.Log($"Display config changed: {savedFingerprint} → {currentFingerprint}. Re-arranging widgets.");
+                    RearrangeNonLiveWidgets();
+                }
+                _settings.SetLastDisplayConfigFingerprint(currentFingerprint);
+            }
 
             // Load projects in the background
             _ = LoadProjectsAsync();

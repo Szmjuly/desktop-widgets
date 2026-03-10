@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Media;
 
@@ -118,5 +120,40 @@ internal static class ScreenHelper
         if (screen == null)
             return new Rect(0, 0, 1920, 1080);
         return GetWorkingAreaInDips(screen, referenceVisual);
+    }
+
+    /// <summary>
+    /// Returns DIP-converted working areas for all attached screens,
+    /// ordered by physical X position (left-to-right).
+    /// </summary>
+    public static List<Rect> GetAllScreensInDips(Visual? referenceVisual = null)
+    {
+        var screens = System.Windows.Forms.Screen.AllScreens;
+        var result = new List<Rect>(screens.Length);
+        foreach (var screen in screens.OrderBy(s => s.Bounds.Left))
+        {
+            result.Add(GetWorkingAreaInDips(screen, referenceVisual));
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Returns a display-config fingerprint (screen count + resolutions) that can be
+    /// compared across sessions to detect monitor changes (office → RDP, dock/undock, etc.).
+    /// </summary>
+    public static string GetDisplayConfigFingerprint()
+    {
+        try
+        {
+            var screens = System.Windows.Forms.Screen.AllScreens
+                .OrderBy(s => s.Bounds.Left)
+                .ThenBy(s => s.Bounds.Top);
+            var parts = screens.Select(s => $"{s.Bounds.Width}x{s.Bounds.Height}@{s.Bounds.Left},{s.Bounds.Top}");
+            return string.Join("|", parts);
+        }
+        catch
+        {
+            return "unknown";
+        }
     }
 }

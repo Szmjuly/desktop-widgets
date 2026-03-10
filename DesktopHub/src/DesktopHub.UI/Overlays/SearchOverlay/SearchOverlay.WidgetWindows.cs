@@ -16,10 +16,26 @@ public partial class SearchOverlay
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
         _timerOverlay.Topmost = !isLivingWidgetsMode;
 
-        // Use provided position, then saved position, then default
-        var (savedLeft, savedTop) = _settings.GetTimerWidgetPosition();
-        _timerOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
-        _timerOverlay.Top = top ?? savedTop ?? this.Top;
+        if (left.HasValue && top.HasValue)
+        {
+            _timerOverlay.Left = left.Value;
+            _timerOverlay.Top = top.Value;
+        }
+        else if (isLivingWidgetsMode)
+        {
+            var (savedLeft, savedTop) = _settings.GetTimerWidgetPosition();
+            _timerOverlay.Left = savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
+            _timerOverlay.Top = savedTop ?? this.Top;
+        }
+        else
+        {
+            // Non-live mode: use auto-grid layout
+            var estimatedSize = new System.Windows.Size(_timerOverlay.Width > 0 ? _timerOverlay.Width : 200, _timerOverlay.Height > 0 ? _timerOverlay.Height : 120);
+            var pos = ComputeNonLivePosition(_timerOverlay, WidgetIds.Timer, estimatedSize);
+            if (pos == null) { UnregisterWidgetWindow(_timerOverlay); _timerOverlay = null; return; }
+            _timerOverlay.Left = pos.Value.left;
+            _timerOverlay.Top = pos.Value.top;
+        }
 
         if (isLivingWidgetsMode)
             _timerOverlay.EnableDragging();
@@ -111,10 +127,25 @@ public partial class SearchOverlay
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
         _quickTasksOverlay.Topmost = !isLivingWidgetsMode;
 
-        // Use provided position, then saved position, then default
-        var (savedLeft, savedTop) = _settings.GetQuickTasksWidgetPosition();
-        _quickTasksOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
-        _quickTasksOverlay.Top = top ?? savedTop ?? this.Top;
+        if (left.HasValue && top.HasValue)
+        {
+            _quickTasksOverlay.Left = left.Value;
+            _quickTasksOverlay.Top = top.Value;
+        }
+        else if (isLivingWidgetsMode)
+        {
+            var (savedLeft, savedTop) = _settings.GetQuickTasksWidgetPosition();
+            _quickTasksOverlay.Left = savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
+            _quickTasksOverlay.Top = savedTop ?? this.Top;
+        }
+        else
+        {
+            var estimatedSize = new System.Windows.Size(_quickTasksOverlay.Width > 0 ? _quickTasksOverlay.Width : GetResponsiveColumnWidgetWidth(), _quickTasksOverlay.Height > 0 ? _quickTasksOverlay.Height : 300);
+            var pos = ComputeNonLivePosition(_quickTasksOverlay, WidgetIds.QuickTasks, estimatedSize);
+            if (pos == null) { UnregisterWidgetWindow(_quickTasksOverlay); _quickTasksOverlay = null; return; }
+            _quickTasksOverlay.Left = pos.Value.left;
+            _quickTasksOverlay.Top = pos.Value.top;
+        }
 
         if (isLivingWidgetsMode)
             _quickTasksOverlay.EnableDragging();
@@ -185,9 +216,25 @@ public partial class SearchOverlay
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
         _docOverlay.Topmost = !isLivingWidgetsMode;
 
-        var (savedLeft, savedTop) = _settings.GetDocWidgetPosition();
-        _docOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
-        _docOverlay.Top = top ?? savedTop ?? (this.Top + 100);
+        if (left.HasValue && top.HasValue)
+        {
+            _docOverlay.Left = left.Value;
+            _docOverlay.Top = top.Value;
+        }
+        else if (isLivingWidgetsMode)
+        {
+            var (savedLeft, savedTop) = _settings.GetDocWidgetPosition();
+            _docOverlay.Left = savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
+            _docOverlay.Top = savedTop ?? (this.Top + 100);
+        }
+        else
+        {
+            var estimatedSize = new System.Windows.Size(_docOverlay.Width > 0 ? _docOverlay.Width : GetResponsiveColumnWidgetWidth(), _docOverlay.Height > 0 ? _docOverlay.Height : 300);
+            var pos = ComputeNonLivePosition(_docOverlay, WidgetIds.DocQuickOpen, estimatedSize);
+            if (pos == null) { UnregisterWidgetWindow(_docOverlay); _docOverlay = null; return; }
+            _docOverlay.Left = pos.Value.left;
+            _docOverlay.Top = pos.Value.top;
+        }
 
         if (isLivingWidgetsMode)
             _docOverlay.EnableDragging();
@@ -270,9 +317,25 @@ public partial class SearchOverlay
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
         _frequentProjectsOverlay.Topmost = !isLivingWidgetsMode;
 
-        var (savedLeft, savedTop) = _settings.GetFrequentProjectsWidgetPosition();
-        _frequentProjectsOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
-        _frequentProjectsOverlay.Top = top ?? savedTop ?? (this.Top + 200);
+        if (left.HasValue && top.HasValue)
+        {
+            _frequentProjectsOverlay.Left = left.Value;
+            _frequentProjectsOverlay.Top = top.Value;
+        }
+        else if (isLivingWidgetsMode)
+        {
+            var (savedLeft, savedTop) = _settings.GetFrequentProjectsWidgetPosition();
+            _frequentProjectsOverlay.Left = savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
+            _frequentProjectsOverlay.Top = savedTop ?? (this.Top + 200);
+        }
+        else
+        {
+            var estimatedSize = new System.Windows.Size(_frequentProjectsOverlay.Width > 0 ? _frequentProjectsOverlay.Width : GetResponsiveColumnWidgetWidth(), _frequentProjectsOverlay.Height > 0 ? _frequentProjectsOverlay.Height : 250);
+            var pos = ComputeNonLivePosition(_frequentProjectsOverlay, WidgetIds.FrequentProjects, estimatedSize);
+            if (pos == null) { UnregisterWidgetWindow(_frequentProjectsOverlay); _frequentProjectsOverlay = null; return; }
+            _frequentProjectsOverlay.Left = pos.Value.left;
+            _frequentProjectsOverlay.Top = pos.Value.top;
+        }
 
         if (isLivingWidgetsMode)
             _frequentProjectsOverlay.EnableDragging();
@@ -342,9 +405,25 @@ public partial class SearchOverlay
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
         _quickLaunchOverlay.Topmost = !isLivingWidgetsMode;
 
-        var (savedLeft, savedTop) = _settings.GetQuickLaunchWidgetPosition();
-        _quickLaunchOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
-        _quickLaunchOverlay.Top = top ?? savedTop ?? (this.Top + 300);
+        if (left.HasValue && top.HasValue)
+        {
+            _quickLaunchOverlay.Left = left.Value;
+            _quickLaunchOverlay.Top = top.Value;
+        }
+        else if (isLivingWidgetsMode)
+        {
+            var (savedLeft, savedTop) = _settings.GetQuickLaunchWidgetPosition();
+            _quickLaunchOverlay.Left = savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
+            _quickLaunchOverlay.Top = savedTop ?? (this.Top + 300);
+        }
+        else
+        {
+            var estimatedSize = new System.Windows.Size(_quickLaunchOverlay.Width > 0 ? _quickLaunchOverlay.Width : GetResponsiveColumnWidgetWidth(), _quickLaunchOverlay.Height > 0 ? _quickLaunchOverlay.Height : 200);
+            var pos = ComputeNonLivePosition(_quickLaunchOverlay, WidgetIds.QuickLaunch, estimatedSize);
+            if (pos == null) { UnregisterWidgetWindow(_quickLaunchOverlay); _quickLaunchOverlay = null; return; }
+            _quickLaunchOverlay.Left = pos.Value.left;
+            _quickLaunchOverlay.Top = pos.Value.top;
+        }
 
         if (isLivingWidgetsMode)
             _quickLaunchOverlay.EnableDragging();
@@ -423,9 +502,25 @@ public partial class SearchOverlay
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
         _smartProjectSearchOverlay.Topmost = !isLivingWidgetsMode;
 
-        var (savedLeft, savedTop) = _settings.GetSmartProjectSearchWidgetPosition();
-        _smartProjectSearchOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
-        _smartProjectSearchOverlay.Top = top ?? savedTop ?? (this.Top + 380);
+        if (left.HasValue && top.HasValue)
+        {
+            _smartProjectSearchOverlay.Left = left.Value;
+            _smartProjectSearchOverlay.Top = top.Value;
+        }
+        else if (isLivingWidgetsMode)
+        {
+            var (savedLeft, savedTop) = _settings.GetSmartProjectSearchWidgetPosition();
+            _smartProjectSearchOverlay.Left = savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
+            _smartProjectSearchOverlay.Top = savedTop ?? (this.Top + 380);
+        }
+        else
+        {
+            var estimatedSize = new System.Windows.Size(_smartProjectSearchOverlay.Width > 0 ? _smartProjectSearchOverlay.Width : GetResponsiveColumnWidgetWidth(), _smartProjectSearchOverlay.Height > 0 ? _smartProjectSearchOverlay.Height : 300);
+            var pos = ComputeNonLivePosition(_smartProjectSearchOverlay, WidgetIds.SmartProjectSearch, estimatedSize);
+            if (pos == null) { UnregisterWidgetWindow(_smartProjectSearchOverlay); _smartProjectSearchOverlay = null; return; }
+            _smartProjectSearchOverlay.Left = pos.Value.left;
+            _smartProjectSearchOverlay.Top = pos.Value.top;
+        }
 
         if (isLivingWidgetsMode)
             _smartProjectSearchOverlay.EnableDragging();
@@ -516,9 +611,25 @@ public partial class SearchOverlay
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
         _cheatSheetOverlay.Topmost = !isLivingWidgetsMode;
 
-        var (savedLeft, savedTop) = _settings.GetCheatSheetWidgetPosition();
-        _cheatSheetOverlay.Left = left ?? savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
-        _cheatSheetOverlay.Top = top ?? savedTop ?? (this.Top + 460);
+        if (left.HasValue && top.HasValue)
+        {
+            _cheatSheetOverlay.Left = left.Value;
+            _cheatSheetOverlay.Top = top.Value;
+        }
+        else if (isLivingWidgetsMode)
+        {
+            var (savedLeft, savedTop) = _settings.GetCheatSheetWidgetPosition();
+            _cheatSheetOverlay.Left = savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
+            _cheatSheetOverlay.Top = savedTop ?? (this.Top + 460);
+        }
+        else
+        {
+            var estimatedSize = new System.Windows.Size(_cheatSheetOverlay.Width > 0 ? _cheatSheetOverlay.Width : GetResponsiveColumnWidgetWidth(), _cheatSheetOverlay.Height > 0 ? _cheatSheetOverlay.Height : 400);
+            var pos = ComputeNonLivePosition(_cheatSheetOverlay, WidgetIds.CheatSheet, estimatedSize);
+            if (pos == null) { UnregisterWidgetWindow(_cheatSheetOverlay); _cheatSheetOverlay = null; return; }
+            _cheatSheetOverlay.Left = pos.Value.left;
+            _cheatSheetOverlay.Top = pos.Value.top;
+        }
 
         if (isLivingWidgetsMode)
             _cheatSheetOverlay.EnableDragging();
@@ -587,8 +698,24 @@ public partial class SearchOverlay
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
         _metricsViewerOverlay.Topmost = !isLivingWidgetsMode;
 
-        _metricsViewerOverlay.Left = left ?? (this.Left + this.Width + GetConfiguredWidgetGap());
-        _metricsViewerOverlay.Top = top ?? (this.Top + 100);
+        if (left.HasValue && top.HasValue)
+        {
+            _metricsViewerOverlay.Left = left.Value;
+            _metricsViewerOverlay.Top = top.Value;
+        }
+        else if (isLivingWidgetsMode)
+        {
+            _metricsViewerOverlay.Left = this.Left + this.Width + GetConfiguredWidgetGap();
+            _metricsViewerOverlay.Top = this.Top + 100;
+        }
+        else
+        {
+            var estimatedSize = new System.Windows.Size(_metricsViewerOverlay.Width > 0 ? _metricsViewerOverlay.Width : 500, _metricsViewerOverlay.Height > 0 ? _metricsViewerOverlay.Height : 400);
+            var pos = ComputeNonLivePosition(_metricsViewerOverlay, WidgetIds.MetricsViewer, estimatedSize);
+            if (pos == null) { UnregisterWidgetWindow(_metricsViewerOverlay); _metricsViewerOverlay = null; return; }
+            _metricsViewerOverlay.Left = pos.Value.left;
+            _metricsViewerOverlay.Top = pos.Value.top;
+        }
 
         if (isLivingWidgetsMode)
             _metricsViewerOverlay.EnableDragging();
@@ -662,8 +789,24 @@ public partial class SearchOverlay
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
         _projectInfoOverlay.Topmost = !isLivingWidgetsMode;
 
-        _projectInfoOverlay.Left = left ?? (this.Left + this.Width + GetConfiguredWidgetGap());
-        _projectInfoOverlay.Top = top ?? (this.Top + 200);
+        if (left.HasValue && top.HasValue)
+        {
+            _projectInfoOverlay.Left = left.Value;
+            _projectInfoOverlay.Top = top.Value;
+        }
+        else if (isLivingWidgetsMode)
+        {
+            _projectInfoOverlay.Left = this.Left + this.Width + GetConfiguredWidgetGap();
+            _projectInfoOverlay.Top = this.Top + 200;
+        }
+        else
+        {
+            var estimatedSize = new System.Windows.Size(_projectInfoOverlay.Width > 0 ? _projectInfoOverlay.Width : GetResponsiveColumnWidgetWidth(), _projectInfoOverlay.Height > 0 ? _projectInfoOverlay.Height : 350);
+            var pos = ComputeNonLivePosition(_projectInfoOverlay, WidgetIds.ProjectInfo, estimatedSize);
+            if (pos == null) { UnregisterWidgetWindow(_projectInfoOverlay); _projectInfoOverlay = null; return; }
+            _projectInfoOverlay.Left = pos.Value.left;
+            _projectInfoOverlay.Top = pos.Value.top;
+        }
 
         if (isLivingWidgetsMode)
             _projectInfoOverlay.EnableDragging();
@@ -1012,6 +1155,233 @@ public partial class SearchOverlay
             _desktopFollower.Stop();
             _desktopFollower.Dispose();
             _desktopFollower = null;
+        }
+    }
+
+    /// <summary>
+    /// Returns true if any managed widget window currently has focus (IsActive).
+    /// Used by Window_Deactivated to prevent auto-hiding when the user clicks on a widget.
+    /// </summary>
+    private bool IsAnyManagedWidgetActive()
+    {
+        foreach (var w in new Window?[] {
+            _widgetLauncher, _timerOverlay, _quickTasksOverlay, _docOverlay,
+            _frequentProjectsOverlay, _quickLaunchOverlay, _smartProjectSearchOverlay,
+            _cheatSheetOverlay, _metricsViewerOverlay, _projectInfoOverlay })
+        {
+            if (w != null && w.IsActive)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Gets the widget ID string for a given window type (for pinned position lookup).
+    /// </summary>
+    private static string? GetWidgetId(Window window)
+    {
+        return window switch
+        {
+            TimerOverlay => WidgetIds.Timer,
+            QuickTasksOverlay => WidgetIds.QuickTasks,
+            DocQuickOpenOverlay => WidgetIds.DocQuickOpen,
+            FrequentProjectsOverlay => WidgetIds.FrequentProjects,
+            QuickLaunchOverlay => WidgetIds.QuickLaunch,
+            SmartProjectSearchOverlay => WidgetIds.SmartProjectSearch,
+            CheatSheetOverlay => WidgetIds.CheatSheet,
+            MetricsViewerOverlay => WidgetIds.MetricsViewer,
+            ProjectInfoOverlay => WidgetIds.ProjectInfo,
+            _ => null
+        };
+    }
+
+    /// <summary>
+    /// Computes a position for a widget in non-live mode using the auto-grid layout manager.
+    /// Returns (left, top) on success, or null if there's no room (shows a toast).
+    /// </summary>
+    private (double left, double top)? ComputeNonLivePosition(Window widget, string widgetId, System.Windows.Size widgetSize)
+    {
+        var anchorRect = GetWindowRect(this);
+        var gap = GetConfiguredWidgetGap();
+        var columnWidth = GetResponsiveColumnWidgetWidth();
+        var layoutManager = new WidgetLayoutManager(gap, columnWidth, this);
+
+        // Build occupied slot list from all currently visible managed widgets
+        var occupiedSlots = new List<WidgetLayoutManager.OccupiedSlot>
+        {
+            new() { Bounds = anchorRect, Window = this }
+        };
+
+        if (_widgetLauncher != null && _widgetLauncher.Visibility == Visibility.Visible && _widgetLauncher.IsLoaded)
+        {
+            occupiedSlots.Add(new WidgetLayoutManager.OccupiedSlot
+            {
+                Bounds = GetWindowRect(_widgetLauncher),
+                Window = _widgetLauncher
+            });
+        }
+
+        foreach (var w in new Window?[] {
+            _timerOverlay, _quickTasksOverlay, _docOverlay, _frequentProjectsOverlay,
+            _quickLaunchOverlay, _smartProjectSearchOverlay, _cheatSheetOverlay,
+            _metricsViewerOverlay, _projectInfoOverlay })
+        {
+            if (w != null && w != widget && w.Visibility == Visibility.Visible && w.IsLoaded)
+            {
+                occupiedSlots.Add(new WidgetLayoutManager.OccupiedSlot
+                {
+                    Bounds = GetWindowRect(w),
+                    Window = w
+                });
+            }
+        }
+
+        // Check for pinned position
+        (double left, double top)? pinned = null;
+        var (pinnedLeft, pinnedTop) = _settings.GetWidgetPinnedPosition(widgetId);
+        if (pinnedLeft.HasValue && pinnedTop.HasValue)
+            pinned = (pinnedLeft.Value, pinnedTop.Value);
+
+        var result = layoutManager.ComputePlacement(anchorRect, widgetSize, occupiedSlots, pinned);
+
+        if (!result.Success)
+        {
+            ShowNoRoomToast(result.FailureReason ?? "Not enough screen space.");
+            DebugLogger.Log($"ComputeNonLivePosition: No room for {widgetId} — {result.FailureReason}");
+            return null;
+        }
+
+        return (result.Left, result.Top);
+    }
+
+    /// <summary>
+    /// Re-arranges all visible widgets using the auto-grid layout manager.
+    /// Called on startup after display config change and when widgets are hidden/shown in non-live mode.
+    /// </summary>
+    private void RearrangeNonLiveWidgets()
+    {
+        if (_settings.GetLivingWidgetsMode())
+            return;
+
+        var anchorRect = GetWindowRect(this);
+        var gap = GetConfiguredWidgetGap();
+        var columnWidth = GetResponsiveColumnWidgetWidth();
+        var layoutManager = new WidgetLayoutManager(gap, columnWidth, this);
+
+        // Collect all visible widgets with their sizes and pinned positions
+        var widgets = new List<(Window window, System.Windows.Size size, (double left, double top)? pinnedPosition)>();
+
+        // Widget launcher first (small, goes next to search)
+        if (_widgetLauncher != null && _widgetLauncher.Visibility == Visibility.Visible && _widgetLauncher.IsLoaded)
+        {
+            var launcherRect = GetWindowRect(_widgetLauncher);
+            widgets.Add((_widgetLauncher, new System.Windows.Size(launcherRect.Width, launcherRect.Height), null));
+        }
+
+        // Then all widget overlays in a consistent order
+        var overlayWindows = new (Window? window, string widgetId)[]
+        {
+            (_timerOverlay, WidgetIds.Timer),
+            (_quickTasksOverlay, WidgetIds.QuickTasks),
+            (_docOverlay, WidgetIds.DocQuickOpen),
+            (_frequentProjectsOverlay, WidgetIds.FrequentProjects),
+            (_quickLaunchOverlay, WidgetIds.QuickLaunch),
+            (_smartProjectSearchOverlay, WidgetIds.SmartProjectSearch),
+            (_cheatSheetOverlay, WidgetIds.CheatSheet),
+            (_metricsViewerOverlay, WidgetIds.MetricsViewer),
+            (_projectInfoOverlay, WidgetIds.ProjectInfo),
+        };
+
+        foreach (var (window, widgetId) in overlayWindows)
+        {
+            if (window == null || window.Visibility != Visibility.Visible || !window.IsLoaded)
+                continue;
+
+            var rect = GetWindowRect(window);
+            (double left, double top)? pinned = null;
+            var (pinnedLeft, pinnedTop) = _settings.GetWidgetPinnedPosition(widgetId);
+            if (pinnedLeft.HasValue && pinnedTop.HasValue)
+                pinned = (pinnedLeft.Value, pinnedTop.Value);
+
+            widgets.Add((window, new System.Windows.Size(rect.Width, rect.Height), pinned));
+        }
+
+        var results = layoutManager.ArrangeAll(anchorRect, widgets);
+
+        var previousAutoArrange = _isAutoArrangingWidgets;
+        _isAutoArrangingWidgets = true;
+        try
+        {
+            foreach (var (window, result) in results)
+            {
+                if (result.Success)
+                {
+                    window.Left = result.Left;
+                    window.Top = result.Top;
+                    DebugLogger.Log($"RearrangeNonLiveWidgets: {window.GetType().Name} → ({result.Left:F0}, {result.Top:F0})");
+                }
+                else
+                {
+                    DebugLogger.Log($"RearrangeNonLiveWidgets: {window.GetType().Name} could not be placed — {result.FailureReason}");
+                }
+            }
+        }
+        finally
+        {
+            _isAutoArrangingWidgets = previousAutoArrange;
+        }
+    }
+
+    /// <summary>
+    /// Hides all visible non-live widgets, preserving Tag="WasVisible" so they can be restored.
+    /// Called from HideOverlay in non-live mode.
+    /// </summary>
+    private void HideNonLiveWidgets()
+    {
+        foreach (var w in new Window?[] {
+            _timerOverlay, _quickTasksOverlay, _docOverlay, _frequentProjectsOverlay,
+            _quickLaunchOverlay, _smartProjectSearchOverlay, _cheatSheetOverlay,
+            _metricsViewerOverlay, _projectInfoOverlay })
+        {
+            if (w != null && w.Visibility == Visibility.Visible)
+            {
+                // Tag="WasVisible" is already set when the widget was created/shown —
+                // we keep it so ShowNonLiveWidgets can restore visibility.
+                w.Visibility = Visibility.Hidden;
+            }
+        }
+        DebugLogger.Log("HideNonLiveWidgets: All visible widgets hidden");
+    }
+
+    /// <summary>
+    /// Re-shows widgets that had Tag="WasVisible" when HideNonLiveWidgets last ran.
+    /// Called from ShowOverlay in non-live mode.
+    /// </summary>
+    private void ShowNonLiveWidgets()
+    {
+        foreach (var w in new Window?[] {
+            _timerOverlay, _quickTasksOverlay, _docOverlay, _frequentProjectsOverlay,
+            _quickLaunchOverlay, _smartProjectSearchOverlay, _cheatSheetOverlay,
+            _metricsViewerOverlay, _projectInfoOverlay })
+        {
+            if (w != null && w.Tag is "WasVisible" && w.Visibility != Visibility.Visible)
+            {
+                w.Visibility = Visibility.Visible;
+            }
+        }
+        DebugLogger.Log("ShowNonLiveWidgets: Restored previously visible widgets");
+    }
+
+    private void ShowNoRoomToast(string message)
+    {
+        try
+        {
+            var toast = new ToastNotification("Widget Layout", message, _settings.GetNotificationDurationMs());
+            toast.Show();
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"ShowNoRoomToast: Failed to show toast: {ex.Message}");
         }
     }
 

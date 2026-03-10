@@ -503,6 +503,16 @@ public interface ISettingsService
     bool GetCheatSheetCrossDisciplineSearch();
     void SetCheatSheetCrossDisciplineSearch(bool enabled);
 
+    // --- Widget Pinned Positions (non-live-mode grid layout) ---
+    (double? left, double? top) GetWidgetPinnedPosition(string widgetId);
+    void SetWidgetPinnedPosition(string widgetId, double left, double top);
+    void ClearWidgetPinnedPosition(string widgetId);
+    bool HasWidgetPinnedPosition(string widgetId);
+
+    // --- Display Config Fingerprint ---
+    string GetLastDisplayConfigFingerprint();
+    void SetLastDisplayConfigFingerprint(string fingerprint);
+
     // --- Generic widget dispatch (used by dynamic settings UI) ---
 
     /// <summary>

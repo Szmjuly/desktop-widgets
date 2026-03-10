@@ -82,19 +82,110 @@ public partial class SearchOverlay
 
     private void FocusWidgetsForGroup(IReadOnlyList<string> targetWidgets)
     {
-        if (targetWidgets.Contains(WidgetIds.WidgetLauncher) && _widgetLauncher != null)
+        // Determine toggle direction: if ANY target widget is currently visible, hide all;
+        // otherwise show/create all. This gives a clean toggle-all behavior per group.
+        var anyVisible = false;
+        foreach (var widgetId in targetWidgets)
         {
-            _widgetLauncher.Visibility = Visibility.Visible;
-            BringWidgetToForegroundIfEnabled(_widgetLauncher, true);
+            var w = GetWidgetWindowForId(widgetId);
+            if (w != null && w.Visibility == Visibility.Visible)
+            {
+                anyVisible = true;
+                break;
+            }
         }
-        BringWidgetToForegroundIfEnabled(_timerOverlay, targetWidgets.Contains(WidgetIds.Timer));
-        BringWidgetToForegroundIfEnabled(_quickTasksOverlay, targetWidgets.Contains(WidgetIds.QuickTasks));
-        BringWidgetToForegroundIfEnabled(_docOverlay, targetWidgets.Contains(WidgetIds.DocQuickOpen));
-        BringWidgetToForegroundIfEnabled(_frequentProjectsOverlay, targetWidgets.Contains(WidgetIds.FrequentProjects));
-        BringWidgetToForegroundIfEnabled(_quickLaunchOverlay, targetWidgets.Contains(WidgetIds.QuickLaunch));
-        BringWidgetToForegroundIfEnabled(_smartProjectSearchOverlay, targetWidgets.Contains(WidgetIds.SmartProjectSearch));
-        BringWidgetToForegroundIfEnabled(_cheatSheetOverlay, targetWidgets.Contains(WidgetIds.CheatSheet));
-        BringWidgetToForegroundIfEnabled(_metricsViewerOverlay, targetWidgets.Contains(WidgetIds.MetricsViewer));
+
+        if (anyVisible)
+        {
+            // Toggle OFF: hide all widgets in this group
+            foreach (var widgetId in targetWidgets)
+            {
+                var w = GetWidgetWindowForId(widgetId);
+                if (w != null && w.Visibility == Visibility.Visible)
+                {
+                    w.Visibility = Visibility.Hidden;
+                    // Keep Tag="WasVisible" so the main group can still restore it
+                    DebugLogger.Log($"FocusWidgetsForGroup: Hid {widgetId}");
+                }
+            }
+        }
+        else
+        {
+            // Toggle ON: create/show all widgets in this group
+            foreach (var widgetId in targetWidgets)
+            {
+                ToggleWidgetOn(widgetId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Maps a WidgetIds constant to the corresponding overlay window instance (may be null if not created).
+    /// </summary>
+    private Window? GetWidgetWindowForId(string widgetId)
+    {
+        return widgetId switch
+        {
+            WidgetIds.WidgetLauncher     => _widgetLauncher,
+            WidgetIds.Timer              => _timerOverlay,
+            WidgetIds.QuickTasks         => _quickTasksOverlay,
+            WidgetIds.DocQuickOpen       => _docOverlay,
+            WidgetIds.FrequentProjects   => _frequentProjectsOverlay,
+            WidgetIds.QuickLaunch        => _quickLaunchOverlay,
+            WidgetIds.SmartProjectSearch => _smartProjectSearchOverlay,
+            WidgetIds.CheatSheet         => _cheatSheetOverlay,
+            WidgetIds.MetricsViewer      => _metricsViewerOverlay,
+            WidgetIds.ProjectInfo        => _projectInfoOverlay,
+            _ => null
+        };
+    }
+
+    /// <summary>
+    /// Creates and shows a widget if it doesn't exist, or re-shows it if hidden.
+    /// Delegates to the existing On*Requested toggle methods which handle create-or-show.
+    /// </summary>
+    private void ToggleWidgetOn(string widgetId)
+    {
+        var w = GetWidgetWindowForId(widgetId);
+
+        // If the widget exists and is already visible, just bring to foreground
+        if (w != null && w.Visibility == Visibility.Visible)
+        {
+            BringWidgetToForegroundIfEnabled(w, true);
+            return;
+        }
+
+        // If the widget exists but is hidden, re-show it
+        if (w != null)
+        {
+            w.Visibility = Visibility.Visible;
+            w.Tag = "WasVisible";
+            BringWidgetToForegroundIfEnabled(w, true);
+            DebugLogger.Log($"ToggleWidgetOn: Re-showed {widgetId}");
+            return;
+        }
+
+        // Widget doesn't exist yet — create it via the appropriate method
+        switch (widgetId)
+        {
+            case WidgetIds.Timer:              CreateTimerOverlay(); break;
+            case WidgetIds.QuickTasks:         CreateQuickTasksOverlay(); break;
+            case WidgetIds.DocQuickOpen:        CreateDocOverlay(); break;
+            case WidgetIds.FrequentProjects:   CreateFrequentProjectsOverlay(); break;
+            case WidgetIds.QuickLaunch:        CreateQuickLaunchOverlay(); break;
+            case WidgetIds.SmartProjectSearch: CreateSmartProjectSearchOverlay(); break;
+            case WidgetIds.CheatSheet:         CreateCheatSheetOverlay(); break;
+            case WidgetIds.MetricsViewer:      CreateMetricsViewerOverlay(); break;
+            case WidgetIds.ProjectInfo:        CreateProjectInfoOverlay(); break;
+            case WidgetIds.WidgetLauncher:
+                if (_widgetLauncher != null)
+                {
+                    _widgetLauncher.Visibility = Visibility.Visible;
+                    BringWidgetToForegroundIfEnabled(_widgetLauncher, true);
+                }
+                break;
+        }
+        DebugLogger.Log($"ToggleWidgetOn: Created/showed {widgetId}");
     }
 
     private bool ShouldSuppressHotkey(int modifiers, int key)
@@ -341,6 +432,12 @@ public partial class SearchOverlay
             }
 
             _widgetLauncher.Visibility = Visibility.Visible;
+        }
+
+        // Non-live mode: restore all widgets that were visible before HideOverlay hid them
+        if (!isLivingWidgetsMode)
+        {
+            ShowNonLiveWidgets();
         }
 
         // Bring widgets to foreground (without stealing focus from the search overlay)
@@ -600,7 +697,12 @@ public partial class SearchOverlay
             DebugLogger.Log("HideOverlay: Widget launcher remains independent (Living Widgets Mode)");
         }
 
-        // Timer overlay is now independent - don't auto-hide with search overlay
+        // Non-live mode: hide all visible widgets (they're Topmost and block the desktop).
+        // Tag="WasVisible" is preserved so ShowOverlay can restore them.
+        if (!isLivingWidgetsMode)
+        {
+            HideNonLiveWidgets();
+        }
 
         // Hide the smart search attached window (but retain its expanded state)
         if (_smartProjectSearchAttachedWindow != null)

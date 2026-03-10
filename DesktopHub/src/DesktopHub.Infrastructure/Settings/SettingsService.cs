@@ -318,6 +318,34 @@ public class SettingsService : ISettingsService
     public bool GetCheatSheetCrossDisciplineSearch() => _settings.CheatSheetCrossDisciplineSearch;
     public void SetCheatSheetCrossDisciplineSearch(bool enabled) => _settings.CheatSheetCrossDisciplineSearch = enabled;
 
+    // --- Widget Pinned Positions (non-live-mode grid layout) ---
+    public (double? left, double? top) GetWidgetPinnedPosition(string widgetId)
+    {
+        if (_settings.WidgetPinnedPositions.TryGetValue(widgetId, out var pos) && pos is { Length: 2 })
+            return (pos[0], pos[1]);
+        return (null, null);
+    }
+
+    public void SetWidgetPinnedPosition(string widgetId, double left, double top)
+    {
+        _settings.WidgetPinnedPositions[widgetId] = new[] { left, top };
+    }
+
+    public void ClearWidgetPinnedPosition(string widgetId)
+    {
+        _settings.WidgetPinnedPositions.Remove(widgetId);
+    }
+
+    public bool HasWidgetPinnedPosition(string widgetId)
+    {
+        return _settings.WidgetPinnedPositions.ContainsKey(widgetId)
+            && _settings.WidgetPinnedPositions[widgetId] is { Length: 2 };
+    }
+
+    // --- Display Config Fingerprint ---
+    public string GetLastDisplayConfigFingerprint() => _settings.LastDisplayConfigFingerprint;
+    public void SetLastDisplayConfigFingerprint(string fingerprint) => _settings.LastDisplayConfigFingerprint = fingerprint;
+
     // --- Generic widget dispatch (used by dynamic settings UI) ---
 
     public double GetWidgetTransparency(string widgetId) => widgetId switch
@@ -672,6 +700,12 @@ public class SettingsService : ISettingsService
         public bool TagCarouselShowRecent { get; set; } = true;
         public int TagCarouselMaxChips { get; set; } = 8;
         public bool TagCarouselAutoRefresh { get; set; } = true;
+
+        // Widget pinned positions for non-live-mode grid layout (widgetId → {left, top})
+        public Dictionary<string, double[]> WidgetPinnedPositions { get; set; } = new();
+
+        // Display config fingerprint — used to detect monitor changes across sessions
+        public string LastDisplayConfigFingerprint { get; set; } = "";
 
         // Tray Menu and Dialogs transparency
         public double TrayMenuTransparency { get; set; } = 0.78;
