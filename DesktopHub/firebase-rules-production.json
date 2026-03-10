@@ -14,7 +14,7 @@
     "app_versions": {
       "$appId": {
         ".read": true,
-        ".write": false,
+        ".write": "auth != null",
         ".indexOn": ["latest_version", "updated_at"]
       }
     },
