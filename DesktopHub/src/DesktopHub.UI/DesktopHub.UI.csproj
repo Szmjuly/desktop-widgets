@@ -31,7 +31,7 @@
     <AssemblyName>DesktopHub</AssemblyName>
     <RootNamespace>DesktopHub.UI</RootNamespace>
     <ApplicationIcon>..\..\assets\DesktopHub_logo.ico</ApplicationIcon>
-    <Version>1.6.1</Version>
+    <Version>1.7.0</Version>
   </PropertyGroup>
 
   <!-- Publishing configuration for single-file executable -->

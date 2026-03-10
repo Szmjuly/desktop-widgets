@@ -142,7 +142,7 @@ try {
     Write-Host ($response | ConvertTo-Json -Depth 10) -ForegroundColor Gray
     
 } catch {
-    Write-Error "Failed to update Firebase: $_"
-    Write-Error $_.Exception.Message
+    $errorMsg = $_.Exception.Message
+    Write-Host "Failed to update Firebase: $errorMsg" -ForegroundColor Red
     exit 1
 }

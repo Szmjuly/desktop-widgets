@@ -178,11 +178,13 @@ internal class WhatsNewNotification : Window
         {
             return new[]
             {
-                "Multi-word project search — \"Boca West\" now finds all related results",
-                "Project family grouping — sibling sub-projects surface automatically",
-                "Match indicators — Related, Similar, and Duplicate tags on results",
-                "Sub-project scanning — discipline folders inside nested structures now detected",
-                "Fixed folders with commas opening wrong directory"
+                "Project Tagging — tag projects with voltage, phase, HVAC, location & 20+ fields",
+                "Tag Carousel — quick-filter chips below search bar from popular tag values",
+                "Tag Search — filter results with key:value syntax (e.g. voltage:208)",
+                "Shared Vocabulary — tag dropdown values sync across all users via Firebase",
+                "GEC Calculator — NEC 250.66(B) parallel conductor sizing in Cheat Sheets",
+                "Runtime Admin — Firebase-based admin detection replaces compile-time flag",
+                "Metrics & Telemetry — tag usage tracking, dedicated Firebase metrics sync"
             };
         }
 
