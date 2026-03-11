@@ -5,18 +5,15 @@
              Background="Transparent">
     
     <UserControl.Resources>
-        <SolidColorBrush x:Key="AccentBrush" Color="#4FC3F7"/>
+        <!-- Widget-specific semantic brushes -->
         <SolidColorBrush x:Key="AccentDimBrush" Color="#80619EFF"/>
-        <SolidColorBrush x:Key="TextBrush" Color="#F5F7FA"/>
-        <SolidColorBrush x:Key="DimTextBrush" Color="#B6C3CA"/>
-        <SolidColorBrush x:Key="MutedTextBrush" Color="#80F5F7FA"/>
-        <SolidColorBrush x:Key="SurfaceBrush" Color="#26F5F7FA"/>
-        <SolidColorBrush x:Key="HoverBrush" Color="#36F5F7FA"/>
-        <SolidColorBrush x:Key="TableHeaderBrush" Color="#1AF5F7FA"/>
-        <SolidColorBrush x:Key="TableRowAltBrush" Color="#0AF5F7FA"/>
-        <SolidColorBrush x:Key="InputHighlightBrush" Color="#304FC3F7"/>
-        <SolidColorBrush x:Key="OutputHighlightBrush" Color="#3066BB6A"/>
-        <SolidColorBrush x:Key="MatchHighlightBrush" Color="#30FFD54F"/>
+        <SolidColorBrush x:Key="MutedTextBrush" Color="{DynamicResource TextSecondaryColor}"/>
+        <SolidColorBrush x:Key="DimTextBrush" Color="{DynamicResource TextSecondaryColor}"/>
+        <SolidColorBrush x:Key="TableHeaderBrush" Color="{DynamicResource HoverColor}"/>
+        <SolidColorBrush x:Key="TableRowAltBrush" Color="{DynamicResource FaintOverlayColor}"/>
+        <SolidColorBrush x:Key="InputHighlightBrush" Color="{DynamicResource InputHighlightColor}"/>
+        <SolidColorBrush x:Key="OutputHighlightBrush" Color="{DynamicResource OutputHighlightColor}"/>
+        <SolidColorBrush x:Key="MatchHighlightBrush" Color="{DynamicResource MatchHighlightColor}"/>
         
         <Style x:Key="ThinScrollBar" TargetType="ScrollBar">
             <Setter Property="Background" Value="Transparent"/>
@@ -33,7 +30,7 @@
                                     <Thumb x:Name="Thumb" Margin="1,2,1,2">
                                         <Thumb.Template>
                                             <ControlTemplate TargetType="Thumb">
-                                                <Border Background="#55F5F7FA" CornerRadius="3" MinHeight="20"/>
+                                                <Border Background="{DynamicResource ScrollbarThumbBrush}" CornerRadius="3" MinHeight="20"/>
                                             </ControlTemplate>
                                         </Thumb.Template>
                                     </Thumb>
@@ -63,7 +60,7 @@
         <!-- ComboBoxItem dark style (matches SearchOverlay year selector) -->
         <Style x:Key="DarkComboBoxItem" TargetType="ComboBoxItem">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#F5F7FA"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Margin" Value="2,1"/>
             <Setter Property="FontSize" Value="12"/>
@@ -80,10 +77,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#20F5F7FA"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#30F5F7FA"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectedBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -93,9 +90,9 @@
 
         <!-- ComboBox dark style -->
         <Style x:Key="DarkComboBox" TargetType="ComboBox">
-            <Setter Property="Background" Value="#26F5F7FA"/>
-            <Setter Property="Foreground" Value="#F5F7FA"/>
-            <Setter Property="BorderBrush" Value="#30F5F7FA"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SelectedBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,5"/>
             <Setter Property="FontSize" Value="12"/>
@@ -115,8 +112,8 @@
                                    Placement="Bottom"
                                    PopupAnimation="{DynamicResource {x:Static SystemParameters.ComboBoxPopupAnimationKey}}">
                                 <Border x:Name="dropDownBorder"
-                                        Background="#1E1E1E"
-                                        BorderBrush="#30F5F7FA"
+                                        Background="{DynamicResource SurfaceSolidBrush}"
+                                        BorderBrush="{DynamicResource SelectedBrush}"
                                         BorderThickness="1"
                                         CornerRadius="8"
                                         MinWidth="{Binding ActualWidth, ElementName=templateRoot}"
@@ -155,17 +152,17 @@
                                                                               HorizontalAlignment="Left"/>
                                                             <Path Grid.Column="1"
                                                                   Data="M 0 0 L 4 4 L 8 0 Z"
-                                                                  Fill="#80F5F7FA"
+                                                                  Fill="{DynamicResource TextSecondaryBrush}"
                                                                   HorizontalAlignment="Center"
                                                                   VerticalAlignment="Center"/>
                                                         </Grid>
                                                     </Border>
                                                     <ControlTemplate.Triggers>
                                                         <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter Property="Background" Value="#15F5F7FA"/>
+                                                            <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
                                                         </Trigger>
                                                         <Trigger Property="IsChecked" Value="True">
-                                                            <Setter Property="Background" Value="#20F5F7FA"/>
+                                                            <Setter Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                                         </Trigger>
                                                     </ControlTemplate.Triggers>
                                                 </ControlTemplate>
@@ -186,7 +183,7 @@
                                               SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}">
                                 <ContentPresenter.Resources>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="#F5F7FA"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                                         <Setter Property="FontSize" Value="12"/>
                                     </Style>
                                 </ContentPresenter.Resources>
@@ -215,10 +212,10 @@
                 <TextBlock Text="Cheat Sheets"
                           FontSize="14"
                           FontWeight="SemiBold"
-                          Foreground="{StaticResource TextBrush}"/>
+                          Foreground="{DynamicResource TextBrush}"/>
                 <TextBlock x:Name="CodeBookLabel"
                           FontSize="10"
-                          Foreground="{StaticResource MutedTextBrush}"
+                          Foreground="{DynamicResource MutedTextBrush}"
                           Margin="0,2,0,0"/>
             </StackPanel>
             
@@ -248,7 +245,7 @@
                 
                 <!-- Search box -->
                 <Border Grid.Row="0"
-                        Background="{StaticResource SurfaceBrush}"
+                        Background="{DynamicResource SurfaceBrush}"
                         CornerRadius="6"
                         Padding="8,6"
                         Margin="0,0,0,8">
@@ -258,13 +255,13 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="&#128269;" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{StaticResource MutedTextBrush}"/>
+                        <TextBlock Grid.Column="0" Text="&#128269;" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{DynamicResource MutedTextBrush}"/>
                         <TextBox x:Name="SearchBox"
                                 Grid.Column="1"
                                 Background="Transparent"
                                 BorderThickness="0"
-                                Foreground="{StaticResource TextBrush}"
-                                CaretBrush="{StaticResource TextBrush}"
+                                Foreground="{DynamicResource TextBrush}"
+                                CaretBrush="{DynamicResource TextBrush}"
                                 FontSize="12"
                                 VerticalAlignment="Center"
                                 TextChanged="SearchBox_TextChanged">
@@ -277,7 +274,7 @@
                                                     <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
                                                     <TextBlock x:Name="Placeholder"
                                                               Text="Search cheat sheets..."
-                                                              Foreground="#50F5F7FA"
+                                                              Foreground="{DynamicResource TextPlaceholderBrush}"
                                                               FontSize="12"
                                                               VerticalAlignment="Center"
                                                               IsHitTestVisible="False"
@@ -306,12 +303,12 @@
                                 <Style TargetType="Border">
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#20F5F7FA"/>
+                                            <Setter Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
-                            <TextBlock Text="&#10005;" FontSize="10" Foreground="{StaticResource MutedTextBrush}"/>
+                            <TextBlock Text="&#10005;" FontSize="10" Foreground="{DynamicResource MutedTextBrush}"/>
                         </Border>
                     </Grid>
                 </Border>
@@ -320,13 +317,13 @@
                 <Border x:Name="JurisdictionBar"
                         Grid.Row="1"
                         Visibility="Collapsed"
-                        Background="#15FFD54F"
+                        Background="{DynamicResource GoldBackgroundBrush}"
                         CornerRadius="4"
                         Padding="8,4"
                         Margin="0,0,0,6">
                     <TextBlock x:Name="JurisdictionLabel"
                               FontSize="10"
-                              Foreground="#CCFFD54F"
+                              Foreground="{DynamicResource GoldDarkBrush}"
                               TextWrapping="Wrap"/>
                 </Border>
                 
@@ -347,13 +344,13 @@
                     <StackPanel>
                         <TextBlock Text="No cheat sheets found in this discipline"
                                   FontSize="12"
-                                  Foreground="{StaticResource MutedTextBrush}"
+                                  Foreground="{DynamicResource MutedTextBrush}"
                                   HorizontalAlignment="Center"/>
 
                         <!-- Cross-discipline results -->
                         <Border x:Name="CrossDisciplinePanel"
                                 Visibility="Collapsed"
-                                Background="#15FFD54F"
+                                Background="{DynamicResource GoldBackgroundBrush}"
                                 CornerRadius="6"
                                 Padding="10,8"
                                 Margin="0,12,0,0">
@@ -367,7 +364,7 @@
                                               Text="FOUND IN OTHER DISCIPLINES"
                                               FontSize="9"
                                               FontWeight="SemiBold"
-                                              Foreground="#CCFFD54F"
+                                              Foreground="{DynamicResource GoldDarkBrush}"
                                               VerticalAlignment="Center"/>
                                     <Border Grid.Column="1"
                                             x:Name="CrossDisciplineToggle"
@@ -380,7 +377,7 @@
                                             <Style TargetType="Border">
                                                 <Style.Triggers>
                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="#20FFD54F"/>
+                                                        <Setter Property="Background" Value="{DynamicResource GoldBackgroundBrush}"/>
                                                     </Trigger>
                                                 </Style.Triggers>
                                             </Style>
@@ -388,7 +385,7 @@
                                         <TextBlock x:Name="CrossDisciplineToggleLabel"
                                                   Text="Hide"
                                                   FontSize="9"
-                                                  Foreground="#AAFFD54F"/>
+                                                  Foreground="{DynamicResource GoldDarkBrush}"/>
                                     </Border>
                                 </Grid>
                                 <StackPanel x:Name="CrossDisciplineItems"/>
@@ -400,13 +397,13 @@
                 <!-- Footer -->
                 <Border Grid.Row="3"
                         Margin="0,8,0,0"
-                        BorderBrush="#15F5F7FA"
+                        BorderBrush="{DynamicResource BorderSubtleBrush}"
                         BorderThickness="0,1,0,0"
                         Padding="0,6,0,0">
                     <TextBlock x:Name="SheetCountLabel"
                               Text="0 sheets"
                               FontSize="10"
-                              Foreground="{StaticResource MutedTextBrush}"/>
+                              Foreground="{DynamicResource MutedTextBrush}"/>
                 </Border>
             </Grid>
             
@@ -439,23 +436,23 @@
                             <Style TargetType="Border">
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                        <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
                         </Border.Style>
-                        <TextBlock Text="&#8592;" FontSize="14" Foreground="{StaticResource AccentBrush}"/>
+                        <TextBlock Text="&#8592;" FontSize="14" Foreground="{DynamicResource AccentBrush}"/>
                     </Border>
                     
                     <StackPanel Grid.Column="1">
                         <TextBlock x:Name="DetailTitle"
                                   FontSize="13"
                                   FontWeight="SemiBold"
-                                  Foreground="{StaticResource TextBrush}"
+                                  Foreground="{DynamicResource TextBrush}"
                                   TextWrapping="Wrap"/>
                         <TextBlock x:Name="DetailSubtitle"
                                   FontSize="10"
-                                  Foreground="{StaticResource DimTextBrush}"
+                                  Foreground="{DynamicResource DimTextBrush}"
                                   Margin="0,2,0,0"
                                   TextWrapping="Wrap"/>
                     </StackPanel>
@@ -464,9 +461,10 @@
                     <Border Grid.Column="2"
                             x:Name="ViewModeToggle"
                             Visibility="Collapsed"
-                            Background="{StaticResource SurfaceBrush}"
+                            Background="{DynamicResource SurfaceBrush}"
                             CornerRadius="4"
                             Padding="10,4,10,4"
+                            MinWidth="78"
                             Cursor="Hand"
                             VerticalAlignment="Top"
                             Margin="6,0,0,0"
@@ -475,7 +473,7 @@
                             <Style TargetType="Border">
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                        <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
@@ -483,7 +481,10 @@
                         <TextBlock x:Name="ViewModeLabel"
                                   Text="Table"
                                   FontSize="10"
-                                  Foreground="{StaticResource AccentBrush}"
+                                  FontWeight="SemiBold"
+                                  TextAlignment="Center"
+                                  HorizontalAlignment="Center"
+                                  Foreground="{DynamicResource AccentBrush}"
                                   TextTrimming="None"/>
                     </Border>
                 </Grid>
@@ -498,7 +499,7 @@
                         <StackPanel x:Name="LookupModePanel" Visibility="Collapsed">
                             <!-- Input area -->
                             <Border x:Name="InputPanel"
-                                    Background="{StaticResource InputHighlightBrush}"
+                                    Background="{DynamicResource InputHighlightBrush}"
                                     CornerRadius="6"
                                     Padding="10,8"
                                     Margin="0,0,0,8">
@@ -506,12 +507,12 @@
                                     <TextBlock Text="INPUT"
                                               FontSize="9"
                                               FontWeight="SemiBold"
-                                              Foreground="{StaticResource AccentBrush}"
+                                              Foreground="{DynamicResource AccentBrush}"
                                               Margin="0,0,0,6"
                                               Opacity="0.8"/>
                                     <StackPanel x:Name="InputFields"/>
                                     <Border x:Name="LookupButton"
-                                            Background="{StaticResource SurfaceBrush}"
+                                            Background="{DynamicResource SurfaceBrush}"
                                             CornerRadius="4"
                                             Padding="10,5"
                                             Margin="0,6,0,0"
@@ -522,12 +523,12 @@
                                             <Style TargetType="Border">
                                                 <Style.Triggers>
                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                                        <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
                                                     </Trigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </Border.Style>
-                                        <TextBlock Text="Lookup" FontSize="11" Foreground="{StaticResource AccentBrush}"/>
+                                        <TextBlock Text="Lookup" FontSize="11" Foreground="{DynamicResource AccentBrush}"/>
                                     </Border>
                                 </StackPanel>
                             </Border>
@@ -535,7 +536,7 @@
                             <!-- Output area -->
                             <Border x:Name="OutputPanel"
                                     Visibility="Collapsed"
-                                    Background="{StaticResource OutputHighlightBrush}"
+                                    Background="{DynamicResource OutputHighlightBrush}"
                                     CornerRadius="6"
                                     Padding="10,8"
                                     Margin="0,0,0,0">
@@ -549,7 +550,7 @@
                                                   Text="OUTPUT"
                                                   FontSize="9"
                                                   FontWeight="SemiBold"
-                                                  Foreground="#66BB6A"
+                                                  Foreground="{DynamicResource GreenBrush}"
                                                   Opacity="0.8"
                                                   VerticalAlignment="Center"/>
                                         <Border Grid.Column="1"
@@ -563,12 +564,12 @@
                                                 <Style TargetType="Border">
                                                     <Style.Triggers>
                                                         <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter Property="Background" Value="#2066BB6A"/>
+                                                            <Setter Property="Background" Value="{DynamicResource GreenBackgroundBrush}"/>
                                                         </Trigger>
                                                     </Style.Triggers>
                                                 </Style>
                                             </Border.Style>
-                                            <TextBlock x:Name="CopyOutputLabel" Text="&#128203; Copy" FontSize="9" Foreground="#AA66BB6A"/>
+                                            <TextBlock x:Name="CopyOutputLabel" Text="&#128203; Copy" FontSize="9" Foreground="{DynamicResource GreenBrush}"/>
                                         </Border>
                                     </Grid>
                                     <WrapPanel x:Name="OutputFields" Orientation="Horizontal"/>
@@ -577,25 +578,25 @@
                             <!-- GEC Parallel Conductor Calculator (shown only for GEC sheet) -->
                             <Border x:Name="GecCalculatorPanel"
                                     Visibility="Collapsed"
-                                    Background="#30FF9800"
+                                    Background="{DynamicResource OrangeBackgroundBrush}"
                                     CornerRadius="6"
                                     Padding="10,8"
                                     Margin="0,8,0,0">
                                 <StackPanel>
-                                    <TextBlock Text="PARALLEL CONDUCTOR CALCULATOR"
+                                    <TextBlock Text="GEC SIZING CALCULATOR"
                                               FontSize="9"
                                               FontWeight="SemiBold"
-                                              Foreground="#FFB74D"
+                                              Foreground="{DynamicResource OrangeBrush}"
                                               Opacity="0.9"
                                               Margin="0,0,0,6"/>
-                                    <TextBlock Text="Per NEC 250.66(B): When parallel conductors are used, the equivalent size is the total circular mil area of all conductors combined."
+                                    <TextBlock Text="Per NEC Table 250.66 (single run) and §250.66(B) (parallel sets): select the service conductor size and number of sets to size the GEC."
                                               FontSize="10"
-                                              Foreground="#B0B6C3CA"
+                                              Foreground="{DynamicResource TextSecondaryBrush}"
                                               TextWrapping="Wrap"
                                               Margin="0,0,0,8"/>
                                     <StackPanel x:Name="GecCalcInputFields"/>
                                     <Border x:Name="GecCalcButton"
-                                            Background="{StaticResource SurfaceBrush}"
+                                            Background="{DynamicResource SurfaceBrush}"
                                             CornerRadius="4"
                                             Padding="10,5"
                                             Margin="0,6,0,0"
@@ -606,17 +607,17 @@
                                             <Style TargetType="Border">
                                                 <Style.Triggers>
                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                                        <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
                                                     </Trigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </Border.Style>
-                                        <TextBlock Text="Calculate GEC" FontSize="11" Foreground="#FFB74D"/>
+                                        <TextBlock Text="Calculate GEC" FontSize="11" Foreground="{DynamicResource OrangeBrush}"/>
                                     </Border>
                                     <!-- GEC Calculator output -->
                                     <Border x:Name="GecCalcOutputPanel"
                                             Visibility="Collapsed"
-                                            Background="#1866BB6A"
+                                            Background="{DynamicResource GreenBackgroundBrush}"
                                             CornerRadius="6"
                                             Padding="10,8"
                                             Margin="0,8,0,0">
@@ -624,11 +625,58 @@
                                             <TextBlock Text="GEC RESULT"
                                                       FontSize="9"
                                                       FontWeight="SemiBold"
-                                                      Foreground="#66BB6A"
+                                                      Foreground="{DynamicResource GreenBrush}"
                                                       Opacity="0.8"
                                                       Margin="0,0,0,6"/>
                                             <WrapPanel x:Name="GecCalcOutputFields" Orientation="Horizontal"/>
                                         </StackPanel>
+                                    </Border>
+                                    <!-- Wire cross-sectional area reference toggle -->
+                                    <Border x:Name="GecRefToggleButton"
+                                            Background="Transparent"
+                                            CornerRadius="4"
+                                            Padding="4,4"
+                                            Margin="0,10,0,0"
+                                            Cursor="Hand"
+                                            HorizontalAlignment="Stretch"
+                                            MouseLeftButtonDown="GecRefToggle_Click">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0"
+                                                      Text="WIRE CROSS-SECTIONAL AREA REFERENCE"
+                                                      FontSize="9"
+                                                      FontWeight="SemiBold"
+                                                      Foreground="{DynamicResource TextSecondaryBrush}"
+                                                      VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1"
+                                                      x:Name="GecRefToggleChevron"
+                                                      Text="&#x25BC;"
+                                                      FontSize="8"
+                                                      Foreground="{DynamicResource TextTertiaryBrush}"
+                                                      VerticalAlignment="Center"
+                                                      Margin="6,0,0,0"/>
+                                        </Grid>
+                                    </Border>
+                                    <!-- Wire size reference table (collapsible) -->
+                                    <Border x:Name="GecRefTablePanel"
+                                            Visibility="Collapsed"
+                                            Background="{DynamicResource FaintOverlayBrush}"
+                                            CornerRadius="6"
+                                            Padding="8,6"
+                                            Margin="0,4,0,0">
+                                        <StackPanel x:Name="GecRefTableRows"/>
                                     </Border>
                                 </StackPanel>
                             </Border>
@@ -638,7 +686,7 @@
                         <StackPanel x:Name="TableModePanel" Visibility="Collapsed">
                             <!-- Find-in-table bar -->
                             <Border x:Name="FindBar"
-                                    Background="{StaticResource SurfaceBrush}"
+                                    Background="{DynamicResource SurfaceBrush}"
                                     CornerRadius="4"
                                     Padding="8,4"
                                     Margin="0,0,0,6">
@@ -648,13 +696,13 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="&#128269;" FontSize="11" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBlock Grid.Column="0" Text="&#128269;" FontSize="11" Foreground="{DynamicResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                     <TextBox x:Name="FindBox"
                                             Grid.Column="1"
                                             Background="Transparent"
                                             BorderThickness="0"
-                                            Foreground="{StaticResource TextBrush}"
-                                            CaretBrush="{StaticResource TextBrush}"
+                                            Foreground="{DynamicResource TextBrush}"
+                                            CaretBrush="{DynamicResource TextBrush}"
                                             FontSize="11"
                                             VerticalAlignment="Center"
                                             TextChanged="FindBox_TextChanged">
@@ -667,7 +715,7 @@
                                                                 <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
                                                                 <TextBlock x:Name="Placeholder"
                                                                           Text="Search table..."
-                                                                          Foreground="#40F5F7FA"
+                                                                          Foreground="{DynamicResource TextTertiaryBrush}"
                                                                           FontSize="11"
                                                                           VerticalAlignment="Center"
                                                                           IsHitTestVisible="False"
@@ -687,7 +735,7 @@
                                     <TextBlock x:Name="FindCount"
                                               Grid.Column="2"
                                               FontSize="10"
-                                              Foreground="{StaticResource MutedTextBrush}"
+                                              Foreground="{DynamicResource MutedTextBrush}"
                                               VerticalAlignment="Center"
                                               Margin="6,0,0,0"/>
                                 </Grid>
@@ -706,19 +754,19 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <Border Grid.Row="0"
-                                    Background="{StaticResource SurfaceBrush}"
+                                    Background="{DynamicResource SurfaceBrush}"
                                     CornerRadius="6"
                                     Padding="12,10"
                                     Margin="0,0,0,8">
                                 <TextBlock x:Name="NoteContent"
                                           FontSize="12"
-                                          Foreground="{StaticResource TextBrush}"
+                                          Foreground="{DynamicResource TextBrush}"
                                           TextWrapping="Wrap"
                                           LineHeight="22"/>
                             </Border>
                             <Border x:Name="CopyNoteButton"
                                     Grid.Row="1"
-                                    Background="{StaticResource SurfaceBrush}"
+                                    Background="{DynamicResource SurfaceBrush}"
                                     CornerRadius="4"
                                     Padding="10,5"
                                     Cursor="Hand"
@@ -728,12 +776,12 @@
                                     <Style TargetType="Border">
                                         <Style.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                                <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
                                             </Trigger>
                                         </Style.Triggers>
                                     </Style>
                                 </Border.Style>
-                                <TextBlock x:Name="CopyNoteLabel" Text="&#128203; Copy" FontSize="11" Foreground="{StaticResource AccentBrush}"/>
+                                <TextBlock x:Name="CopyNoteLabel" Text="&#128203; Copy" FontSize="11" Foreground="{DynamicResource AccentBrush}"/>
                             </Border>
                         </Grid>
                     </Grid>
@@ -742,12 +790,12 @@
                 <!-- Row 2: Footer -->
                 <Border Grid.Row="2"
                         Margin="0,6,0,0"
-                        BorderBrush="#15F5F7FA"
+                        BorderBrush="{DynamicResource BorderSubtleBrush}"
                         BorderThickness="0,1,0,0"
                         Padding="0,6,0,0">
                     <TextBlock x:Name="DetailFooterLabel"
                               FontSize="10"
-                              Foreground="{StaticResource MutedTextBrush}"/>
+                              Foreground="{DynamicResource MutedTextBrush}"/>
                 </Border>
             </Grid>
         </Grid>

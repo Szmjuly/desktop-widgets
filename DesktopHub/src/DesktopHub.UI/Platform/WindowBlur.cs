@@ -203,7 +203,8 @@ public static class WindowBlur
             byte alpha = acrylic ? (byte)0xCC : (byte)0x18;
             
             // Create gradient color in ABGR format (dark shell color)
-            uint gradient = ToAbgr(System.Windows.Media.Color.FromArgb(alpha, 0x12, 0x12, 0x12));
+            var bgBase = Helpers.ThemeHelper.GetColor("WindowBackgroundColor");
+            uint gradient = ToAbgr(System.Windows.Media.Color.FromArgb(alpha, bgBase.R, bgBase.G, bgBase.B));
             DebugLogger.Log($"WindowBlur.EnableBlurBehind: alpha = {alpha:X2}, gradient = {gradient:X8}, acrylic = {acrylic}");
 
             var accent = new ACCENT_POLICY

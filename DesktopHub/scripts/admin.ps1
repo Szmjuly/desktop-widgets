@@ -62,6 +62,7 @@ param(
     [string]$Version,
     [string]$ReleaseNotes,
     [string]$CsvFile,
+    [string]$DeviceId,
     [string]$ServiceAccountPath
 )
 
@@ -158,24 +159,30 @@ function Show-Menu {
     Write-Host "    [51] Build installer"
     Write-Host "    [52] Update Firebase version"
     Write-Host ""
+    Write-Host "  REMOTE UPDATE" -ForegroundColor Yellow
+    Write-Host "    [60] List devices & versions"
+    Write-Host "    [61] Push update to a specific device"
+    Write-Host "    [62] Push update to all outdated devices"
+    Write-Host "    [63] Check push-update status"
+    Write-Host "    [64] Clear completed/failed push entries"
+    Write-Host ""
     Write-Host "    [H]  Help" -ForegroundColor DarkGray
     Write-Host "    [Q]  Quit" -ForegroundColor DarkGray
     Write-Host ""
 }
 
 function Invoke-Script {
-    param([string]$Script, [string[]]$ScriptArgs)
+    param([string]$Script, [hashtable]$Params = @{})
     $path = Join-Path $scriptDir $Script
     if (-not (Test-Path $path)) {
         Write-Host "  Script not found: $path" -ForegroundColor Red
         return
     }
     Write-Host ""
-    if ($script:resolvedSaPath -and ($ScriptArgs -notcontains "-ServiceAccountPath")) {
-        & $path @ScriptArgs -ServiceAccountPath $script:resolvedSaPath
-    } else {
-        & $path @ScriptArgs
+    if ($script:resolvedSaPath -and -not $Params.ContainsKey('ServiceAccountPath')) {
+        $Params['ServiceAccountPath'] = $script:resolvedSaPath
     }
+    & $path @Params
     Write-Host ""
     Write-Host "  Press Enter to continue..." -ForegroundColor DarkGray
     Read-Host | Out-Null
@@ -191,9 +198,10 @@ function Prompt-Input {
     return Read-Host "  $Label"
 }
 
-function Build-SaArg {
-    if ($script:resolvedSaPath) { return @("-ServiceAccountPath", $script:resolvedSaPath) }
-    return @()
+function Build-SaParams {
+    $p = @{}
+    if ($script:resolvedSaPath) { $p['ServiceAccountPath'] = $script:resolvedSaPath }
+    return $p
 }
 
 # ============================================================
@@ -201,7 +209,7 @@ function Build-SaArg {
 # ============================================================
 
 if ($Action) {
-    $sa = Build-SaArg
+    $sa = Build-SaParams
 
     switch ($Action) {
         "db-dump"          { & "$scriptDir\dump-database.ps1" @sa }
@@ -228,6 +236,11 @@ if ($Action) {
         "build"            { & "$scriptDir\build-single-file.ps1" }
         "build-installer"  { & "$scriptDir\build-installer.ps1" }
         "show-secret"      { & "$scriptDir\tag-manager.ps1" -Action show-secret }
+        "update-list"      { & "$scriptDir\push-update.ps1" -Action list @sa }
+        "update-push"      { & "$scriptDir\push-update.ps1" -Action push -DeviceId $DeviceId @sa }
+        "update-push-all"  { & "$scriptDir\push-update.ps1" -Action push-all @sa }
+        "update-status"    { & "$scriptDir\push-update.ps1" -Action status @sa }
+        "update-clear"     { & "$scriptDir\push-update.ps1" -Action clear @sa }
         default            { Write-Host "Unknown action: $Action" -ForegroundColor Red; Write-Host "Run: .\admin.ps1 -Action help" }
     }
     exit 0
@@ -243,20 +256,18 @@ while ($true) {
     Show-Menu
     $choice = Read-Host "  Select option"
 
-    $sa = Build-SaArg
-
     switch ($choice.ToUpper()) {
         # --- DATABASE ---
-        "1" { Invoke-Script "dump-database.ps1" @sa }
-        "2" { Invoke-Script "dump-database.ps1" (@("-Full") + $sa) }
-        "3" { Invoke-Script "dump-database.ps1" (@("-WipeDevices", "-Force") + $sa) }
-        "4" { Invoke-Script "dump-database.ps1" (@("-WipeTags", "-Force") + $sa) }
+        "1" { Invoke-Script "dump-database.ps1" }
+        "2" { Invoke-Script "dump-database.ps1" @{Full=$true} }
+        "3" { Invoke-Script "dump-database.ps1" @{WipeDevices=$true; Force=$true} }
+        "4" { Invoke-Script "dump-database.ps1" @{WipeTags=$true; Force=$true} }
         "5" {
             Write-Host ""
             Write-Host "  WARNING: This will wipe EVERYTHING except app_versions and admin_users." -ForegroundColor Red
             $confirm = Read-Host "  Type 'WIPE' to confirm full reset"
             if ($confirm -eq "WIPE") {
-                Invoke-Script "dump-database.ps1" (@("-WipeAll", "-Force") + $sa)
+                Invoke-Script "dump-database.ps1" @{WipeAll=$true; Force=$true}
             } else {
                 Write-Host "  Cancelled." -ForegroundColor Gray
             }
@@ -265,61 +276,71 @@ while ($true) {
         # --- PROJECT TAGS ---
         "10" {
             $pn = if ($ProjectNumber) { $ProjectNumber } else { Prompt-Input "Project number" }
-            Invoke-Script "tag-manager.ps1" (@("-Action", "get", "-ProjectNumber", $pn) + $sa)
+            Invoke-Script "tag-manager.ps1" @{Action="get"; ProjectNumber=$pn}
         }
-        "11" { Invoke-Script "tag-manager.ps1" (@("-Action", "list") + $sa) }
-        "12" { Invoke-Script "tag-manager.ps1" (@("-Action", "decrypt-dump") + $sa) }
+        "11" { Invoke-Script "tag-manager.ps1" @{Action="list"} }
+        "12" { Invoke-Script "tag-manager.ps1" @{Action="decrypt-dump"} }
         "13" {
             $pn = if ($ProjectNumber) { $ProjectNumber } else { Prompt-Input "Project number" }
             $tk = if ($TagKey) { $TagKey } else { Prompt-Input "Tag key (e.g. voltage, hvac_type)" }
             $tv = if ($TagValue) { $TagValue } else { Prompt-Input "Tag value" }
-            Invoke-Script "tag-manager.ps1" (@("-Action", "set", "-ProjectNumber", $pn, "-TagKey", $tk, "-TagValue", $tv) + $sa)
+            Invoke-Script "tag-manager.ps1" @{Action="set"; ProjectNumber=$pn; TagKey=$tk; TagValue=$tv}
         }
         "14" {
             $pn = if ($ProjectNumber) { $ProjectNumber } else { Prompt-Input "Project number" }
             $tk = Prompt-Input "Tag key (leave blank to delete ALL tags)"
-            $args = @("-Action", "delete", "-ProjectNumber", $pn)
-            if ($tk) { $args += @("-TagKey", $tk) }
-            Invoke-Script "tag-manager.ps1" ($args + $sa)
+            $p = @{Action="delete"; ProjectNumber=$pn}
+            if ($tk) { $p['TagKey'] = $tk }
+            Invoke-Script "tag-manager.ps1" $p
         }
         "15" {
             $csv = if ($CsvFile) { $CsvFile } else { Prompt-Input "Output CSV file path" "tags_export.csv" }
-            Invoke-Script "tag-manager.ps1" (@("-Action", "export", "-CsvFile", $csv) + $sa)
+            Invoke-Script "tag-manager.ps1" @{Action="export"; CsvFile=$csv}
         }
         "16" {
             $csv = if ($CsvFile) { $CsvFile } else { Prompt-Input "Input CSV file path" }
-            Invoke-Script "tag-manager.ps1" (@("-Action", "import", "-CsvFile", $csv) + $sa)
+            Invoke-Script "tag-manager.ps1" @{Action="import"; CsvFile=$csv}
         }
-        "17" { Invoke-Script "tag-manager.ps1" @("-Action", "show-secret") }
+        "17" { Invoke-Script "tag-manager.ps1" @{Action="show-secret"} }
 
         # --- ADMIN USERS ---
-        "20" { Invoke-Script "manage-admin.ps1" (@("-Action", "list") + $sa) }
+        "20" { Invoke-Script "manage-admin.ps1" @{Action="list"} }
         "21" {
             $un = if ($Username) { $Username } else { Prompt-Input "Username to add" }
-            Invoke-Script "manage-admin.ps1" (@("-Action", "add", "-Username", $un) + $sa)
+            Invoke-Script "manage-admin.ps1" @{Action="add"; Username=$un}
         }
         "22" {
             $un = if ($Username) { $Username } else { Prompt-Input "Username to remove" }
-            Invoke-Script "manage-admin.ps1" (@("-Action", "remove", "-Username", $un) + $sa)
+            Invoke-Script "manage-admin.ps1" @{Action="remove"; Username=$un}
         }
 
         # --- AUTH / USERS ---
-        "30" { Invoke-Script "cleanup-auth-users.ps1" $sa }
-        "31" { Invoke-Script "cleanup-auth-users.ps1" (@("-DeleteAll") + $sa) }
-        "32" { Invoke-Script "cleanup-auth-users.ps1" (@("-DeleteAll", "-AnonymousOnly") + $sa) }
+        "30" { Invoke-Script "cleanup-auth-users.ps1" }
+        "31" { Invoke-Script "cleanup-auth-users.ps1" @{DeleteAll=$true} }
+        "32" { Invoke-Script "cleanup-auth-users.ps1" @{DeleteAll=$true; AnonymousOnly=$true} }
 
         # --- METRICS ---
-        "40" { Invoke-Script "Reset-Metrics.ps1" @() }
-        "41" { Invoke-Script "Reset-Metrics.ps1" @("-All") }
+        "40" { Invoke-Script "Reset-Metrics.ps1" }
+        "41" { Invoke-Script "Reset-Metrics.ps1" @{All=$true} }
 
         # --- BUILD & RELEASE ---
-        "50" { Invoke-Script "build-single-file.ps1" @() }
-        "51" { Invoke-Script "build-installer.ps1" @() }
+        "50" { Invoke-Script "build-single-file.ps1" }
+        "51" { Invoke-Script "build-installer.ps1" }
         "52" {
             $ver = if ($Version) { $Version } else { Prompt-Input "Version (e.g. 1.2.0)" }
             $notes = if ($ReleaseNotes) { $ReleaseNotes } else { Prompt-Input "Release notes" "New version available" }
-            Invoke-Script "Update-FirebaseVersion.ps1" (@("-Version", $ver, "-ReleaseNotes", $notes) + $sa)
+            Invoke-Script "Update-FirebaseVersion.ps1" @{Version=$ver; ReleaseNotes=$notes}
         }
+
+        # --- REMOTE UPDATE ---
+        "60" { Invoke-Script "push-update.ps1" @{Action="list"} }
+        "61" {
+            $did = Prompt-Input "Device ID (run option 60 to list)"
+            Invoke-Script "push-update.ps1" @{Action="push"; DeviceId=$did}
+        }
+        "62" { Invoke-Script "push-update.ps1" @{Action="push-all"} }
+        "63" { Invoke-Script "push-update.ps1" @{Action="status"} }
+        "64" { Invoke-Script "push-update.ps1" @{Action="clear"} }
 
         # --- HELP ---
         "H" {

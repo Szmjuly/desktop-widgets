@@ -116,19 +116,19 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
             Height = 18,
             CornerRadius = new CornerRadius(9),
             Background = rank <= 3
-                ? new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#304FC3F7"))
-                : new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#26F5F7FA")),
+                ? Helpers.ThemeHelper.AccentLight
+                : Helpers.ThemeHelper.Surface,
             HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Top,
             Margin = new Thickness(0, 0, 0, 0),
             Child = new TextBlock
             {
-                Text = rank.ToString(),
+                Text = $"#{rank}",
                 FontSize = 9,
                 FontWeight = FontWeights.Bold,
                 Foreground = rank <= 3
-                    ? new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#4FC3F7"))
-                    : new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#B6C3CA")),
+                    ? Helpers.ThemeHelper.Accent
+                    : Helpers.ThemeHelper.TextSecondary,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             }
@@ -140,7 +140,7 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
             Text = record.FullNumber,
             FontSize = 12,
             FontWeight = FontWeights.Bold,
-            Foreground = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#4FC3F7")),
+            Foreground = Helpers.ThemeHelper.Accent,
             HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
             Margin = new Thickness(0, 0, 0, 3)
@@ -151,7 +151,7 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
         {
             Text = record.Name,
             FontSize = 9,
-            Foreground = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#E0F5F7FA")),
+            Foreground = Helpers.ThemeHelper.TextPrimary,
             TextTrimming = TextTrimming.CharacterEllipsis,
             TextWrapping = TextWrapping.Wrap,
             MaxHeight = 28,
@@ -165,7 +165,7 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
         {
             Text = $"⚡{record.LaunchCount}",
             FontSize = 9,
-            Foreground = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#B6C3CA")),
+            Foreground = Helpers.ThemeHelper.TextSecondary,
             HorizontalAlignment = System.Windows.HorizontalAlignment.Center
         };
 
@@ -186,8 +186,8 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
         // Tile border
         var tile = new Border
         {
-            Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#2AF5F7FA")),
-            BorderBrush = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#40FFFFFF")),
+            Background = Helpers.ThemeHelper.HoverMedium,
+            BorderBrush = Helpers.ThemeHelper.ScrollbarThumb,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(10),
             Width = tileWidth,
@@ -203,11 +203,11 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
         tile.MouseLeftButtonDown += Tile_Click;
         tile.MouseEnter += (s, _) =>
         {
-            if (s is Border b) b.Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#3AF5F7FA"));
+            if (s is Border b) b.Background = Helpers.ThemeHelper.Hover;
         };
         tile.MouseLeave += (s, _) =>
         {
-            if (s is Border b) b.Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#2AF5F7FA"));
+            if (s is Border b) b.Background = Helpers.ThemeHelper.HoverMedium;
         };
 
         return tile;
@@ -222,18 +222,18 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
             Height = 22,
             CornerRadius = new CornerRadius(11),
             Background = rank <= 3
-                ? new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#304FC3F7"))
-                : new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#26F5F7FA")),
+                ? Helpers.ThemeHelper.AccentLight
+                : Helpers.ThemeHelper.Surface,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 10, 0),
             Child = new TextBlock
             {
-                Text = rank.ToString(),
+                Text = $"#{rank}",
                 FontSize = 11,
                 FontWeight = FontWeights.Bold,
                 Foreground = rank <= 3
-                    ? new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#4FC3F7"))
-                    : new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#B6C3CA")),
+                    ? Helpers.ThemeHelper.Accent
+                    : Helpers.ThemeHelper.TextSecondary,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             }
@@ -245,14 +245,14 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
             Text = record.FullNumber,
             FontSize = 12,
             FontWeight = FontWeights.SemiBold,
-            Foreground = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#4FC3F7"))
+            Foreground = Helpers.ThemeHelper.Accent
         };
 
         var nameText = new TextBlock
         {
             Text = record.Name,
             FontSize = 11,
-            Foreground = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#F5F7FA")),
+            Foreground = Helpers.ThemeHelper.TextPrimary,
             TextTrimming = TextTrimming.CharacterEllipsis
         };
 
@@ -268,13 +268,13 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
         {
             Text = record.LaunchCount.ToString(),
             FontSize = 10,
-            Foreground = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#B6C3CA")),
+            Foreground = Helpers.ThemeHelper.TextSecondary,
             VerticalAlignment = VerticalAlignment.Center
         };
 
         var countBadge = new Border
         {
-            Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#26F5F7FA")),
+            Background = Helpers.ThemeHelper.Surface,
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(6, 2, 6, 2),
             VerticalAlignment = VerticalAlignment.Center,
@@ -299,8 +299,8 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
         // Tile border
         var tile = new Border
         {
-            Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#2AF5F7FA")),
-            BorderBrush = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#40FFFFFF")),
+            Background = Helpers.ThemeHelper.HoverMedium,
+            BorderBrush = Helpers.ThemeHelper.ScrollbarThumb,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(10, 8, 10, 8),
@@ -314,11 +314,11 @@ public partial class FrequentProjectsWidget : System.Windows.Controls.UserContro
         tile.MouseLeftButtonDown += Tile_Click;
         tile.MouseEnter += (s, _) =>
         {
-            if (s is Border b) b.Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#3AF5F7FA"));
+            if (s is Border b) b.Background = Helpers.ThemeHelper.Selected;
         };
         tile.MouseLeave += (s, _) =>
         {
-            if (s is Border b) b.Background = new WpfBrush((WpfColor)WpfColorConverter.ConvertFromString("#2AF5F7FA"));
+            if (s is Border b) b.Background = Helpers.ThemeHelper.HoverMedium;
         };
 
         return tile;

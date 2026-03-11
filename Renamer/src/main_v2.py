@@ -41,11 +41,13 @@ if INCLUDE_LICENSING:
 # ============================================================================
 from src.main import (
     # Constants
-    DEFAULT_FONT_NAME, DEFAULT_FONT_SIZE, DATE_RX, PHASE_RX,
+    DEFAULT_FONT_NAME, DEFAULT_FONT_SIZE, DATE_RX, PHASE_RX, PROJECT_NO_RX,
     # Functions
     ensure_word, check_word_available, convert_doc_to_docx, export_pdf, export_pdf_fast, safe_close_word,
     replace_in_headerlike, normalize_whitespace_in_header_footer,
     normalize_fonts_in_document, update_docx_dates,
+    # TOC functions
+    generate_toc, create_toc_document,
     # Worker class
     UpdateWorker,
 )
@@ -1141,6 +1143,21 @@ class MainWindowV2(QWidget):
         phase_row.addWidget(self.txtPhase)
         core_layout.addLayout(phase_row)
         
+        # Project number
+        proj_row = QHBoxLayout()
+        proj_label = QLabel("Project No.:")
+        proj_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-size: 12px; min-width: 80px;")
+        self.txtProjectNo = StyledLineEdit("e.g., 2441 (leave blank to keep existing)")
+        self.txtProjectNo.setToolTip(
+            "Update the 'Project No.' field in document headers/footers.\n"
+            "• Leave blank to keep existing project number unchanged\n"
+            "• Enter a value to replace the project number\n"
+            "• Use the blank-handling dialog at run time to clear it"
+        )
+        proj_row.addWidget(proj_label)
+        proj_row.addWidget(self.txtProjectNo)
+        core_layout.addLayout(proj_row)
+        
         # Include subfolders toggle
         self.chkRecursive = ToggleSwitch("Include files in subfolders")
         self.chkRecursive.setToolTip("Search for documents in all subdirectories,\nnot just the selected folder.")
@@ -1239,6 +1256,27 @@ class MainWindowV2(QWidget):
 
         self.proc_section = proc_section
         proc_section.expanded.connect(self._scroll_to_processing)
+        
+        # ---- SECTION: Table of Contents ----
+        toc_section = CollapsibleSection("Table of Contents", expanded=False)
+        
+        self.chkGenerateTOC = ToggleSwitch("Generate Table of Contents after update")
+        self.chkGenerateTOC.setToolTip(
+            "Automatically generate a Table of Contents document\n"
+            "(Word + PDF) in the specs folder after processing."
+        )
+        toc_section.addWidget(self.chkGenerateTOC)
+        
+        self.chkTOCReadHeaders = ToggleSwitch("Read section numbers from document headers")
+        self.chkTOCReadHeaders.setToolTip(
+            "Open each .docx to extract section numbers and titles\n"
+            "from the actual headers/footers instead of filenames.\n"
+            "More accurate but slower."
+        )
+        toc_section.addWidget(self.chkTOCReadHeaders)
+        
+        scroll_layout.addWidget(toc_section)
+        self.toc_section = toc_section
         
         # ---- SECTION: Font Normalization ----
         font_section = CollapsibleSection("Font Normalization", expanded=False)
@@ -1422,6 +1460,11 @@ class MainWindowV2(QWidget):
         action_row.setContentsMargins(0, 8, 0, 0)
         action_row.setSpacing(10)
         
+        self.btnGenerateTOC = StyledButton("📑  Generate TOC", "ghost")
+        self.btnGenerateTOC.setFixedHeight(38)
+        self.btnGenerateTOC.setToolTip("Generate a Table of Contents document (Word + PDF)\nfrom the specs folder without running the update.")
+        self.btnGenerateTOC.clicked.connect(self._generate_toc_standalone)
+        
         self.btnRun = StyledButton("▶  Run Update", "success")
         self.btnRun.setMinimumWidth(140)
         self.btnRun.setFixedHeight(38)
@@ -1433,6 +1476,7 @@ class MainWindowV2(QWidget):
         self.btnCancel.setEnabled(False)
         self.btnCancel.clicked.connect(self.cancelRun)
         
+        action_row.addWidget(self.btnGenerateTOC)
         action_row.addStretch()
         action_row.addWidget(self.btnRun)
         action_row.addWidget(self.btnCancel)
@@ -1964,7 +2008,7 @@ class MainWindowV2(QWidget):
                 btn.setStyleSheet(ghost_style)
         
         # Update all section headers
-        for section in [self.proc_section, self.font_section, self.backup_section, self.exclude_section]:
+        for section in [self.proc_section, self.toc_section, self.font_section, self.backup_section, self.exclude_section]:
             if hasattr(section, 'toggle_btn'):
                 section.toggle_btn.setStyleSheet(f"""
                     QPushButton {{
@@ -2013,6 +2057,7 @@ class MainWindowV2(QWidget):
     # ----------------------------------------------------------------
     def setUIEnabled(self, enabled: bool):
         self.btnRun.setEnabled(enabled)
+        self.btnGenerateTOC.setEnabled(enabled)
         self.btnCancel.setEnabled(not enabled)
     
     def appendLog(self, text: str):
@@ -2179,6 +2224,35 @@ class MainWindowV2(QWidget):
                     return
                 if clicked == btn_date_only:
                     phase_text = None
+        # ---- Project Number handling ----
+        project_no_text = self.txtProjectNo.text().strip()
+        target_project_no = None  # Default: no change
+        
+        if output_mode == "pdf_only":
+            target_project_no = None  # Skip project no. in PDF-only mode
+        elif project_no_text == "":
+            # Blank field → ask user
+            mb = QMessageBox(self)
+            mb.setIcon(QMessageBox.Icon.Question)
+            mb.setWindowTitle("Project No. Blank")
+            mb.setText("Project No. field is blank.")
+            mb.setInformativeText("Choose whether to leave the existing project number unchanged or clear it from documents.")
+            btn_leave = mb.addButton("Leave Project No. Unchanged", QMessageBox.ButtonRole.AcceptRole)
+            btn_clear = mb.addButton("Clear Project No.", QMessageBox.ButtonRole.DestructiveRole)
+            btn_cancel = mb.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+            mb.setDefaultButton(btn_leave)
+            self._center_dialog(mb)
+            mb.exec()
+            clicked = mb.clickedButton()
+            if clicked == btn_cancel:
+                return
+            if clicked == btn_leave:
+                target_project_no = None  # No change
+            else:
+                target_project_no = ""  # Clear: keep "Project No." label only
+        else:
+            target_project_no = project_no_text
+        
         recursive = self.chkRecursive.isChecked()
         dry_run = self.chkDryRun.isChecked()
         
@@ -2296,7 +2370,10 @@ class MainWindowV2(QWidget):
             target_font=target_font,
             target_font_size=target_font_size,
             skip_toc=skip_toc,
-            reprint_only=reprint_only
+            reprint_only=reprint_only,
+            target_project_no=target_project_no,
+            generate_toc=self.chkGenerateTOC.isChecked(),
+            toc_read_headers=self.chkTOCReadHeaders.isChecked(),
         )
         self.worker.log.connect(self.appendLog)
         self.worker.progress.connect(self.onProgress)
@@ -2304,6 +2381,78 @@ class MainWindowV2(QWidget):
         self.worker.needsWord.connect(self.onNeedsWord)
         self.worker.enableUI.connect(self.setUIEnabled)
         self.worker.start()
+    
+    def _generate_toc_standalone(self):
+        """Generate TOC independently without running the update."""
+        root = self.txtFolder.text().strip()
+        if not root or not Path(root).is_dir():
+            QMessageBox.warning(self, "Invalid Folder", "Please select a valid specifications folder.")
+            return
+        
+        root_path = Path(root)
+        read_headers = self.chkTOCReadHeaders.isChecked()
+        recursive = self.chkRecursive.isChecked()
+        exclude = [self.lstExclude.item(i).text().lower() for i in range(self.lstExclude.count())]
+        skip_toc = self.chkSkipTOC.isChecked()
+        
+        self._show_log_panel()
+        self.log_panel.clear_log()
+        self.appendLog("--- Generating Table of Contents ---")
+        self.setUIEnabled(False)
+        QApplication.processEvents()
+        
+        try:
+            # Gather all spec files (.docx and .doc)
+            files = []
+            for pat in ["*.docx", "*.doc"]:
+                iterator = root_path.rglob(pat) if recursive else root_path.glob(pat)
+                for f in iterator:
+                    if f.name.startswith("~$"):
+                        continue
+                    if any(part.lower() in exclude for part in f.parts):
+                        continue
+                    if skip_toc and "table of contents" in f.stem.lower():
+                        continue
+                    files.append(f)
+            # Deduplicate: if both .doc and .docx exist for same stem, prefer .docx
+            seen = {}
+            for f in files:
+                key = (f.parent, f.stem.lower())
+                if key not in seen or f.suffix.lower() == ".docx":
+                    seen[key] = f
+            files = sorted(seen.values())
+            
+            if not files:
+                self.appendLog("No document files found in folder.")
+                self.setUIEnabled(True)
+                return
+            
+            entries = generate_toc(root_path, files, read_headers=read_headers,
+                                    log_fn=self.appendLog)
+            if not entries:
+                self.appendLog("No spec entries found.")
+                self.setUIEnabled(True)
+                return
+            
+            toc_path, toc_ok = create_toc_document(root_path, entries,
+                                                     log_fn=self.appendLog)
+            if toc_ok:
+                # Try PDF export
+                try:
+                    word = ensure_word()
+                    toc_pdf = toc_path.with_suffix(".pdf")
+                    export_pdf(word, toc_path, toc_pdf)
+                    safe_close_word(word)
+                    self.appendLog(f"TOC: Created {toc_pdf.name}")
+                except Exception as e:
+                    self.appendLog(f"[WARNING] TOC PDF export failed: {e}")
+                    self.appendLog("TOC Word document was created successfully.")
+            
+            self.appendLog("✅ TOC generation complete.")
+        except Exception as e:
+            self.appendLog(f"[ERROR] TOC generation failed: {e}")
+        finally:
+            self.setUIEnabled(True)
     
     def cancelRun(self):
         if self.worker:

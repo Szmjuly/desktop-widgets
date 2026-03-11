@@ -28,7 +28,10 @@ public class FirebaseService : IFirebaseService
     private System.Threading.Timer? _heartbeatTimer;
     private DateTime _sessionStartTime;
     private bool _isInitialized;
+    private bool _forcedUpdateProcessing;
     private readonly string _username = Environment.UserName.ToLowerInvariant();
+
+    public event EventHandler<Models.ForcedUpdateInfo>? ForcedUpdateDetected;
 
     public bool IsInitialized => _isInitialized;
 
@@ -364,6 +367,25 @@ public class FirebaseService : IFirebaseService
                 ["last_seen"] = now
             });
             await PutDataAsync($"users/{_username}/devices/{_deviceInfo.DeviceId}", true);
+
+            // Check for admin-pushed forced update
+            if (!_forcedUpdateProcessing)
+            {
+                try
+                {
+                    var forcedUpdate = await CheckForForcedUpdateAsync();
+                    if (forcedUpdate != null)
+                    {
+                        _forcedUpdateProcessing = true;
+                        InfraLogger.Log($"Firebase: Forced update detected! Target: v{forcedUpdate.TargetVersion}");
+                        ForcedUpdateDetected?.Invoke(this, forcedUpdate);
+                    }
+                }
+                catch (Exception fuEx)
+                {
+                    InfraLogger.Log($"Firebase: Forced update check failed (non-fatal): {fuEx.Message}");
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -812,6 +834,137 @@ public class FirebaseService : IFirebaseService
         _heartbeatTimer = null;
 
         InfraLogger.Log("Firebase: Heartbeat stopped");
+    }
+
+    // --- Forced update ---
+
+    public async Task<ForcedUpdateInfo?> CheckForForcedUpdateAsync()
+    {
+        if (!_isInitialized || _httpClient == null || _deviceInfo == null)
+            return null;
+
+        try
+        {
+            var data = await GetDataAsync<Dictionary<string, object>>($"force_update/{_deviceInfo.DeviceId}");
+            if (data == null)
+                return null;
+
+            var status = data.GetValueOrDefault("status")?.ToString();
+            if (status != "pending")
+                return null;
+
+            var targetVersion = data.GetValueOrDefault("target_version")?.ToString();
+            var downloadUrl = data.GetValueOrDefault("download_url")?.ToString();
+            if (string.IsNullOrEmpty(targetVersion) || string.IsNullOrEmpty(downloadUrl))
+                return null;
+
+            // Only act if target version is newer than current
+            var currentVersion = GetAppVersion();
+            if (Version.TryParse(targetVersion, out var target) &&
+                Version.TryParse(currentVersion, out var current) &&
+                target <= current)
+            {
+                // Already up to date — mark completed and clean up
+                await UpdateForcedUpdateStatusAsync("completed");
+                return null;
+            }
+
+            var retryCount = 0;
+            if (data.TryGetValue("retry_count", out var rc))
+                int.TryParse(rc?.ToString(), out retryCount);
+
+            return new ForcedUpdateInfo
+            {
+                TargetVersion = targetVersion,
+                DownloadUrl = downloadUrl,
+                PushedBy = data.GetValueOrDefault("pushed_by")?.ToString(),
+                PushedAt = ParseDateTime(data.GetValueOrDefault("pushed_at")?.ToString()),
+                Status = status,
+                RetryCount = retryCount,
+                Error = data.GetValueOrDefault("error")?.ToString()
+            };
+        }
+        catch (Exception ex)
+        {
+            InfraLogger.Log($"Firebase: CheckForForcedUpdateAsync failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    public async Task UpdateForcedUpdateStatusAsync(string status, string? error = null)
+    {
+        if (!_isInitialized || _httpClient == null || _deviceInfo == null)
+            return;
+
+        try
+        {
+            var update = new Dictionary<string, object>
+            {
+                ["status"] = status,
+                ["status_updated_at"] = DateTime.UtcNow.ToString("o")
+            };
+
+            if (!string.IsNullOrEmpty(error))
+                update["error"] = error;
+
+            // Increment retry_count on failure
+            if (status == "failed")
+            {
+                var data = await GetDataAsync<Dictionary<string, object>>($"force_update/{_deviceInfo.DeviceId}");
+                var retryCount = 0;
+                if (data?.TryGetValue("retry_count", out var rc) == true)
+                    int.TryParse(rc?.ToString(), out retryCount);
+                update["retry_count"] = retryCount + 1;
+
+                // If max retries (3) exceeded, keep as failed; otherwise revert to pending for retry
+                if (retryCount + 1 < 3)
+                {
+                    update["status"] = "pending";
+                    InfraLogger.Log($"Firebase: Forced update retry {retryCount + 1}/3 — will retry on next heartbeat");
+                }
+                else
+                {
+                    InfraLogger.Log($"Firebase: Forced update failed after 3 retries — marking as failed");
+                }
+            }
+
+            await PatchDataAsync($"force_update/{_deviceInfo.DeviceId}", update);
+            InfraLogger.Log($"Firebase: Forced update status → {update["status"]}");
+        }
+        catch (Exception ex)
+        {
+            InfraLogger.Log($"Firebase: UpdateForcedUpdateStatusAsync failed: {ex.Message}");
+        }
+    }
+
+    public async Task CompleteForcedUpdateIfPendingAsync()
+    {
+        if (!_isInitialized || _httpClient == null || _deviceInfo == null)
+            return;
+
+        try
+        {
+            var data = await GetDataAsync<Dictionary<string, object>>($"force_update/{_deviceInfo.DeviceId}");
+            if (data == null)
+                return;
+
+            var status = data.GetValueOrDefault("status")?.ToString();
+            // If we're launching and the entry says "installing", the update succeeded
+            if (status == "installing" || status == "downloading")
+            {
+                await PatchDataAsync($"force_update/{_deviceInfo.DeviceId}", new Dictionary<string, object>
+                {
+                    ["status"] = "completed",
+                    ["status_updated_at"] = DateTime.UtcNow.ToString("o")
+                });
+                InfraLogger.Log("Firebase: Forced update marked as completed (post-restart)");
+                _forcedUpdateProcessing = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            InfraLogger.Log($"Firebase: CompleteForcedUpdateIfPendingAsync failed: {ex.Message}");
+        }
     }
 
     private string GenerateFreeLicenseKey()

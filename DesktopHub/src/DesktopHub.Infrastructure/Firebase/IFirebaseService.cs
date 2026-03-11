@@ -32,4 +32,12 @@ public interface IFirebaseService
     Task SyncDailyMetricsAsync(string date, Dictionary<string, object> data);
     Task<Dictionary<string, Dictionary<string, Dictionary<string, object>>>?> GetAllDeviceMetricsAsync();
     Task<Dictionary<string, Dictionary<string, object>>?> GetDevicesAsync();
+
+    // Forced update — admin can push updates to specific devices
+    Task<ForcedUpdateInfo?> CheckForForcedUpdateAsync();
+    Task UpdateForcedUpdateStatusAsync(string status, string? error = null);
+    Task CompleteForcedUpdateIfPendingAsync();
+
+    // Forced update event — raised when heartbeat detects a pending forced update
+    event EventHandler<ForcedUpdateInfo>? ForcedUpdateDetected;
 }

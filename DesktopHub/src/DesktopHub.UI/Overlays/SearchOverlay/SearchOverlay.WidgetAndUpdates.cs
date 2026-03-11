@@ -220,6 +220,17 @@ public partial class SearchOverlay
             {
                 DebugLogger.Log($"Update notification received: v{updateInfo.LatestVersion} available");
                 _updateIndicatorManager?.SetUpdateAvailable(true);
+
+                // Auto-install if user opted in
+                if (_settings.GetAutoUpdateInstallEnabled() && _trayIcon != null)
+                {
+                    DebugLogger.Log("UpdateCheckService: AutoUpdateInstall enabled — triggering silent update");
+                    _ = Task.Run(async () =>
+                    {
+                        try { await _trayIcon.DownloadAndInstallUpdateAsync(updateInfo, silent: true); }
+                        catch (Exception ex) { DebugLogger.Log($"UpdateCheckService: Auto-install failed: {ex.Message}"); }
+                    });
+                }
             };
             _updateCheckService.UpdateDismissed += (sender, _) =>
             {
@@ -243,6 +254,19 @@ public partial class SearchOverlay
         _updateCheckService?.Restart();
     }
 
+    /// <summary>
+    /// Called when ThemeService switches themes. Re-applies transparency so all overlays
+    /// pick up the new theme's background color instead of keeping the old baked-in color.
+    /// </summary>
+    private void OnThemeChanged(string resolvedTheme)
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            DebugLogger.Log($"OnThemeChanged: Theme switched to {resolvedTheme}, re-applying transparency on all overlays");
+            UpdateTransparency();
+        });
+    }
+
     public void UpdateTransparency()
     {
         try
@@ -252,7 +276,8 @@ public partial class SearchOverlay
                 // Update search overlay transparency
                 var overlayTransparency = _settings.GetOverlayTransparency();
                 var overlayAlpha = (byte)(overlayTransparency * 255);
-                RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(overlayAlpha, 0x12, 0x12, 0x12));
+                var bgBase = Helpers.ThemeHelper.GetColor("WindowBackgroundColor");
+                RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(overlayAlpha, bgBase.R, bgBase.G, bgBase.B));
 
                 DebugLogger.Log($"UpdateTransparency: SearchOverlay transparency updated to {overlayTransparency:F2}");
 

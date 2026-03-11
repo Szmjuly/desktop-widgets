@@ -47,8 +47,8 @@ internal class ToastNotification : Window
     {
         var root = new Border
         {
-            Background = new SolidColorBrush(WpfColor.FromArgb(0xF2, 0x18, 0x18, 0x18)),
-            BorderBrush = new SolidColorBrush(WpfColor.FromArgb(0x35, 0xFF, 0xFF, 0xFF)),
+            Background = Helpers.ThemeHelper.SurfaceSolid,
+            BorderBrush = Helpers.ThemeHelper.CardBorder,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(10),
             Padding = new Thickness(14, 12, 14, 12),
@@ -58,7 +58,7 @@ internal class ToastNotification : Window
                 BlurRadius = 24,
                 ShadowDepth = 4,
                 Opacity = 0.6,
-                Color = WpfColor.FromRgb(0, 0, 0)
+                Color = Helpers.ThemeHelper.GetColor("ShadowColor")
             }
         };
 
@@ -105,7 +105,7 @@ internal class ToastNotification : Window
             Text = title,
             FontSize = 13,
             FontWeight = FontWeights.SemiBold,
-            Foreground = new SolidColorBrush(WpfColor.FromRgb(0xF5, 0xF7, 0xFA)),
+            Foreground = Helpers.ThemeHelper.TextPrimary,
             TextWrapping = TextWrapping.NoWrap,
             TextTrimming = TextTrimming.CharacterEllipsis
         });
@@ -114,7 +114,7 @@ internal class ToastNotification : Window
         {
             Text = message,
             FontSize = 11,
-            Foreground = new SolidColorBrush(WpfColor.FromArgb(0x99, 0xF5, 0xF7, 0xFA)),
+            Foreground = Helpers.ThemeHelper.TextSecondary,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 3, 0, 0)
         });

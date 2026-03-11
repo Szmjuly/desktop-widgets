@@ -502,7 +502,7 @@ public partial class SearchOverlay
     {
         if (sender is Border border)
         {
-            border.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF));
+            border.Background = Helpers.ThemeHelper.HoverStrong;
             border.Opacity = 1.0;
         }
     }
@@ -786,26 +786,33 @@ public partial class SearchOverlay
         // Collect existing custom tags (editable)
         var customTags = new List<KeyValuePair<string, string>>(existingTags.Custom);
 
-        // Collect all available custom tag keys from all projects (for the dropdown)
+        // Collect all available custom tag keys: shared registry + local cache + defaults
         var allCustomKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // From shared tag registry (synced from Firebase, encrypted)
+        if (_tagRegistryService != null)
+        {
+            foreach (var rk in _tagRegistryService.GetAllKeys())
+                allCustomKeys.Add(rk);
+        }
+        // From local cache (covers keys not yet registered)
         foreach (var kvp in _tagService.GetAllCachedTags())
         {
             foreach (var ck in kvp.Value.Custom.Keys)
                 allCustomKeys.Add(ck);
         }
-        // Add some default custom tag suggestions
+        // Add default custom tag suggestions
         foreach (var dt in new[] { "Permit Submitted", "Permit Approved", "As-Built", "Revision Required", "Load Calc Done", "Panel Schedule Done", "Short Circuit Done", "Arc Flash Done", "Energy Calc Done", "Coordination Study" })
             allCustomKeys.Add(dt);
 
         // --- Build dialog ---
-        var accentColor = System.Windows.Media.Color.FromRgb(100, 155, 240);
-        var accentBrush = new SolidColorBrush(accentColor);
-        var darkBg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(18, 18, 18));
-        var cardBg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 30, 34));
-        var inputBg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(42, 42, 42));
-        var inputBorder = new SolidColorBrush(System.Windows.Media.Color.FromRgb(72, 72, 72));
-        var dimText = new SolidColorBrush(System.Windows.Media.Color.FromRgb(140, 145, 150));
-        var whiteBrush = new SolidColorBrush(Colors.White);
+        var accentColor = Helpers.ThemeHelper.AccentColor;
+        var accentBrush = Helpers.ThemeHelper.Accent;
+        var darkBg = Helpers.ThemeHelper.WindowBackground;
+        var cardBg = Helpers.ThemeHelper.SurfaceSolid;
+        var inputBg = Helpers.ThemeHelper.Card;
+        var inputBorder = Helpers.ThemeHelper.Border;
+        var dimText = Helpers.ThemeHelper.TextSecondary;
+        var whiteBrush = Helpers.ThemeHelper.TextPrimary;
 
         var dialog = new Window
         {
@@ -825,9 +832,12 @@ public partial class SearchOverlay
         var dialogAlpha = (byte)(_settings.GetWidgetTransparency(Core.Models.WidgetIds.Dialogs) * 255);
         var rootBorder = new Border
         {
-            Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(dialogAlpha, 0x12, 0x12, 0x12)),
+            Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(dialogAlpha, 
+                Helpers.ThemeHelper.GetColor("WindowBackgroundColor").R,
+                Helpers.ThemeHelper.GetColor("WindowBackgroundColor").G,
+                Helpers.ThemeHelper.GetColor("WindowBackgroundColor").B)),
             CornerRadius = new CornerRadius(12),
-            BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(58, 58, 58)),
+            BorderBrush = Helpers.ThemeHelper.Border,
             BorderThickness = new Thickness(1),
             Padding = new Thickness(16)
         };
@@ -860,7 +870,7 @@ public partial class SearchOverlay
         };
         closeBtn.Template = CreateDarkButtonTemplate(
             System.Windows.Media.Color.FromArgb(0x00, 0, 0, 0),
-            System.Windows.Media.Color.FromArgb(0x30, 255, 80, 80),
+            Helpers.ThemeHelper.GetColor("RedBackgroundColor"),
             cornerRadius: 6);
         closeBtn.Click += (s, a) => dialog.Close();
         Grid.SetColumn(closeBtn, 1);
@@ -912,7 +922,7 @@ public partial class SearchOverlay
             {
                 var chipText = string.IsNullOrEmpty(kvp.Value) ? kvp.Key : $"{kvp.Key}: {kvp.Value}";
                 var capturedKey = kvp.Key;
-                var chip = CreateTagChip(chipText, System.Windows.Media.Color.FromRgb(76, 175, 80), isRemovable: true, onRemove: () =>
+                var chip = CreateTagChip(chipText, Helpers.ThemeHelper.GreenColor, isRemovable: true, onRemove: () =>
                 {
                     customTags.RemoveAll(t => t.Key.Equals(capturedKey, StringComparison.OrdinalIgnoreCase));
                     RebuildCustomChips();
@@ -925,7 +935,7 @@ public partial class SearchOverlay
                 {
                     Text = "No custom tags",
                     FontSize = 10,
-                    Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(80, 88, 96)),
+                    Foreground = Helpers.ThemeHelper.TextTertiary,
                     FontStyle = FontStyles.Italic,
                     Margin = new Thickness(4, 2, 0, 2)
                 });
@@ -967,7 +977,7 @@ public partial class SearchOverlay
         Grid.SetColumn(availableCombo, 0);
         addRow.Children.Add(availableCombo);
 
-        var addBtn = CreateActionButton("+", System.Windows.Media.Color.FromRgb(40, 120, 200));
+        var addBtn = CreateActionButton("+", Helpers.ThemeHelper.AccentColor);
         Grid.SetColumn(addBtn, 1);
         addBtn.Click += (s, a) =>
         {
@@ -1036,7 +1046,7 @@ public partial class SearchOverlay
         Grid.SetColumn(newValBox, 1);
         newTagRow.Children.Add(newValBox);
 
-        var newAddBtn = CreateActionButton("+", System.Windows.Media.Color.FromRgb(76, 175, 80));
+        var newAddBtn = CreateActionButton("+", Helpers.ThemeHelper.GreenColor);
         Grid.SetColumn(newAddBtn, 2);
         newAddBtn.Click += (s, a) =>
         {
@@ -1060,8 +1070,8 @@ public partial class SearchOverlay
             Margin = new Thickness(0, 16, 0, 0)
         };
 
-        var saveButton = CreateActionButton("Save", System.Windows.Media.Color.FromRgb(40, 120, 200), width: 80);
-        var cancelButton = CreateActionButton("Close", System.Windows.Media.Color.FromRgb(60, 60, 60), width: 80);
+        var saveButton = CreateActionButton("Save", Helpers.ThemeHelper.AccentColor, width: 80);
+        var cancelButton = CreateActionButton("Close", Helpers.ThemeHelper.GetColor("ToggleOffColor"), width: 80);
         cancelButton.Margin = new Thickness(8, 0, 0, 0);
         cancelButton.Click += (s, a) => dialog.Close();
 
@@ -1079,6 +1089,13 @@ public partial class SearchOverlay
 
             var isNew = !_tagService!.HasTags(capturedProjectNumber);
             await _tagService.SaveTagsAsync(capturedProjectNumber, newTags);
+
+            // Register any new custom tag keys to the shared registry
+            if (_tagRegistryService != null && newTags.Custom.Count > 0)
+                await _tagRegistryService.RegisterKeysAsync(newTags.Custom.Keys);
+
+            // Refresh local vocabulary with updated cache
+            _vocabService?.RefreshFromCache(_tagService.GetAllCachedTags());
 
             TelemetryAccessor.TrackTag(
                 isNew ? TelemetryEventType.TagCreated : TelemetryEventType.TagUpdated,
@@ -1124,7 +1141,7 @@ public partial class SearchOverlay
             {
                 Text = " \u2715",
                 FontSize = 9,
-                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(180, 80, 80)),
+                Foreground = Helpers.ThemeHelper.Red,
                 VerticalAlignment = VerticalAlignment.Center,
                 Cursor = System.Windows.Input.Cursors.Hand,
                 Margin = new Thickness(2, 0, 0, 0)
@@ -1158,7 +1175,7 @@ public partial class SearchOverlay
             Width = width,
             Height = 28,
             FontSize = 11,
-            Foreground = new SolidColorBrush(Colors.White),
+            Foreground = Helpers.ThemeHelper.TextOnAccent,
             Cursor = System.Windows.Input.Cursors.Hand,
             Padding = new Thickness(4, 2, 4, 2)
         };
@@ -1199,8 +1216,8 @@ public partial class SearchOverlay
     /// </summary>
     private static ControlTemplate CreateDarkComboBoxTemplate(System.Windows.Media.Brush inputBg, System.Windows.Media.Brush inputBorder)
     {
-        var accentBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(100, 155, 240));
-        var hoverBg = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x30, 0x30, 0x3A));
+        var accentBrush = Helpers.ThemeHelper.Accent;
+        var hoverBg = Helpers.ThemeHelper.HoverMedium;
 
         var template = new ControlTemplate(typeof(System.Windows.Controls.ComboBox));
         var gridFactory = new FrameworkElementFactory(typeof(Grid));
@@ -1228,7 +1245,7 @@ public partial class SearchOverlay
 
         // Arrow inside a pill border (matches DarkCombo style)
         var arrowPill = new FrameworkElementFactory(typeof(Border));
-        arrowPill.SetValue(Border.BackgroundProperty, new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x38, 255, 255, 255)));
+        arrowPill.SetValue(Border.BackgroundProperty, Helpers.ThemeHelper.HoverStrong);
         arrowPill.SetValue(Border.CornerRadiusProperty, new CornerRadius(2));
         arrowPill.SetValue(Border.PaddingProperty, new Thickness(4, 1, 4, 1));
         arrowPill.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 0, 0));
@@ -1237,7 +1254,7 @@ public partial class SearchOverlay
 
         var arrowText = new FrameworkElementFactory(typeof(TextBlock));
         arrowText.SetValue(TextBlock.TextProperty, "\u25BE");
-        arrowText.SetValue(TextBlock.ForegroundProperty, new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x90, 255, 255, 255)));
+        arrowText.SetValue(TextBlock.ForegroundProperty, Helpers.ThemeHelper.TextSecondary);
         arrowText.SetValue(TextBlock.FontSizeProperty, 9.0);
         arrowText.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
         arrowText.SetValue(FrameworkElement.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);

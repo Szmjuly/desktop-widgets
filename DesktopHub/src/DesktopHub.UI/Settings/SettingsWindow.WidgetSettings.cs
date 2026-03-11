@@ -62,9 +62,9 @@ public partial class SettingsWindow
             {
                 Text = cat,
                 FontSize = 13,
-                Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
                 VerticalAlignment = VerticalAlignment.Center
             };
+            label.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "TextBrush");
             Grid.SetColumn(label, 0);
             row.Children.Add(label);
 
@@ -74,16 +74,16 @@ public partial class SettingsWindow
                 Width = 26,
                 Height = 26,
                 FontSize = 11,
-                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
-                Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0x52, 0x52)),
                 BorderThickness = new Thickness(0),
                 Cursor = System.Windows.Input.Cursors.Hand,
                 VerticalAlignment = VerticalAlignment.Center
             };
+            removeBtn.SetResourceReference(System.Windows.Controls.Button.BackgroundProperty, "CardBorderBrush");
+            removeBtn.SetResourceReference(System.Windows.Controls.Button.ForegroundProperty, "RedBrush");
             // Apply rounded template
             var btnTemplate = new System.Windows.Controls.ControlTemplate(typeof(System.Windows.Controls.Button));
             var btnBorder = new FrameworkElementFactory(typeof(Border));
-            btnBorder.SetValue(Border.BackgroundProperty, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)));
+            btnBorder.SetResourceReference(Border.BackgroundProperty, "CardBorderBrush");
             btnBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
             var btnContent = new FrameworkElementFactory(typeof(System.Windows.Controls.ContentPresenter));
             btnContent.SetValue(System.Windows.Controls.ContentPresenter.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
@@ -624,12 +624,11 @@ public partial class SettingsWindow
 
                 var border = new Border
                 {
-                    Background = new System.Windows.Media.SolidColorBrush(
-                        (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#10F5F7FA")),
                     CornerRadius = new CornerRadius(6),
                     Padding = new Thickness(8, 6, 8, 6),
                     Child = row
                 };
+                border.SetResourceReference(Border.BackgroundProperty, "HoverBrush");
 
                 QL_ItemsList.Children.Add(border);
             }

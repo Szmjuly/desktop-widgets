@@ -34,6 +34,9 @@ public class FirebaseLifecycleManager
                 await _firebaseService.LogAppLaunchAsync(_appVersion);
                 _firebaseService.StartHeartbeat();
 
+                // Check if a forced update was in progress before restart
+                await _firebaseService.CompleteForcedUpdateIfPendingAsync();
+
                 // Enforce retention policy in background (non-blocking)
                 _ = Task.Run(async () =>
                 {

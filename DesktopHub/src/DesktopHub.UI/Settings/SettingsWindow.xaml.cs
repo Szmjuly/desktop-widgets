@@ -143,6 +143,13 @@ public partial class SettingsWindow : Window
             
             await LoadSettingsAsync();
         };
+
+        // Subscribe to theme changes — rebuild dynamic UI so baked-in colors refresh
+        var app = (App)System.Windows.Application.Current;
+        if (app.Theme != null)
+        {
+            app.Theme.ThemeChanged += OnThemeChanged;
+        }
     }
 
     // ===== Dynamic UI generation from WidgetRegistry =====
@@ -184,7 +191,6 @@ public partial class SettingsWindow : Window
         // Outer card with colored left border for group indication
         var card = new Border
         {
-            Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x0C, 255, 255, 255)),
             CornerRadius = new CornerRadius(6),
             Margin = new Thickness(0, 2, 0, 2),
             Padding = new Thickness(10, 7, 10, 7),
@@ -192,6 +198,7 @@ public partial class SettingsWindow : Window
             BorderBrush = System.Windows.Media.Brushes.Transparent,
             Tag = id
         };
+        card.SetResourceReference(Border.BackgroundProperty, "FaintOverlayBrush");
 
         var rowGrid = new System.Windows.Controls.Grid();
         // Icon | Name | GroupBadge | Slider | Percent
@@ -215,10 +222,10 @@ public partial class SettingsWindow : Window
         var nameBlock = new TextBlock
         {
             Text = name, FontSize = 12, FontWeight = FontWeights.Medium,
-            Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis
         };
+        nameBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
         System.Windows.Controls.Grid.SetColumn(nameBlock, 1);
         rowGrid.Children.Add(nameBlock);
 
@@ -226,16 +233,14 @@ public partial class SettingsWindow : Window
         var badgeText = new TextBlock
         {
             Text = "—", FontSize = 10, FontWeight = FontWeights.Bold,
-            Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(120, 120, 130)),
             HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
+        badgeText.SetResourceReference(TextBlock.ForegroundProperty, "TextTertiaryBrush");
         var badge = new Border
         {
             Width = 22, Height = 22,
             CornerRadius = new CornerRadius(4),
-            Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, 255, 255, 255)),
-            BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, 255, 255, 255)),
             BorderThickness = new Thickness(1),
             Margin = new Thickness(6, 0, 8, 0),
             Cursor = System.Windows.Input.Cursors.Hand,
@@ -243,6 +248,8 @@ public partial class SettingsWindow : Window
             Child = badgeText,
             Tag = id
         };
+        badge.SetResourceReference(Border.BackgroundProperty, "CardBrush");
+        badge.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
         badge.MouseLeftButtonDown += (s, e) => { OnGroupBadgeClick(id); e.Handled = true; };
         System.Windows.Controls.Grid.SetColumn(badge, 2);
         rowGrid.Children.Add(badge);
@@ -268,11 +275,11 @@ public partial class SettingsWindow : Window
         {
             Text = $"{(int)(defaultValue * 100)}%",
             FontSize = 10, FontWeight = FontWeights.Medium,
-            Foreground = (System.Windows.Media.Brush)FindResource("TextSecondaryBrush"),
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
             Margin = new Thickness(4, 0, 0, 0)
         };
+        pctLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
         System.Windows.Controls.Grid.SetColumn(pctLabel, 4);
         rowGrid.Children.Add(pctLabel);
         _percentLabels[id] = pctLabel;
@@ -302,8 +309,12 @@ public partial class SettingsWindow : Window
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
         var info = new System.Windows.Controls.StackPanel();
-        info.Children.Add(new TextBlock { Text = name, FontSize = 13, FontWeight = FontWeights.Medium, Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"), Margin = new Thickness(0, 0, 0, 2) });
-        info.Children.Add(new TextBlock { Text = description, FontSize = 11, Foreground = (System.Windows.Media.Brush)FindResource("TextSecondaryBrush") });
+        var nameText = new TextBlock { Text = name, FontSize = 13, FontWeight = FontWeights.Medium, Margin = new Thickness(0, 0, 0, 2) };
+        nameText.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
+        info.Children.Add(nameText);
+        var descText = new TextBlock { Text = description, FontSize = 11 };
+        descText.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+        info.Children.Add(descText);
         System.Windows.Controls.Grid.SetColumn(info, 0);
         grid.Children.Add(info);
 
@@ -328,25 +339,26 @@ public partial class SettingsWindow : Window
         container.Children.Add(grid);
     }
 
-    private static ControlTemplate CreateToggleSwitchTemplate()
+    private ControlTemplate CreateToggleSwitchTemplate()
     {
         var template = new ControlTemplate(typeof(System.Windows.Controls.Primitives.ToggleButton));
         var borderFactory = new FrameworkElementFactory(typeof(Border), "Border");
-        borderFactory.SetValue(Border.BackgroundProperty, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x50, 0x50, 0x50)));
+        borderFactory.SetResourceReference(Border.BackgroundProperty, "ToggleOffBrush");
         borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(14));
         borderFactory.SetValue(Border.WidthProperty, 50.0);
         borderFactory.SetValue(Border.HeightProperty, 28.0);
         var thumbFactory = new FrameworkElementFactory(typeof(System.Windows.Shapes.Ellipse), "Thumb");
         thumbFactory.SetValue(System.Windows.Shapes.Ellipse.WidthProperty, 20.0);
         thumbFactory.SetValue(System.Windows.Shapes.Ellipse.HeightProperty, 20.0);
-        thumbFactory.SetValue(System.Windows.Shapes.Ellipse.FillProperty, System.Windows.Media.Brushes.White);
+        thumbFactory.SetResourceReference(System.Windows.Shapes.Ellipse.FillProperty, "ToggleThumbBrush");
         thumbFactory.SetValue(FrameworkElement.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Left);
         thumbFactory.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 0, 0));
         borderFactory.AppendChild(thumbFactory);
         template.VisualTree = borderFactory;
 
+        var toggleOnBrush = FindResource("ToggleOnBrush");
         var checkedTrigger = new Trigger { Property = System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, Value = true };
-        checkedTrigger.Setters.Add(new Setter(Border.BackgroundProperty, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x00, 0x7A, 0xCC)), "Border"));
+        checkedTrigger.Setters.Add(new Setter(Border.BackgroundProperty, toggleOnBrush, "Border"));
         checkedTrigger.Setters.Add(new Setter(FrameworkElement.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Right, "Thumb"));
         checkedTrigger.Setters.Add(new Setter(FrameworkElement.MarginProperty, new Thickness(0, 0, 4, 0), "Thumb"));
         template.Triggers.Add(checkedTrigger);
@@ -369,10 +381,10 @@ public partial class SettingsWindow : Window
                 Padding = new Thickness(12, 10, 12, 10),
                 FontSize = 14,
                 FontWeight = FontWeights.Medium,
-                Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
                 Cursor = System.Windows.Input.Cursors.Hand,
                 Tag = entry.Id
             };
+            radioBtn.SetResourceReference(System.Windows.Controls.RadioButton.ForegroundProperty, "TextPrimaryBrush");
 
             // Apply the same RadioButton template as the static nav items
             var template = new ControlTemplate(typeof(System.Windows.Controls.RadioButton));
@@ -385,11 +397,12 @@ public partial class SettingsWindow : Window
             template.VisualTree = borderFactory;
 
             var checkedTrigger = new Trigger { Property = System.Windows.Controls.RadioButton.IsCheckedProperty, Value = true };
-            checkedTrigger.Setters.Add(new Setter(Border.BackgroundProperty, FindResource("PrimaryBrush"), "Border"));
+            checkedTrigger.Setters.Add(new Setter(Border.BackgroundProperty, FindResource("AccentBrush"), "Border"));
+            checkedTrigger.Setters.Add(new Setter(System.Windows.Documents.TextElement.ForegroundProperty, FindResource("TextOnAccentBrush"), "Border"));
             template.Triggers.Add(checkedTrigger);
 
             var hoverTrigger = new Trigger { Property = System.Windows.Controls.RadioButton.IsMouseOverProperty, Value = true };
-            hoverTrigger.Setters.Add(new Setter(Border.BackgroundProperty, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)), "Border"));
+            hoverTrigger.Setters.Add(new Setter(Border.BackgroundProperty, FindResource("HoverStrongBrush"), "Border"));
             template.Triggers.Add(hoverTrigger);
 
             radioBtn.Template = template;
@@ -611,6 +624,7 @@ public partial class SettingsWindow : Window
             LoadHotkeyGroupsUI();
             LoadMetricsSettings();
             LoadCheatSheetSnapGridSetting();
+            LoadThemeButtonState();
 
             UpdateAllGroupBadges();
         }
@@ -636,7 +650,7 @@ public partial class SettingsWindow : Window
                 if (_activeGroupRecordingText != null)
                     _activeGroupRecordingText.Visibility = Visibility.Collapsed;
                 if (_activeGroupKeyBox != null)
-                    _activeGroupKeyBox.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x50, 0xFF, 0xFF, 0xFF));
+                    _activeGroupKeyBox.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
                 _activeGroupKeyBox = null;
                 _activeGroupKeyText = null;
                 _activeGroupRecordingText = null;
@@ -736,6 +750,104 @@ public partial class SettingsWindow : Window
 
             e.Handled = true;
         }
+    }
+
+    // ===== Theme Selection =====
+
+    private bool _isLoadingTheme;
+
+    private void LoadThemeButtonState()
+    {
+        var app = (App)System.Windows.Application.Current;
+        var themeSetting = app.Theme?.ThemeSetting ?? "Dark";
+        SelectThemeComboItem(themeSetting);
+    }
+
+    private void SelectThemeComboItem(string themeSetting)
+    {
+        _isLoadingTheme = true;
+        for (int i = 0; i < ThemeCombo.Items.Count; i++)
+        {
+            if (ThemeCombo.Items[i] is System.Windows.Controls.ComboBoxItem item &&
+                string.Equals(item.Tag?.ToString(), themeSetting, StringComparison.OrdinalIgnoreCase))
+            {
+                ThemeCombo.SelectedIndex = i;
+                break;
+            }
+        }
+        _isLoadingTheme = false;
+    }
+
+    private void ThemeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isLoadingTheme) return;
+        if (ThemeCombo.SelectedItem is System.Windows.Controls.ComboBoxItem selected &&
+            selected.Tag is string theme)
+        {
+            ApplyThemeSetting(theme);
+        }
+    }
+
+    private void ApplyThemeSetting(string theme)
+    {
+        var app = (App)System.Windows.Application.Current;
+        app.Theme?.SetTheme(theme);
+        // Keep the main settings instance in sync so the theme isn't overwritten
+        // when SearchOverlay saves other settings (ThemeService uses a separate instance)
+        _settings.SetTheme(theme);
+        SelectThemeComboItem(theme);
+        StatusText.Text = $"Theme set to {theme}";
+        TelemetryAccessor.TrackSettingChanged("theme", theme);
+    }
+
+    /// <summary>
+    /// Called when ThemeService switches themes. Rebuilds dynamic UI that uses baked-in
+    /// colors (transparency sliders, widget nav menu) and re-applies window transparency.
+    /// </summary>
+    private void OnThemeChanged(string resolvedTheme)
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            DebugLogger.Log($"SettingsWindow.OnThemeChanged: Theme switched to {resolvedTheme}, rebuilding dynamic UI");
+
+            // Rebuild dynamic UI elements that baked in theme colors at construction time
+            _isUpdatingSliders = true;
+            BuildTransparencySliders();
+            BuildWidgetToggles();
+            BuildWidgetNavMenu();
+            _isUpdatingSliders = false;
+
+            // Re-load slider values from settings
+            foreach (var kvp in _transparencySliders)
+            {
+                if (kvp.Key == "settings")
+                    kvp.Value.Value = _settings.GetSettingsTransparency();
+                else
+                    kvp.Value.Value = _settings.GetWidgetTransparency(kvp.Key);
+
+                if (_percentLabels.TryGetValue(kvp.Key, out var pctLabel))
+                    pctLabel.Text = $"{(int)(kvp.Value.Value * 100)}%";
+            }
+            UpdateAllGroupBadges();
+
+            // Rebuild hotkey groups UI
+            LoadHotkeyGroupsUI();
+
+            // Re-load widget toggle states
+            foreach (var kvp in _widgetToggles)
+            {
+                if (kvp.Key == "search_button")
+                    kvp.Value.IsChecked = _settings.GetSearchWidgetEnabled();
+                else
+                    kvp.Value.IsChecked = _settings.GetWidgetEnabled(kvp.Key);
+            }
+
+            // Re-apply settings window transparency with the new theme color
+            ApplySettingsWindowTransparency(_settings.GetSettingsTransparency());
+
+            // Update theme button visuals
+            LoadThemeButtonState();
+        });
     }
 
     private void CloseShortcutBox_MouseDown(object sender, MouseButtonEventArgs e)
@@ -1030,7 +1142,8 @@ public partial class SettingsWindow : Window
 
         var clamped = Math.Clamp(transparency, 0.0, 1.0);
         var alpha = (byte)(clamped * 255);
-        var color = System.Windows.Media.Color.FromArgb(alpha, 0x18, 0x18, 0x18);
+        var baseColor = Helpers.ThemeHelper.GetColor("WindowBackgroundDeepColor");
+        var color = System.Windows.Media.Color.FromArgb(alpha, baseColor.R, baseColor.G, baseColor.B);
         RootBorder.Background = new System.Windows.Media.SolidColorBrush(color);
     }
 
@@ -1090,9 +1203,9 @@ public partial class SettingsWindow : Window
         if (string.IsNullOrEmpty(group))
         {
             badgeText.Text = "—";
-            badgeText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(120, 120, 130));
-            badge.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, 255, 255, 255));
-            badge.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, 255, 255, 255));
+            badgeText.SetResourceReference(TextBlock.ForegroundProperty, "TextTertiaryBrush");
+            badge.SetResourceReference(Border.BackgroundProperty, "CardBrush");
+            badge.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
         }
         else if (GroupColors.TryGetValue(group, out var color))
         {

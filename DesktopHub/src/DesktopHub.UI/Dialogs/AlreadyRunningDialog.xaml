@@ -13,9 +13,9 @@
         ShowInTaskbar="False">
     
     <Border x:Name="RootBorder" 
-            Background="#F8181818" 
+            Background="{DynamicResource WindowBackgroundDeepBrush}" 
             CornerRadius="12" 
-            BorderBrush="#442A2A2A" 
+            BorderBrush="{DynamicResource WindowBorderSolidBrush}" 
             BorderThickness="1">
         <Grid Margin="24">
             <Grid.RowDefinitions>
@@ -30,22 +30,22 @@
                        Text="Already Running" 
                        FontSize="20" 
                        FontWeight="SemiBold"
-                       Foreground="{StaticResource TextBrush}"
+                       Foreground="{DynamicResource TextBrush}"
                        Margin="0,0,0,12"/>
             
             <!-- Message -->
             <TextBlock Grid.Row="1"
                        TextWrapping="Wrap"
                        FontSize="14"
-                       Foreground="{StaticResource TextSecondaryBrush}"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
                        Margin="0,0,0,8">
                 <Run Text="DesktopHub is already running."/>
             </TextBlock>
             
             <!-- Hotkey Info -->
             <Border Grid.Row="2"
-                    Background="#22FFFFFF"
-                    BorderBrush="{StaticResource BorderBrush}"
+                    Background="{DynamicResource CardBorderBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="16"
@@ -54,14 +54,14 @@
                     <TextBlock Text="Quick Access" 
                                FontSize="13"
                                FontWeight="SemiBold"
-                               Foreground="{StaticResource TextBrush}"
+                               Foreground="{DynamicResource TextBrush}"
                                Margin="0,0,0,8"/>
-                    <TextBlock FontSize="12" Foreground="{StaticResource TextSecondaryBrush}">
+                    <TextBlock FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}">
                         <Run Text="Press"/>
                         <Run x:Name="HotkeyText" 
                              Text="Ctrl+Alt+Space" 
                              FontWeight="Bold"
-                             Foreground="{StaticResource PrimaryBrush}"/>
+                             Foreground="{DynamicResource PrimaryBrush}"/>
                         <Run Text="to open the search overlay"/>
                     </TextBlock>
                 </StackPanel>
@@ -82,9 +82,9 @@
                         Width="90"
                         Height="32"
                         Margin="0,0,8,0"
-                        Background="#22FFFFFF"
-                        Foreground="{StaticResource TextBrush}"
-                        BorderBrush="{StaticResource BorderBrush}"
+                        Background="{DynamicResource CardBorderBrush}"
+                        Foreground="{DynamicResource TextBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
                         Click="CloseButton_Click"
                         Cursor="Hand">
                     <Button.Style>
@@ -103,7 +103,7 @@
                             </Setter>
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#33FFFFFF"/>
+                                    <Setter Property="Background" Value="{DynamicResource HoverStrongBrush}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
@@ -116,9 +116,9 @@
                         Width="80"
                         Height="32"
                         Margin="0,0,8,0"
-                        Background="#22FFFFFF"
-                        Foreground="{StaticResource TextBrush}"
-                        BorderBrush="{StaticResource BorderBrush}"
+                        Background="{DynamicResource CardBorderBrush}"
+                        Foreground="{DynamicResource TextBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
                         Click="SettingsButton_Click"
                         Cursor="Hand">
                     <Button.Style>
@@ -137,7 +137,7 @@
                             </Setter>
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#33FFFFFF"/>
+                                    <Setter Property="Background" Value="{DynamicResource HoverStrongBrush}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
@@ -149,9 +149,9 @@
                         Content="Open Search"
                         Width="100"
                         Height="32"
-                        Background="{StaticResource PrimaryBrush}"
+                        Background="{DynamicResource PrimaryBrush}"
                         Foreground="White"
-                        BorderBrush="{StaticResource PrimaryBrush}"
+                        BorderBrush="{DynamicResource PrimaryBrush}"
                         Click="OpenOverlayButton_Click"
                         Cursor="Hand">
                     <Button.Style>
@@ -170,7 +170,7 @@
                             </Setter>
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="{StaticResource PrimaryHoverBrush}"/>
+                                    <Setter Property="Background" Value="{DynamicResource PrimaryHoverBrush}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>

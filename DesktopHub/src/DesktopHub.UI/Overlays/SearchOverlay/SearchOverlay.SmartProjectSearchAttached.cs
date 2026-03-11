@@ -82,9 +82,12 @@ public partial class SearchOverlay
         var alpha = (byte)(transparency * 255);
         var rootBorder = new Border
         {
-            Background = new WpfMedia.SolidColorBrush(WpfMedia.Color.FromArgb(alpha, 0x12, 0x12, 0x12)),
+            Background = new WpfMedia.SolidColorBrush(WpfMedia.Color.FromArgb(alpha,
+                Helpers.ThemeHelper.GetColor("WindowBackgroundColor").R,
+                Helpers.ThemeHelper.GetColor("WindowBackgroundColor").G,
+                Helpers.ThemeHelper.GetColor("WindowBackgroundColor").B)),
             CornerRadius = new CornerRadius(12),
-            BorderBrush = new WpfMedia.SolidColorBrush(WpfMedia.Color.FromArgb(0x3A, 0x2A, 0x2A, 0x2A)),
+            BorderBrush = Helpers.ThemeHelper.Border,
             BorderThickness = new Thickness(1),
             Padding = new Thickness(18),
             ClipToBounds = true,
@@ -94,8 +97,8 @@ public partial class SearchOverlay
         {
             CornerRadius = new CornerRadius(10),
             BorderThickness = new Thickness(1),
-            BorderBrush = new WpfMedia.SolidColorBrush(WpfMedia.Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)),
-            Background = new WpfMedia.SolidColorBrush(WpfMedia.Color.FromArgb(0x14, 0x00, 0x00, 0x00)),
+            BorderBrush = Helpers.ThemeHelper.CardBorder,
+            Background = new WpfMedia.SolidColorBrush(Helpers.ThemeHelper.GetColor("GlassBackgroundColor")),
             IsHitTestVisible = false,
             Margin = new Thickness(2),
         };
@@ -109,7 +112,7 @@ public partial class SearchOverlay
             Text = "Smart Project Search",
             FontSize = 12,
             FontWeight = FontWeights.SemiBold,
-            Foreground = new WpfMedia.SolidColorBrush(WpfMedia.Color.FromRgb(0xF5, 0xF7, 0xFA)),
+            Foreground = Helpers.ThemeHelper.TextPrimary,
             Margin = new Thickness(0, 0, 0, 8),
         };
         Grid.SetRow(header, 0);
@@ -208,7 +211,10 @@ public partial class SearchOverlay
         var transparency = _settings.GetSmartProjectSearchWidgetTransparency();
         var alpha = (byte)(transparency * 255);
         _smartProjectSearchAttachedRootBorder.Background =
-            new WpfMedia.SolidColorBrush(WpfMedia.Color.FromArgb(alpha, 0x12, 0x12, 0x12));
+            new WpfMedia.SolidColorBrush(WpfMedia.Color.FromArgb(alpha,
+                Helpers.ThemeHelper.GetColor("WindowBackgroundColor").R,
+                Helpers.ThemeHelper.GetColor("WindowBackgroundColor").G,
+                Helpers.ThemeHelper.GetColor("WindowBackgroundColor").B));
     }
 
     private void HideSmartSearchAttachedWindow()

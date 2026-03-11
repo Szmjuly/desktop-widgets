@@ -512,18 +512,18 @@ public class TrayIcon : IDisposable
         });
     }
 
-    private async Task DownloadAndInstallUpdateAsync(Infrastructure.Firebase.Models.UpdateInfo updateInfo)
+    public async Task DownloadAndInstallUpdateAsync(Infrastructure.Firebase.Models.UpdateInfo updateInfo, bool silent = false)
     {
         try
         {
-            DebugLogger.Log("=== DOWNLOAD AND INSTALL UPDATE STARTED ===");
+            DebugLogger.Log($"=== DOWNLOAD AND INSTALL UPDATE STARTED (silent={silent}) ===");
             DebugLogger.Log($"Update: Target version: {updateInfo.LatestVersion}");
             DebugLogger.Log($"Update: Download URL: {updateInfo.DownloadUrl}");
             
             if (string.IsNullOrEmpty(updateInfo.DownloadUrl))
             {
                 DebugLogger.Log("Update: ERROR - Download URL is empty");
-                ShowCustomToast("DesktopHub", "Update download URL is missing");
+                if (!silent) ShowCustomToast("DesktopHub", "Update download URL is missing");
                 return;
             }
 
@@ -573,7 +573,6 @@ public class TrayIcon : IDisposable
             }
 
             DebugLogger.Log("Update: Download complete, preparing to install");
-            ShowCustomToast("DesktopHub", "Installing update...");
 
             // For single-file apps, use AppContext.BaseDirectory instead of Assembly.Location
             var currentExePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
@@ -638,20 +637,19 @@ REM Delete this batch file
             await System.IO.File.WriteAllTextAsync(updateBatchPath, batchContent);
             DebugLogger.Log($"Update: Created update script at {updateBatchPath}");
 
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            if (silent)
             {
-                var result = System.Windows.MessageBox.Show(
-                    $"Update ready to install!\n\nDesktopHub will restart to complete the update.",
-                    "Install Update",
-                    System.Windows.MessageBoxButton.OKCancel,
-                    System.Windows.MessageBoxImage.Information
-                );
+                // Silent mode: show countdown toast, then auto-restart after 10 seconds
+                DebugLogger.Log("Update: Silent mode — showing countdown toast, auto-restarting in 10 seconds");
+                ShowCustomToast("DesktopHub", $"Update pushed by admin — restarting in 10 seconds to install v{FormatVersion(updateInfo.LatestVersion)}...");
 
-                if (result == System.Windows.MessageBoxResult.OK)
+                await Task.Delay(10_000);
+
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
-                    DebugLogger.Log("Update: Starting update installer");
+                    DebugLogger.Log("Update: Silent mode — starting update installer");
                     SavePendingWhatsNew(updateInfo.LatestVersion, updateInfo.ReleaseNotes);
-                    
+
                     var startInfo = new System.Diagnostics.ProcessStartInfo
                     {
                         FileName = updateBatchPath,
@@ -661,21 +659,53 @@ REM Delete this batch file
                     };
 
                     System.Diagnostics.Process.Start(startInfo);
-                    
                     System.Windows.Application.Current.Shutdown();
-                }
-                else
+                });
+            }
+            else
+            {
+                // Interactive mode: show confirmation dialogs
+                ShowCustomToast("DesktopHub", "Installing update...");
+
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
-                    DebugLogger.Log("Update: User cancelled installation");
-                    ShowCustomToast("DesktopHub", "Update cancelled");
-                }
-            });
+                    var result = System.Windows.MessageBox.Show(
+                        $"Update ready to install!\n\nDesktopHub will restart to complete the update.",
+                        "Install Update",
+                        System.Windows.MessageBoxButton.OKCancel,
+                        System.Windows.MessageBoxImage.Information
+                    );
+
+                    if (result == System.Windows.MessageBoxResult.OK)
+                    {
+                        DebugLogger.Log("Update: Starting update installer");
+                        SavePendingWhatsNew(updateInfo.LatestVersion, updateInfo.ReleaseNotes);
+                        
+                        var startInfo = new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = updateBatchPath,
+                            CreateNoWindow = true,
+                            UseShellExecute = false,
+                            WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+                        };
+
+                        System.Diagnostics.Process.Start(startInfo);
+                        
+                        System.Windows.Application.Current.Shutdown();
+                    }
+                    else
+                    {
+                        DebugLogger.Log("Update: User cancelled installation");
+                        ShowCustomToast("DesktopHub", "Update cancelled");
+                    }
+                });
+            }
         }
         catch (Exception ex)
         {
             DebugLogger.Log($"Update: Failed to download/install: {ex.Message}");
             DebugLogger.Log($"Update: Stack trace: {ex.StackTrace}");
-            ShowCustomToast("DesktopHub", "Update failed. Please try again later.");
+            if (!silent) ShowCustomToast("DesktopHub", "Update failed. Please try again later.");
         }
     }
 

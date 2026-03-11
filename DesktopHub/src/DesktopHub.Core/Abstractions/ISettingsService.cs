@@ -592,4 +592,9 @@ public interface ISettingsService
     /// Load settings from disk
     /// </summary>
     Task LoadAsync();
+
+    /// <summary>
+    /// Synchronous load — safe to call from the UI thread without deadlocking.
+    /// </summary>
+    void LoadSync();
 }

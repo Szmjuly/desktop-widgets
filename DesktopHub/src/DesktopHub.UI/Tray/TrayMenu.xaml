@@ -16,9 +16,9 @@
         ContextMenu="{x:Null}">
     
     <Border x:Name="RootBorder" 
-            Background="#F0181818" 
+            Background="{DynamicResource WindowBackgroundDeepBrush}" 
             CornerRadius="8" 
-            BorderBrush="#442A2A2A" 
+            BorderBrush="{DynamicResource WindowBorderSolidBrush}" 
             BorderThickness="1"
             Padding="8">
         <StackPanel>
@@ -32,14 +32,14 @@
                     <Style TargetType="Border">
                         <Style.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#22FFFFFF"/>
+                                <Setter Property="Background" Value="{DynamicResource CardBorderBrush}"/>
                             </Trigger>
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
                 <TextBlock Text="Open Search"
                           FontSize="13"
-                          Foreground="{StaticResource TextBrush}"/>
+                          Foreground="{DynamicResource TextBrush}"/>
             </Border>
             
             <!-- Rescan Projects -->
@@ -53,19 +53,19 @@
                     <Style TargetType="Border">
                         <Style.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#22FFFFFF"/>
+                                <Setter Property="Background" Value="{DynamicResource CardBorderBrush}"/>
                             </Trigger>
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
                 <TextBlock Text="Rescan Projects"
                           FontSize="13"
-                          Foreground="{StaticResource TextBrush}"/>
+                          Foreground="{DynamicResource TextBrush}"/>
             </Border>
             
             <!-- Separator -->
             <Border Height="1"
-                    Background="#22FFFFFF"
+                    Background="{DynamicResource CardBorderBrush}"
                     Margin="8,8"
                     IsHitTestVisible="True"/>
             
@@ -79,7 +79,7 @@
                     <Style TargetType="Border">
                         <Style.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#22FFFFFF"/>
+                                <Setter Property="Background" Value="{DynamicResource CardBorderBrush}"/>
                             </Trigger>
                         </Style.Triggers>
                     </Style>
@@ -92,11 +92,11 @@
                     <TextBlock Grid.Column="0"
                               Text="Check for Updates"
                               FontSize="13"
-                              Foreground="{StaticResource TextBrush}"/>
+                              Foreground="{DynamicResource TextBrush}"/>
                     <Ellipse x:Name="TrayUpdateIndicator"
                              Grid.Column="1"
                              Width="8" Height="8"
-                             Fill="#4CAF50"
+                             Fill="{DynamicResource GreenBrush}"
                              VerticalAlignment="Center"
                              Margin="8,0,0,0"
                              Visibility="Collapsed"/>
@@ -114,19 +114,19 @@
                     <Style TargetType="Border">
                         <Style.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#22FFFFFF"/>
+                                <Setter Property="Background" Value="{DynamicResource CardBorderBrush}"/>
                             </Trigger>
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
                 <TextBlock Text="Settings"
                           FontSize="13"
-                          Foreground="{StaticResource TextBrush}"/>
+                          Foreground="{DynamicResource TextBrush}"/>
             </Border>
             
             <!-- Separator -->
             <Border Height="1"
-                    Background="#22FFFFFF"
+                    Background="{DynamicResource CardBorderBrush}"
                     Margin="8,8"
                     IsHitTestVisible="True"/>
             
@@ -140,14 +140,14 @@
                     <Style TargetType="Border">
                         <Style.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#22FFFFFF"/>
+                                <Setter Property="Background" Value="{DynamicResource CardBorderBrush}"/>
                             </Trigger>
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
                 <TextBlock Text="Exit"
                           FontSize="13"
-                          Foreground="{StaticResource TextBrush}"/>
+                          Foreground="{DynamicResource TextBrush}"/>
             </Border>
             
             <!-- Version Display -->
@@ -155,7 +155,7 @@
                 <TextBlock x:Name="VersionText"
                           Text="v1.0.0"
                           FontSize="11"
-                          Foreground="#66FFFFFF"
+                          Foreground="{DynamicResource TextTertiaryBrush}"
                           HorizontalAlignment="Center"/>
             </Border>
         </StackPanel>

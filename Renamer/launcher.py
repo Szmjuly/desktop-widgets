@@ -136,23 +136,67 @@ def show_licensing_status():
     print("\n" + "="*60)
 
 
+def clear_license_cache():
+    """Delete the local license cache file so a fresh license is created on next launch."""
+    import os
+    
+    print("\n" + "="*60)
+    print("CLEAR LICENSE CACHE")
+    print("="*60)
+    
+    if os.name == 'nt':
+        cache_dir = Path(os.getenv('LOCALAPPDATA', '~')).expanduser() / 'SpecHeaderUpdater'
+    else:
+        cache_dir = Path('~').expanduser() / '.config' / 'specheadupdater'
+    
+    cache_file = cache_dir / 'subscription_spec-updater.json'
+    
+    if cache_file.exists():
+        try:
+            with open(cache_file, 'r') as f:
+                data = json.load(f)
+            print(f"\nCurrent cached license:")
+            print(f"  Key:  {data.get('license_key', 'N/A')}")
+            print(f"  Plan: {data.get('plan', 'N/A')}")
+            print(f"  Last Validated: {data.get('last_validated', 'N/A')}")
+        except Exception:
+            print("\nCached license file exists but could not be read.")
+        
+        confirm = input("\nDelete local license cache? (y/n): ").strip().lower()
+        if confirm == 'y':
+            try:
+                cache_file.unlink()
+                print("\n✅ License cache deleted successfully.")
+                print("A new free license will be created on next app launch.")
+            except Exception as e:
+                print(f"\n❌ Error deleting cache: {e}")
+        else:
+            print("\nCancelled — cache was not deleted.")
+    else:
+        print("\nNo license cache file found.")
+        print(f"Expected at: {cache_file}")
+    
+    print("\n" + "="*60)
+
+
 def show_menu():
     """Display main menu."""
     print("\n" + "="*60)
     print("SPEC HEADER DATE UPDATER - LAUNCHER")
     print("="*60)
-    print("\n1. Run Main Application")
-    print("2. Run Admin GUI (License Management)")
-    print("3. Toggle Subscription Requirement")
-    print("4. Run Security Tests")
-    print("5. Check Firebase Import")
-    print("6. Show Licensing Status (Dev)")
-    print("7. Toggle Licensing Build (Remove/Include)")
-    print("8. Build Application (PyInstaller)")
-    print("9. Exit")
+    print("\n1.  Run Main Application")
+    print("2.  Run Admin GUI (License Management)")
+    print("3.  Toggle Subscription Requirement")
+    print("4.  Run Security Tests")
+    print("5.  Check Firebase Import")
+    print("6.  Show Licensing Status (Dev)")
+    print("7.  Toggle Licensing Build (Remove/Include)")
+    print("8.  Build Application (PyInstaller)")
+    print("9.  Clear License Cache")
+    print("10. Exit")
     print("\n" + "="*60)
     
-    choice = input("\nEnter your choice (1-9): ").strip()
+    choice = input("\nEnter your choice (1-10): ").strip()
     return choice
 
 
@@ -196,11 +240,14 @@ def main():
             subprocess.run([sys.executable, "run_app.py", "--build"])
         
         elif choice == '9':
+            clear_license_cache()
+        
+        elif choice == '10':
             print("\n👋 Goodbye!")
             break
         
         else:
-            print("\n❌ Invalid choice. Please enter 1-8.")
+            print("\n❌ Invalid choice. Please enter 1-10.")
         
         input("\nPress Enter to continue...")
 

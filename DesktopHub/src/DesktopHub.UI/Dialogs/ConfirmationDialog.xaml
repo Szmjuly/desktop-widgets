@@ -13,9 +13,9 @@
         ShowInTaskbar="False">
     
     <Border x:Name="RootBorder" 
-            Background="#F8181818" 
+            Background="{DynamicResource WindowBackgroundDeepBrush}" 
             CornerRadius="12" 
-            BorderBrush="#442A2A2A" 
+            BorderBrush="{DynamicResource WindowBorderSolidBrush}" 
             BorderThickness="1">
         <Grid Margin="24">
             <Grid.RowDefinitions>
@@ -29,7 +29,7 @@
                        Text="Exit DesktopHub" 
                        FontSize="20" 
                        FontWeight="SemiBold"
-                       Foreground="{StaticResource TextBrush}"
+                       Foreground="{DynamicResource TextBrush}"
                        Margin="0,0,0,16"/>
             
             <!-- Message -->
@@ -37,7 +37,7 @@
                        x:Name="MessageText"
                        Text="Are you sure you want to exit DesktopHub?"
                        FontSize="14"
-                       Foreground="{StaticResource TextSecondaryBrush}"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
                        TextWrapping="Wrap"
                        VerticalAlignment="Center"
                        Margin="0,0,0,20"/>
@@ -55,9 +55,9 @@
                         Width="80"
                         Height="32"
                         Margin="0,0,8,0"
-                        Background="#22FFFFFF"
-                        Foreground="{StaticResource TextBrush}"
-                        BorderBrush="{StaticResource BorderBrush}"
+                        Background="{DynamicResource CardBorderBrush}"
+                        Foreground="{DynamicResource TextBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
                         Click="CancelButton_Click"
                         Cursor="Hand">
                     <Button.Style>
@@ -83,9 +83,9 @@
                         Content="Exit"
                         Width="80"
                         Height="32"
-                        Background="{StaticResource PrimaryBrush}"
+                        Background="{DynamicResource PrimaryBrush}"
                         Foreground="White"
-                        BorderBrush="{StaticResource PrimaryBrush}"
+                        BorderBrush="{DynamicResource PrimaryBrush}"
                         Click="ConfirmButton_Click"
                         Cursor="Hand">
                     <Button.Style>

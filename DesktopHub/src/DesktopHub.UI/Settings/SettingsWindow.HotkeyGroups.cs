@@ -34,13 +34,13 @@ public partial class SettingsWindow
                 Content = "+ Add Hotkey Group",
                 Margin = new Thickness(0, 8, 0, 0),
                 Padding = new Thickness(14, 7, 14, 7),
-                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x20, 0xFF, 0xFF, 0xFF)),
-                Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
                 BorderThickness = new Thickness(1),
-                BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF)),
                 Cursor = System.Windows.Input.Cursors.Hand,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
             };
+            addBtn.SetResourceReference(System.Windows.Controls.Button.BackgroundProperty, "HoverMediumBrush");
+            addBtn.SetResourceReference(System.Windows.Controls.Button.ForegroundProperty, "TextPrimaryBrush");
+            addBtn.SetResourceReference(System.Windows.Controls.Button.BorderBrushProperty, "CardBorderBrush");
             addBtn.Click += (s, e) =>
             {
                 var newGroups = _settings.GetHotkeyGroups();
@@ -58,13 +58,13 @@ public partial class SettingsWindow
         var group = groups[index];
         var outerBorder = new Border
         {
-            Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF)),
-            BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(14, 12, 14, 12),
             Margin = new Thickness(0, 0, 0, 8),
         };
+        outerBorder.SetResourceReference(Border.BackgroundProperty, "CardBrush");
+        outerBorder.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
 
         var stack = new StackPanel();
         outerBorder.Child = stack;
@@ -110,8 +110,6 @@ public partial class SettingsWindow
         };
         var keyBox = new Border
         {
-            Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x25, 0x00, 0x00, 0x00)),
-            BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x50, 0xFF, 0xFF, 0xFF)),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(5),
             Padding = new Thickness(10, 5, 10, 5),
@@ -119,6 +117,8 @@ public partial class SettingsWindow
             MinWidth = 140,
             Tag = false, // recording state
         };
+        keyBox.SetResourceReference(Border.BackgroundProperty, "FaintOverlayBrush");
+        keyBox.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
         var keyBoxInner = new Grid();
         keyBoxInner.Children.Add(keyText);
         keyBoxInner.Children.Add(recordingText);
@@ -152,13 +152,13 @@ public partial class SettingsWindow
             Width = 28,
             Height = 28,
             Margin = new Thickness(8, 0, 0, 0),
-            Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, 0xFF, 0x40, 0x40)),
-            Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0x80, 0x80)),
             BorderThickness = new Thickness(0),
             Cursor = System.Windows.Input.Cursors.Hand,
             VerticalAlignment = VerticalAlignment.Center,
             Visibility = groups.Count > 1 ? Visibility.Visible : Visibility.Collapsed,
         };
+        removeBtn.SetResourceReference(System.Windows.Controls.Button.BackgroundProperty, "RedBackgroundBrush");
+        removeBtn.SetResourceReference(System.Windows.Controls.Button.ForegroundProperty, "RedBrush");
         removeBtn.Click += (s, e) =>
         {
             var newGroups = _settings.GetHotkeyGroups();
@@ -225,8 +225,6 @@ public partial class SettingsWindow
                     };
                     var chip = new Border
                     {
-                        Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF)),
-                        BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)),
                         BorderThickness = new Thickness(1),
                         CornerRadius = new CornerRadius(12),
                         Padding = new Thickness(8, 3, 8, 3),
@@ -234,6 +232,8 @@ public partial class SettingsWindow
                         Cursor = System.Windows.Input.Cursors.Hand,
                         Child = chipText,
                     };
+                    chip.SetResourceReference(Border.BackgroundProperty, "CardBrush");
+                    chip.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
                     chip.MouseLeftButtonUp += (s, ev) =>
                     {
                         var newGroups = _settings.GetHotkeyGroups();
@@ -295,19 +295,19 @@ public partial class SettingsWindow
         return pill;
     }
 
-    private static void ApplyPillStyle(Border pill, TextBlock pillText, bool active)
+    private void ApplyPillStyle(Border pill, TextBlock pillText, bool active)
     {
         if (active)
         {
-            pill.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, 0x58, 0xC4, 0xFF));
-            pill.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xA0, 0x58, 0xC4, 0xFF));
-            pillText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xA8, 0xD8, 0xFF));
+            pill.SetResourceReference(Border.BackgroundProperty, "AccentLightBrush");
+            pill.SetResourceReference(Border.BorderBrushProperty, "AccentBrush");
+            pillText.SetResourceReference(TextBlock.ForegroundProperty, "BlueBrush");
         }
         else
         {
-            pill.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF));
-            pill.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x35, 0xFF, 0xFF, 0xFF));
-            pillText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xB0, 0xB8, 0xC8));
+            pill.SetResourceReference(Border.BackgroundProperty, "CardBrush");
+            pill.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
+            pillText.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
         }
     }
 }

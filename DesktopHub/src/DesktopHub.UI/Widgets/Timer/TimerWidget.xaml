@@ -2,8 +2,8 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="Transparent">
-    <Border Background="#D0121212"
-            BorderBrush="#2A2A2A"
+    <Border Background="{DynamicResource InputBackgroundBrush}"
+            BorderBrush="{DynamicResource SurfaceSolidBrush}"
             BorderThickness="1"
             CornerRadius="8"
             Padding="16">
@@ -24,8 +24,8 @@
                 
                 <Border x:Name="StopwatchButton"
                         Grid.Column="0"
-                        Background="#20F5F7FA"
-                        BorderBrush="#30F5F7FA"
+                        Background="{DynamicResource HoverMediumBrush}"
+                        BorderBrush="{DynamicResource SelectedBrush}"
                         BorderThickness="1"
                         CornerRadius="6"
                         Padding="8,6"
@@ -34,7 +34,7 @@
                         MouseLeftButtonDown="StopwatchButton_Click">
                     <TextBlock Text="Stopwatch"
                               FontSize="12"
-                              Foreground="#F5F7FA"
+                              Foreground="{DynamicResource TextPrimaryBrush}"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Center"/>
                 </Border>
@@ -42,7 +42,7 @@
                 <Border x:Name="TimerButton"
                         Grid.Column="1"
                         Background="Transparent"
-                        BorderBrush="#30F5F7FA"
+                        BorderBrush="{DynamicResource SelectedBrush}"
                         BorderThickness="1"
                         CornerRadius="6"
                         Padding="8,6"
@@ -51,7 +51,7 @@
                         MouseLeftButtonDown="TimerButton_Click">
                     <TextBlock Text="Timer"
                               FontSize="12"
-                              Foreground="#F5F7FA"
+                              Foreground="{DynamicResource TextPrimaryBrush}"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Center"/>
                 </Border>
@@ -63,7 +63,7 @@
                       Text="00:00:00"
                       FontSize="32"
                       FontWeight="Bold"
-                      Foreground="#F5F7FA"
+                      Foreground="{DynamicResource TextPrimaryBrush}"
                       HorizontalAlignment="Center"
                       Margin="0,0,0,16"/>
             
@@ -84,9 +84,9 @@
                         Grid.Column="0"
                         Text="0"
                         FontSize="16"
-                        Background="#20F5F7FA"
-                        Foreground="#F5F7FA"
-                        BorderBrush="#30F5F7FA"
+                        Background="{DynamicResource HoverMediumBrush}"
+                        Foreground="{DynamicResource TextPrimaryBrush}"
+                        BorderBrush="{DynamicResource SelectedBrush}"
                         BorderThickness="1"
                         Padding="8,4"
                         HorizontalContentAlignment="Center"
@@ -95,7 +95,7 @@
                 <TextBlock Grid.Column="1"
                           Text=":"
                           FontSize="16"
-                          Foreground="#F5F7FA"
+                          Foreground="{DynamicResource TextPrimaryBrush}"
                           Margin="4,0"
                           VerticalAlignment="Center"/>
                 
@@ -103,9 +103,9 @@
                         Grid.Column="2"
                         Text="0"
                         FontSize="16"
-                        Background="#20F5F7FA"
-                        Foreground="#F5F7FA"
-                        BorderBrush="#30F5F7FA"
+                        Background="{DynamicResource HoverMediumBrush}"
+                        Foreground="{DynamicResource TextPrimaryBrush}"
+                        BorderBrush="{DynamicResource SelectedBrush}"
                         BorderThickness="1"
                         Padding="8,4"
                         HorizontalContentAlignment="Center"
@@ -114,7 +114,7 @@
                 <TextBlock Grid.Column="3"
                           Text=":"
                           FontSize="16"
-                          Foreground="#F5F7FA"
+                          Foreground="{DynamicResource TextPrimaryBrush}"
                           Margin="4,0"
                           VerticalAlignment="Center"/>
                 
@@ -122,9 +122,9 @@
                         Grid.Column="4"
                         Text="0"
                         FontSize="16"
-                        Background="#20F5F7FA"
-                        Foreground="#F5F7FA"
-                        BorderBrush="#30F5F7FA"
+                        Background="{DynamicResource HoverMediumBrush}"
+                        Foreground="{DynamicResource TextPrimaryBrush}"
+                        BorderBrush="{DynamicResource SelectedBrush}"
                         BorderThickness="1"
                         Padding="8,4"
                         HorizontalContentAlignment="Center"
@@ -140,8 +140,8 @@
                 
                 <Border x:Name="StartPauseButton"
                         Grid.Column="0"
-                        Background="#20007ACC"
-                        BorderBrush="#30007ACC"
+                        Background="{DynamicResource AccentLightBrush}"
+                        BorderBrush="{DynamicResource AccentLightBrush}"
                         BorderThickness="1"
                         CornerRadius="6"
                         Padding="12,8"
@@ -152,7 +152,7 @@
                         <Style TargetType="Border">
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#30007ACC"/>
+                                    <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
@@ -161,15 +161,15 @@
                               Text="Start"
                               FontSize="14"
                               FontWeight="SemiBold"
-                              Foreground="#F5F7FA"
+                              Foreground="{DynamicResource TextPrimaryBrush}"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Center"/>
                 </Border>
                 
                 <Border x:Name="ResetButton"
                         Grid.Column="1"
-                        Background="#20F5F7FA"
-                        BorderBrush="#30F5F7FA"
+                        Background="{DynamicResource HoverMediumBrush}"
+                        BorderBrush="{DynamicResource SelectedBrush}"
                         BorderThickness="1"
                         CornerRadius="6"
                         Padding="12,8"
@@ -180,7 +180,7 @@
                         <Style TargetType="Border">
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#30F5F7FA"/>
+                                    <Setter Property="Background" Value="{DynamicResource SelectedBrush}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
@@ -188,7 +188,7 @@
                     <TextBlock Text="Reset"
                               FontSize="14"
                               FontWeight="SemiBold"
-                              Foreground="#F5F7FA"
+                              Foreground="{DynamicResource TextPrimaryBrush}"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Center"/>
                 </Border>

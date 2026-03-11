@@ -16,18 +16,13 @@
         KeyDown="Window_KeyDown">
     
     <Border x:Name="RootBorder"
-            Background="#A8121212"
+            Background="{DynamicResource WindowBackgroundAlphaBrush}"
             CornerRadius="12"
-            BorderBrush="#3A2A2A2A"
+            BorderBrush="{DynamicResource WindowBorderBrush}"
             BorderThickness="1">
         <Grid>
             <!-- Glass overlay effect -->
-            <Border Margin="2"
-                    CornerRadius="10"
-                    BorderThickness="1"
-                    BorderBrush="#33FFFFFF"
-                    Background="#14000000"
-                    IsHitTestVisible="False"/>
+            <Border Style="{StaticResource GlassOverlayBorder}"/>
             
             <!-- Content -->
             <Border Background="Transparent" Padding="16">
@@ -42,7 +37,7 @@
                         <TextBlock Text="Widgets"
                                   FontSize="13"
                                   FontWeight="SemiBold"
-                                  Foreground="#F5F7FA"
+                                  Foreground="{DynamicResource TextPrimaryBrush}"
                                   VerticalAlignment="Center"/>
                         <Border HorizontalAlignment="Right"
                                 VerticalAlignment="Center"
@@ -55,14 +50,14 @@
                                 <Style TargetType="Border">
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#33FFFFFF"/>
+                                            <Setter Property="Background" Value="{DynamicResource HoverStrongBrush}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
                             <TextBlock Text="✕"
                                       FontSize="10"
-                                      Foreground="#80F5F7FA"
+                                      Foreground="{DynamicResource TextSecondaryBrush}"
                                       HorizontalAlignment="Center"
                                       VerticalAlignment="Center"/>
                         </Border>
@@ -80,7 +75,7 @@
                                 <Setter Property="Template">
                                     <Setter.Value>
                                         <ControlTemplate TargetType="Thumb">
-                                            <Border Background="#99F5F7FA" CornerRadius="3"/>
+                                            <Border Background="{DynamicResource ScrollbarThumbBrush}" CornerRadius="3"/>
                                         </ControlTemplate>
                                     </Setter.Value>
                                 </Setter>
@@ -161,8 +156,8 @@
                         </ScrollViewer.Style>
                     <StackPanel>
                         <Border x:Name="SearchWidgetButton"
-                                Background="#10F5F7FA"
-                                BorderBrush="#30F5F7FA"
+                                Background="{DynamicResource HoverBrush}"
+                                BorderBrush="{DynamicResource SelectedBrush}"
                                 BorderThickness="1"
                                 CornerRadius="6"
                                 Padding="12,10"
@@ -173,19 +168,19 @@
                                 <Style TargetType="Border">
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#25F5F7FA"/>
+                                            <Setter Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="🔍" FontSize="14" Margin="0,0,8,0"/>
-                                <TextBlock Text="Search" FontSize="12" Foreground="#F5F7FA" VerticalAlignment="Center"/>
+                                <TextBlock Text="Search" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                         <Border x:Name="TimerWidgetButton"
-                                Background="#10F5F7FA"
-                                BorderBrush="#30F5F7FA"
+                                Background="{DynamicResource HoverBrush}"
+                                BorderBrush="{DynamicResource SelectedBrush}"
                                 BorderThickness="1"
                                 CornerRadius="6"
                                 Padding="12,10"
@@ -196,19 +191,19 @@
                                 <Style TargetType="Border">
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#25F5F7FA"/>
+                                            <Setter Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="⏱️" FontSize="14" Margin="0,0,8,0"/>
-                                <TextBlock Text="Timer" FontSize="12" Foreground="#F5F7FA" VerticalAlignment="Center"/>
+                                <TextBlock Text="Timer" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                         <Border x:Name="QuickTasksWidgetButton"
-                                Background="#10F5F7FA"
-                                BorderBrush="#30F5F7FA"
+                                Background="{DynamicResource HoverBrush}"
+                                BorderBrush="{DynamicResource SelectedBrush}"
                                 BorderThickness="1"
                                 CornerRadius="6"
                                 Padding="12,10"
@@ -219,20 +214,20 @@
                                 <Style TargetType="Border">
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#25F5F7FA"/>
+                                            <Setter Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#9745;" FontSize="14" Margin="0,0,8,0"/>
-                                <TextBlock Text="Quick Tasks" FontSize="12" Foreground="#F5F7FA" VerticalAlignment="Center"/>
+                                <TextBlock Text="Quick Tasks" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                         
                         <Border x:Name="FrequentProjectsButton"
-                                Background="#10F5F7FA"
-                                BorderBrush="#30F5F7FA"
+                                Background="{DynamicResource HoverBrush}"
+                                BorderBrush="{DynamicResource SelectedBrush}"
                                 BorderThickness="1"
                                 CornerRadius="6"
                                 Padding="12,10"
@@ -243,19 +238,19 @@
                                 <Style TargetType="Border">
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#25F5F7FA"/>
+                                            <Setter Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#9733;" FontSize="14" Margin="0,0,8,0"/>
-                                <TextBlock Text="Frequent Projects" FontSize="12" Foreground="#F5F7FA" VerticalAlignment="Center"/>
+                                <TextBlock Text="Frequent Projects" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                         <Border x:Name="QuickLaunchButton"
-                                Background="#10F5F7FA"
-                                BorderBrush="#30F5F7FA"
+                                Background="{DynamicResource HoverBrush}"
+                                BorderBrush="{DynamicResource SelectedBrush}"
                                 BorderThickness="1"
                                 CornerRadius="6"
                                 Padding="12,10"
@@ -266,19 +261,19 @@
                                 <Style TargetType="Border">
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#25F5F7FA"/>
+                                            <Setter Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#128640;" FontSize="14" Margin="0,0,8,0"/>
-                                <TextBlock Text="Quick Launch" FontSize="12" Foreground="#F5F7FA" VerticalAlignment="Center"/>
+                                <TextBlock Text="Quick Launch" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                         <Border x:Name="DocQuickOpenButton"
-                                Background="#10F5F7FA"
-                                BorderBrush="#30F5F7FA"
+                                Background="{DynamicResource HoverBrush}"
+                                BorderBrush="{DynamicResource SelectedBrush}"
                                 BorderThickness="1"
                                 CornerRadius="6"
                                 Padding="12,10"
@@ -289,20 +284,20 @@
                                 <Style TargetType="Border">
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#25F5F7FA"/>
+                                            <Setter Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#128196;" FontSize="14" Margin="0,0,8,0"/>
-                                <TextBlock Text="Doc Quick Open" FontSize="12" Foreground="#F5F7FA" VerticalAlignment="Center"/>
+                                <TextBlock Text="Doc Quick Open" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
 
                         <Border x:Name="SmartProjectSearchButton"
-                                Background="#10F5F7FA"
-                                BorderBrush="#30F5F7FA"
+                                Background="{DynamicResource HoverBrush}"
+                                BorderBrush="{DynamicResource SelectedBrush}"
                                 BorderThickness="1"
                                 CornerRadius="6"
                                 Padding="12,10"
@@ -313,20 +308,20 @@
                                 <Style TargetType="Border">
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#25F5F7FA"/>
+                                            <Setter Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#128269;" FontSize="14" Margin="0,0,8,0"/>
-                                <TextBlock Text="Smart Search" FontSize="12" Foreground="#F5F7FA" VerticalAlignment="Center"/>
+                                <TextBlock Text="Smart Search" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
 
                         <Border x:Name="MetricsViewerButton"
-                                Background="#10F5F7FA"
-                                BorderBrush="#30F5F7FA"
+                                Background="{DynamicResource HoverBrush}"
+                                BorderBrush="{DynamicResource SelectedBrush}"
                                 BorderThickness="1"
                                 CornerRadius="6"
                                 Padding="12,10"
@@ -338,20 +333,20 @@
                                 <Style TargetType="Border">
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#25F5F7FA"/>
+                                            <Setter Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#128202;" FontSize="14" Margin="0,0,8,0"/>
-                                <TextBlock Text="Metrics" FontSize="12" Foreground="#F5F7FA" VerticalAlignment="Center"/>
+                                <TextBlock Text="Metrics" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
 
                         <Border x:Name="ProjectInfoButton"
-                                Background="#10F5F7FA"
-                                BorderBrush="#30F5F7FA"
+                                Background="{DynamicResource HoverBrush}"
+                                BorderBrush="{DynamicResource SelectedBrush}"
                                 BorderThickness="1"
                                 CornerRadius="6"
                                 Padding="12,10"
@@ -363,20 +358,20 @@
                                 <Style TargetType="Border">
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#25F5F7FA"/>
+                                            <Setter Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="🏷️" FontSize="14" Margin="0,0,8,0"/>
-                                <TextBlock Text="Project Info" FontSize="12" Foreground="#F5F7FA" VerticalAlignment="Center"/>
+                                <TextBlock Text="Project Info" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
 
                         <Border x:Name="CheatSheetButton"
-                                Background="#10F5F7FA"
-                                BorderBrush="#30F5F7FA"
+                                Background="{DynamicResource HoverBrush}"
+                                BorderBrush="{DynamicResource SelectedBrush}"
                                 BorderThickness="1"
                                 CornerRadius="6"
                                 Padding="12,10"
@@ -387,14 +382,14 @@
                                 <Style TargetType="Border">
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#25F5F7FA"/>
+                                            <Setter Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#128218;" FontSize="14" Margin="0,0,8,0"/>
-                                <TextBlock Text="Cheat Sheets" FontSize="12" Foreground="#F5F7FA" VerticalAlignment="Center"/>
+                                <TextBlock Text="Cheat Sheets" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -405,7 +400,7 @@
             <!-- Update available indicator -->
             <Ellipse x:Name="UpdateIndicator"
                      Width="10" Height="10"
-                     Fill="#4CAF50"
+                     Fill="{DynamicResource GreenBrush}"
                      HorizontalAlignment="Right"
                      VerticalAlignment="Bottom"
                      Margin="0,0,8,8"

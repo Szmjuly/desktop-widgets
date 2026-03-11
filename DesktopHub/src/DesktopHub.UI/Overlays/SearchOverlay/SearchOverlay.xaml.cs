@@ -30,6 +30,7 @@ public partial class SearchOverlay : Window
     private readonly TimerService _timerService;
     private readonly List<GlobalHotkey> _hotkeys = new();
     private TrayIcon? _trayIcon;
+    public TrayIcon? TrayIconInstance => _trayIcon;
     private TimerOverlay? _timerOverlay;
     private QuickTasksOverlay? _quickTasksOverlay;
     private DocQuickOpenOverlay? _docOverlay;
@@ -47,6 +48,7 @@ public partial class SearchOverlay : Window
     private IProjectLaunchDataStore? _launchDataStore;
     private IProjectTagService? _tagService;
     private Core.Abstractions.ITagVocabularyService? _vocabService;
+    private Core.Abstractions.ITagRegistryService? _tagRegistryService;
     private ProjectInfoOverlay? _projectInfoOverlay;
     private List<Project> _allProjects = new();
     private List<Project> _filteredProjects = new();

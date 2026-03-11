@@ -27,13 +27,14 @@ public partial class SearchOverlay
         _dataStore = new SqliteDataStore();
         _settings = new SettingsService();
 
-        // Create tag + vocabulary services — needs FirebaseService from App
+        // Create tag + vocabulary + registry services — needs FirebaseService from App
+        _vocabService = new TagVocabularyService(); // Local-only, no Firebase
         var app = (App)System.Windows.Application.Current;
         var firebaseService = app.FirebaseManager?.FirebaseService;
         if (firebaseService != null)
         {
             _tagService = new ProjectTagService(firebaseService);
-            _vocabService = new TagVocabularyService(firebaseService);
+            _tagRegistryService = new TagRegistryService(firebaseService);
             _searchService = new SearchService(_tagService);
         }
         else
@@ -170,10 +171,16 @@ public partial class SearchOverlay
                     try
                     {
                         await _tagService.InitializeAsync();
-                        if (_vocabService != null)
-                            await _vocabService.InitializeAsync();
+
+                        // Refresh local vocabulary suggestions from cached project tags
+                        _vocabService?.RefreshFromCache(_tagService.GetAllCachedTags());
+
+                        // Initialize shared custom tag key registry
+                        if (_tagRegistryService != null)
+                            await _tagRegistryService.InitializeAsync();
+
                         RefreshTagCarousel();
-                        DebugLogger.Log("SearchOverlay: Tag + vocabulary services initialized");
+                        DebugLogger.Log("SearchOverlay: Tag + vocabulary + registry services initialized");
                     }
                     catch (Exception tagEx)
                     {
@@ -398,6 +405,13 @@ public partial class SearchOverlay
 
             // Initialize periodic update checking
             InitializeUpdateCheckService();
+
+            // Subscribe to theme changes so transparency + colors refresh
+            var app2 = (App)System.Windows.Application.Current;
+            if (app2.Theme != null)
+            {
+                app2.Theme.ThemeChanged += OnThemeChanged;
+            }
 
             // Load transparency setting
             // ...

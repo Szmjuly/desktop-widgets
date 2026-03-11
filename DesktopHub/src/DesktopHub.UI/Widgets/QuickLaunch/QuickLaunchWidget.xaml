@@ -8,11 +8,7 @@
              DragLeave="Widget_DragLeave">
     
     <UserControl.Resources>
-        <SolidColorBrush x:Key="AccentBrush" Color="#4FC3F7"/>
-        <SolidColorBrush x:Key="TextBrush" Color="#F5F7FA"/>
-        <SolidColorBrush x:Key="DimTextBrush" Color="#B6C3CA"/>
-        <SolidColorBrush x:Key="SurfaceBrush" Color="#26F5F7FA"/>
-        <SolidColorBrush x:Key="HoverBrush" Color="#36F5F7FA"/>
+        <SolidColorBrush x:Key="DimTextBrush" Color="{DynamicResource TextSecondaryColor}"/>
     </UserControl.Resources>
     
     <Grid>
@@ -28,13 +24,13 @@
                           Text="Quick Launch"
                           FontSize="14"
                           FontWeight="SemiBold"
-                          Foreground="{StaticResource TextBrush}"/>
+                          Foreground="{DynamicResource TextBrush}"/>
                 
                 <!-- Add item button -->
                 <Border Grid.Column="1"
                         x:Name="AddItemButton"
-                        Background="{StaticResource SurfaceBrush}"
-                        BorderBrush="#30F5F7FA"
+                        Background="{DynamicResource SurfaceBrush}"
+                        BorderBrush="{DynamicResource SelectedBrush}"
                         BorderThickness="1"
                         CornerRadius="4"
                         Padding="10,4"
@@ -44,19 +40,19 @@
                         <Style TargetType="Border">
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                    <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
-                    <TextBlock Text="+ Add" FontSize="11" Foreground="{StaticResource AccentBrush}"/>
+                    <TextBlock Text="+ Add" FontSize="11" Foreground="{DynamicResource AccentBrush}"/>
                 </Border>
             </Grid>
             
             <!-- Add Item Panel (hidden by default) -->
             <Border x:Name="AddPanel"
                     Visibility="Collapsed"
-                    Background="{StaticResource SurfaceBrush}"
+                    Background="{DynamicResource SurfaceBrush}"
                     CornerRadius="6"
                     Padding="10,8"
                     Margin="0,0,0,8">
@@ -65,8 +61,8 @@
                     <TextBox x:Name="NameInput"
                             Background="Transparent"
                             BorderThickness="0"
-                            Foreground="{StaticResource TextBrush}"
-                            CaretBrush="{StaticResource TextBrush}"
+                            Foreground="{DynamicResource TextBrush}"
+                            CaretBrush="{DynamicResource TextBrush}"
                             FontSize="12"
                             Margin="0,0,0,6">
                         <TextBox.Style>
@@ -78,7 +74,7 @@
                                                 <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
                                                 <TextBlock x:Name="Placeholder"
                                                           Text="Display name..."
-                                                          Foreground="#60F5F7FA"
+                                                          Foreground="{DynamicResource TextPlaceholderBrush}"
                                                           FontSize="12"
                                                           VerticalAlignment="Center"
                                                           IsHitTestVisible="False"
@@ -107,8 +103,8 @@
                                 Grid.Column="0"
                                 Background="Transparent"
                                 BorderThickness="0"
-                                Foreground="{StaticResource TextBrush}"
-                                CaretBrush="{StaticResource TextBrush}"
+                                Foreground="{DynamicResource TextBrush}"
+                                CaretBrush="{DynamicResource TextBrush}"
                                 FontSize="11"
                                 KeyDown="PathInput_KeyDown">
                             <TextBox.Style>
@@ -120,7 +116,7 @@
                                                     <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
                                                     <TextBlock x:Name="Placeholder"
                                                               Text="Folder path or file..."
-                                                              Foreground="#60F5F7FA"
+                                                              Foreground="{DynamicResource TextPlaceholderBrush}"
                                                               FontSize="11"
                                                               VerticalAlignment="Center"
                                                               IsHitTestVisible="False"
@@ -149,12 +145,12 @@
                                 <Style TargetType="Border">
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                            <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
-                            <TextBlock Text="Browse" FontSize="10" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="Browse" FontSize="10" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                         </Border>
                     </Grid>
                     
@@ -170,15 +166,15 @@
                                 <Style TargetType="Border">
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                            <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
-                            <TextBlock Text="Cancel" FontSize="10" Foreground="{StaticResource DimTextBrush}"/>
+                            <TextBlock Text="Cancel" FontSize="10" Foreground="{DynamicResource DimTextBrush}"/>
                         </Border>
-                        <Border Background="{StaticResource SurfaceBrush}"
-                                BorderBrush="#30F5F7FA"
+                        <Border Background="{DynamicResource SurfaceBrush}"
+                                BorderBrush="{DynamicResource SelectedBrush}"
                                 BorderThickness="1"
                                 CornerRadius="4"
                                 Padding="10,3"
@@ -188,12 +184,12 @@
                                 <Style TargetType="Border">
                                     <Style.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                            <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
-                            <TextBlock Text="Save" FontSize="10" Foreground="{StaticResource AccentBrush}"/>
+                            <TextBlock Text="Save" FontSize="10" Foreground="{DynamicResource AccentBrush}"/>
                         </Border>
                     </StackPanel>
                 </StackPanel>
@@ -231,11 +227,11 @@
                 <StackPanel HorizontalAlignment="Center">
                     <TextBlock Text="No launch items"
                               FontSize="12"
-                              Foreground="#A0F5F7FA"
+                              Foreground="{DynamicResource TextSecondaryBrush}"
                               HorizontalAlignment="Center"/>
                     <TextBlock Text="Click '+ Add' to add folders or files"
                               FontSize="10"
-                              Foreground="#88F5F7FA"
+                              Foreground="{DynamicResource TextTertiaryBrush}"
                               HorizontalAlignment="Center"
                               Margin="0,4,0,0"/>
                 </StackPanel>
@@ -243,13 +239,13 @@
             
             <!-- Footer -->
             <Border Margin="0,10,0,0"
-                    BorderBrush="#15F5F7FA"
+                    BorderBrush="{DynamicResource BorderSubtleBrush}"
                     BorderThickness="0,1,0,0"
                     Padding="0,8,0,0">
                 <TextBlock x:Name="StatusText"
                           Text="0 items"
                           FontSize="10"
-                          Foreground="#A0F5F7FA"
+                          Foreground="{DynamicResource TextSecondaryBrush}"
                           VerticalAlignment="Center"/>
             </Border>
         </StackPanel>

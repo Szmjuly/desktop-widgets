@@ -130,9 +130,9 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
     private void UpdateDisciplineButtons(ProjectFileInfo info)
     {
         var selected = _docService.SelectedDiscipline;
-        var activeBg = new WpfSolidColorBrush(WpfColor.FromArgb(0x30, 0x4F, 0xC3, 0xF7));
-        var inactiveBg = new WpfSolidColorBrush(WpfColor.FromArgb(0x10, 0xF5, 0xF7, 0xFA));
-        var disabledBg = new WpfSolidColorBrush(WpfColor.FromArgb(0x08, 0xF5, 0xF7, 0xFA));
+        var activeBg = Helpers.ThemeHelper.AccentLight;
+        var inactiveBg = Helpers.ThemeHelper.Hover;
+        var disabledBg = Helpers.ThemeHelper.FaintOverlay;
 
         foreach (var (discipline, btn) in _disciplineButtons)
         {
@@ -596,8 +596,8 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
             var shortVer = version.Length >= 2 ? version.Substring(version.Length - 2) : version;
             var label = isPrimary ? $"Launch R{shortVer} ▶" : $"R{shortVer}";
             var defaultBg = isPrimary
-                ? new WpfSolidColorBrush(WpfColor.FromArgb(0x30, 0xFF, 0x6B, 0x35))
-                : new WpfSolidColorBrush(WpfColor.FromArgb(0x18, 0xFF, 0x6B, 0x35));
+                ? Helpers.ThemeHelper.OrangeBackground
+                : Helpers.ThemeHelper.FaintOverlay;
 
             var pill = new Border
             {
@@ -610,7 +610,7 @@ public partial class DocQuickOpenWidget : System.Windows.Controls.UserControl
             };
 
             var bg = defaultBg;
-            pill.MouseEnter += (s, e) => pill.Background = new WpfSolidColorBrush(WpfColor.FromArgb(0x50, 0xFF, 0x6B, 0x35));
+            pill.MouseEnter += (s, e) => pill.Background = Helpers.ThemeHelper.OrangeBackground;
             pill.MouseLeave += (s, e) => pill.Background = bg;
             pill.MouseLeftButtonDown += (s, e) => LaunchRevit(path, version);
 

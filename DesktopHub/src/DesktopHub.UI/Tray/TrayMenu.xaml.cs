@@ -69,8 +69,9 @@ public partial class TrayMenu : Window
             if (_settings != null)
             {
                 var alpha = (byte)(_settings.GetWidgetTransparency(WidgetIds.TrayMenu) * 255);
+                var bgBase = Helpers.ThemeHelper.GetColor("WindowBackgroundDeepColor");
                 RootBorder.Background = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromArgb(alpha, 0x18, 0x18, 0x18));
+                    System.Windows.Media.Color.FromArgb(alpha, bgBase.R, bgBase.G, bgBase.B));
             }
 
             PositionNearCursor();

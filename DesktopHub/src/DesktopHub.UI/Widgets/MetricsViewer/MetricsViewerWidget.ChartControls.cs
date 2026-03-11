@@ -21,8 +21,8 @@ public partial class MetricsViewerWidget
             var capturedId = id;
             var btn = new Border
             {
-                Background = new WpfSolidColorBrush(WpfColor.FromArgb(0x10, 0xF5, 0xF7, 0xFA)),
-                BorderBrush = new WpfSolidColorBrush(WpfColor.FromArgb(0x30, 0xF5, 0xF7, 0xFA)),
+                Background = Helpers.ThemeHelper.Hover,
+                BorderBrush = Helpers.ThemeHelper.Selected,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(5),
                 Padding = new Thickness(10, 5, 10, 5),
@@ -36,7 +36,7 @@ public partial class MetricsViewerWidget
             {
                 Text = $"{icon} {label}",
                 FontSize = 11,
-                Foreground = Brush("#B6C3CA")
+                Foreground = Helpers.ThemeHelper.TextSecondary
             };
             btn.Child = tb;
 
@@ -69,7 +69,7 @@ public partial class MetricsViewerWidget
             {
                 Text = "Select a chart type to configure metrics",
                 FontSize = 10, FontStyle = FontStyles.Italic,
-                Foreground = Brush("#6B7A85")
+                Foreground = Helpers.ThemeHelper.TextTertiary
             });
             return;
         }
@@ -97,7 +97,7 @@ public partial class MetricsViewerWidget
         {
             Text = "Metric:",
             FontSize = 11, FontWeight = FontWeights.SemiBold,
-            Foreground = Brush("#B6C3CA"),
+            Foreground = Helpers.ThemeHelper.TextSecondary,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 8, 0)
         });
@@ -108,7 +108,7 @@ public partial class MetricsViewerWidget
         row.Children.Add(_xAxisButtons);
 
         MetricSelectorPanel.Children.Add(row);
-        HighlightAxisPanel(_xAxisButtons, _selectedXMetric, "#42A5F5");
+        HighlightAxisPanel(_xAxisButtons, _selectedXMetric, Palette[4]);
     }
 
     private void BuildDualMetricRows()
@@ -119,7 +119,7 @@ public partial class MetricsViewerWidget
         {
             Text = "X Axis:",
             FontSize = 11, FontWeight = FontWeights.SemiBold,
-            Foreground = Brush("#42A5F5"),
+            Foreground = Helpers.ThemeHelper.Blue,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 8, 0)
         });
@@ -136,7 +136,7 @@ public partial class MetricsViewerWidget
         {
             Text = "Y Axis:",
             FontSize = 11, FontWeight = FontWeights.SemiBold,
-            Foreground = Brush("#66BB6A"),
+            Foreground = Helpers.ThemeHelper.Green,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 8, 0)
         });
@@ -147,8 +147,8 @@ public partial class MetricsViewerWidget
         yRow.Children.Add(_yAxisButtons);
         MetricSelectorPanel.Children.Add(yRow);
 
-        HighlightAxisPanel(_xAxisButtons, _selectedXMetric, "#42A5F5");
-        HighlightAxisPanel(_yAxisButtons, _selectedYMetric, "#66BB6A");
+        HighlightAxisPanel(_xAxisButtons, _selectedXMetric, Palette[4]);
+        HighlightAxisPanel(_yAxisButtons, _selectedYMetric, Palette[1]);
     }
 
     private void BuildCategoryMetricRow(string chartType)
@@ -169,7 +169,7 @@ public partial class MetricsViewerWidget
         {
             Text = desc,
             FontSize = 10,
-            Foreground = Brush("#8899A6"),
+            Foreground = Helpers.ThemeHelper.TextSecondary,
             Margin = new Thickness(0, 0, 0, 6)
         });
 
@@ -180,11 +180,11 @@ public partial class MetricsViewerWidget
             var btn = new Border
             {
                 Background = _selectedCategoryMetrics.Contains(id)
-                    ? new WpfSolidColorBrush(WpfColor.FromArgb(0x30, 0x00, 0x7A, 0xCC))
-                    : new WpfSolidColorBrush(WpfColor.FromArgb(0x10, 0xF5, 0xF7, 0xFA)),
+                    ? Helpers.ThemeHelper.AccentLight
+                    : Helpers.ThemeHelper.Hover,
                 BorderBrush = _selectedCategoryMetrics.Contains(id)
-                    ? Brush("#007ACC")
-                    : new WpfSolidColorBrush(WpfColor.FromArgb(0x20, 0xF5, 0xF7, 0xFA)),
+                    ? Helpers.ThemeHelper.Accent
+                    : Helpers.ThemeHelper.HoverMedium,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(5),
                 Padding = new Thickness(8, 4, 8, 4),
@@ -196,7 +196,7 @@ public partial class MetricsViewerWidget
             {
                 Text = label,
                 FontSize = 10,
-                Foreground = _selectedCategoryMetrics.Contains(id) ? Brush("#42A5F5") : Brush("#B6C3CA")
+                Foreground = _selectedCategoryMetrics.Contains(id) ? Helpers.ThemeHelper.Blue : Helpers.ThemeHelper.TextSecondary
             };
             btn.MouseLeftButtonDown += (s, e) =>
             {
@@ -223,8 +223,8 @@ public partial class MetricsViewerWidget
     {
         var btn = new Border
         {
-            Background = new WpfSolidColorBrush(WpfColor.FromArgb(0x10, 0xF5, 0xF7, 0xFA)),
-            BorderBrush = new WpfSolidColorBrush(WpfColor.FromArgb(0x20, 0xF5, 0xF7, 0xFA)),
+            Background = Helpers.ThemeHelper.Hover,
+            BorderBrush = Helpers.ThemeHelper.HoverMedium,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(5),
             Padding = new Thickness(8, 4, 8, 4),
@@ -232,7 +232,7 @@ public partial class MetricsViewerWidget
             Cursor = System.Windows.Input.Cursors.Hand,
             Tag = metricId
         };
-        btn.Child = new TextBlock { Text = label, FontSize = 10, Foreground = Brush("#B6C3CA") };
+        btn.Child = new TextBlock { Text = label, FontSize = 10, Foreground = Helpers.ThemeHelper.TextSecondary };
         btn.MouseLeftButtonDown += (s, e) =>
         {
             e.Handled = true;
@@ -248,28 +248,28 @@ public partial class MetricsViewerWidget
     private void HighlightActiveAxisButtons()
     {
         if (_xAxisButtons != null)
-            HighlightAxisPanel(_xAxisButtons, _selectedXMetric, "#42A5F5");
+            HighlightAxisPanel(_xAxisButtons, _selectedXMetric, Palette[4]);
         if (_yAxisButtons != null)
-            HighlightAxisPanel(_yAxisButtons, _selectedYMetric, "#66BB6A");
+            HighlightAxisPanel(_yAxisButtons, _selectedYMetric, Palette[1]);
     }
 
     private void HighlightCategoryButtons()
     {
         if (_categoryButtons == null) return;
-        var accent = (WpfColor)WpfColorConverter.ConvertFromString("#007ACC");
+        var accent = Helpers.ThemeHelper.AccentColor;
         foreach (var child in _categoryButtons.Children)
         {
             if (child is Border b && b.Tag is string id)
             {
                 var isOn = _selectedCategoryMetrics.Contains(id);
                 b.Background = isOn
-                    ? new WpfSolidColorBrush(WpfColor.FromArgb(0x30, accent.R, accent.G, accent.B))
-                    : new WpfSolidColorBrush(WpfColor.FromArgb(0x10, 0xF5, 0xF7, 0xFA));
+                    ? Helpers.ThemeHelper.AccentLight
+                    : Helpers.ThemeHelper.Hover;
                 b.BorderBrush = isOn
-                    ? new WpfSolidColorBrush(accent)
-                    : new WpfSolidColorBrush(WpfColor.FromArgb(0x20, 0xF5, 0xF7, 0xFA));
+                    ? Helpers.ThemeHelper.Accent
+                    : Helpers.ThemeHelper.HoverMedium;
                 if (b.Child is TextBlock tb)
-                    tb.Foreground = isOn ? Brush("#42A5F5") : Brush("#B6C3CA");
+                    tb.Foreground = isOn ? Helpers.ThemeHelper.Blue : Helpers.ThemeHelper.TextSecondary;
             }
         }
     }
@@ -283,13 +283,13 @@ public partial class MetricsViewerWidget
             {
                 var isSelected = id == selectedId;
                 b.Background = isSelected
-                    ? new WpfSolidColorBrush(WpfColor.FromArgb(0x30, accent.R, accent.G, accent.B))
-                    : new WpfSolidColorBrush(WpfColor.FromArgb(0x10, 0xF5, 0xF7, 0xFA));
+                    ? Helpers.ThemeHelper.AccentLight
+                    : Helpers.ThemeHelper.Hover;
                 b.BorderBrush = isSelected
                     ? new WpfSolidColorBrush(accent)
-                    : new WpfSolidColorBrush(WpfColor.FromArgb(0x20, 0xF5, 0xF7, 0xFA));
+                    : Helpers.ThemeHelper.HoverMedium;
                 if (b.Child is TextBlock tb)
-                    tb.Foreground = isSelected ? new WpfSolidColorBrush(accent) : Brush("#B6C3CA");
+                    tb.Foreground = isSelected ? new WpfSolidColorBrush(accent) : Helpers.ThemeHelper.TextSecondary;
             }
         }
     }
@@ -315,11 +315,11 @@ public partial class MetricsViewerWidget
             if (child is Border b && b.Tag is string id)
             {
                 b.Background = id == selectedId
-                    ? new WpfSolidColorBrush(WpfColor.FromArgb(0x40, 0x00, 0x7A, 0xCC))
-                    : new WpfSolidColorBrush(WpfColor.FromArgb(0x10, 0xF5, 0xF7, 0xFA));
+                    ? Helpers.ThemeHelper.AccentLight
+                    : Helpers.ThemeHelper.Hover;
                 b.BorderBrush = id == selectedId
-                    ? Brush("#007ACC")
-                    : new WpfSolidColorBrush(WpfColor.FromArgb(0x30, 0xF5, 0xF7, 0xFA));
+                    ? Helpers.ThemeHelper.Accent
+                    : Helpers.ThemeHelper.Selected;
             }
         }
     }

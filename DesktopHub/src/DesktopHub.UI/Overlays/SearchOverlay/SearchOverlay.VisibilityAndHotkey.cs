@@ -554,11 +554,12 @@ public partial class SearchOverlay
             var alpha = (byte)(transparency * 255);
 
             // Apple Spotlight style: neutral colors, no accent tinting
-            RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, 0x12, 0x12, 0x12));
-            RootBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x40, 0x3A, 0x3A, 0x3A));
+            var bgBase = Helpers.ThemeHelper.GetColor("WindowBackgroundColor");
+            RootBorder.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, bgBase.R, bgBase.G, bgBase.B));
+            RootBorder.BorderBrush = Helpers.ThemeHelper.Border;
 
-            GlassOverlay.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
-            GlassOverlay.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x12, 0xFF, 0xFF, 0xFF));
+            GlassOverlay.BorderBrush = Helpers.ThemeHelper.CardBorder;
+            GlassOverlay.Background = new SolidColorBrush(Helpers.ThemeHelper.GetColor("GlassBackgroundColor"));
         }
         catch (Exception ex)
         {

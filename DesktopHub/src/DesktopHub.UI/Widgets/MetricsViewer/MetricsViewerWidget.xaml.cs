@@ -91,13 +91,27 @@ public partial class MetricsViewerWidget : System.Windows.Controls.UserControl
         ("node_graph",      "Node Graph",       "\u2B2E"),
     };
 
-    // Palette for chart rendering
-    private static readonly string[] Palette = new[]
+    // Palette for chart rendering — resolved from theme at runtime
+    private static string[] GetPalette()
     {
-        "#007ACC", "#66BB6A", "#FFA726", "#AB47BC", "#42A5F5",
-        "#EF5350", "#26C6DA", "#FF7043", "#9CCC65", "#78909C",
-        "#5C6BC0", "#EC407A", "#29B6F6", "#FFCA28", "#8D6E63"
-    };
+        var keys = new[]
+        {
+            "AccentColor", "ChartGreenColor", "ChartOrangeColor", "ChartPurpleColor", "ChartBlueColor",
+            "ChartRedColor", "ChartCyanColor", "ChartDeepOrangeColor", "ChartLimeColor", "ChartSlateColor",
+            "ChartIndigoColor", "ChartPinkColor", "ChartSkyBlueColor", "ChartAmberColor", "ChartBrownColor"
+        };
+        var result = new string[keys.Length];
+        for (int i = 0; i < keys.Length; i++)
+        {
+            if (System.Windows.Application.Current?.TryFindResource(keys[i]) is System.Windows.Media.Color c)
+                result[i] = $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}";
+            else
+                result[i] = "#007ACC"; // fallback
+        }
+        return result;
+    }
+    private static string[] _palette = null!;
+    private static string[] Palette => _palette ??= GetPalette();
 
     public MetricsViewerWidget()
     {

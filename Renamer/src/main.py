@@ -243,6 +243,8 @@ DATE_RX = re.compile(
 
 # Match things like "50% Construction Documents", "90%   Construction    Documents", any percent 0-100, any case
 PHASE_RX = re.compile(r"\b(\d{1,3})%\s*Construction\s+Documents\b", re.IGNORECASE)
+# Match "Project No." followed by optional project number text (e.g., "Project No. 21-001 G01", "Project No. 2441")
+PROJECT_NO_RX = re.compile(r"(Project\s+No\.)\s*(.*)", re.IGNORECASE)
 DEFAULT_PHASE_TEXT = "100% Construction Documents"
 DEFAULT_FONT_NAME = "Arial"  # Standard font for normalization
 DEFAULT_FONT_SIZE = 10  # Default font size in points
@@ -278,14 +280,22 @@ def replace_in_paragraph(paragraph, repl_fn):
         return True
     return False
 
-def replace_in_headerlike(part, target_date, target_phase=None):
+def replace_in_headerlike(part, target_date, target_phase=None, target_project_no=None):
     """
-    Replace (1) date strings like 'November 10, 2025' and
-            (2) phase strings like '50% Construction Documents' -> target_phase
-    Returns (date_changed, phase_changed) tuple.
+    Replace (1) date strings like 'November 10, 2025',
+            (2) phase strings like '50% Construction Documents' -> target_phase,
+            (3) project number like 'Project No. 21-001 G01' -> target_project_no
+    
+    target_project_no behaviour:
+        None  -> skip (no change)
+        ""    -> clear: replace with just "Project No." (keep label, remove number)
+        "XYZ" -> replace number portion: "Project No. XYZ"
+    
+    Returns (date_changed, phase_changed, project_no_changed) tuple.
     """
     date_changed = False
     phase_changed = False
+    project_no_changed = False
 
     def repl_fn_date(text):
         # Normalize any long-form Month Day, Year dates
@@ -296,9 +306,18 @@ def replace_in_headerlike(part, target_date, target_phase=None):
         new_text = PHASE_RX.sub(target_phase, text)
         return new_text != text, new_text
 
+    def repl_fn_project_no(match):
+        label = match.group(1)  # "Project No."
+        if target_project_no == "":
+            return label  # Clear: keep label only
+        return f"{label} {target_project_no}"
+
+    date_paragraph = None  # Track the date paragraph for potential project no. insertion
+
     for p in iter_all_paragraphs(part):
         txt = "".join(run.text for run in p.runs) if hasattr(p, 'runs') else p.text
         if DATE_RX.search(txt):
+            date_paragraph = p
             date_upd, new_text_date = repl_fn_date(txt)
             if date_upd:
                 for run in p.runs if hasattr(p, 'runs') else []:
@@ -310,8 +329,46 @@ def replace_in_headerlike(part, target_date, target_phase=None):
                 for run in p.runs if hasattr(p, 'runs') else []:
                     run.text = PHASE_RX.sub(target_phase, run.text)
                 phase_changed = True
+        if target_project_no is not None and PROJECT_NO_RX.search(txt):
+            # Replace per-run to preserve other content (e.g. section title in adjacent runs)
+            if hasattr(p, 'runs') and p.runs:
+                for run in p.runs:
+                    if PROJECT_NO_RX.search(run.text):
+                        new_run_text = PROJECT_NO_RX.sub(repl_fn_project_no, run.text)
+                        if new_run_text != run.text:
+                            run.text = new_run_text
+                            project_no_changed = True
+
+    # Handle "add where none exists": insert Project No. above date if not found
+    if target_project_no is not None and target_project_no != "" and not project_no_changed:
+        if date_paragraph is not None and hasattr(date_paragraph, '_p'):
+            from lxml import etree
+            from copy import deepcopy
+            # Create a new paragraph element by cloning the date paragraph structure
+            new_p_elem = deepcopy(date_paragraph._p)
+            # Clear text in the cloned paragraph
+            for r_elem in new_p_elem.findall('.//' + '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t'):
+                r_elem.text = ''
+            # Set text to the project number
+            t_elems = new_p_elem.findall('.//' + '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t')
+            if t_elems:
+                t_elems[0].text = f"Project No. {target_project_no}"
+                # Remove extra run elements (keep only first run)
+                r_elems = new_p_elem.findall('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}r')
+                for r_elem in r_elems[1:]:
+                    new_p_elem.remove(r_elem)
+            else:
+                # Fallback: build a minimal run with text
+                nsmap = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+                r_elem = etree.SubElement(new_p_elem, f'{nsmap}r')
+                t_elem = etree.SubElement(r_elem, f'{nsmap}t')
+                t_elem.text = f"Project No. {target_project_no}"
+                t_elem.set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
+            # Insert the new paragraph before the date paragraph
+            date_paragraph._p.addprevious(new_p_elem)
+            project_no_changed = True
     
-    return (date_changed, phase_changed)
+    return (date_changed, phase_changed, project_no_changed)
 
 def normalize_whitespace_in_header_footer(container) -> bool:
     """
@@ -408,33 +465,148 @@ def normalize_fonts_in_document(doc, target_font: str, target_size: int = None,
     return changed
 
 
+def update_docx_xml_direct(path: Path, target_date: str, target_phase=None,
+                           target_project_no=None) -> Dict[str, bool]:
+    """
+    Ultra-fast .docx update via direct ZIP/XML manipulation.
+    Opens the .docx as a ZIP, edits <w:t> text nodes in header/footer XML files,
+    and writes back. ~20-50ms per file instead of ~2s with python-docx.
+    
+    Returns same dict shape as update_docx_dates().
+    Falls back to None on failure (caller should use update_docx_dates instead).
+    """
+    import zipfile
+    import tempfile
+    from lxml import etree
+    
+    W = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+    
+    date_changed = False
+    phase_changed = False
+    project_no_changed = False
+    
+    try:
+        # Read original ZIP
+        with zipfile.ZipFile(str(path), 'r') as zin:
+            names = zin.namelist()
+            # Find header/footer XML files
+            hf_names = [n for n in names 
+                        if n.startswith('word/') and ('header' in n or 'footer' in n) and n.endswith('.xml')]
+            
+            if not hf_names:
+                return {'changed': False, 'date_changed': False, 'phase_changed': False,
+                        'project_no_changed': False, 'fonts_changed': False}
+            
+            # Read all file contents
+            file_contents = {}
+            for name in names:
+                file_contents[name] = zin.read(name)
+        
+        # Process each header/footer XML
+        modified_files = {}
+        for hf_name in hf_names:
+            xml_bytes = file_contents[hf_name]
+            tree = etree.fromstring(xml_bytes)
+            file_modified = False
+            
+            # Find all <w:t> text elements
+            for t_elem in tree.iter(f'{W}t'):
+                if t_elem.text is None:
+                    continue
+                original = t_elem.text
+                new_text = original
+                
+                # Date replacement
+                if DATE_RX.search(new_text):
+                    replaced = DATE_RX.sub(target_date, new_text)
+                    if replaced != new_text:
+                        new_text = replaced
+                        date_changed = True
+                
+                # Phase replacement
+                if target_phase is not None and PHASE_RX.search(new_text):
+                    replaced = PHASE_RX.sub(target_phase, new_text)
+                    if replaced != new_text:
+                        new_text = replaced
+                        phase_changed = True
+                
+                # Project number replacement (per-run, same as python-docx path)
+                if target_project_no is not None and PROJECT_NO_RX.search(new_text):
+                    def _repl_proj(match):
+                        label = match.group(1)
+                        if target_project_no == "":
+                            return label
+                        return f"{label} {target_project_no}"
+                    replaced = PROJECT_NO_RX.sub(_repl_proj, new_text)
+                    if replaced != new_text:
+                        new_text = replaced
+                        project_no_changed = True
+                
+                if new_text != original:
+                    t_elem.text = new_text
+                    file_modified = True
+            
+            if file_modified:
+                modified_files[hf_name] = etree.tostring(tree, xml_declaration=True, encoding='UTF-8', standalone=True)
+        
+        changed = date_changed or phase_changed or project_no_changed
+        
+        if changed and modified_files:
+            # Write new ZIP with modified XML files
+            tmp_path = path.with_suffix('.docx.tmp')
+            with zipfile.ZipFile(str(tmp_path), 'w', zipfile.ZIP_DEFLATED) as zout:
+                for name in names:
+                    if name in modified_files:
+                        zout.writestr(name, modified_files[name])
+                    else:
+                        zout.writestr(name, file_contents[name])
+            
+            # Replace original with modified
+            tmp_path.replace(path)
+        
+        return {
+            'changed': changed,
+            'date_changed': date_changed,
+            'phase_changed': phase_changed,
+            'project_no_changed': project_no_changed,
+            'fonts_changed': False
+        }
+    
+    except Exception:
+        # Return None to signal fallback to python-docx path
+        return None
+
+
 def update_docx_dates(path: Path, target_date: str, target_phase=None, 
                       normalize_fonts: bool = False, target_font: str = DEFAULT_FONT_NAME,
-                      target_font_size: int = None) -> Dict[str, bool]:
+                      target_font_size: int = None, target_project_no=None) -> Dict[str, bool]:
     """
-    Update dates and phase text in document.
+    Update dates, phase text, and project number in document.
     Optionally normalize all fonts to target_font and/or target_font_size.
-    Returns dict with 'changed', 'date_changed', 'phase_changed', 'fonts_changed'
+    Returns dict with 'changed', 'date_changed', 'phase_changed', 'project_no_changed', 'fonts_changed'
     """
     doc = Document(str(path))
     date_changed = False
     phase_changed = False
+    project_no_changed = False
     fonts_changed = False
     changed = False
     
     for section in doc.sections:
         for hdr in (section.header, section.first_page_header, section.even_page_header):
             if hdr:
-                date_upd, phase_upd = replace_in_headerlike(hdr, target_date, target_phase)
+                date_upd, phase_upd, proj_upd = replace_in_headerlike(hdr, target_date, target_phase, target_project_no)
                 if date_upd: date_changed = True
                 if phase_upd: phase_changed = True
-                if date_upd or phase_upd: changed = True
+                if proj_upd: project_no_changed = True
+                if date_upd or phase_upd or proj_upd: changed = True
         for ftr in (section.footer, section.first_page_footer, section.even_page_footer):
             if ftr:
-                date_upd, phase_upd = replace_in_headerlike(ftr, target_date, target_phase)
+                date_upd, phase_upd, proj_upd = replace_in_headerlike(ftr, target_date, target_phase, target_project_no)
                 if date_upd: date_changed = True
                 if phase_upd: phase_changed = True
-                if date_upd or phase_upd: changed = True
+                if proj_upd: project_no_changed = True
+                if date_upd or phase_upd or proj_upd: changed = True
     
     # Font normalization (if enabled)
     if normalize_fonts:
@@ -449,6 +621,7 @@ def update_docx_dates(path: Path, target_date: str, target_phase=None,
         'changed': changed,
         'date_changed': date_changed,
         'phase_changed': phase_changed,
+        'project_no_changed': project_no_changed,
         'fonts_changed': fonts_changed
     }
 
@@ -499,6 +672,15 @@ def export_pdf(word, docx_path: Path, pdf_path: Path):
         doc.Close(False)
         gc.collect()
 
+def convert_doc_to_docx_fast(word, doc_path: Path, out_docx: Path):
+    """Fast .doc to .docx conversion without gc.collect() - use for batch operations"""
+    out_docx.parent.mkdir(parents=True, exist_ok=True)
+    doc = word.Documents.Open(str(doc_path))
+    try:
+        doc.SaveAs2(str(out_docx), FileFormat=constants.wdFormatXMLDocument)
+    finally:
+        doc.Close(False)
+
 def export_pdf_fast(word, docx_path: Path, pdf_path: Path):
     """Fast PDF export without gc.collect() - use for batch operations"""
     pdf_path.parent.mkdir(parents=True, exist_ok=True)
@@ -507,6 +689,165 @@ def export_pdf_fast(word, docx_path: Path, pdf_path: Path):
         doc.SaveAs2(str(pdf_path), FileFormat=17)  # 17 = wdFormatPDF
     finally:
         doc.Close(False)
+
+def _word_find_replace_in_story(story_range, find_text, replace_text, use_wildcards=False):
+    """Perform Find & Replace in a single Word story range. Returns True if any replacement made."""
+    find = story_range.Find
+    find.ClearFormatting()
+    find.Replacement.ClearFormatting()
+    find.Text = find_text
+    find.Replacement.Text = replace_text
+    find.Forward = True
+    find.Wrap = 1  # wdFindContinue
+    find.MatchCase = False
+    find.MatchWholeWord = False
+    find.MatchWildcards = use_wildcards
+    find.MatchSoundsLike = False
+    find.MatchAllWordForms = False
+    result = find.Execute(Replace=2)  # wdReplaceAll = 2
+    return bool(result)
+
+
+# For COM text: project number regex that stops at tabs/newlines
+# (COM footer text has "Project No. 21-001 G01\t\tSection Title\r" — must not capture past tabs)
+_COM_PROJECT_NO_RX = re.compile(r"(Project\s+No\.)\s*([^\t\r]*)", re.IGNORECASE)
+
+
+def _com_find_replace_in_range(rng, target_date, target_phase, target_project_no, result):
+    """Apply all Find & Replace operations to a single Word COM Range object.
+    
+    Processes each paragraph line separately (split by \\r) to avoid
+    cross-line matching issues with Word COM text.
+    """
+    try:
+        rng_text = rng.Text or ""
+    except Exception:
+        return
+    if not rng_text.strip():
+        return
+    
+    # Date replacement
+    for match in DATE_RX.finditer(rng_text):
+        old_date = match.group(0)
+        if old_date != target_date:
+            if _word_find_replace_in_story(rng, old_date, target_date):
+                result['date_changed'] = True
+                result['changed'] = True
+    
+    # Phase replacement
+    if target_phase is not None:
+        try:
+            rng_text = rng.Text or ""
+        except Exception:
+            return
+        for match in PHASE_RX.finditer(rng_text):
+            old_phase = match.group(0)
+            if old_phase != target_phase:
+                if _word_find_replace_in_story(rng, old_phase, target_phase):
+                    result['phase_changed'] = True
+                    result['changed'] = True
+    
+    # Project number replacement — use tab-aware regex for COM text
+    if target_project_no is not None:
+        try:
+            rng_text = rng.Text or ""
+        except Exception:
+            return
+        for match in _COM_PROJECT_NO_RX.finditer(rng_text):
+            old_proj = match.group(0)
+            label = match.group(1)
+            number_part = match.group(2).strip()
+            if target_project_no == "":
+                new_proj = label
+            else:
+                new_proj = f"{label} {target_project_no}"
+            if old_proj.strip() != new_proj.strip():
+                # Use exact matched text for Find (includes trailing spaces before tab)
+                if _word_find_replace_in_story(rng, old_proj, new_proj):
+                    result['project_no_changed'] = True
+                    result['changed'] = True
+
+
+def update_and_export_via_com(word, file_path: Path, target_date: str, 
+                               target_phase=None, target_project_no=None,
+                               export_pdf_flag: bool = False,
+                               save_as_docx: bool = False) -> dict:
+    """
+    Open a .doc or .docx file ONCE in Word COM, perform all Find & Replace
+    operations on headers/footers (including table cells), optionally save as
+    .docx, optionally export PDF — all in a single open/close cycle.
+    """
+    result = {
+        'changed': False, 'date_changed': False, 'phase_changed': False,
+        'project_no_changed': False, 'docx_path': None, 'pdf_path': None
+    }
+    
+    doc = word.Documents.Open(str(file_path))
+    try:
+        # wdHeaderFooterPrimary=1, wdHeaderFooterFirstPage=2, wdHeaderFooterEvenPages=3
+        hf_indices = [1, 2, 3]
+        
+        for section in doc.Sections:
+            for hf_idx in hf_indices:
+                # --- Headers ---
+                try:
+                    hdr = section.Headers(hf_idx)
+                    if hdr.Exists:
+                        hdr_range = hdr.Range
+                        _com_find_replace_in_range(hdr_range, target_date, target_phase, target_project_no, result)
+                        # Also search inside tables within the header
+                        try:
+                            for tbl in hdr_range.Tables:
+                                for row in tbl.Rows:
+                                    for cell in row.Cells:
+                                        _com_find_replace_in_range(cell.Range, target_date, target_phase, target_project_no, result)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+                
+                # --- Footers ---
+                try:
+                    ftr = section.Footers(hf_idx)
+                    if ftr.Exists:
+                        ftr_range = ftr.Range
+                        _com_find_replace_in_range(ftr_range, target_date, target_phase, target_project_no, result)
+                        # Also search inside tables within the footer
+                        try:
+                            for tbl in ftr_range.Tables:
+                                for row in tbl.Rows:
+                                    for cell in row.Cells:
+                                        _com_find_replace_in_range(cell.Range, target_date, target_phase, target_project_no, result)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+        
+        # Save as .docx if requested (for .doc files)
+        if save_as_docx and file_path.suffix.lower() == ".doc":
+            docx_path = file_path.with_suffix(".docx")
+            doc.SaveAs2(str(docx_path), FileFormat=16)  # wdFormatXMLDocument = 16
+            result['docx_path'] = docx_path
+        elif result['changed']:
+            doc.Save()
+        
+        # Export PDF if requested (while document is still open — no re-open needed!)
+        if export_pdf_flag:
+            pdf_path = (result.get('docx_path') or file_path).with_suffix(".pdf")
+            try:
+                if pdf_path.exists():
+                    import os
+                    os.unlink(str(pdf_path))
+            except Exception:
+                pass
+            doc.SaveAs2(str(pdf_path), FileFormat=17)  # wdFormatPDF = 17
+            result['pdf_path'] = pdf_path
+    
+    finally:
+        doc.Close(False)
+    
+    return result
+
 
 def safe_close_word(word):
     try:
@@ -532,6 +873,177 @@ def kill_orphaned_winword():
             # If you want a hard kill as last resort, enable the line above.
 
 
+# ----------------------- Table of Contents Generation -----------------------
+# Section number regex: matches patterns like "Section 21 04 00", "SECTION 26 05 00", "Division 21"
+SECTION_NO_RX = re.compile(
+    r"(?:Section|Division)\s+(\d[\d\s]*\d)",
+    re.IGNORECASE
+)
+
+def _extract_section_from_filename(filename: str) -> tuple[str, str]:
+    """
+    Try to extract section number and title from a filename.
+    E.g., "Section 21 04 00 - General Conditions.docx" -> ("21 04 00", "General Conditions")
+    Returns (section_number, title) or ("", filename_stem) if no pattern found.
+    """
+    stem = Path(filename).stem
+    # Pattern: "Section XX XX XX - Title" or "Section XX XX XX Title"
+    m = re.match(
+        r"(?:Section|Division)\s+([\d\s]+?)(?:\s*[-–—]\s*|\s{2,})(.+)",
+        stem, re.IGNORECASE
+    )
+    if m:
+        return m.group(1).strip(), m.group(2).strip()
+    # Pattern: 6-digit compact section number at start (e.g., "210400 General Conditions...")
+    m2 = re.match(r"(\d{6})\s*[-–—]?\s*(.*)", stem)
+    if m2:
+        raw = m2.group(1)
+        # Format as "XX XX XX" for display
+        sec_no = f"{raw[0:2]} {raw[2:4]} {raw[4:6]}"
+        return sec_no, m2.group(2).strip() or stem
+    # Pattern: spaced section number at start (e.g., "21 04 00 - General Conditions...")
+    m3 = re.match(r"([\d]{2}\s+[\d]{2}\s+[\d]{2})\s*[-–—]?\s*(.*)", stem)
+    if m3:
+        return m3.group(1).strip(), m3.group(2).strip() or stem
+    return "", stem
+
+
+def _extract_section_from_headers(docx_path: Path) -> tuple[str, str]:
+    """
+    Open a .docx file and try to extract section number and title from headers/footers.
+    Returns (section_number, title) or ("", "") if not found.
+    """
+    try:
+        doc = Document(str(docx_path))
+        for section in doc.sections:
+            for part in (section.header, section.first_page_header, section.even_page_header,
+                         section.footer, section.first_page_footer, section.even_page_footer):
+                if not part:
+                    continue
+                for p in iter_all_paragraphs(part):
+                    txt = "".join(run.text for run in p.runs) if hasattr(p, 'runs') else p.text
+                    txt = txt.strip()
+                    if not txt:
+                        continue
+                    m = SECTION_NO_RX.search(txt)
+                    if m:
+                        sec_no = m.group(1).strip()
+                        # The title might be on a different line/paragraph, or the rest of this one
+                        title_part = txt[m.end():].strip().lstrip('-–—').strip()
+                        if title_part:
+                            return sec_no, title_part
+                        # Try the next paragraph for the title
+                        return sec_no, ""
+    except Exception:
+        pass
+    return "", ""
+
+
+def generate_toc(root: Path, files: list[Path], read_headers: bool = False,
+                 log_fn=None) -> list[dict]:
+    """
+    Generate a sorted list of spec entries from the given files.
+    Each entry: {'section_no': str, 'title': str, 'filename': str, 'path': Path}
+    """
+    entries = []
+    for f in files:
+        sec_no, title = "", ""
+        
+        if read_headers and f.suffix.lower() == ".docx":
+            sec_no, title = _extract_section_from_headers(f)
+        
+        # Fall back to filename parsing
+        if not sec_no:
+            sec_no, title_from_name = _extract_section_from_filename(f.name)
+            if not title:
+                title = title_from_name
+        
+        if not title:
+            title = f.stem
+        
+        entries.append({
+            'section_no': sec_no,
+            'title': title,
+            'filename': f.name,
+            'path': f,
+        })
+    
+    # Sort by section number (numeric), then by filename
+    def sort_key(e):
+        # Normalize section number for sorting: "21 04 00" -> "210400"
+        digits = re.sub(r'\s+', '', e['section_no'])
+        return (digits if digits else 'zzzz', e['filename'])
+    
+    entries.sort(key=sort_key)
+    
+    if log_fn:
+        log_fn(f"TOC: Found {len(entries)} spec entries")
+    
+    return entries
+
+
+def create_toc_document(root: Path, entries: list[dict], 
+                        project_name: str = "", log_fn=None) -> tuple[Path, bool]:
+    """
+    Create a Table of Contents Word document from spec entries.
+    Returns (toc_path, success).
+    """
+    from docx.shared import Pt, Inches, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    
+    doc = Document()
+    
+    # Set default font
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Arial'
+    font.size = Pt(10)
+    
+    # Title
+    title_text = "Table of Contents"
+    if project_name:
+        title_text = f"{project_name}\nTable of Contents"
+    
+    title_para = doc.add_paragraph()
+    title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    title_run = title_para.add_run(title_text)
+    title_run.font.size = Pt(14)
+    title_run.font.bold = True
+    title_run.font.name = 'Arial'
+    
+    doc.add_paragraph()  # Spacer
+    
+    # Add entries
+    for entry in entries:
+        para = doc.add_paragraph()
+        
+        if entry['section_no']:
+            sec_run = para.add_run(f"Section {entry['section_no']}")
+            sec_run.font.bold = True
+            sec_run.font.size = Pt(10)
+            sec_run.font.name = 'Arial'
+            
+            sep_run = para.add_run("  —  ")
+            sep_run.font.size = Pt(10)
+            sep_run.font.name = 'Arial'
+        
+        title_run = para.add_run(entry['title'])
+        title_run.font.size = Pt(10)
+        title_run.font.name = 'Arial'
+    
+    # Save
+    toc_path = root / "Table of Contents.docx"
+    try:
+        doc.save(str(toc_path))
+        if log_fn:
+            log_fn(f"TOC: Created {toc_path.name}")
+        return toc_path, True
+    except Exception as e:
+        if log_fn:
+            log_fn(f"[ERROR] TOC: Failed to create document: {e}")
+        return toc_path, False
+
+
 # ----------------------- Worker (QThread) -----------------------
 class UpdateWorker(QThread):
     log = Signal(str)               # plain text log
@@ -546,11 +1058,13 @@ class UpdateWorker(QThread):
                  default_backup_dir: str|None = None,
                  normalize_fonts: bool = False, target_font: str = DEFAULT_FONT_NAME,
                  target_font_size: int = None, skip_toc: bool = True,
-                 reprint_only: bool = False):
+                 reprint_only: bool = False, target_project_no=None,
+                 generate_toc: bool = False, toc_read_headers: bool = False):
         super().__init__()
         self.root = Path(root)
         self.date_str = date_str
         self.phase_text = phase_text
+        self.target_project_no = target_project_no
         self.recursive = recursive
         self.dry_run = dry_run
         self.backup_dir = Path(backup_dir) if backup_dir else None
@@ -565,6 +1079,8 @@ class UpdateWorker(QThread):
         self.target_font = target_font
         self.target_font_size = target_font_size
         self.skip_toc = skip_toc
+        self.generate_toc = generate_toc
+        self.toc_read_headers = toc_read_headers
         self._cancel = False
         self.start_time = None
         
@@ -574,9 +1090,11 @@ class UpdateWorker(QThread):
             'documents_updated': 0,
             'documents_with_date_changes': 0,
             'documents_with_phase_changes': 0,
+            'documents_with_project_no_changes': 0,
             'documents_with_font_changes': 0,
             'documents_with_both': 0,
             'pdfs_created': 0,
+            'toc_generated': False,
             'errors': 0,
             'duration_seconds': 0.0
         }
@@ -622,6 +1140,17 @@ class UpdateWorker(QThread):
                 if self.skip_toc and "table of contents" in f.stem.lower():
                     continue
                 files.append(f)
+        
+        # Deduplicate: when both .doc and .docx exist for the same stem, keep only .doc
+        # (the .doc COM path will save as .docx and export PDF in one step)
+        if self.include_doc:
+            doc_stems = set()
+            for f in files:
+                if f.suffix.lower() == ".doc":
+                    doc_stems.add((f.parent, f.stem.lower()))
+            files = [f for f in files 
+                     if not (f.suffix.lower() == ".docx" and (f.parent, f.stem.lower()) in doc_stems)]
+        
         files.sort()
 
         if not files:
@@ -630,6 +1159,11 @@ class UpdateWorker(QThread):
             return
 
         self.log.emit(f"Target date: {target_date}")
+        if self.target_project_no is not None:
+            if self.target_project_no == "":
+                self.log.emit("Project No.: CLEAR (remove number, keep label)")
+            else:
+                self.log.emit(f"Project No.: {self.target_project_no}")
         if self.reprint_only:
             self.log.emit("Mode: REPRINT PDFs ONLY (no document changes)")
         elif self.normalize_fonts:
@@ -642,23 +1176,36 @@ class UpdateWorker(QThread):
         if need_word:
             try:
                 word = ensure_word()
+                # Disable screen updates for batch performance
+                try:
+                    word.ScreenUpdating = False
+                except Exception:
+                    pass
             except Exception as e:
                 self.needsWord.emit(str(e))
                 self.enableUI.emit(True)
                 return
 
         # Check document limit before processing (if licensing enabled)
+        # Skip limit check for free plans - free = unlimited processing
         if INCLUDE_LICENSING and self.subscription_mgr:
-            limit_check = self.subscription_mgr.check_document_limit(requested_count=len(files))
-            if not limit_check.get('allowed', True):
-                remaining = limit_check.get('remaining', 0)
-                limit = limit_check.get('limit', 0)
-                self.log.emit(f"[ERROR] Document limit exceeded. Limit: {limit}, Remaining: {remaining}, Requested: {len(files)}")
-                self.enableUI.emit(True)
-                return
+            sub_info = self.subscription_mgr.get_subscription_info()
+            plan = sub_info.get('plan', 'free') if sub_info else 'free'
+            local_limit = sub_info.get('documents_limit', 0) if sub_info else 0
+            
+            # Only enforce limits for paid plans with a positive document limit
+            if plan != 'free' and local_limit > 0:
+                limit_check = self.subscription_mgr.check_document_limit(requested_count=len(files))
+                if not limit_check.get('allowed', True):
+                    remaining = limit_check.get('remaining', 0)
+                    limit = limit_check.get('limit', 0)
+                    self.log.emit(f"[ERROR] Document limit exceeded. Limit: {limit}, Remaining: {remaining}, Requested: {len(files)}")
+                    self.enableUI.emit(True)
+                    return
         
         updated_ct = 0
         errors = 0
+        pdf_queue = []  # Batch PDF reprinting queue (Phase 2)
 
         # FAST PATH: Reprint-only mode - batch delete then batch export
         if self.reprint_only:
@@ -732,12 +1279,17 @@ class UpdateWorker(QThread):
                 break
             
             # Periodic limit check during processing (every 10 files)
+            # Only for paid plans with positive limits (free = unlimited)
             if INCLUDE_LICENSING and self.subscription_mgr and idx % 10 == 0:
-                limit_check = self.subscription_mgr.check_document_limit(requested_count=1)
-                if not limit_check.get('allowed', True):
-                    remaining = limit_check.get('remaining', 0)
-                    self.log.emit(f"[WARNING] Document limit reached. Processed: {updated_ct}, Remaining: {remaining}")
-                    break
+                sub_info = self.subscription_mgr.get_subscription_info()
+                _plan = sub_info.get('plan', 'free') if sub_info else 'free'
+                _limit = sub_info.get('documents_limit', 0) if sub_info else 0
+                if _plan != 'free' and _limit > 0:
+                    limit_check = self.subscription_mgr.check_document_limit(requested_count=1)
+                    if not limit_check.get('allowed', True):
+                        remaining = limit_check.get('remaining', 0)
+                        self.log.emit(f"[WARNING] Document limit reached. Processed: {updated_ct}, Remaining: {remaining}")
+                        break
 
             try:
                 ext = f.suffix.lower()
@@ -753,7 +1305,7 @@ class UpdateWorker(QThread):
                     if ext == ".docx":
                         try:
                             doc = Document(str(f))
-                            found = False
+                            found_items = []
                             for section in doc.sections:
                                 # check header+footer containers
                                 for part in (section.header, section.first_page_header, section.even_page_header,
@@ -761,10 +1313,17 @@ class UpdateWorker(QThread):
                                     if not part: continue
                                     for pgraph in iter_all_paragraphs(part):
                                         txt = "".join(run.text for run in pgraph.runs) or pgraph.text
-                                        if DATE_RX.search(txt) or PHASE_RX.search(txt):
-                                            found = True; break
-                                if found: break
-                            if found: self.log.emit(f"[DRY-RUN] Would update (date/phase): {f}")
+                                        if DATE_RX.search(txt) and 'date' not in found_items:
+                                            found_items.append('date')
+                                        if PHASE_RX.search(txt) and 'phase' not in found_items:
+                                            found_items.append('phase')
+                                        if self.target_project_no is not None and PROJECT_NO_RX.search(txt) and 'project no.' not in found_items:
+                                            found_items.append('project no.')
+                            if found_items:
+                                self.log.emit(f"[DRY-RUN] Would update ({', '.join(found_items)}): {f}")
+                            elif self.target_project_no is not None and self.target_project_no != "":
+                                # Check if we'd insert a new project number
+                                self.log.emit(f"[DRY-RUN] Would insert project no.: {f}")
                         except Exception as e:
                             self.log.emit(f"[SKIP] {f} ({e})")
                     elif ext == ".doc" and self.include_doc:
@@ -772,69 +1331,93 @@ class UpdateWorker(QThread):
                     self.progress.emit(idx, len(files))
                     continue
 
-                work_docx, original_doc = None, None
-                if ext == ".docx":
-                    work_docx = f
-                elif ext == ".doc":
+                work_docx = None
+                
+                if ext == ".doc":
                     if not self.include_doc:
                         self.log.emit(f"[SKIP] (legacy .doc; enable 'Include .doc') {f}")
                         self.progress.emit(idx, len(files))
                         continue
+                    
                     work_docx = f.with_suffix(".docx")
-                    original_doc = f
-                    convert_doc_to_docx(word, f, work_docx)
-
-                result = update_docx_dates(work_docx, target_date, self.phase_text,
-                                               normalize_fonts=self.normalize_fonts, 
-                                               target_font=self.target_font,
-                                               target_font_size=self.target_font_size)
+                    
+                    # Convert .doc → .docx (skip if .docx already exists from previous run)
+                    if not work_docx.exists():
+                        if word is None:
+                            try:
+                                word = ensure_word()
+                                try:
+                                    word.ScreenUpdating = False
+                                except Exception:
+                                    pass
+                            except Exception as e:
+                                self.needsWord.emit(str(e))
+                                self.enableUI.emit(True)
+                                return
+                        convert_doc_to_docx_fast(word, f, work_docx)
+                    
+                    if self.replace_doc_inplace:
+                        try:
+                            f.unlink(missing_ok=True)
+                        except Exception:
+                            pass
+                
+                elif ext == ".docx":
+                    work_docx = f
+                
+                if work_docx is None:
+                    continue
+                
+                # ---- Phase 1: Direct XML update (ultra-fast, ~20-50ms) ----
+                # Use direct ZIP/XML for speed; fall back to python-docx if needed
+                use_python_docx = self.normalize_fonts  # Font normalization requires python-docx
+                result = None
+                
+                if not use_python_docx:
+                    result = update_docx_xml_direct(
+                        work_docx, target_date,
+                        target_phase=self.phase_text,
+                        target_project_no=self.target_project_no
+                    )
+                
+                # Fallback to python-docx if direct XML failed or font normalization needed
+                if result is None:
+                    result = update_docx_dates(
+                        work_docx, target_date, self.phase_text,
+                        normalize_fonts=self.normalize_fonts,
+                        target_font=self.target_font,
+                        target_font_size=self.target_font_size,
+                        target_project_no=self.target_project_no
+                    )
+                
                 if result['changed']:
                     updated_ct += 1
                     self.stats['documents_updated'] += 1
                     
-                    # Record changes
                     if result['date_changed']:
                         self.stats['documents_with_date_changes'] += 1
                     if result['phase_changed']:
                         self.stats['documents_with_phase_changes'] += 1
+                    if result.get('project_no_changed'):
+                        self.stats['documents_with_project_no_changes'] += 1
                     if result.get('fonts_changed'):
                         self.stats['documents_with_font_changes'] += 1
                     if result['date_changed'] and result['phase_changed']:
                         self.stats['documents_with_both'] += 1
                     
-                    # Build update message with details
                     changes = []
                     if result['date_changed']: changes.append('date')
                     if result['phase_changed']: changes.append('phase')
+                    if result.get('project_no_changed'): changes.append('project no.')
                     if result.get('fonts_changed'): changes.append('fonts')
                     change_str = ', '.join(changes) if changes else 'content'
                     self.log.emit(f"[UPDATED: {change_str}] {f}")
 
-                    if original_doc and self.replace_doc_inplace:
-                        try:
-                            original_doc.unlink(missing_ok=True)
-                        except Exception:
-                            pass
-
+                    # Queue for batch PDF reprinting (deferred to phase 2)
                     if self.reprint_pdf:
-                        pdf_path = work_docx.with_suffix(".pdf")
-                        try:
-                            if pdf_path.exists():
-                                pdf_path.unlink()
-                        except Exception:
-                            try:
-                                pdf_path.rename(pdf_path.with_suffix(".pdf.bak"))
-                            except Exception:
-                                pass
-                        export_pdf(word, work_docx, pdf_path)
-                        self.stats['pdfs_created'] += 1
-                        self.log.emit(f"  -> [PDF REPRINTED] {pdf_path}")
+                        pdf_queue.append(work_docx)
                 else:
-                    # Only log "no changes" if we weren't just doing font normalization
-                    if not self.normalize_fonts:
-                        self.log.emit(f"[NO CHANGES] {f}")
-                    else:
-                        self.log.emit(f"[NO CHANGES] {f}")
+                    self.log.emit(f"[NO CHANGES] {f}")
 
             except Exception as e:
                 errors += 1
@@ -842,15 +1425,123 @@ class UpdateWorker(QThread):
                 self.log.emit(f"[ERROR] {f} -> {e}")
 
             self.progress.emit(idx, len(files))
+            
+            # Periodic garbage collection every 10 files (instead of per-file)
+            if idx % 10 == 0:
+                gc.collect()
         
-        # Finalize statistics
+        # ---- Phase 2: Batch PDF reprinting (much faster than per-file) ----
+        if pdf_queue and not self._cancel:
+            phase1_time = time.time() - self.start_time
+            self.log.emit(f"\n--- Phase 1 complete ({phase1_time:.1f}s) — Phase 2: Reprinting {len(pdf_queue)} PDFs ---")
+            
+            if word is None:
+                try:
+                    word = ensure_word()
+                    try:
+                        word.ScreenUpdating = False
+                    except Exception:
+                        pass
+                except Exception as e:
+                    self.log.emit(f"[ERROR] Cannot start Word for PDF export: {e}")
+                    pdf_queue.clear()
+            
+            for pdf_idx, docx_path in enumerate(pdf_queue, start=1):
+                if self._cancel:
+                    self.log.emit("[CANCELLED] Stopping PDF export at user request.")
+                    break
+                try:
+                    pdf_path = docx_path.with_suffix(".pdf")
+                    try:
+                        if pdf_path.exists():
+                            pdf_path.unlink()
+                    except Exception:
+                        try:
+                            pdf_path.rename(pdf_path.with_suffix(".pdf.bak"))
+                        except Exception:
+                            pass
+                    export_pdf_fast(word, docx_path, pdf_path)
+                    self.stats['pdfs_created'] += 1
+                    self.log.emit(f"  [{pdf_idx}/{len(pdf_queue)}] PDF: {pdf_path.name}")
+                except Exception as e:
+                    self.log.emit(f"  [ERROR] PDF: {docx_path.name} -> {e}")
+                
+                # Progress: show PDF phase progress (offset by file count)
+                self.progress.emit(len(files) + pdf_idx, len(files) + len(pdf_queue))
+                
+                if pdf_idx % 10 == 0:
+                    gc.collect()
+        
+        # ---- Table of Contents generation (after main processing loop) ----
+        if self.generate_toc and not self._cancel and not self.dry_run:
+            self.log.emit("\n--- Generating Table of Contents ---")
+            try:
+                # Include ALL processed files for TOC (both .docx and converted .doc)
+                # For .doc files that were converted, use the .docx version if it exists
+                toc_files = []
+                seen_stems = set()
+                for f in files:
+                    stem_key = (f.parent, f.stem.lower())
+                    if stem_key in seen_stems:
+                        continue
+                    seen_stems.add(stem_key)
+                    if f.suffix.lower() == ".docx":
+                        toc_files.append(f)
+                    elif f.suffix.lower() == ".doc":
+                        # Use the converted .docx if it exists, otherwise use the .doc
+                        docx_version = f.with_suffix(".docx")
+                        toc_files.append(docx_version if docx_version.exists() else f)
+                entries = generate_toc(self.root, toc_files, 
+                                       read_headers=self.toc_read_headers,
+                                       log_fn=self.log.emit)
+                if entries:
+                    toc_path, toc_ok = create_toc_document(
+                        self.root, entries, log_fn=self.log.emit)
+                    if toc_ok:
+                        self.stats['toc_generated'] = True
+                        # Export TOC as PDF if Word is available
+                        if word is None:
+                            try:
+                                word = ensure_word()
+                            except Exception:
+                                pass
+                        if word:
+                            toc_pdf = toc_path.with_suffix(".pdf")
+                            try:
+                                export_pdf(word, toc_path, toc_pdf)
+                                self.log.emit(f"TOC: Created {toc_pdf.name}")
+                            except Exception as e:
+                                self.log.emit(f"[ERROR] TOC PDF export: {e}")
+                else:
+                    self.log.emit("TOC: No spec entries found.")
+            except Exception as e:
+                self.log.emit(f"[ERROR] TOC generation: {e}")
+
+        # Finalize statistics and timing summary
         self.stats['files_scanned'] = len(files)
         self.stats['errors'] = errors
+        duration = 0.0
         if self.start_time:
-            self.stats['duration_seconds'] = time.time() - self.start_time
+            duration = time.time() - self.start_time
+            self.stats['duration_seconds'] = duration
 
         safe_close_word(word)
-        # kill_orphaned_winword()  # keep disabled by default
+
+        # Log timing summary
+        if duration > 0:
+            docs_per_sec = updated_ct / duration if duration > 0 else 0
+            pdfs = self.stats.get('pdfs_created', 0)
+            mins, secs = divmod(int(duration), 60)
+            time_str = f"{mins}m {secs:02d}s" if mins else f"{secs}s"
+            self.log.emit(f"\n{'='*50}")
+            self.log.emit(f"✅ Completed in {time_str}")
+            self.log.emit(f"   Documents updated: {updated_ct}/{len(files)}")
+            if pdfs:
+                self.log.emit(f"   PDFs reprinted:    {pdfs}")
+            self.log.emit(f"   Errors:            {errors}")
+            self.log.emit(f"   Speed:             {docs_per_sec:.1f} docs/sec")
+            self.log.emit(f"{'='*50}")
+
         self.finished.emit(updated_ct, errors, self.stats)
         self.enableUI.emit(True)
 

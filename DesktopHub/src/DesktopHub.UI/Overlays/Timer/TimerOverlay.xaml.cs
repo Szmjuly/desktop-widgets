@@ -96,16 +96,14 @@ public partial class TimerOverlay : Window
             
         if (_timerService.Mode == TimerMode.Stopwatch)
         {
-            StopwatchButton.Background = new System.Windows.Media.SolidColorBrush(
-                (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#20F5F7FA"));
+            StopwatchButton.Background = Helpers.ThemeHelper.HoverMedium;
             TimerButton.Background = System.Windows.Media.Brushes.Transparent;
             TimerInputPanel.Visibility = Visibility.Collapsed;
         }
         else
         {
             StopwatchButton.Background = System.Windows.Media.Brushes.Transparent;
-            TimerButton.Background = new System.Windows.Media.SolidColorBrush(
-                (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#20F5F7FA"));
+            TimerButton.Background = Helpers.ThemeHelper.HoverMedium;
             TimerInputPanel.Visibility = Visibility.Visible;
         }
         

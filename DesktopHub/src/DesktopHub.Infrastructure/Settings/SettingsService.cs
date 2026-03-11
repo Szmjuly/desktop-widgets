@@ -528,6 +528,28 @@ public class SettingsService : ISettingsService
         }
     }
 
+    /// <summary>
+    /// Synchronous load — safe to call from the UI thread without deadlocking.
+    /// Used by ThemeService at startup before the dispatcher message loop is running.
+    /// </summary>
+    public void LoadSync()
+    {
+        _fileLock.Wait();
+        try
+        {
+            if (File.Exists(_settingsPath))
+            {
+                var json = File.ReadAllText(_settingsPath);
+                _settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+            }
+        }
+        finally
+        {
+            if (_fileLock.CurrentCount == 0)
+                _fileLock.Release();
+        }
+    }
+
     public async Task LoadAsync()
     {
         await _fileLock.WaitAsync();

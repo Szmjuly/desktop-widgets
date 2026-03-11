@@ -608,6 +608,22 @@ class SubscriptionManager:
                 ).val()
             
             if not license_data:
+                # If local cache says free plan, allow processing and try to re-create license
+                local_plan = sub.get('plan', '')
+                local_limit = sub.get('documents_limit', 0)
+                if local_plan == 'free' or local_limit <= 0:
+                    # Self-heal: re-create the free license in Firebase
+                    try:
+                        self._create_free_license()
+                        print(f"License re-created in Firebase (was missing)")
+                    except Exception:
+                        pass  # Non-fatal
+                    return {
+                        'allowed': True,
+                        'remaining': -1,
+                        'limit': 0,
+                        'reason': 'Free license (re-created)'
+                    }
                 return {
                     'allowed': False,
                     'remaining': 0,

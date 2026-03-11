@@ -87,9 +87,9 @@ public partial class MetricsViewerWidget
         return totals;
     }
 
-    private void AddLabel(double x, double y, string text, double fontSize = 8, string color = "#B6C3CA")
+    private void AddLabel(double x, double y, string text, double fontSize = 8, string? color = null)
     {
-        var tb = new TextBlock { Text = text, FontSize = fontSize, Foreground = Brush(color) };
+        var tb = new TextBlock { Text = text, FontSize = fontSize, Foreground = color != null ? Brush(color) : Helpers.ThemeHelper.TextSecondary };
         Canvas.SetLeft(tb, x);
         Canvas.SetTop(tb, y);
         ChartCanvas.Children.Add(tb);
@@ -183,7 +183,7 @@ public partial class MetricsViewerWidget
             Canvas.SetTop(rect, y);
             ChartCanvas.Children.Add(rect);
             AddLabel(2, y + barH / 2 - 5, kvp.Key, 8);
-            AddLabel(62 + barW2, y + barH / 2 - 5, kvp.Value.ToString(), 8, "#F5F7FA");
+            AddLabel(62 + barW2, y + barH / 2 - 5, kvp.Value.ToString(), 8, null);
             y += barH + 6;
         }
     }
@@ -275,7 +275,7 @@ public partial class MetricsViewerWidget
             // Label
             var midAngle = (startAngle + sweepAngle / 2) * Math.PI / 180;
             var labelR = r * 0.65;
-            AddLabel(cx + labelR * Math.Cos(midAngle) - 10, cy + labelR * Math.Sin(midAngle) - 5, kvp.Key, 7, "#F5F7FA");
+            AddLabel(cx + labelR * Math.Cos(midAngle) - 10, cy + labelR * Math.Sin(midAngle) - 5, kvp.Key, 7, null);
 
             startAngle = endAngle;
             ci++;
@@ -283,11 +283,12 @@ public partial class MetricsViewerWidget
 
         if (isDonut)
         {
-            var hole = new WpfEllipse { Width = r, Height = r, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(0xF0, 0x12, 0x12, 0x12)) };
+            var holeClr = Helpers.ThemeHelper.GetColor("WindowBackgroundColor");
+            var hole = new WpfEllipse { Width = r, Height = r, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(0xF0, holeClr.R, holeClr.G, holeClr.B)) };
             Canvas.SetLeft(hole, cx - r / 2);
             Canvas.SetTop(hole, cy - r / 2);
             ChartCanvas.Children.Add(hole);
-            AddLabel(cx - 15, cy - 6, total.ToString(), 12, "#F5F7FA");
+            AddLabel(cx - 15, cy - 6, total.ToString(), 12, null);
         }
     }
 
@@ -380,7 +381,7 @@ public partial class MetricsViewerWidget
         for (int ring = 1; ring <= 3; ring++)
         {
             var ringR = r * ring / 3.0;
-            var ringPoly = new WpfPolygon { Stroke = new WpfSolidColorBrush(WpfColor.FromArgb(0x20, 0xFF, 0xFF, 0xFF)), StrokeThickness = 0.5 };
+            var ringPoly = new WpfPolygon { Stroke = Helpers.ThemeHelper.BrushFrom(Helpers.ThemeHelper.TextPrimaryColor, 0x20), StrokeThickness = 0.5 };
             for (int i = 0; i < n; i++)
             {
                 var angle = -Math.PI / 2 + 2 * Math.PI * i / n;
@@ -421,13 +422,13 @@ public partial class MetricsViewerWidget
 
         // Column headers
         for (int c = 0; c < categories.Length; c++)
-            AddLabel(60 + c * cellW + 2, 2, categories[c], 7, "#80B6C3CA");
+            AddLabel(60 + c * cellW + 2, 2, categories[c], 7, null);
 
         for (int row = 0; row < users.Count; row++)
         {
             var user = users[row];
             var userSummaries = _filteredAdminSummaries.Where(s => s.UserName == user).ToList();
-            AddLabel(2, 20 + row * cellH + 2, user, 8, "#F5F7FA");
+            AddLabel(2, 20 + row * cellH + 2, user, 8, null);
 
             for (int c = 0; c < selectors.Length; c++)
             {
@@ -442,7 +443,7 @@ public partial class MetricsViewerWidget
                 Canvas.SetLeft(rect, 60 + c * cellW);
                 Canvas.SetTop(rect, 20 + row * cellH);
                 ChartCanvas.Children.Add(rect);
-                AddLabel(60 + c * cellW + 4, 20 + row * cellH + 2, val.ToString(), 8, "#F5F7FA");
+                AddLabel(60 + c * cellW + 4, 20 + row * cellH + 2, val.ToString(), 8, null);
             }
         }
     }
@@ -492,7 +493,7 @@ public partial class MetricsViewerWidget
             ChartCanvas.Children.Add(rect);
 
             if (rw > 30 && rh > 12)
-                AddLabel(x + 3, y + 2, $"{kvp.Key}\n{kvp.Value}", 7, "#F5F7FA");
+                AddLabel(x + 3, y + 2, $"{kvp.Key}\n{kvp.Value}", 7, null);
 
             if (horizontal) { x += rw; remainW -= rw; }
             else { y += rh; remainH -= rh; }
@@ -547,7 +548,7 @@ public partial class MetricsViewerWidget
                 {
                     X1 = x - 4, Y1 = h - 20 - bottom,
                     X2 = x, Y2 = h - 20 - bottom,
-                    Stroke = Brush("#40FFFFFF"), StrokeThickness = 1,
+                    Stroke = Helpers.ThemeHelper.ScrollbarThumb, StrokeThickness = 1,
                     StrokeDashArray = new DoubleCollection { 2, 2 }
                 };
                 ChartCanvas.Children.Add(line);
@@ -591,7 +592,7 @@ public partial class MetricsViewerWidget
                 {
                     X1 = nodePositions[i].X, Y1 = nodePositions[i].Y,
                     X2 = nodePositions[j].X, Y2 = nodePositions[j].Y,
-                    Stroke = new WpfSolidColorBrush(WpfColor.FromArgb(opacity, 0xF5, 0xF7, 0xFA)),
+                    Stroke = Helpers.ThemeHelper.BrushFrom(Helpers.ThemeHelper.TextPrimaryColor, opacity),
                     StrokeThickness = 0.5 + weight / (double)max * 2
                 };
                 ChartCanvas.Children.Add(line);
@@ -617,7 +618,7 @@ public partial class MetricsViewerWidget
         }
 
         // Center node
-        var center = new WpfEllipse { Width = 12, Height = 12, Fill = Brush("#F5F7FA"), Stroke = Brush("#007ACC"), StrokeThickness = 2 };
+        var center = new WpfEllipse { Width = 12, Height = 12, Fill = Helpers.ThemeHelper.TextPrimary, Stroke = Helpers.ThemeHelper.Accent, StrokeThickness = 2 };
         Canvas.SetLeft(center, cx - 6);
         Canvas.SetTop(center, cy - 6);
         ChartCanvas.Children.Add(center);

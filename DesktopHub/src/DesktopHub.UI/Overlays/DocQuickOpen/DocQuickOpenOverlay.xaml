@@ -13,18 +13,13 @@
         KeyDown="Window_KeyDown">
     
     <Border x:Name="RootBorder"
-            Background="#A8121212"
+            Background="{DynamicResource WindowBackgroundAlphaBrush}"
             CornerRadius="12"
-            BorderBrush="#3A2A2A2A"
+            BorderBrush="{DynamicResource WindowBorderBrush}"
             BorderThickness="1">
         <Grid HorizontalAlignment="Stretch">
             <!-- Glass overlay effect -->
-            <Border Margin="2"
-                    CornerRadius="10"
-                    BorderThickness="1"
-                    BorderBrush="#33FFFFFF"
-                    Background="#14000000"
-                    IsHitTestVisible="False"/>
+            <Border Style="{StaticResource GlassOverlayBorder}"/>
             
             <!-- Content -->
             <Border Background="Transparent" Padding="12">
@@ -34,7 +29,7 @@
             <!-- Update available indicator -->
             <Ellipse x:Name="UpdateIndicator"
                      Width="10" Height="10"
-                     Fill="#4CAF50"
+                     Fill="{DynamicResource GreenBrush}"
                      HorizontalAlignment="Right"
                      VerticalAlignment="Bottom"
                      Margin="0,0,8,8"

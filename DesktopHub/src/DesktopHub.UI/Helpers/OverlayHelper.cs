@@ -67,7 +67,8 @@ public static class OverlayHelper
             var alpha = (byte)(transparency * 255);
             if (rootBorder != null)
             {
-                rootBorder.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, 0x12, 0x12, 0x12));
+                var baseColor = ThemeHelper.GetColor("WindowBackgroundAlphaColor");
+                rootBorder.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, baseColor.R, baseColor.G, baseColor.B));
             }
             DebugLogger.Log($"{overlayName}: Transparency updated to {transparency:F2}");
         }

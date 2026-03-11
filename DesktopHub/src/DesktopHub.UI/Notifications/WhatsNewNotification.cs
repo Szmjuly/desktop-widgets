@@ -35,8 +35,8 @@ internal class WhatsNewNotification : Window
     {
         var root = new Border
         {
-            Background = new SolidColorBrush(WpfColor.FromArgb(0xF5, 0x16, 0x16, 0x16)),
-            BorderBrush = new SolidColorBrush(WpfColor.FromArgb(0x40, 0xFF, 0xFF, 0xFF)),
+            Background = Helpers.ThemeHelper.SurfaceSolid,
+            BorderBrush = Helpers.ThemeHelper.CardBorder,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(12),
             Padding = new Thickness(16, 14, 16, 14),
@@ -46,7 +46,7 @@ internal class WhatsNewNotification : Window
                 BlurRadius = 26,
                 ShadowDepth = 5,
                 Opacity = 0.6,
-                Color = WpfColor.FromRgb(0, 0, 0)
+                Color = Helpers.ThemeHelper.GetColor("ShadowColor")
             }
         };
 
@@ -91,13 +91,13 @@ internal class WhatsNewNotification : Window
             Text = "What's New",
             FontSize = 18,
             FontWeight = FontWeights.SemiBold,
-            Foreground = new SolidColorBrush(WpfColor.FromRgb(0xF5, 0xF7, 0xFA))
+            Foreground = Helpers.ThemeHelper.TextPrimary
         });
         headerText.Children.Add(new TextBlock
         {
             Text = $"Updated to v{version}",
             FontSize = 12,
-            Foreground = new SolidColorBrush(WpfColor.FromArgb(0xB8, 0xF5, 0xF7, 0xFA)),
+            Foreground = Helpers.ThemeHelper.TextSecondary,
             Margin = new Thickness(0, 2, 0, 0)
         });
 
@@ -110,7 +110,7 @@ internal class WhatsNewNotification : Window
         {
             Text = "Major changes in this release:",
             FontSize = 12,
-            Foreground = new SolidColorBrush(WpfColor.FromRgb(0xD7, 0xE1, 0xE8)),
+            Foreground = Helpers.ThemeHelper.TextSecondary,
             Margin = new Thickness(0, 0, 0, 8)
         });
 
@@ -123,15 +123,15 @@ internal class WhatsNewNotification : Window
                 Text = $"• {line}",
                 FontSize = 12,
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = new SolidColorBrush(WpfColor.FromRgb(0xE8, 0xEE, 0xF2)),
+                Foreground = Helpers.ThemeHelper.TextPrimary,
                 Margin = new Thickness(10, 4, 10, 4)
             });
         }
 
         var notesPanelContainer = new Border
         {
-            Background = new SolidColorBrush(WpfColor.FromArgb(0x14, 0xF5, 0xF7, 0xFA)),
-            BorderBrush = new SolidColorBrush(WpfColor.FromArgb(0x2A, 0xA2, 0xB0, 0xBA)),
+            Background = Helpers.ThemeHelper.FaintOverlay,
+            BorderBrush = Helpers.ThemeHelper.CardBorder,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(0, 6, 0, 6),
@@ -149,8 +149,8 @@ internal class WhatsNewNotification : Window
 
         var gotItButton = new Border
         {
-            Background = new SolidColorBrush(WpfColor.FromArgb(0x33, 0x4F, 0xC3, 0xF7)),
-            BorderBrush = new SolidColorBrush(WpfColor.FromArgb(0x66, 0x4F, 0xC3, 0xF7)),
+            Background = Helpers.ThemeHelper.AccentLight,
+            BorderBrush = Helpers.ThemeHelper.Accent,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(12, 6, 12, 6),
@@ -160,7 +160,7 @@ internal class WhatsNewNotification : Window
                 Text = "Got it",
                 FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(WpfColor.FromRgb(0xD7, 0xEE, 0xFF))
+                Foreground = Helpers.ThemeHelper.TextPrimary
             }
         };
         gotItButton.MouseLeftButtonDown += (_, _) => FadeAndClose();

@@ -146,7 +146,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
                         Text = disciplineName.ToUpper(),
                         FontSize = 9,
                         FontWeight = FontWeights.SemiBold,
-                        Foreground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x80, 0xFF, 0xD5, 0x4F)),
+                        Foreground = Helpers.ThemeHelper.GoldDark,
                         Margin = new Thickness(0, totalCross > 0 ? 8 : 0, 0, 4)
                     });
 
@@ -163,7 +163,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
                         {
                             Text = $"  +{kvp.Value.Count - 5} more in {disciplineName}",
                             FontSize = 10,
-                            Foreground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x60, 0xF5, 0xF7, 0xFA)),
+                            Foreground = Helpers.ThemeHelper.TextTertiary,
                             Margin = new Thickness(0, 2, 0, 0)
                         });
                     }
@@ -193,14 +193,14 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
     {
         var card = new Border
         {
-            Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x10, 0xFF, 0xD5, 0x4F)),
+            Background = Helpers.ThemeHelper.GoldBackground,
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(8, 5, 8, 5),
             Margin = new Thickness(0, 0, 0, 3),
             Cursor = System.Windows.Input.Cursors.Hand
         };
 
-        var hoverBg = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x20, 0xFF, 0xD5, 0x4F));
+        var hoverBg = Helpers.ThemeHelper.GoldBackground;
         var normalBg = card.Background;
         card.MouseEnter += (_, _) => card.Background = hoverBg;
         card.MouseLeave += (_, _) => card.Background = normalBg;
@@ -210,7 +210,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         {
             Text = sheet.Title,
             FontSize = 11,
-            Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF5, 0xF7, 0xFA)),
+            Foreground = Helpers.ThemeHelper.TextPrimary,
             VerticalAlignment = VerticalAlignment.Center
         });
 
@@ -244,14 +244,14 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
     {
         var card = new Border
         {
-            Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x10, 0xF5, 0xF7, 0xFA)),
+            Background = Helpers.ThemeHelper.Hover,
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(10, 8, 10, 8),
             Margin = new Thickness(0, 0, 0, 4),
             Cursor = System.Windows.Input.Cursors.Hand
         };
 
-        var hoverBg = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x20, 0xF5, 0xF7, 0xFA));
+        var hoverBg = Helpers.ThemeHelper.HoverMedium;
         var normalBg = card.Background;
         card.MouseEnter += (_, _) => card.Background = hoverBg;
         card.MouseLeave += (_, _) => card.Background = normalBg;
@@ -268,7 +268,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             Text = sheet.Title,
             FontSize = 12,
             FontWeight = FontWeights.Medium,
-            Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF5, 0xF7, 0xFA)),
+            Foreground = Helpers.ThemeHelper.TextPrimary,
             TextTrimming = TextTrimming.CharacterEllipsis
         };
         Grid.SetColumn(title, 0);
@@ -314,7 +314,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             {
                 Text = sheet.Subtitle,
                 FontSize = 10,
-                Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xB6, 0xC3, 0xCA)),
+                Foreground = Helpers.ThemeHelper.TextSecondary,
                 Margin = new Thickness(0, 2, 0, 0),
                 TextTrimming = TextTrimming.CharacterEllipsis
             });
@@ -328,7 +328,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             {
                 var tagBorder = new Border
                 {
-                    Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x15, 0xF5, 0xF7, 0xFA)),
+                    Background = Helpers.ThemeHelper.FaintOverlay,
                     CornerRadius = new CornerRadius(3),
                     Padding = new Thickness(4, 1, 4, 1),
                     Margin = new Thickness(0, 0, 3, 0)
@@ -337,7 +337,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
                 {
                     Text = tag,
                     FontSize = 9,
-                    Foreground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x80, 0xF5, 0xF7, 0xFA))
+                    Foreground = Helpers.ThemeHelper.TextTertiary
                 };
                 tagPanel.Children.Add(tagBorder);
             }
@@ -414,20 +414,21 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         {
             LookupModePanel.Visibility = Visibility.Visible;
             TableModePanel.Visibility = Visibility.Collapsed;
-            ViewModeLabel.Text = "\U0001F4CA Table";
-            DesiredWidthChanged?.Invoke(ListViewWidth);
+            ViewModeLabel.Text = "Table";
+
+            // GEC sheet uses the calculator only — no input sizer panel
+            InputPanel.Visibility = _activeSheet?.Id == "nec-250-66"
+                ? Visibility.Collapsed
+                : Visibility.Visible;
         }
         else
         {
             LookupModePanel.Visibility = Visibility.Collapsed;
             TableModePanel.Visibility = Visibility.Visible;
             TableView.Visibility = Visibility.Visible;
-            ViewModeLabel.Text = "\U0001F50D Lookup";
+            ViewModeLabel.Text = "Lookup";
             if (_activeSheet != null)
-            {
-                DesiredWidthChanged?.Invoke(ComputeIdealWidth(_activeSheet));
                 RenderDataGrid(_activeSheet, null);
-            }
         }
 
         if (_activeSheet != null)
@@ -484,51 +485,23 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         // Determine which input columns to show based on sheet structure
         var inputCols = sheet.Columns.Where(c => c.IsInputColumn).ToList();
 
-        // Special handling for GEC Sizing: show CU or AL toggle, not both at once
-        var isGecSheet = sheet.Id == "nec-250-66";
-        if (isGecSheet && inputCols.Count == 2)
-            inputCols = new List<CheatSheetColumn> { inputCols[0] };
+        // GEC sheet: the calculator handles both single conduit and parallel sizing,
+        // so skip the redundant table sizer and show only the calculator.
+        // InputPanel/OutputPanel stay collapsed (reset by ShowSheetDetail) since no lookup fields are built.
+        if (sheet.Id == "nec-250-66")
+        {
+            BuildGecCalculator();
+            ViewModeToggle.Visibility = Visibility.Visible;
+            DesiredWidthChanged?.Invoke(ComputeIdealWidth(sheet));
+            SetViewMode(true);
+            return;
+        }
+
+        GecCalculatorPanel.Visibility = Visibility.Collapsed;
 
         // Build input fields for Lookup mode
         if (hasLookupMode && inputCols.Count > 0)
         {
-            if (isGecSheet)
-            {
-                var toggleGrid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
-                toggleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
-                toggleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                var toggleLabel = new TextBlock
-                {
-                    Text = "Material:",
-                    FontSize = 11,
-                    Foreground = (System.Windows.Media.Brush)FindResource("DimTextBrush"),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(0, 0, 8, 0),
-                    MinWidth = 60
-                };
-                Grid.SetColumn(toggleLabel, 0);
-                toggleGrid.Children.Add(toggleLabel);
-
-                var materialCombo = new System.Windows.Controls.ComboBox
-                {
-                    FontSize = 12,
-                    Padding = new Thickness(6, 3, 6, 3),
-                    Style = (System.Windows.Style)FindResource("DarkComboBox")
-                };
-                materialCombo.Items.Add(new ComboBoxItem { Content = "Copper (Cu)", Tag = "cu" });
-                materialCombo.Items.Add(new ComboBoxItem { Content = "Aluminum (Al)", Tag = "al" });
-                materialCombo.SelectedIndex = 0;
-                materialCombo.SelectionChanged += (_, _) =>
-                {
-                    var tag = (materialCombo.SelectedItem as ComboBoxItem)?.Tag as string ?? "cu";
-                    RebuildGecInput(sheet, tag == "al" ? 1 : 0);
-                };
-                Grid.SetColumn(materialCombo, 1);
-                toggleGrid.Children.Add(materialCombo);
-                InputFields.Children.Add(toggleGrid);
-            }
-
             var dropdownCount = 0;
             foreach (var col in inputCols)
                 dropdownCount += BuildInputField(sheet, col);
@@ -540,16 +513,11 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             LookupButton.Visibility = _allInputsAreDropdowns ? Visibility.Collapsed : Visibility.Visible;
         }
 
-        // Build the GEC parallel conductor calculator if this is the GEC sheet
-        if (isGecSheet)
-            BuildGecCalculator();
-        else
-            GecCalculatorPanel.Visibility = Visibility.Collapsed;
-
         // Show view mode toggle for CompactLookup sheets; FullTable/SimpleList go straight to table
         if (hasLookupMode)
         {
             ViewModeToggle.Visibility = Visibility.Visible;
+            DesiredWidthChanged?.Invoke(ComputeIdealWidth(sheet));
             SetViewMode(true); // Start in Lookup mode
         }
         else
@@ -639,7 +607,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         {
             var input = new System.Windows.Controls.TextBox
             {
-                Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x20, 0xFF, 0xFF, 0xFF)),
+                Background = Helpers.ThemeHelper.HoverMedium,
                 BorderThickness = new Thickness(0),
                 Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
                 CaretBrush = (System.Windows.Media.Brush)FindResource("TextBrush"),
@@ -923,13 +891,103 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
                 Tag = i.ToString()
             });
         }
-        _gecCalcSetsCombo.SelectedIndex = 1; // default to 2 sets since that's the point of the calculator
+        _gecCalcSetsCombo.SelectedIndex = 0; // default to 1 set (single run); increase for parallel
         _gecCalcSetsCombo.SelectionChanged += (_, _) => PerformGecCalc();
         Grid.SetColumn(_gecCalcSetsCombo, 1);
         setsGrid.Children.Add(_gecCalcSetsCombo);
         GecCalcInputFields.Children.Add(setsGrid);
 
+        BuildGecRefTable();
+        GecRefTablePanel.Visibility = Visibility.Collapsed;
+        GecRefToggleChevron.Text = "\u25BC";
+
         GecCalculatorPanel.Visibility = Visibility.Visible;
+    }
+
+    private void BuildGecRefTable()
+    {
+        GecRefTableRows.Children.Clear();
+
+        // Header row
+        var header = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        void AddHeaderCell(string text, int col)
+        {
+            var tb = new TextBlock
+            {
+                Text = text,
+                FontSize = 9,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = (System.Windows.Media.Brush)FindResource("DimTextBrush"),
+                Margin = new Thickness(col == 0 ? 0 : 4, 0, 0, 0)
+            };
+            Grid.SetColumn(tb, col);
+            header.Children.Add(tb);
+        }
+        AddHeaderCell("Size", 0);
+        AddHeaderCell("cmil", 1);
+        AddHeaderCell("mm²", 2);
+        GecRefTableRows.Children.Add(header);
+
+        // Separator
+        GecRefTableRows.Children.Add(new Border
+        {
+            Height = 1,
+            Background = (System.Windows.Media.Brush)FindResource("SurfaceBrush"),
+            Margin = new Thickness(0, 2, 0, 4)
+        });
+
+        // Data rows
+        var isAlternate = false;
+        foreach (var (label, cmil) in WireSizeCmil)
+        {
+            var sizeText = cmil >= 250_000 ? $"{label} kcmil" : $"#{label} AWG";
+            var mm2 = cmil * 5.06707e-4; // 1 cmil = 5.06707×10⁻⁴ mm²
+            var mm2Text = mm2 >= 100 ? $"{mm2:F0}" : $"{mm2:F1}";
+
+            var row = new Grid
+            {
+                Background = isAlternate
+                    ? Helpers.ThemeHelper.FaintOverlay
+                    : System.Windows.Media.Brushes.Transparent,
+                Margin = new Thickness(0, 0, 0, 1)
+            };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            void AddCell(string text, int col, bool bold = false)
+            {
+                var tb = new TextBlock
+                {
+                    Text = text,
+                    FontSize = 10,
+                    FontWeight = bold ? FontWeights.SemiBold : FontWeights.Normal,
+                    Foreground = bold
+                        ? (System.Windows.Media.Brush)FindResource("TextBrush")
+                        : (System.Windows.Media.Brush)FindResource("DimTextBrush"),
+                    Margin = new Thickness(col == 0 ? 2 : 4, 1, 0, 1)
+                };
+                Grid.SetColumn(tb, col);
+                row.Children.Add(tb);
+            }
+
+            AddCell(sizeText, 0, bold: true);
+            AddCell($"{cmil:N0}", 1);
+            AddCell(mm2Text, 2);
+            GecRefTableRows.Children.Add(row);
+            isAlternate = !isAlternate;
+        }
+    }
+
+    private void GecRefToggle_Click(object sender, MouseButtonEventArgs e)
+    {
+        var isExpanded = GecRefTablePanel.Visibility == Visibility.Visible;
+        GecRefTablePanel.Visibility = isExpanded ? Visibility.Collapsed : Visibility.Visible;
+        GecRefToggleChevron.Text = isExpanded ? "\u25BC" : "\u25B2";
     }
 
     private void GecCalcButton_Click(object sender, MouseButtonEventArgs e)
@@ -992,33 +1050,32 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             $"{totalCmil:N0}",
             "cmil",
             $"{numSets} x {cmilEntry.Label} = {totalCmil:N0} cmil",
-            "#FFB74D");
+            Helpers.ThemeHelper.OrangeColor);
 
         // Show matched table range
         AddGecCalcOutputCard("Table 250.66 Range",
             matchedRange,
             isCu ? "(Cu column)" : "(Al column)",
             null,
-            "#B0BEC5");
+            Helpers.ThemeHelper.TextSecondaryColor);
 
         // Show GEC Cu result
         AddGecCalcOutputCard("GEC Copper",
             gecCu,
             "AWG/kcmil",
             null,
-            "#66BB6A");
+            Helpers.ThemeHelper.GreenColor);
 
         // Show GEC Al result
         AddGecCalcOutputCard("GEC Aluminum",
             gecAl,
             "AWG/kcmil",
             null,
-            "#66BB6A");
+            Helpers.ThemeHelper.GreenColor);
     }
 
-    private void AddGecCalcOutputCard(string label, string value, string unit, string? subtitle, string colorHex)
+    private void AddGecCalcOutputCard(string label, string value, string unit, string? subtitle, System.Windows.Media.Color color)
     {
-        var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(colorHex);
         var card = new Border
         {
             Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, color.R, color.G, color.B)),
@@ -1099,31 +1156,6 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         }
     }
 
-    /// <summary>
-    /// Rebuilds the GEC input field when the user toggles between Cu and Al.
-    /// </summary>
-    private void RebuildGecInput(CheatSheet sheet, int colIndex)
-    {
-        if (sheet.Columns.Count <= colIndex) return;
-        var col = sheet.Columns[colIndex];
-
-        // Remove all input field grids except the first (material toggle)
-        while (InputFields.Children.Count > 1)
-            InputFields.Children.RemoveAt(InputFields.Children.Count - 1);
-
-        // Clear old input references for input columns
-        foreach (var ic in sheet.Columns.Where(c => c.IsInputColumn))
-            _inputTextBoxes.Remove(ic.Header);
-
-        // Hide output when switching
-        OutputPanel.Visibility = Visibility.Collapsed;
-
-        BuildInputField(sheet, col);
-
-        // Reset table to all rows
-        RenderDataGrid(sheet, null);
-    }
-
     private void RenderDataGrid(CheatSheet sheet, List<int>? visibleRowIndices)
     {
         TableContainer.Children.Clear();
@@ -1197,8 +1229,8 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             var headerForeground = isInputCol
                 ? (System.Windows.Media.Brush)FindResource("AccentBrush")
                 : col.IsOutputColumn
-                    ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x66, 0xBB, 0x6A))
-                    : (System.Windows.Media.Brush)FindResource("TextBrush");
+                    ? Helpers.ThemeHelper.Green
+                    : Helpers.ThemeHelper.TextPrimary;
 
             // Header text: name + unit inline when short, stacked when needed
             var headerText = col.Header;
@@ -1402,7 +1434,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             {
                 OutputFields.Children.Add(new Border
                 {
-                    BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x30, 0x66, 0xBB, 0x6A)),
+                    BorderBrush = Helpers.ThemeHelper.GreenBackground,
                     BorderThickness = new Thickness(0, 1, 0, 0),
                     Margin = new Thickness(0, 6, 0, 6),
                     Height = 1
@@ -1425,7 +1457,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
                 // Card-style output: value card with label
                 var card = new Border
                 {
-                    Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x18, 0x66, 0xBB, 0x6A)),
+                    Background = Helpers.ThemeHelper.GreenBackground,
                     CornerRadius = new CornerRadius(6),
                     Padding = new Thickness(10, 6, 10, 6),
                     Margin = new Thickness(0, 0, 6, 6),

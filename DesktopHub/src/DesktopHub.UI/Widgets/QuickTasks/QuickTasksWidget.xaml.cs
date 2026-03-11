@@ -36,6 +36,11 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
             {
                 DebugLogger.Log($"QuickTasksWidget: Init error: {ex.Message}");
             }
+
+            // Subscribe to theme changes to re-render task rows with correct colors
+            var app = (App)System.Windows.Application.Current;
+            if (app.Theme != null)
+                app.Theme.ThemeChanged += (_) => Dispatcher.BeginInvoke(() => { RenderTasks(); UpdateDateLabel(); UpdateStatusText(); });
         };
     }
 
@@ -246,7 +251,7 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
             CornerRadius = new CornerRadius(3),
             BorderBrush = task.IsCompleted
                 ? (WpfBrush)FindResource("AccentBrush")
-                : new WpfSolidColorBrush(WpfColor.FromArgb(0x50, 0xF5, 0xF7, 0xFA)),
+                : Helpers.ThemeHelper.CardBorder,
             BorderThickness = new Thickness(1.5),
             Background = task.IsCompleted
                 ? (WpfBrush)FindResource("AccentBrush")
@@ -261,7 +266,7 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
             {
                 Text = "\u2713",
                 FontSize = 9,
-                Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(0x12, 0x12, 0x12)),
+                Foreground = Helpers.ThemeHelper.TextOnAccent,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, -1, 0, 0)
@@ -324,14 +329,14 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
         {
             Text = "\u2715",
             FontSize = 10,
-            Foreground = new WpfSolidColorBrush(WpfColor.FromArgb(0x00, 0xFF, 0x52, 0x52)),
+            Foreground = System.Windows.Media.Brushes.Transparent,
             VerticalAlignment = VerticalAlignment.Center,
             Cursor = System.Windows.Input.Cursors.Hand,
             Margin = new Thickness(4, 0, 0, 0)
         };
 
-        row.MouseEnter += (s, e) => deleteBtn.Foreground = new WpfSolidColorBrush(WpfColor.FromArgb(0x80, 0xFF, 0x52, 0x52));
-        row.MouseLeave += (s, e) => deleteBtn.Foreground = new WpfSolidColorBrush(WpfColor.FromArgb(0x00, 0xFF, 0x52, 0x52));
+        row.MouseEnter += (s, e) => deleteBtn.Foreground = Helpers.ThemeHelper.Red;
+        row.MouseLeave += (s, e) => deleteBtn.Foreground = System.Windows.Media.Brushes.Transparent;
 
         deleteBtn.MouseLeftButtonDown += async (s, e) =>
         {
@@ -434,7 +439,7 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
         var deleteItem = new MenuItem
         {
             Header = "Delete",
-            Foreground = new WpfSolidColorBrush(WpfColor.FromRgb(0xFF, 0x52, 0x52))
+            Foreground = Helpers.ThemeHelper.Red
         };
         deleteItem.Click += async (s, e) => await _taskService.DeleteTaskAsync(task.Id);
         menu.Items.Add(deleteItem);
@@ -453,10 +458,10 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
 
     private void ShowDatePickerPopup(Func<DateTime, Task> onDateSelected)
     {
-        var bgBrush = new WpfSolidColorBrush(WpfColor.FromRgb(0x1E, 0x1E, 0x1E));
-        var textBrush = new WpfSolidColorBrush(WpfColor.FromRgb(0xE0, 0xE0, 0xE0));
-        var accentBrush = new WpfSolidColorBrush(WpfColor.FromRgb(0x4F, 0xC3, 0xF7));
-        var borderBrush = new WpfSolidColorBrush(WpfColor.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
+        var bgBrush = Helpers.ThemeHelper.SurfaceSolid;
+        var textBrush = Helpers.ThemeHelper.TextPrimary;
+        var accentBrush = Helpers.ThemeHelper.Accent;
+        var borderBrush = Helpers.ThemeHelper.Border;
 
         // Use a borderless window so the picker can be dragged
         var pickerWindow = new Window
@@ -500,7 +505,7 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
         // Drag handle at the top
         var dragBar = new Border
         {
-            Background = new WpfSolidColorBrush(WpfColor.FromRgb(0x28, 0x28, 0x28)),
+            Background = Helpers.ThemeHelper.Card,
             Height = 28,
             CornerRadius = new CornerRadius(8, 8, 0, 0),
             Cursor = System.Windows.Input.Cursors.Hand
@@ -517,7 +522,7 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
         var closeBtn = new TextBlock
         {
             Text = "\u2715",
-            Foreground = new WpfSolidColorBrush(WpfColor.FromArgb(0x80, 0xE0, 0xE0, 0xE0)),
+            Foreground = Helpers.ThemeHelper.TextSecondary,
             FontSize = 12,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 10, 0),
@@ -554,7 +559,7 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
                 BlurRadius = 20,
                 ShadowDepth = 4,
                 Opacity = 0.6,
-                Color = WpfColor.FromRgb(0, 0, 0)
+                Color = Helpers.ThemeHelper.GetColor("ShadowColor")
             }
         };
 
@@ -620,7 +625,7 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
                 btnTemplate.VisualTree = btnBorder;
                 var btnHover = new Trigger { Property = System.Windows.Controls.Button.IsMouseOverProperty, Value = true };
                 btnHover.Setters.Add(new Setter(Border.BackgroundProperty,
-                    new WpfSolidColorBrush(WpfColor.FromArgb(0x30, 0x4F, 0xC3, 0xF7)), "BtnBd"));
+                    Helpers.ThemeHelper.AccentLight, "BtnBd"));
                 btnTemplate.Triggers.Add(btnHover);
                 btn.Template = btnTemplate;
             }
@@ -653,12 +658,12 @@ public partial class QuickTasksWidget : System.Windows.Controls.UserControl
                 }
                 if (dayBtn.IsSelected)
                 {
-                    dayBtn.Background = new WpfSolidColorBrush(WpfColor.FromArgb(0x60, 0x4F, 0xC3, 0xF7));
+                    dayBtn.Background = Helpers.ThemeHelper.AccentLight;
                     dayBtn.Foreground = WpfBrushes.White;
                 }
                 if (dayBtn.IsInactive)
                 {
-                    dayBtn.Foreground = new WpfSolidColorBrush(WpfColor.FromArgb(0x50, 0xE0, 0xE0, 0xE0));
+                    dayBtn.Foreground = Helpers.ThemeHelper.TextTertiary;
                 }
             }
 

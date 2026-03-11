@@ -25,7 +25,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Thumb">
-                        <Border Background="#40FFFFFF" CornerRadius="3" Margin="1"/>
+                        <Border Background="{DynamicResource ScrollbarThumbAltBrush}" CornerRadius="3" Margin="1"/>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -85,7 +85,7 @@
                 <TextBlock Grid.Column="0" 
                            Text="★" 
                            FontSize="16"
-                           Foreground="#FFD700"
+                           Foreground="{DynamicResource GoldBrush}"
                            Margin="0,0,8,0"
                            Visibility="{Binding IsFavorite, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
                 
@@ -93,7 +93,7 @@
                     <!-- Project number, name, and match tag -->
                     <StackPanel Orientation="Horizontal">
                         <TextBlock FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center">
-                            <Run Text="{Binding FullNumber, Mode=OneWay}" Foreground="#007ACC"/>
+                            <Run Text="{Binding FullNumber, Mode=OneWay}" Foreground="{DynamicResource AccentBrush}"/>
                             <Run Text=" - "/>
                             <Run Text="{Binding Name, Mode=OneWay}"/>
                         </TextBlock>
@@ -103,13 +103,13 @@
                                 Visibility="{Binding MatchTag, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
                             <Border.Style>
                                 <Style TargetType="Border">
-                                    <Setter Property="Background" Value="#33DAA520"/>
+                                    <Setter Property="Background" Value="{DynamicResource GoldBackgroundBrush}"/>
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsLooseTokenMatch}" Value="True">
-                                            <Setter Property="Background" Value="#33FF8C00"/>
+                                            <Setter Property="Background" Value="{DynamicResource OrangeBackgroundBrush}"/>
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding IsDuplicateNumber}" Value="True">
-                                            <Setter Property="Background" Value="#33FF4444"/>
+                                            <Setter Property="Background" Value="{DynamicResource RedBackgroundBrush}"/>
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -118,13 +118,13 @@
                                        FontSize="9" FontWeight="SemiBold" VerticalAlignment="Center">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="#DAA520"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource GoldDarkBrush}"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsLooseTokenMatch}" Value="True">
-                                                <Setter Property="Foreground" Value="#FF8C00"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource OrangeBrush}"/>
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding IsDuplicateNumber}" Value="True">
-                                                <Setter Property="Foreground" Value="#FF4444"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource RedBrush}"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -137,19 +137,19 @@
                     <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                         <TextBlock Text="{Binding Location, Mode=OneWay}" 
                                    FontSize="11" 
-                                   Foreground="#AAAAAA"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                    Margin="0,0,12,0"
                                    Visibility="{Binding Location, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"/>
                         <TextBlock Text="{Binding Status, Mode=OneWay}" 
                                    FontSize="11" 
-                                   Foreground="#AAAAAA"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                    Visibility="{Binding Status, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}"/>
                     </StackPanel>
                     
                     <!-- Path (shown on hover) -->
                     <TextBlock Text="{Binding Path, Mode=OneWay}" 
                                FontSize="10" 
-                               Foreground="#777777"
+                               Foreground="{DynamicResource TextTertiaryBrush}"
                                Margin="0,2,0,0"
                                TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
@@ -163,7 +163,7 @@
                         MouseLeftButtonDown="CopyPathBorder_Click"
                         MouseEnter="CopyPathBorder_MouseEnter"
                         MouseLeave="CopyPathBorder_MouseLeave">
-                    <TextBlock Text="📋" FontSize="12" Foreground="White"
+                    <TextBlock Text="📋" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}"
                                VerticalAlignment="Center"/>
                 </Border>
             </Grid>
@@ -184,21 +184,15 @@
         
         <!-- Semi-transparent overlay background with glass edge -->
         <Border x:Name="RootBorder"
-                Background="#A8121212"
+                Background="{DynamicResource WindowBackgroundAlphaBrush}"
                 CornerRadius="12"
-                BorderBrush="#3A2A2A2A"
+                BorderBrush="{DynamicResource WindowBorderBrush}"
                 BorderThickness="1"
                 Margin="0"
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Stretch">
             <Grid>
-            <Border x:Name="GlassOverlay"
-                    Margin="2"
-                    CornerRadius="10"
-                    BorderThickness="1"
-                    BorderBrush="#33FFFFFF"
-                    Background="#14000000"
-                    IsHitTestVisible="False"/>
+            <Border x:Name="GlassOverlay" Style="{StaticResource GlassOverlayBorder}"/>
             <Border x:Name="ContentBorder" Background="Transparent" Padding="19">
                 <Grid Margin="0">
             <Grid.RowDefinitions>
@@ -222,8 +216,8 @@
                 
                 <!-- Search box -->
                 <Border Grid.Column="0"
-                        Background="#D0121212"
-                        BorderBrush="{StaticResource BorderBrush}"
+                        Background="{DynamicResource InputBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
                         Padding="4"
@@ -241,7 +235,7 @@
                                    Text="&#xE721;"
                                    FontFamily="Segoe MDL2 Assets"
                                    FontSize="18"
-                                   Foreground="#F5F7FA"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                    VerticalAlignment="Center"
                                    Margin="8,0"/>
                         
@@ -252,8 +246,8 @@
                                  Background="Transparent"
                                  FontSize="18"
                                  VerticalAlignment="Center"
-                                 CaretBrush="#F5F7FA"
-                                 Foreground="#F5F7FA"
+                                 CaretBrush="{DynamicResource TextPrimaryBrush}"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"
                                  TextChanged="SearchBox_TextChanged"
                                  GotFocus="SearchBox_GotFocus"
                                  LostFocus="SearchBox_LostFocus"
@@ -264,7 +258,7 @@
                                    Grid.Column="2"
                                    Text="⟳"
                                    FontSize="16"
-                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                    VerticalAlignment="Center"
                                    Margin="8,0"
                                    Visibility="Collapsed"/>
@@ -273,8 +267,8 @@
                 
                 <!-- Drive Location filter -->
                 <Border Grid.Column="1"
-                        Background="#D0121212"
-                        BorderBrush="{StaticResource BorderBrush}"
+                        Background="{DynamicResource InputBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
                         Padding="8,4"
@@ -282,7 +276,7 @@
                     <ComboBox x:Name="DriveLocationFilter"
                               MinWidth="120"
                               Background="Transparent"
-                              Foreground="#F5F7FA"
+                              Foreground="{DynamicResource TextPrimaryBrush}"
                               BorderThickness="0"
                               SelectionChanged="DriveLocationFilter_SelectionChanged">
                         <ComboBox.Resources>
@@ -314,12 +308,12 @@
                                                                     </Grid.ColumnDefinitions>
                                                                     <ContentPresenter Grid.Column="0"
                                                                                       Content="{Binding Path=SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"
-                                                                                      TextElement.Foreground="#F5F7FA"
+                                                                                      TextElement.Foreground="{DynamicResource TextPrimaryBrush}"
                                                                                       Margin="8,3,0,3"
                                                                                       HorizontalAlignment="Left"
                                                                                       VerticalAlignment="Center"/>
                                                                     <Path Grid.Column="1"
-                                                                          Fill="#F5F7FA"
+                                                                          Fill="{DynamicResource TextPrimaryBrush}"
                                                                           HorizontalAlignment="Center"
                                                                           VerticalAlignment="Center"
                                                                           Data="M 0 0 L 4 4 L 8 0 Z"
@@ -328,10 +322,10 @@
                                                             </Border>
                                                             <ControlTemplate.Triggers>
                                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter TargetName="HoverBorder" Property="Background" Value="#15F5F7FA"/>
+                                                                    <Setter TargetName="HoverBorder" Property="Background" Value="{DynamicResource HoverBrush}"/>
                                                                 </Trigger>
                                                                 <Trigger Property="IsChecked" Value="True">
-                                                                    <Setter TargetName="HoverBorder" Property="Background" Value="#20F5F7FA"/>
+                                                                    <Setter TargetName="HoverBorder" Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                                                 </Trigger>
                                                             </ControlTemplate.Triggers>
                                                         </ControlTemplate>
@@ -343,8 +337,8 @@
                                                        AllowsTransparency="True"
                                                        Focusable="False"
                                                        PopupAnimation="Slide">
-                                                    <Border Background="#D0121212"
-                                                            BorderBrush="{StaticResource BorderBrush}"
+                                                    <Border Background="{DynamicResource InputBackgroundBrush}"
+                                                            BorderBrush="{DynamicResource BorderBrush}"
                                                             BorderThickness="1"
                                                             CornerRadius="8"
                                                             Padding="4"
@@ -363,7 +357,7 @@
                         <ComboBox.ItemContainerStyle>
                             <Style TargetType="ComboBoxItem">
                                 <Setter Property="Background" Value="Transparent"/>
-                                <Setter Property="Foreground" Value="#F5F7FA"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                                 <Setter Property="Padding" Value="0"/>
                                 <Setter Property="Margin" Value="2,1"/>
                                 <Setter Property="Template">
@@ -379,10 +373,10 @@
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsHighlighted" Value="True">
-                                                    <Setter TargetName="Border" Property="Background" Value="#20F5F7FA"/>
+                                                    <Setter TargetName="Border" Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                                 </Trigger>
                                                 <Trigger Property="IsSelected" Value="True">
-                                                    <Setter TargetName="Border" Property="Background" Value="#30F5F7FA"/>
+                                                    <Setter TargetName="Border" Property="Background" Value="{DynamicResource SelectedBrush}"/>
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -395,8 +389,8 @@
                 
                 <!-- Year filter -->
                 <Border Grid.Column="2"
-                        Background="#D0121212"
-                        BorderBrush="{StaticResource BorderBrush}"
+                        Background="{DynamicResource InputBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
                         Padding="8,4"
@@ -404,7 +398,7 @@
                     <ComboBox x:Name="YearFilter"
                               MinWidth="100"
                               Background="Transparent"
-                              Foreground="#F5F7FA"
+                              Foreground="{DynamicResource TextPrimaryBrush}"
                               BorderThickness="0"
                               SelectionChanged="YearFilter_SelectionChanged">
                         <ComboBox.Resources>
@@ -442,10 +436,10 @@
                                                                                       Margin="8,3,0,3"
                                                                                       VerticalAlignment="Center"
                                                                                       HorizontalAlignment="Left"
-                                                                                      TextElement.Foreground="#F5F7FA"/>
+                                                                                      TextElement.Foreground="{DynamicResource TextPrimaryBrush}"/>
                                                                     <Path Grid.Column="1"
                                                                           x:Name="Arrow"
-                                                                          Fill="#F5F7FA"
+                                                                          Fill="{DynamicResource TextPrimaryBrush}"
                                                                           HorizontalAlignment="Center"
                                                                           VerticalAlignment="Center"
                                                                           Data="M 0 0 L 4 4 L 8 0 Z"/>
@@ -453,10 +447,10 @@
                                                             </Border>
                                                             <ControlTemplate.Triggers>
                                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter TargetName="HoverBorder" Property="Background" Value="#15F5F7FA"/>
+                                                                    <Setter TargetName="HoverBorder" Property="Background" Value="{DynamicResource HoverBrush}"/>
                                                                 </Trigger>
                                                                 <Trigger Property="IsChecked" Value="True">
-                                                                    <Setter TargetName="HoverBorder" Property="Background" Value="#20F5F7FA"/>
+                                                                    <Setter TargetName="HoverBorder" Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                                                 </Trigger>
                                                             </ControlTemplate.Triggers>
                                                         </ControlTemplate>
@@ -469,8 +463,8 @@
                                                        Focusable="False"
                                                        PopupAnimation="Slide">
                                                     <Border Name="DropDownBorder"
-                                                            Background="#1E1E1E"
-                                                            BorderBrush="{StaticResource BorderBrush}"
+                                                            Background="{DynamicResource SurfaceSolidBrush}"
+                                                            BorderBrush="{DynamicResource BorderBrush}"
                                                             BorderThickness="1"
                                                             CornerRadius="8"
                                                             MinWidth="{TemplateBinding ActualWidth}"
@@ -489,7 +483,7 @@
                         <ComboBox.ItemContainerStyle>
                             <Style TargetType="ComboBoxItem">
                                 <Setter Property="Background" Value="Transparent"/>
-                                <Setter Property="Foreground" Value="#F5F7FA"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                                 <Setter Property="Padding" Value="0"/>
                                 <Setter Property="Margin" Value="2,1"/>
                                 <Setter Property="Template">
@@ -505,10 +499,10 @@
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsHighlighted" Value="True">
-                                                    <Setter TargetName="Border" Property="Background" Value="#20F5F7FA"/>
+                                                    <Setter TargetName="Border" Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                                 </Trigger>
                                                 <Trigger Property="IsSelected" Value="True">
-                                                    <Setter TargetName="Border" Property="Background" Value="#30F5F7FA"/>
+                                                    <Setter TargetName="Border" Property="Background" Value="{DynamicResource SelectedBrush}"/>
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -522,8 +516,8 @@
                 <!-- Smart Search Attach Panel Toggle -->
                 <Button x:Name="SmartProjectSearchAttachToggleButton"
                         Grid.Column="3"
-                        Background="#D0121212"
-                        BorderBrush="{StaticResource BorderBrush}"
+                        Background="{DynamicResource InputBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1"
                         Width="50"
                         Click="SmartProjectSearchAttachToggleButton_Click"
@@ -544,16 +538,16 @@
                                             <TextBlock Text="&#xE721;"
                                                        FontFamily="Segoe MDL2 Assets"
                                                        FontSize="16"
-                                                       Foreground="#F5F7FA"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center"/>
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="ButtonBorder" Property="Background" Value="#E0121212"/>
+                                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
                                             </Trigger>
                                             <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="ButtonBorder" Property="Background" Value="#F0121212"/>
+                                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -567,8 +561,8 @@
                 <Button x:Name="WidgetLauncherToggle"
                         Grid.Column="4"
                         Margin="8,0,0,0"
-                        Background="#D0121212"
-                        BorderBrush="{StaticResource BorderBrush}"
+                        Background="{DynamicResource InputBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1"
                         Width="50"
                         Click="WidgetLauncherToggle_Click"
@@ -588,16 +582,16 @@
                                             <TextBlock Text="&#xE80F;"
                                                        FontFamily="Segoe MDL2 Assets"
                                                        FontSize="16"
-                                                       Foreground="#F5F7FA"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center"/>
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="ButtonBorder" Property="Background" Value="#E0121212"/>
+                                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
                                             </Trigger>
                                             <Trigger Property="IsPressed" Value="True">
-                                                <Setter TargetName="ButtonBorder" Property="Background" Value="#F0121212"/>
+                                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -623,8 +617,8 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="#18649BF0"
-                                    BorderBrush="#30649BF0"
+                            <Border Background="{DynamicResource BlueBackgroundBrush}"
+                                    BorderBrush="{DynamicResource BlueBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="10"
                                     Padding="10,4"
@@ -635,13 +629,13 @@
                                     <Style TargetType="Border">
                                         <Style.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="#30649BF0"/>
+                                                <Setter Property="Background" Value="{DynamicResource BlueBorderBrush}"/>
                                             </Trigger>
                                         </Style.Triggers>
                                     </Style>
                                 </Border.Style>
-                                <TextBlock FontSize="11" Foreground="#C0B0D0FF">
-                                    <Run Text="{Binding Key, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=":" Foreground="#60B0D0FF"/><Run Text="{Binding Value, Mode=OneWay}"/>
+                                <TextBlock FontSize="11" Foreground="{DynamicResource BlueTextBrush}">
+                                    <Run Text="{Binding Key, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=":" Foreground="{DynamicResource BlueTextBrush}"/><Run Text="{Binding Value, Mode=OneWay}"/>
                                 </TextBlock>
                             </Border>
                         </DataTemplate>
@@ -666,7 +660,7 @@
                               Text="No history yet..."
                               FontSize="12"
                               FontStyle="Italic"
-                              Foreground="#60808080"
+                              Foreground="{DynamicResource TextPlaceholderBrush}"
                               VerticalAlignment="Center"
                               Margin="4,0,0,0"
                               Visibility="Collapsed"/>
@@ -683,8 +677,8 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="#20F5F7FA"
-                                            BorderBrush="#30F5F7FA"
+                                    <Border Background="{DynamicResource HoverMediumBrush}"
+                                            BorderBrush="{DynamicResource SelectedBrush}"
                                             BorderThickness="1"
                                             CornerRadius="12"
                                             Padding="12,6"
@@ -695,14 +689,14 @@
                                             <Style TargetType="Border">
                                                 <Style.Triggers>
                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="#30F5F7FA"/>
+                                                        <Setter Property="Background" Value="{DynamicResource SelectedBrush}"/>
                                                     </Trigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </Border.Style>
                                         <TextBlock Text="{Binding}"
                                                   FontSize="12"
-                                                  Foreground="#F5F7FA"/>
+                                                  Foreground="{DynamicResource TextPrimaryBrush}"/>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -720,7 +714,7 @@
                     <TextBlock x:Name="CollapseIcon"
                               Text="▼"
                               FontSize="14"
-                              Foreground="#808080"
+                              Foreground="{DynamicResource TextTertiaryBrush}"
                               VerticalAlignment="Center"
                               RenderTransformOrigin="0.5,0.5">
                         <TextBlock.RenderTransform>
@@ -743,15 +737,15 @@
                     <TextBlock x:Name="ResultsHeaderText"
                               Text="Projects"
                               FontSize="11"
-                              Foreground="#808080"
+                              Foreground="{DynamicResource TextTertiaryBrush}"
                               VerticalAlignment="Center"/>
                 </Border>
                 
                 <!-- Results list and history panel -->
             <Border Grid.Row="1" x:Name="ResultsContainer" 
                     Margin="0,12,0,0"
-                    Background="#D0121212"
-                    BorderBrush="{StaticResource BorderBrush}"
+                    Background="{DynamicResource InputBackgroundBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8">
                     <!-- Results list -->
@@ -785,19 +779,19 @@
                 <TextBlock x:Name="StatusText"
                            Grid.Column="0"
                            FontSize="11"
-                           Foreground="{StaticResource TextSecondaryBrush}"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
                            Text="Type to search projects..."/>
                 
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,12,0">
+                    <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,12,0">
                         <Run Text="↑↓"/>
                         <Run Text="Navigate"/>
                     </TextBlock>
-                    <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,12,0">
+                    <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,12,0">
                         <Run Text="Enter"/>
                         <Run Text="Open"/>
                     </TextBlock>
-                    <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}">
+                    <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}">
                         <Run Text="Esc"/>
                         <Run Text="Close"/>
                     </TextBlock>
@@ -809,7 +803,7 @@
     <!-- Update available indicator -->
     <Ellipse x:Name="UpdateIndicator"
              Width="10" Height="10"
-             Fill="#4CAF50"
+             Fill="{DynamicResource GreenBrush}"
              HorizontalAlignment="Left"
              VerticalAlignment="Top"
              Margin="8,8,0,0"

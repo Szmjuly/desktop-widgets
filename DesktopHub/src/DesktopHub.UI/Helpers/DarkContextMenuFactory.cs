@@ -12,11 +12,11 @@ namespace DesktopHub.UI.Helpers;
 /// </summary>
 public static class DarkContextMenuFactory
 {
-    private static readonly WpfColor MenuBgColor = WpfColor.FromRgb(0x1E, 0x1E, 0x1E);
-    private static readonly WpfColor MenuBorderColor = WpfColor.FromArgb(0x40, 0xFF, 0xFF, 0xFF);
-    private static readonly WpfColor ItemFgColor = WpfColor.FromRgb(0xE0, 0xE0, 0xE0);
-    private static readonly WpfColor HoverBgColor = WpfColor.FromArgb(0x30, 0x4F, 0xC3, 0xF7);
-    private static readonly WpfColor SeparatorColor = WpfColor.FromArgb(0x20, 0xFF, 0xFF, 0xFF);
+    private static WpfColor MenuBgColor => ThemeHelper.GetColor("SurfaceSolidColor");
+    private static WpfColor MenuBorderColor => ThemeHelper.GetColor("BorderColor");
+    private static WpfColor ItemFgColor => ThemeHelper.TextPrimaryColor;
+    private static WpfColor HoverBgColor => ThemeHelper.GetColor("AccentLightColor");
+    private static WpfColor SeparatorColor => ThemeHelper.GetColor("BorderSubtleColor");
 
     /// <summary>
     /// Creates a fully-styled dark context menu with custom MenuItem template.
@@ -67,7 +67,7 @@ public static class DarkContextMenuFactory
             BlurRadius = 12,
             ShadowDepth = 2,
             Opacity = 0.5,
-            Color = WpfColor.FromRgb(0, 0, 0)
+            Color = ThemeHelper.GetColor("ShadowColor")
         });
 
         var itemsPresenter = new FrameworkElementFactory(typeof(ItemsPresenter));

@@ -73,8 +73,8 @@ public partial class MetricsViewerWidget
 
             var pill = new Border
             {
-                Background = isOn ? PaletteBrushAlpha(colorIdx, 0x30) : new WpfSolidColorBrush(WpfColor.FromArgb(0x10, 0xF5, 0xF7, 0xFA)),
-                BorderBrush = isOn ? PaletteBrush(colorIdx) : new WpfSolidColorBrush(WpfColor.FromArgb(0x20, 0xF5, 0xF7, 0xFA)),
+                Background = isOn ? PaletteBrushAlpha(colorIdx, 0x30) : Helpers.ThemeHelper.Hover,
+                BorderBrush = isOn ? PaletteBrush(colorIdx) : Helpers.ThemeHelper.HoverMedium,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(4),
                 Padding = new Thickness(8, 3, 8, 3),
@@ -86,7 +86,7 @@ public partial class MetricsViewerWidget
             {
                 Text = user,
                 FontSize = 10,
-                Foreground = isOn ? PaletteBrush(colorIdx) : Brush("#6B7A85")
+                Foreground = isOn ? PaletteBrush(colorIdx) : Helpers.ThemeHelper.TextTertiary
             };
             pill.MouseLeftButtonDown += (s, e) =>
             {
@@ -135,17 +135,17 @@ public partial class MetricsViewerWidget
         // Feature usage breakdown (horizontal bars)
         var featureData = new (string Label, int Value, string Color)[]
         {
-            ("Searches", _filteredAdminSummaries.Sum(s => s.TotalSearches), "#42A5F5"),
-            ("Smart Search", _filteredAdminSummaries.Sum(s => s.TotalSmartSearches), "#26C6DA"),
-            ("Doc Search", _filteredAdminSummaries.Sum(s => s.TotalDocSearches), "#5C6BC0"),
-            ("Path Search", _filteredAdminSummaries.Sum(s => s.TotalPathSearches), "#78909C"),
-            ("Launches", _filteredAdminSummaries.Sum(s => s.TotalProjectLaunches), "#66BB6A"),
-            ("Doc Opens", _filteredAdminSummaries.Sum(s => s.TotalDocOpens), "#42A5F5"),
-            ("Tasks", _filteredAdminSummaries.Sum(s => s.TotalTasksCreated + s.TotalTasksCompleted), "#AB47BC"),
-            ("Timer", _filteredAdminSummaries.Sum(s => s.TotalTimerUses), "#FFA726"),
-            ("Quick Launch", _filteredAdminSummaries.Sum(s => s.TotalQuickLaunchUses), "#FF7043"),
-            ("Hotkeys", _filteredAdminSummaries.Sum(s => s.TotalHotkeyPresses), "#5C6BC0"),
-            ("Clipboard", _filteredAdminSummaries.Sum(s => s.TotalClipboardCopies), "#26C6DA"),
+            ("Searches", _filteredAdminSummaries.Sum(s => s.TotalSearches), Palette[4]),
+            ("Smart Search", _filteredAdminSummaries.Sum(s => s.TotalSmartSearches), Palette[6]),
+            ("Doc Search", _filteredAdminSummaries.Sum(s => s.TotalDocSearches), Palette[10]),
+            ("Path Search", _filteredAdminSummaries.Sum(s => s.TotalPathSearches), Palette[9]),
+            ("Launches", _filteredAdminSummaries.Sum(s => s.TotalProjectLaunches), Palette[1]),
+            ("Doc Opens", _filteredAdminSummaries.Sum(s => s.TotalDocOpens), Palette[4]),
+            ("Tasks", _filteredAdminSummaries.Sum(s => s.TotalTasksCreated + s.TotalTasksCompleted), Palette[3]),
+            ("Timer", _filteredAdminSummaries.Sum(s => s.TotalTimerUses), Palette[2]),
+            ("Quick Launch", _filteredAdminSummaries.Sum(s => s.TotalQuickLaunchUses), Palette[7]),
+            ("Hotkeys", _filteredAdminSummaries.Sum(s => s.TotalHotkeyPresses), Palette[10]),
+            ("Clipboard", _filteredAdminSummaries.Sum(s => s.TotalClipboardCopies), Palette[6]),
         };
 
         var nonZero = featureData.Where(f => f.Value > 0).OrderByDescending(f => f.Value).ToArray();
@@ -174,7 +174,7 @@ public partial class MetricsViewerWidget
             Grid.SetColumn(bar, 1);
             row.Children.Add(bar);
 
-            var val = new TextBlock { Text = value.ToString(), FontSize = 9, Foreground = Brush("#B6C3CA"), Margin = new Thickness(4, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            var val = new TextBlock { Text = value.ToString(), FontSize = 9, Foreground = Helpers.ThemeHelper.TextSecondary, Margin = new Thickness(4, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             Grid.SetColumn(val, 2);
             row.Children.Add(val);
 
@@ -227,14 +227,14 @@ public partial class MetricsViewerWidget
                 Canvas.SetTop(node, py - nodeSize / 2);
                 AdminFlowCanvas.Children.Add(node);
 
-                var lbl = new TextBlock { Text = userNames[i].Length > 8 ? userNames[i][..8] : userNames[i], FontSize = 7, Foreground = Brush("#B6C3CA") };
+                var lbl = new TextBlock { Text = userNames[i].Length > 8 ? userNames[i][..8] : userNames[i], FontSize = 7, Foreground = Helpers.ThemeHelper.TextSecondary };
                 Canvas.SetLeft(lbl, px - 14);
                 Canvas.SetTop(lbl, py + nodeSize / 2 + 1);
                 AdminFlowCanvas.Children.Add(lbl);
             }
 
             // Center hub
-            var hub = new WpfEllipse { Width = 10, Height = 10, Fill = Brush("#F5F7FA"), Stroke = Brush("#007ACC"), StrokeThickness = 2 };
+            var hub = new WpfEllipse { Width = 10, Height = 10, Fill = Helpers.ThemeHelper.TextPrimary, Stroke = Helpers.ThemeHelper.Accent, StrokeThickness = 2 };
             Canvas.SetLeft(hub, fcx - 5);
             Canvas.SetTop(hub, fcy - 5);
             AdminFlowCanvas.Children.Add(hub);
@@ -251,7 +251,7 @@ public partial class MetricsViewerWidget
 
         if (projFreq.Count == 0)
         {
-            AdminTopProjectsPanel.Children.Add(new TextBlock { Text = "No project data", FontSize = 10, FontStyle = FontStyles.Italic, Foreground = Brush("#6B7A85") });
+            AdminTopProjectsPanel.Children.Add(new TextBlock { Text = "No project data", FontSize = 10, FontStyle = FontStyles.Italic, Foreground = Helpers.ThemeHelper.TextTertiary });
         }
         else
         {
@@ -261,7 +261,7 @@ public partial class MetricsViewerWidget
                 var row = new Grid { Margin = new Thickness(0, 0, 0, 3) };
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                var lbl = new TextBlock { Text = projFreq[i].Name, FontSize = 10, Foreground = Brush("#F5F7FA"), TextTrimming = TextTrimming.CharacterEllipsis };
+                var lbl = new TextBlock { Text = projFreq[i].Name, FontSize = 10, Foreground = Helpers.ThemeHelper.TextPrimary, TextTrimming = TextTrimming.CharacterEllipsis };
                 Grid.SetColumn(lbl, 0);
                 row.Children.Add(lbl);
                 var cnt = new TextBlock { Text = projFreq[i].Count.ToString(), FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = PaletteBrush(i) };
@@ -282,7 +282,7 @@ public partial class MetricsViewerWidget
             {
                 Text = "No data for this range",
                 FontSize = 10, FontStyle = FontStyles.Italic,
-                Foreground = Brush("#6B7A85")
+                Foreground = Helpers.ThemeHelper.TextTertiary
             });
             return;
         }
@@ -325,7 +325,7 @@ public partial class MetricsViewerWidget
                 Text = vals[i],
                 FontSize = isHeader ? 9 : 10,
                 FontWeight = isHeader ? FontWeights.Bold : FontWeights.Normal,
-                Foreground = isHeader ? Brush("#80B6C3CA") : Brush(i == 0 ? "#F5F7FA" : "#B6C3CA"),
+                Foreground = isHeader ? Helpers.ThemeHelper.TextTertiary : (i == 0 ? Helpers.ThemeHelper.TextPrimary : Helpers.ThemeHelper.TextSecondary),
                 Margin = new Thickness(i > 0 ? 8 : 0, 0, 0, 0),
                 TextTrimming = i == 0 ? TextTrimming.CharacterEllipsis : TextTrimming.None
             };

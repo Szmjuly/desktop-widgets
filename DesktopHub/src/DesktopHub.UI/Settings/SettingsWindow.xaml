@@ -17,19 +17,13 @@
     
     <!-- Glass effect container -->
     <Border x:Name="RootBorder" 
-            Background="#C8181818" 
+            Background="{DynamicResource WindowBackgroundDeepBrush}" 
             CornerRadius="12" 
-            BorderBrush="#442A2A2A" 
+            BorderBrush="{DynamicResource WindowBorderSolidBrush}" 
             BorderThickness="1">
         <Grid>
             <!-- Inner glass overlay for depth -->
-            <Border x:Name="GlassOverlay"
-                    Margin="2"
-                    CornerRadius="10"
-                    BorderThickness="1"
-                    BorderBrush="#33FFFFFF"
-                    Background="#14000000"
-                    IsHitTestVisible="False"/>
+            <Border x:Name="GlassOverlay" Style="{StaticResource GlassOverlayBorder}"/>
             
             <!-- Content -->
             <Grid Margin="24">
@@ -44,15 +38,15 @@
                 <TextBlock Text="Settings" 
                            FontSize="24" 
                            FontWeight="SemiBold"
-                           Foreground="{StaticResource TextBrush}"/>
+                           Foreground="{DynamicResource TextBrush}"/>
                 <Button x:Name="CloseButton"
                         Content="✕"
                         Width="32"
                         Height="32"
                         HorizontalAlignment="Right"
-                        Background="#22FFFFFF"
-                        Foreground="{StaticResource TextBrush}"
-                        BorderBrush="#22FFFFFF"
+                        Background="{DynamicResource CardBorderBrush}"
+                        Foreground="{DynamicResource TextPrimaryBrush}"
+                        BorderBrush="{DynamicResource CardBorderBrush}"
                         Click="CloseButton_Click"
                         Cursor="Hand"
                         Style="{StaticResource RoundedButton}"/>
@@ -66,141 +60,36 @@
                 </Grid.ColumnDefinitions>
                 
                 <!-- Side Navigation Menu -->
-                <Border Grid.Column="0" Background="#18FFFFFF" CornerRadius="8" Padding="8" Margin="0,0,12,0">
+                <Border Grid.Column="0" Background="{DynamicResource CardBrush}" CornerRadius="8" Padding="8" Margin="0,0,12,0">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Style="{StaticResource ThinScrollViewer}">
                     <StackPanel x:Name="NavigationMenu">
                         <RadioButton x:Name="GeneralMenuButton" Content="⚙️ General" IsChecked="True" Checked="MenuButton_Checked"
                                      GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
-                                     Foreground="{StaticResource TextBrush}" Cursor="Hand">
-                            <RadioButton.Style>
-                                <Style TargetType="RadioButton">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="RadioButton">
-                                                <Border x:Name="Border" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                    <ContentPresenter/>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsChecked" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryBrush}"/>
-                                                    </Trigger>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="#33FFFFFF"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </RadioButton.Style>
-                        </RadioButton>
+                                     Foreground="{DynamicResource TextPrimaryBrush}" Cursor="Hand"
+                                     Style="{StaticResource SettingsNavButton}"/>
                         
                         <RadioButton x:Name="ShortcutsMenuButton" Content="⚡ Shortcuts" Checked="MenuButton_Checked" 
                                      GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium" 
-                                     Foreground="{StaticResource TextBrush}" Cursor="Hand">
-                            <RadioButton.Style>
-                                <Style TargetType="RadioButton">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="RadioButton">
-                                                <Border x:Name="Border" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                    <ContentPresenter/>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsChecked" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryBrush}"/>
-                                                    </Trigger>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="#33FFFFFF"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </RadioButton.Style>
-                        </RadioButton>
+                                     Foreground="{DynamicResource TextPrimaryBrush}" Cursor="Hand"
+                                     Style="{StaticResource SettingsNavButton}"/>
                         
                         <RadioButton x:Name="AppearanceMenuButton" Content="🎨 Appearance" Checked="MenuButton_Checked"
                                      GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
-                                     Foreground="{StaticResource TextBrush}" Cursor="Hand">
-                            <RadioButton.Style>
-                                <Style TargetType="RadioButton">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="RadioButton">
-                                                <Border x:Name="Border" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                    <ContentPresenter/>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsChecked" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryBrush}"/>
-                                                    </Trigger>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="#33FFFFFF"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </RadioButton.Style>
-                        </RadioButton>
+                                     Foreground="{DynamicResource TextPrimaryBrush}" Cursor="Hand"
+                                     Style="{StaticResource SettingsNavButton}"/>
 
                         <!-- Widget-specific nav items (generated dynamically from WidgetRegistry) -->
                         <StackPanel x:Name="WidgetNavMenuContainer"/>
 
                         <RadioButton x:Name="TagsMenuButton" Content="🏷️ Tags" Checked="MenuButton_Checked"
                                      GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
-                                     Foreground="{StaticResource TextBrush}" Cursor="Hand">
-                            <RadioButton.Style>
-                                <Style TargetType="RadioButton">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="RadioButton">
-                                                <Border x:Name="Border" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                    <ContentPresenter/>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsChecked" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryBrush}"/>
-                                                    </Trigger>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="#33FFFFFF"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </RadioButton.Style>
-                        </RadioButton>
+                                     Foreground="{DynamicResource TextPrimaryBrush}" Cursor="Hand"
+                                     Style="{StaticResource SettingsNavButton}"/>
                         
                         <RadioButton x:Name="UpdatesMenuButton" Content="🔄 Updates" Checked="MenuButton_Checked"
                                      GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
-                                     Foreground="{StaticResource TextBrush}" Cursor="Hand">
-                            <RadioButton.Style>
-                                <Style TargetType="RadioButton">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="RadioButton">
-                                                <Border x:Name="Border" Background="Transparent" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                    <ContentPresenter/>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsChecked" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryBrush}"/>
-                                                    </Trigger>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="Border" Property="Background" Value="#33FFFFFF"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </RadioButton.Style>
-                        </RadioButton>
+                                     Foreground="{DynamicResource TextPrimaryBrush}" Cursor="Hand"
+                                     Style="{StaticResource SettingsNavButton}"/>
                     </StackPanel>
                     </ScrollViewer>
                 </Border>
@@ -208,14 +97,14 @@
                 <!-- Content Area -->
                 <Grid Grid.Column="1">
                     <!-- Shortcuts Panel -->
-                    <Border x:Name="ShortcutsPanel" Background="{StaticResource SurfaceBrush}" 
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    <Border x:Name="ShortcutsPanel" Background="{DynamicResource SurfaceBrush}" 
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             CornerRadius="8" Padding="20" Visibility="Collapsed">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
                     <!-- Close Shortcut Section -->
-                    <Border Background="{StaticResource SurfaceBrush}" 
-                            BorderBrush="{StaticResource BorderBrush}"
+                    <Border Background="{DynamicResource SurfaceBrush}" 
+                            BorderBrush="{DynamicResource BorderBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="16"
@@ -224,18 +113,18 @@
                             <TextBlock Text="Widget Close Shortcut" 
                                        FontSize="16" 
                                        FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextBrush}"
+                                       Foreground="{DynamicResource TextBrush}"
                                        Margin="0,0,0,8"/>
                             
                             <TextBlock Text="Shortcut key to close overlay and widget windows" 
                                        FontSize="12" 
-                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
                                        Margin="0,0,0,12"/>
                             
                             <!-- Close Shortcut Display -->
                             <Border x:Name="CloseShortcutBox"
-                                    Background="#22FFFFFF"
-                                    BorderBrush="{StaticResource BorderBrush}"
+                                    Background="{DynamicResource CardBorderBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="6"
                                     Padding="12"
@@ -247,13 +136,13 @@
                                                Text="Esc"
                                                FontSize="14"
                                                FontWeight="Medium"
-                                               Foreground="{StaticResource TextBrush}"
+                                               Foreground="{DynamicResource TextBrush}"
                                                HorizontalAlignment="Center"/>
                                     <TextBlock x:Name="CloseShortcutRecordingText"
                                                Text="Press a key combination..."
                                                FontSize="14"
                                                FontStyle="Italic"
-                                               Foreground="{StaticResource PrimaryBrush}"
+                                               Foreground="{DynamicResource PrimaryBrush}"
                                                HorizontalAlignment="Center"
                                                Visibility="Collapsed"/>
                                 </Grid>
@@ -262,16 +151,16 @@
                             <Button x:Name="ResetCloseShortcutButton"
                                     Content="Reset to Default (Esc)"
                                     Padding="12,8"
-                                    Background="#22FFFFFF"
-                                    Foreground="{StaticResource TextSecondaryBrush}"
-                                    BorderBrush="{StaticResource BorderBrush}"
+                                    Background="{DynamicResource CardBorderBrush}"
+                                    Foreground="{DynamicResource TextSecondaryBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
                                     Click="ResetCloseShortcutButton_Click"
                                     Cursor="Hand"
                                     Style="{StaticResource RoundedButton}"/>
 
                             <Border x:Name="CloseShortcutTypingWarning"
-                                    Background="#332B1B00"
-                                    BorderBrush="#665A3A00"
+                                    Background="{DynamicResource WarningBannerBackgroundBrush}"
+                                    BorderBrush="{DynamicResource WarningBannerBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="6"
                                     Padding="10"
@@ -280,14 +169,14 @@
                                 <TextBlock x:Name="CloseShortcutTypingWarningText"
                                            TextWrapping="Wrap"
                                            FontSize="12"
-                                           Foreground="#F3D6A2"/>
+                                           Foreground="{DynamicResource WarningBannerTextBrush}"/>
                             </Border>
                         </StackPanel>
                     </Border>
 
                     <!-- Hotkey Groups Section -->
-                    <Border Background="#18FFFFFF" 
-                            BorderBrush="#22FFFFFF"
+                    <Border Background="{DynamicResource CardBrush}" 
+                            BorderBrush="{DynamicResource CardBorderBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="16"
@@ -296,11 +185,11 @@
                             <TextBlock Text="Hotkey Groups" 
                                        FontSize="16" 
                                        FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextBrush}"
+                                       Foreground="{DynamicResource TextBrush}"
                                        Margin="0,0,0,4"/>
                             <TextBlock Text="Assign widgets to hotkey groups. Each widget belongs to one group. Click a hotkey box then press your key combo to set it." 
                                        FontSize="12" 
-                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
                                        TextWrapping="Wrap"
                                        Margin="0,0,0,16"/>
                             <!-- Groups are built in code-behind via RebuildHotkeyGroupsPanel -->
@@ -312,15 +201,47 @@
                     </Border>
                     
                     <!-- Appearance Panel -->
-                    <Border x:Name="AppearancePanel" Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    <Border x:Name="AppearancePanel" Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             CornerRadius="8" Padding="20" Visibility="Collapsed">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
+
+                    <!-- Theme Selection Section -->
+                    <Border Background="{DynamicResource CardBrush}" 
+                            BorderBrush="{DynamicResource CardBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="16"
+                            Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Theme" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextBrush}"
+                                       Margin="0,0,0,4"/>
+                            <TextBlock Text="Choose a color theme for DesktopHub. System follows your Windows dark/light mode setting." 
+                                       FontSize="12" 
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,12"/>
+                            
+                            <ComboBox x:Name="ThemeCombo" Width="220" HorizontalAlignment="Left"
+                                      FontSize="13" Padding="10,8" Cursor="Hand"
+                                      SelectionChanged="ThemeCombo_SelectionChanged"
+                                      Style="{StaticResource ThemedComboBox}"
+                                      ItemContainerStyle="{StaticResource ThemedComboBoxItem}">
+                                <ComboBoxItem Content="🌙  Dark" Tag="Dark"/>
+                                <ComboBoxItem Content="☀️  Light" Tag="Light"/>
+                                <ComboBoxItem Content="☕  Coffee" Tag="Coffee"/>
+                                <ComboBoxItem Content="💻  System" Tag="System"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Border>
                     
                     <!-- Window Transparency Section -->
-                    <Border Background="#18FFFFFF" 
-                            BorderBrush="#22FFFFFF"
+                    <Border Background="{DynamicResource CardBrush}" 
+                            BorderBrush="{DynamicResource CardBorderBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="16">
@@ -329,55 +250,55 @@
                                 <TextBlock Text="Window Transparency" 
                                            FontSize="16" 
                                            FontWeight="SemiBold"
-                                           Foreground="{StaticResource TextBrush}"
+                                           Foreground="{DynamicResource TextBrush}"
                                            VerticalAlignment="Center"/>
                                 <!-- Master group controls -->
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                     <Button x:Name="LinkAllButton" Content="Link All"
                                             FontSize="10" Padding="8,3" Cursor="Hand"
-                                            Click="LinkAllButton_Click" Margin="0,0,4,0">
+                                            Click="LinkAllButton_Click" Margin="0,0,4,0"
+                                            Foreground="{DynamicResource BlueTextBrush}">
                                         <Button.Style>
                                             <Style TargetType="Button">
                                                 <Setter Property="Template">
                                                     <Setter.Value>
                                                         <ControlTemplate TargetType="Button">
-                                                            <Border x:Name="Bd" Background="#20649BF0" CornerRadius="4" 
-                                                                    Padding="{TemplateBinding Padding}" BorderBrush="#40649BF0" BorderThickness="1">
+                                                            <Border x:Name="Bd" Background="{DynamicResource BlueBackgroundBrush}" CornerRadius="4" 
+                                                                    Padding="{TemplateBinding Padding}" BorderBrush="{DynamicResource BlueBorderBrush}" BorderThickness="1">
                                                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                             </Border>
                                                             <ControlTemplate.Triggers>
                                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter TargetName="Bd" Property="Background" Value="#35649BF0"/>
+                                                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource StrongOverlayBrush}"/>
                                                                 </Trigger>
                                                             </ControlTemplate.Triggers>
                                                         </ControlTemplate>
                                                     </Setter.Value>
                                                 </Setter>
-                                                <Setter Property="Foreground" Value="#A0B8D8"/>
                                             </Style>
                                         </Button.Style>
                                     </Button>
                                     <Button x:Name="UnlinkAllButton" Content="Unlink All"
                                             FontSize="10" Padding="8,3" Cursor="Hand"
-                                            Click="UnlinkAllButton_Click">
+                                            Click="UnlinkAllButton_Click"
+                                            Foreground="{DynamicResource TextSecondaryBrush}">
                                         <Button.Style>
                                             <Style TargetType="Button">
                                                 <Setter Property="Template">
                                                     <Setter.Value>
                                                         <ControlTemplate TargetType="Button">
-                                                            <Border x:Name="Bd" Background="#15FFFFFF" CornerRadius="4" 
-                                                                    Padding="{TemplateBinding Padding}" BorderBrush="#25FFFFFF" BorderThickness="1">
+                                                            <Border x:Name="Bd" Background="{DynamicResource SubtleOverlayBrush}" CornerRadius="4" 
+                                                                    Padding="{TemplateBinding Padding}" BorderBrush="{DynamicResource MediumOverlayBrush}" BorderThickness="1">
                                                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                             </Border>
                                                             <ControlTemplate.Triggers>
                                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter TargetName="Bd" Property="Background" Value="#25FFFFFF"/>
+                                                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource MediumOverlayBrush}"/>
                                                                 </Trigger>
                                                             </ControlTemplate.Triggers>
                                                         </ControlTemplate>
                                                     </Setter.Value>
                                                 </Setter>
-                                                <Setter Property="Foreground" Value="#80FFFFFF"/>
                                             </Style>
                                         </Button.Style>
                                     </Button>
@@ -385,7 +306,7 @@
                             </Grid>
                             
                             <TextBlock Text="Click group badges (A, B, C) to link widgets together. Widgets in the same group sync their transparency."
-                                       FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" 
+                                       FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" 
                                        TextWrapping="Wrap" Margin="0,0,0,10"/>
                             
                             <!-- All transparency sliders (generated dynamically — includes Settings Window + all widgets) -->
@@ -394,8 +315,8 @@
                     </Border>
 
                     <!-- Living Widgets snap spacing -->
-                    <Border Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}"
+                    <Border Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="16"
@@ -404,11 +325,11 @@
                             <TextBlock Text="Widget Snap Gap"
                                        FontSize="16"
                                        FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextBrush}"
+                                       Foreground="{DynamicResource TextBrush}"
                                        Margin="0,0,0,4"/>
                             <TextBlock Text="Controls spacing between widgets when snapping and auto-attaching in Living Widgets Mode."
                                        FontSize="12"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
                                        TextWrapping="Wrap"
                                        Margin="0,0,0,10"/>
 
@@ -422,7 +343,7 @@
                                 <TextBlock Grid.Column="0"
                                            Text="Tight"
                                            FontSize="10"
-                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
                                            VerticalAlignment="Center"
                                            Margin="0,0,8,0"/>
 
@@ -442,7 +363,7 @@
                                            Text="12 px"
                                            FontSize="11"
                                            FontWeight="Medium"
-                                           Foreground="{StaticResource TextBrush}"
+                                           Foreground="{DynamicResource TextBrush}"
                                            VerticalAlignment="Center"
                                            Margin="8,0,0,0"/>
                             </Grid>
@@ -450,8 +371,8 @@
                     </Border>
 
                     <!-- Widget Overlap Prevention toggle -->
-                    <Border Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}"
+                    <Border Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="16"
@@ -466,10 +387,10 @@
                                 <TextBlock Text="Widget Overlap Prevention"
                                            FontSize="16"
                                            FontWeight="SemiBold"
-                                           Foreground="{StaticResource TextBrush}"/>
+                                           Foreground="{DynamicResource TextBrush}"/>
                                 <TextBlock Text="When enabled, widgets cannot overlap each other and will snap back if dropped on another widget. When disabled, widgets can be freely placed anywhere, even overlapping."
                                            FontSize="12"
-                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
                                            TextWrapping="Wrap"
                                            Margin="0,4,0,0"/>
                             </StackPanel>
@@ -490,15 +411,15 @@
                     </Border>
                     
                     <!-- General Panel -->
-                    <Border x:Name="GeneralPanel" Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    <Border x:Name="GeneralPanel" Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             CornerRadius="8" Padding="20" Visibility="Visible">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
                     
                     <!-- Auto-start Section -->
-                    <Border Background="#18FFFFFF" 
-                            BorderBrush="#22FFFFFF"
+                    <Border Background="{DynamicResource CardBrush}" 
+                            BorderBrush="{DynamicResource CardBorderBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="16"
@@ -513,11 +434,11 @@
                                 <TextBlock Text="Run at Startup" 
                                            FontSize="16" 
                                            FontWeight="SemiBold"
-                                           Foreground="{StaticResource TextBrush}"
+                                           Foreground="{DynamicResource TextBrush}"
                                            Margin="0,0,0,4"/>
                                 <TextBlock Text="Launch DesktopHub automatically when Windows starts" 
                                            FontSize="12" 
-                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                             
@@ -534,10 +455,10 @@
                     </Border>
                     
                     <!-- Path Search Section -->
-                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                    <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="Path Search" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                            <TextBlock Text="When enabled, typing a valid directory path into the search bar will list its contents" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                            <TextBlock Text="Path Search" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,4"/>
+                            <TextBlock Text="When enabled, typing a valid directory path into the search bar will list its contents" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
                             
                             <!-- Enable Path Search -->
                             <Grid Margin="0,0,0,10">
@@ -546,8 +467,8 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Enable Path Search" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Browse directories by entering a path in the search field" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Enable Path Search" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Browse directories by entering a path in the search field" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 <ToggleButton x:Name="PathSearchEnabledToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
                                               Checked="PathSearchToggle_Changed" Unchecked="PathSearchToggle_Changed" Cursor="Hand">
@@ -560,7 +481,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Show sub-directories" FontSize="13" Foreground="{StaticResource TextBrush}"/>
+                                <TextBlock Grid.Column="0" Text="Show sub-directories" FontSize="13" Foreground="{DynamicResource TextBrush}"/>
                                 <ToggleButton x:Name="PathSearchSubDirsToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
                                               Checked="PathSearchToggle_Changed" Unchecked="PathSearchToggle_Changed" Cursor="Hand">
                                 </ToggleButton>
@@ -572,7 +493,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Show sub-files" FontSize="13" Foreground="{StaticResource TextBrush}"/>
+                                <TextBlock Grid.Column="0" Text="Show sub-files" FontSize="13" Foreground="{DynamicResource TextBrush}"/>
                                 <ToggleButton x:Name="PathSearchSubFilesToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
                                               Checked="PathSearchToggle_Changed" Unchecked="PathSearchToggle_Changed" Cursor="Hand">
                                 </ToggleButton>
@@ -585,8 +506,8 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Show hidden/system files" FontSize="13" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Include files like Thumbs.db, desktop.ini, etc." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Show hidden/system files" FontSize="13" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Include files like Thumbs.db, desktop.ini, etc." FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 <ToggleButton x:Name="PathSearchShowHiddenToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
                                               Checked="PathSearchToggle_Changed" Unchecked="PathSearchToggle_Changed" Cursor="Hand">
@@ -597,8 +518,8 @@
                     </Border>
 
                     <!-- Network Drives Section -->
-                    <Border Background="{StaticResource SurfaceBrush}" 
-                            BorderBrush="{StaticResource BorderBrush}"
+                    <Border Background="{DynamicResource SurfaceBrush}" 
+                            BorderBrush="{DynamicResource BorderBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="16"
@@ -607,12 +528,12 @@
                             <TextBlock Text="Network Drives" 
                                        FontSize="16" 
                                        FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextBrush}"
+                                       Foreground="{DynamicResource TextBrush}"
                                        Margin="0,0,0,8"/>
                             
                             <TextBlock Text="Configure which network drives to scan for projects" 
                                        FontSize="12" 
-                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
                                        Margin="0,0,0,16"/>
                             
                             <!-- Q Drive -->
@@ -637,15 +558,15 @@
                                     <TextBlock Text="Q: Drive (Florida)" 
                                                FontSize="14" 
                                                FontWeight="Medium"
-                                               Foreground="{StaticResource TextBrush}"
+                                               Foreground="{DynamicResource TextBrush}"
                                                Margin="0,0,0,4"/>
                                     <TextBox x:Name="QDrivePathBox"
                                              Text="Q:\"
                                              FontSize="12"
                                              Padding="6"
-                                             Background="#22FFFFFF"
-                                             Foreground="{StaticResource TextBrush}"
-                                             BorderBrush="{StaticResource BorderBrush}"
+                                             Background="{DynamicResource CardBorderBrush}"
+                                             Foreground="{DynamicResource TextBrush}"
+                                             BorderBrush="{DynamicResource BorderBrush}"
                                              TextChanged="QDrivePathBox_TextChanged">
                                         <TextBox.Resources>
                                             <Style TargetType="Border">
@@ -678,15 +599,15 @@
                                     <TextBlock Text="P: Drive (Connecticut)" 
                                                FontSize="14" 
                                                FontWeight="Medium"
-                                               Foreground="{StaticResource TextBrush}"
+                                               Foreground="{DynamicResource TextBrush}"
                                                Margin="0,0,0,4"/>
                                     <TextBox x:Name="PDrivePathBox"
                                              Text="P:\"
                                              FontSize="12"
                                              Padding="6"
-                                             Background="#22FFFFFF"
-                                             Foreground="{StaticResource TextBrush}"
-                                             BorderBrush="{StaticResource BorderBrush}"
+                                             Background="{DynamicResource CardBorderBrush}"
+                                             Foreground="{DynamicResource TextBrush}"
+                                             BorderBrush="{DynamicResource BorderBrush}"
                                              TextChanged="PDrivePathBox_TextChanged">
                                         <TextBox.Resources>
                                             <Style TargetType="Border">
@@ -700,8 +621,8 @@
                     </Border>
                     
                     <!-- Living Widgets Mode Section -->
-                    <Border Background="{StaticResource SurfaceBrush}" 
-                            BorderBrush="{StaticResource BorderBrush}"
+                    <Border Background="{DynamicResource SurfaceBrush}" 
+                            BorderBrush="{DynamicResource BorderBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="16"
@@ -716,10 +637,10 @@
                                 <TextBlock Text="Living Widgets Mode" 
                                            FontSize="16" 
                                            FontWeight="SemiBold"
-                                           Foreground="{StaticResource TextBrush}"
+                                           Foreground="{DynamicResource TextBrush}"
                                            Margin="0,0,0,4"/>
                                 <TextBlock FontSize="12" 
-                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
                                            TextWrapping="Wrap">
                                     <Run Text="Make widgets draggable, snappable to screen edges, and pinnable to desktop."/>
                                     <LineBreak/>
@@ -742,8 +663,8 @@
                     </Border>
 
                     <!-- Notification Duration Section -->
-                    <Border Background="{StaticResource SurfaceBrush}" 
-                            BorderBrush="{StaticResource BorderBrush}"
+                    <Border Background="{DynamicResource SurfaceBrush}" 
+                            BorderBrush="{DynamicResource BorderBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="16">
@@ -751,12 +672,12 @@
                             <TextBlock Text="Notification Duration" 
                                        FontSize="16" 
                                        FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextBrush}"
+                                       Foreground="{DynamicResource TextBrush}"
                                        Margin="0,0,0,8"/>
                             
                             <TextBlock Text="How long balloon notifications stay visible" 
                                        FontSize="12" 
-                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
                                        Margin="0,0,0,12"/>
                             
                             <!-- Radio buttons for preset durations -->
@@ -764,28 +685,28 @@
                                 <RadioButton x:Name="NotificationShortRadio"
                                              Content="Short (2 seconds)"
                                              FontSize="13"
-                                             Foreground="{StaticResource TextBrush}"
+                                             Foreground="{DynamicResource TextBrush}"
                                              Margin="0,0,0,4"
                                              Checked="NotificationDurationRadio_Checked"/>
                                 
                                 <RadioButton x:Name="NotificationMediumRadio"
                                              Content="Medium (3 seconds)"
                                              FontSize="13"
-                                             Foreground="{StaticResource TextBrush}"
+                                             Foreground="{DynamicResource TextBrush}"
                                              Margin="0,0,0,4"
                                              Checked="NotificationDurationRadio_Checked"/>
                                 
                                 <RadioButton x:Name="NotificationLongRadio"
                                              Content="Long (5 seconds)"
                                              FontSize="13"
-                                             Foreground="{StaticResource TextBrush}"
+                                             Foreground="{DynamicResource TextBrush}"
                                              Margin="0,0,0,4"
                                              Checked="NotificationDurationRadio_Checked"/>
                                 
                                 <RadioButton x:Name="NotificationDisabledRadio"
                                              Content="Disabled (no notifications)"
                                              FontSize="13"
-                                             Foreground="{StaticResource TextBrush}"
+                                             Foreground="{DynamicResource TextBrush}"
                                              Checked="NotificationDurationRadio_Checked"/>
                             </StackPanel>
                         </StackPanel>
@@ -796,16 +717,16 @@
                     </Border>
 
                     <!-- Smart Project Search Panel -->
-                    <Border x:Name="SmartProjectSearchPanel" Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    <Border x:Name="SmartProjectSearchPanel" Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             CornerRadius="8" Padding="20" Visibility="Collapsed">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
                                 <!-- Smart Project Search Section -->
-                                <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
                                     <StackPanel>
-                                        <TextBlock Text="Smart Project Search" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                                        <TextBlock Text="Controls query behavior for the Smart Project Search widget." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                                        <TextBlock Text="Smart Project Search" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Controls query behavior for the Smart Project Search widget." FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
 
                                         <Grid Margin="0,0,0,12">
                                             <Grid.ColumnDefinitions>
@@ -813,39 +734,39 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0">
-                                                <TextBlock Text="Attach mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                                <TextBlock Text="Embed Smart Project Search inside the Search Overlay. This disables the widget-launcher Smart Search toggle while active." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                                <TextBlock Text="Attach mode" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                                <TextBlock Text="Embed Smart Project Search inside the Search Overlay. This disables the widget-launcher Smart Search toggle while active." FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                             </StackPanel>
                                             <ToggleButton x:Name="SmartProjectSearchAttachModeToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
                                                           Checked="SmartProjectSearchAttachModeToggle_Changed" Unchecked="SmartProjectSearchAttachModeToggle_Changed" Cursor="Hand">
                                             </ToggleButton>
                                         </Grid>
 
-                                        <TextBlock Text="Latest query mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
+                                        <TextBlock Text="Latest query mode" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,6"/>
                                         <StackPanel Margin="12,0,0,10">
                                             <RadioButton x:Name="SmartSearchLatestListRadio"
                                                          Content="Newest-first list"
                                                          FontSize="12"
-                                                         Foreground="{StaticResource TextBrush}"
+                                                         Foreground="{DynamicResource TextBrush}"
                                                          Margin="0,0,0,4"
                                                          Checked="SmartSearchLatestMode_Changed"/>
                                             <RadioButton x:Name="SmartSearchLatestSingleRadio"
                                                          Content="Single newest result"
                                                          FontSize="12"
-                                                         Foreground="{StaticResource TextBrush}"
+                                                         Foreground="{DynamicResource TextBrush}"
                                                          Checked="SmartSearchLatestMode_Changed"/>
                                         </StackPanel>
 
-                                        <TextBlock Text="Searchable file types" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Searchable file types" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,4"/>
                                         <TextBlock Text="Comma-separated keywords/extensions. Example: doc, docx, pdf, txt, dwg, rvt, excel, png, jpeg, msg"
                                                    FontSize="11"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                                    TextWrapping="Wrap"
                                                    Margin="0,0,0,6"/>
                                         <TextBox x:Name="SmartSearchFileTypesInput"
-                                                 Background="#22FFFFFF"
-                                                 BorderBrush="{StaticResource BorderBrush}"
-                                                 Foreground="{StaticResource TextBrush}"
+                                                 Background="{DynamicResource CardBorderBrush}"
+                                                 BorderBrush="{DynamicResource BorderBrush}"
+                                                 Foreground="{DynamicResource TextBrush}"
                                                  Padding="8,6"
                                                  LostFocus="SmartSearchFileTypesInput_LostFocus"/>
                                     </StackPanel>
@@ -855,14 +776,14 @@
                     </Border>
 
                     <!-- Widget Launcher Panel -->
-                    <Border x:Name="WidgetLauncherPanel" Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    <Border x:Name="WidgetLauncherPanel" Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             CornerRadius="8" Padding="20" Visibility="Collapsed">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
                                 <!-- Widget Launcher Widgets Section -->
-                                <Border Background="#18FFFFFF" 
-                                        BorderBrush="#22FFFFFF"
+                                <Border Background="{DynamicResource CardBrush}" 
+                                        BorderBrush="{DynamicResource CardBorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="8"
                                         Padding="16"
@@ -871,18 +792,18 @@
                                         <TextBlock Text="Widget Launcher Widgets" 
                                                    FontSize="16" 
                                                    FontWeight="SemiBold"
-                                                   Foreground="{StaticResource TextBrush}"
+                                                   Foreground="{DynamicResource TextBrush}"
                                                    Margin="0,0,0,4"/>
                                         <TextBlock Text="Enable or disable widgets available in the widget launcher" 
                                                    FontSize="12" 
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                                    Margin="0,0,0,16"/>
 
                                         <StackPanel Margin="0,0,0,14">
                                             <TextBlock Text="Max visible widgets before scroll"
                                                        FontSize="13"
                                                        FontWeight="Medium"
-                                                       Foreground="{StaticResource TextBrush}"
+                                                       Foreground="{DynamicResource TextBrush}"
                                                        Margin="0,0,0,4"/>
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
@@ -894,7 +815,7 @@
                                                 <TextBlock Grid.Column="0"
                                                            Text="Few"
                                                            FontSize="10"
-                                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
                                                            VerticalAlignment="Center"
                                                            Margin="0,0,8,0"/>
 
@@ -914,7 +835,7 @@
                                                            Text="4"
                                                            FontSize="11"
                                                            FontWeight="Medium"
-                                                           Foreground="{StaticResource TextBrush}"
+                                                           Foreground="{DynamicResource TextBrush}"
                                                            VerticalAlignment="Center"
                                                            Margin="8,0,0,0"/>
                                             </Grid>
@@ -929,13 +850,13 @@
                     </Border>
                     
                     <!-- Updates Panel -->
-                    <Border x:Name="UpdatesPanel" Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    <Border x:Name="UpdatesPanel" Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             CornerRadius="8" Padding="20" Visibility="Collapsed">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
-                                <Border Background="#18FFFFFF" 
-                                        BorderBrush="#22FFFFFF"
+                                <Border Background="{DynamicResource CardBrush}" 
+                                        BorderBrush="{DynamicResource CardBorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="8"
                                         Padding="16">
@@ -943,11 +864,11 @@
                                         <TextBlock Text="Update Settings" 
                                                    FontSize="16" 
                                                    FontWeight="SemiBold"
-                                                   Foreground="{StaticResource TextBrush}"
+                                                   Foreground="{DynamicResource TextBrush}"
                                                    Margin="0,0,0,4"/>
                                         <TextBlock Text="Configure automatic update checking and installation" 
                                                    FontSize="12" 
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                                    Margin="0,0,0,16"/>
                                         
                                         <!-- Auto Update Check Toggle -->
@@ -957,8 +878,8 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0">
-                                                <TextBlock Text="Auto Check for Updates" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                                <TextBlock Text="Periodically check for new versions" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                <TextBlock Text="Auto Check for Updates" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                                <TextBlock Text="Periodically check for new versions" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                             </StackPanel>
                                             <ToggleButton x:Name="AutoUpdateCheckToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="True"
                                                           Checked="AutoUpdateCheckToggle_Changed" Unchecked="AutoUpdateCheckToggle_Changed" Cursor="Hand">
@@ -972,8 +893,8 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0">
-                                                <TextBlock Text="Auto Install Updates" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                                <TextBlock Text="Automatically download and prompt to install" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                <TextBlock Text="Auto Install Updates" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                                <TextBlock Text="Automatically download and prompt to install" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                             </StackPanel>
                                             <ToggleButton x:Name="AutoUpdateInstallToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
                                                           Checked="AutoUpdateInstallToggle_Changed" Unchecked="AutoUpdateInstallToggle_Changed" Cursor="Hand">
@@ -982,7 +903,7 @@
                                         
                                         <!-- Check Frequency -->
                                         <StackPanel Margin="0,0,0,0">
-                                            <TextBlock Text="Check Frequency" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
+                                            <TextBlock Text="Check Frequency" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,8"/>
                                             <ComboBox x:Name="UpdateFrequencyCombo" 
                                                       SelectionChanged="UpdateFrequencyCombo_SelectionChanged"
                                                       FontSize="13" Padding="10,8" Cursor="Hand">
@@ -998,14 +919,14 @@
                                                                                       ClickMode="Press">
                                                                             <ToggleButton.Template>
                                                                                 <ControlTemplate TargetType="ToggleButton">
-                                                                                    <Border Background="#333333" CornerRadius="6" BorderBrush="#555555" BorderThickness="1" Padding="10,8">
+                                                                                    <Border Background="{DynamicResource SurfaceSolidBrush}" CornerRadius="6" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="10,8">
                                                                                         <Grid>
                                                                                             <Grid.ColumnDefinitions>
                                                                                                 <ColumnDefinition Width="*"/>
                                                                                                 <ColumnDefinition Width="Auto"/>
                                                                                             </Grid.ColumnDefinitions>
                                                                                             <ContentPresenter Grid.Column="0"/>
-                                                                                            <TextBlock Grid.Column="1" Text="▾" Foreground="#80FFFFFF" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                                                            <TextBlock Grid.Column="1" Text="▾" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0"/>
                                                                                         </Grid>
                                                                                     </Border>
                                                                                 </ControlTemplate>
@@ -1020,7 +941,7 @@
                                                                                           HorizontalAlignment="Left">
                                                                             <ContentPresenter.Resources>
                                                                                 <Style TargetType="TextBlock">
-                                                                                    <Setter Property="Foreground" Value="White"/>
+                                                                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                                                                                 </Style>
                                                                             </ContentPresenter.Resources>
                                                                         </ContentPresenter>
@@ -1030,7 +951,7 @@
                                                                                AllowsTransparency="True"
                                                                                Focusable="False"
                                                                                PopupAnimation="Slide">
-                                                                            <Border Background="#2A2A2A" CornerRadius="6" BorderBrush="#555555" BorderThickness="1" 
+                                                                            <Border Background="{DynamicResource SurfaceSolidBrush}" CornerRadius="6" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" 
                                                                                     MinWidth="{TemplateBinding ActualWidth}" Padding="4" Margin="0,2,0,0">
                                                                                 <StackPanel IsItemsHost="True"/>
                                                                             </Border>
@@ -1043,7 +964,7 @@
                                                 </ComboBox.Style>
                                                 <ComboBox.ItemContainerStyle>
                                                     <Style TargetType="ComboBoxItem">
-                                                        <Setter Property="Foreground" Value="White"/>
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                                                         <Setter Property="Background" Value="Transparent"/>
                                                         <Setter Property="Padding" Value="10,6"/>
                                                         <Setter Property="Cursor" Value="Hand"/>
@@ -1055,10 +976,10 @@
                                                                     </Border>
                                                                     <ControlTemplate.Triggers>
                                                                         <Trigger Property="IsHighlighted" Value="True">
-                                                                            <Setter TargetName="Bd" Property="Background" Value="#007ACC"/>
+                                                                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentBrush}"/>
                                                                         </Trigger>
                                                                         <Trigger Property="IsMouseOver" Value="True">
-                                                                            <Setter TargetName="Bd" Property="Background" Value="#33FFFFFF"/>
+                                                                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverStrongBrush}"/>
                                                                         </Trigger>
                                                                     </ControlTemplate.Triggers>
                                                                 </ControlTemplate>
@@ -1079,15 +1000,15 @@
                     </Border>
                     
                     <!-- Quick Tasks Panel -->
-                    <Border x:Name="QuickTasksPanel" Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    <Border x:Name="QuickTasksPanel" Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             CornerRadius="8" Padding="20" Visibility="Collapsed">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
                     
                     <!-- Display Settings -->
-                    <Border Background="#18FFFFFF" 
-                            BorderBrush="#22FFFFFF"
+                    <Border Background="{DynamicResource CardBrush}" 
+                            BorderBrush="{DynamicResource CardBorderBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="16"
@@ -1096,7 +1017,7 @@
                             <TextBlock Text="Display" 
                                        FontSize="16" 
                                        FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextBrush}"
+                                       Foreground="{DynamicResource TextBrush}"
                                        Margin="0,0,0,12"/>
                             
                             <!-- Show Completed Tasks -->
@@ -1106,8 +1027,8 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Show Completed Tasks" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Display completed tasks in the list (with strikethrough)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="Show Completed Tasks" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Display completed tasks in the list (with strikethrough)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </StackPanel>
                                 <ToggleButton x:Name="QT_ShowCompletedToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
                                               Checked="QT_ShowCompletedToggle_Changed" Unchecked="QT_ShowCompletedToggle_Changed" Cursor="Hand">
@@ -1121,8 +1042,8 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Compact Mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Tighter spacing to fit more tasks on screen" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="Compact Mode" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Tighter spacing to fit more tasks on screen" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </StackPanel>
                                 <ToggleButton x:Name="QT_CompactModeToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
                                               Checked="QT_CompactModeToggle_Changed" Unchecked="QT_CompactModeToggle_Changed" Cursor="Hand">
@@ -1130,25 +1051,25 @@
                             </Grid>
                             
                             <!-- Completed Task Opacity -->
-                            <TextBlock Text="Completed Task Opacity" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
+                            <TextBlock Text="Completed Task Opacity" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,6"/>
                             <Grid Margin="0,0,0,4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Faded" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="0" Text="Faded" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <Slider x:Name="QT_CompletedOpacitySlider" Grid.Column="1" Minimum="0.2" Maximum="1.0" Value="0.5"
                                         TickFrequency="0.1" IsSnapToTickEnabled="True" ValueChanged="QT_CompletedOpacitySlider_Changed" VerticalAlignment="Center"
                                         Style="{StaticResource StyledSlider}"/>
-                                <TextBlock Grid.Column="2" Text="Solid" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                <TextBlock Grid.Column="2" Text="Solid" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="8,0,0,0"/>
                             </Grid>
                         </StackPanel>
                     </Border>
                     
                     <!-- Behavior Settings -->
-                    <Border Background="#18FFFFFF" 
-                            BorderBrush="#22FFFFFF"
+                    <Border Background="{DynamicResource CardBrush}" 
+                            BorderBrush="{DynamicResource CardBorderBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="16"
@@ -1157,7 +1078,7 @@
                             <TextBlock Text="Behavior" 
                                        FontSize="16" 
                                        FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextBrush}"
+                                       Foreground="{DynamicResource TextBrush}"
                                        Margin="0,0,0,12"/>
                             
                             <!-- Auto Carry-Over -->
@@ -1167,8 +1088,8 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Auto Carry-Over" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Automatically carry incomplete tasks to the next day" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Auto Carry-Over" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Automatically carry incomplete tasks to the next day" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 <ToggleButton x:Name="QT_AutoCarryOverToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
                                               Checked="QT_AutoCarryOverToggle_Changed" Unchecked="QT_AutoCarryOverToggle_Changed" Cursor="Hand">
@@ -1176,28 +1097,28 @@
                             </Grid>
                             
                             <!-- Default Priority -->
-                            <TextBlock Text="Default Priority" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
-                            <TextBlock Text="Priority assigned to new tasks" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                            <TextBlock Text="Default Priority" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,6"/>
+                            <TextBlock Text="Priority assigned to new tasks" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                             <StackPanel x:Name="QT_DefaultPriorityStack" Orientation="Horizontal" Margin="0,0,0,16">
-                                <RadioButton x:Name="QT_PriorityLow" Content="Low" GroupName="QTPriority" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0" Checked="QT_DefaultPriority_Changed" Cursor="Hand"/>
-                                <RadioButton x:Name="QT_PriorityNormal" Content="Normal" GroupName="QTPriority" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0" Checked="QT_DefaultPriority_Changed" Cursor="Hand" IsChecked="True"/>
-                                <RadioButton x:Name="QT_PriorityHigh" Content="High" GroupName="QTPriority" FontSize="12" Foreground="{StaticResource TextBrush}" Checked="QT_DefaultPriority_Changed" Cursor="Hand"/>
+                                <RadioButton x:Name="QT_PriorityLow" Content="Low" GroupName="QTPriority" FontSize="12" Foreground="{DynamicResource TextBrush}" Margin="0,0,16,0" Checked="QT_DefaultPriority_Changed" Cursor="Hand"/>
+                                <RadioButton x:Name="QT_PriorityNormal" Content="Normal" GroupName="QTPriority" FontSize="12" Foreground="{DynamicResource TextBrush}" Margin="0,0,16,0" Checked="QT_DefaultPriority_Changed" Cursor="Hand" IsChecked="True"/>
+                                <RadioButton x:Name="QT_PriorityHigh" Content="High" GroupName="QTPriority" FontSize="12" Foreground="{DynamicResource TextBrush}" Checked="QT_DefaultPriority_Changed" Cursor="Hand"/>
                             </StackPanel>
                             
                             <!-- Sort Mode -->
-                            <TextBlock Text="Sort Order" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
-                            <TextBlock Text="How tasks are ordered in the list" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                            <TextBlock Text="Sort Order" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,6"/>
+                            <TextBlock Text="How tasks are ordered in the list" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                             <StackPanel x:Name="QT_SortModeStack" Orientation="Horizontal" Margin="0,0,0,4">
-                                <RadioButton x:Name="QT_SortManual" Content="Manual" GroupName="QTSort" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0" Checked="QT_SortMode_Changed" Cursor="Hand" IsChecked="True"/>
-                                <RadioButton x:Name="QT_SortPriority" Content="Priority" GroupName="QTSort" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0" Checked="QT_SortMode_Changed" Cursor="Hand"/>
-                                <RadioButton x:Name="QT_SortCreated" Content="Created" GroupName="QTSort" FontSize="12" Foreground="{StaticResource TextBrush}" Checked="QT_SortMode_Changed" Cursor="Hand"/>
+                                <RadioButton x:Name="QT_SortManual" Content="Manual" GroupName="QTSort" FontSize="12" Foreground="{DynamicResource TextBrush}" Margin="0,0,16,0" Checked="QT_SortMode_Changed" Cursor="Hand" IsChecked="True"/>
+                                <RadioButton x:Name="QT_SortPriority" Content="Priority" GroupName="QTSort" FontSize="12" Foreground="{DynamicResource TextBrush}" Margin="0,0,16,0" Checked="QT_SortMode_Changed" Cursor="Hand"/>
+                                <RadioButton x:Name="QT_SortCreated" Content="Created" GroupName="QTSort" FontSize="12" Foreground="{DynamicResource TextBrush}" Checked="QT_SortMode_Changed" Cursor="Hand"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
                     
                     <!-- Categories -->
-                    <Border Background="#18FFFFFF" 
-                            BorderBrush="#22FFFFFF"
+                    <Border Background="{DynamicResource CardBrush}" 
+                            BorderBrush="{DynamicResource CardBorderBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="16">
@@ -1205,9 +1126,9 @@
                             <TextBlock Text="Categories" 
                                        FontSize="16" 
                                        FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextBrush}"
+                                       Foreground="{DynamicResource TextBrush}"
                                        Margin="0,0,0,4"/>
-                            <TextBlock Text="Right-click a task to assign a category" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
+                            <TextBlock Text="Right-click a task to assign a category" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,12"/>
                             
                             <StackPanel x:Name="QT_CategoriesList" Margin="0,0,0,8"/>
                             
@@ -1218,12 +1139,12 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBox x:Name="QT_NewCategoryInput" Grid.Column="0" FontSize="12" Padding="6" 
-                                         Background="#22FFFFFF" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                         Background="{DynamicResource CardBorderBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}"
                                          KeyDown="QT_NewCategoryInput_KeyDown">
                                     <TextBox.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></TextBox.Resources>
                                 </TextBox>
                                 <Button Grid.Column="1" Content="+ Add" Padding="10,6" Margin="8,0,0,0"
-                                        Background="#22FFFFFF" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                        Background="{DynamicResource CardBorderBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}"
                                         Click="QT_AddCategory_Click" Cursor="Hand">
                                     <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
                                 </Button>
@@ -1235,16 +1156,16 @@
                     </Border>
                     
                     <!-- Doc Quick Open Panel -->
-                    <Border x:Name="DocQuickOpenPanel" Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    <Border x:Name="DocQuickOpenPanel" Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             CornerRadius="8" Padding="20" Visibility="Collapsed">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
                     
                     <!-- Display Settings -->
-                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                    <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="Display" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                            <TextBlock Text="Display" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,12"/>
                             
                             <!-- Show File Size -->
                             <Grid Margin="0,0,0,12">
@@ -1253,8 +1174,8 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Show File Size" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Display file size next to each file" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="Show File Size" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Display file size next to each file" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </StackPanel>
                                 <ToggleButton x:Name="DQ_ShowFileSizeToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
                                               Checked="DQ_ShowFileSizeToggle_Changed" Unchecked="DQ_ShowFileSizeToggle_Changed" Cursor="Hand">
@@ -1268,8 +1189,8 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Show Date Modified" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Display last modified date for each file" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="Show Date Modified" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Display last modified date for each file" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </StackPanel>
                                 <ToggleButton x:Name="DQ_ShowDateModifiedToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
                                               Checked="DQ_ShowDateModifiedToggle_Changed" Unchecked="DQ_ShowDateModifiedToggle_Changed" Cursor="Hand">
@@ -1283,8 +1204,8 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Show File Extension" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Show .pdf, .dwg etc. in file names" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="Show File Extension" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Show .pdf, .dwg etc. in file names" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </StackPanel>
                                 <ToggleButton x:Name="DQ_ShowFileExtToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
                                               Checked="DQ_ShowFileExtToggle_Changed" Unchecked="DQ_ShowFileExtToggle_Changed" Cursor="Hand">
@@ -1298,8 +1219,8 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Compact Mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Tighter row spacing for more files on screen" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="Compact Mode" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Tighter row spacing for more files on screen" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </StackPanel>
                                 <ToggleButton x:Name="DQ_CompactModeToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
                                               Checked="DQ_CompactModeToggle_Changed" Unchecked="DQ_CompactModeToggle_Changed" Cursor="Hand">
@@ -1309,9 +1230,9 @@
                     </Border>
                     
                     <!-- Scanning Settings -->
-                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                    <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="Scanning" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                            <TextBlock Text="Scanning" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,12"/>
                             
                             <!-- Max Scan Depth -->
                             <StackPanel Margin="0,0,0,12">
@@ -1320,20 +1241,20 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Max Scan Depth" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
-                                    <TextBlock x:Name="DQ_MaxDepthValue" Grid.Column="1" Text="3" FontSize="13" Foreground="{StaticResource PrimaryBrush}"/>
+                                    <TextBlock Grid.Column="0" Text="Max Scan Depth" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}"/>
+                                    <TextBlock x:Name="DQ_MaxDepthValue" Grid.Column="1" Text="3" FontSize="13" Foreground="{DynamicResource PrimaryBrush}"/>
                                 </Grid>
-                                <TextBlock Text="0 = discipline folder only, 1+ = include subfolders" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
+                                <TextBlock Text="0 = discipline folder only, 1+ = include subfolders" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,6"/>
                                 <Slider x:Name="DQ_MaxDepthSlider" Minimum="0" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True"
                                         ValueChanged="DQ_MaxDepthSlider_Changed" Style="{StaticResource StyledSlider}"/>
                             </StackPanel>
                             
                             <!-- Excluded Folders -->
                             <StackPanel Margin="0,0,0,12">
-                                <TextBlock Text="Excluded Folders" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                                <TextBlock Text="Comma-separated folder names to skip (e.g. Archive, Backup)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                                <TextBlock Text="Excluded Folders" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,4"/>
+                                <TextBlock Text="Comma-separated folder names to skip (e.g. Archive, Backup)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
                                 <TextBox x:Name="DQ_ExcludedFoldersInput" FontSize="12" Padding="8,6" TextWrapping="Wrap" MinHeight="36"
-                                         Background="#22FFFFFF" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                         Background="{DynamicResource CardBorderBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}"
                                          LostFocus="DQ_ExcludedFoldersInput_LostFocus">
                                     <TextBox.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></TextBox.Resources>
                                 </TextBox>
@@ -1346,19 +1267,19 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Max Files" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
-                                    <TextBlock x:Name="DQ_MaxFilesValue" Grid.Column="1" Text="200" FontSize="13" Foreground="{StaticResource PrimaryBrush}"/>
+                                    <TextBlock Grid.Column="0" Text="Max Files" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}"/>
+                                    <TextBlock x:Name="DQ_MaxFilesValue" Grid.Column="1" Text="200" FontSize="13" Foreground="{DynamicResource PrimaryBrush}"/>
                                 </Grid>
-                                <TextBlock Text="Maximum number of files to display (50-500)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
+                                <TextBlock Text="Maximum number of files to display (50-500)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,6"/>
                                 <Slider x:Name="DQ_MaxFilesSlider" Minimum="50" Maximum="500" TickFrequency="50" IsSnapToTickEnabled="True"
                                         ValueChanged="DQ_MaxFilesSlider_Changed" Style="{StaticResource StyledSlider}"/>
                             </StackPanel>
                             
                             <!-- File Extensions -->
-                            <TextBlock Text="File Extensions" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                            <TextBlock Text="Comma-separated list of extensions to scan" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                            <TextBlock Text="File Extensions" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,4"/>
+                            <TextBlock Text="Comma-separated list of extensions to scan" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
                             <TextBox x:Name="DQ_ExtensionsInput" FontSize="12" Padding="8,6" TextWrapping="Wrap" MinHeight="48"
-                                     Background="#22FFFFFF" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource BorderBrush}"
+                                     Background="{DynamicResource CardBorderBrush}" Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}"
                                      LostFocus="DQ_ExtensionsInput_LostFocus">
                                 <TextBox.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></TextBox.Resources>
                             </TextBox>
@@ -1366,34 +1287,34 @@
                     </Border>
                     
                     <!-- Sorting & Grouping -->
-                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                    <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="Sorting &amp; Grouping" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                            <TextBlock Text="Sorting &amp; Grouping" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,12"/>
                             
                             <!-- Sort By -->
-                            <TextBlock Text="Sort By" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
+                            <TextBlock Text="Sort By" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,6"/>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                                <RadioButton x:Name="DQ_SortName" Content="Name" GroupName="DQSort" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0" Checked="DQ_SortChanged" Cursor="Hand"/>
-                                <RadioButton x:Name="DQ_SortDate" Content="Date" GroupName="DQSort" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0" Checked="DQ_SortChanged" Cursor="Hand"/>
-                                <RadioButton x:Name="DQ_SortType" Content="Type" GroupName="DQSort" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0" Checked="DQ_SortChanged" Cursor="Hand"/>
-                                <RadioButton x:Name="DQ_SortSize" Content="Size" GroupName="DQSort" Foreground="{StaticResource TextBrush}" Checked="DQ_SortChanged" Cursor="Hand"/>
+                                <RadioButton x:Name="DQ_SortName" Content="Name" GroupName="DQSort" Foreground="{DynamicResource TextBrush}" Margin="0,0,16,0" Checked="DQ_SortChanged" Cursor="Hand"/>
+                                <RadioButton x:Name="DQ_SortDate" Content="Date" GroupName="DQSort" Foreground="{DynamicResource TextBrush}" Margin="0,0,16,0" Checked="DQ_SortChanged" Cursor="Hand"/>
+                                <RadioButton x:Name="DQ_SortType" Content="Type" GroupName="DQSort" Foreground="{DynamicResource TextBrush}" Margin="0,0,16,0" Checked="DQ_SortChanged" Cursor="Hand"/>
+                                <RadioButton x:Name="DQ_SortSize" Content="Size" GroupName="DQSort" Foreground="{DynamicResource TextBrush}" Checked="DQ_SortChanged" Cursor="Hand"/>
                             </StackPanel>
                             
                             <!-- Group By -->
-                            <TextBlock Text="Group By" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
+                            <TextBlock Text="Group By" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,6"/>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
-                                <RadioButton x:Name="DQ_GroupNone" Content="None" GroupName="DQGroup" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0" Checked="DQ_GroupChanged" Cursor="Hand"/>
-                                <RadioButton x:Name="DQ_GroupCategory" Content="Category" GroupName="DQGroup" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0" Checked="DQ_GroupChanged" Cursor="Hand"/>
-                                <RadioButton x:Name="DQ_GroupExt" Content="Extension" GroupName="DQGroup" Foreground="{StaticResource TextBrush}" Margin="0,0,16,0" Checked="DQ_GroupChanged" Cursor="Hand"/>
-                                <RadioButton x:Name="DQ_GroupSubfolder" Content="Subfolder" GroupName="DQGroup" Foreground="{StaticResource TextBrush}" Checked="DQ_GroupChanged" Cursor="Hand"/>
+                                <RadioButton x:Name="DQ_GroupNone" Content="None" GroupName="DQGroup" Foreground="{DynamicResource TextBrush}" Margin="0,0,16,0" Checked="DQ_GroupChanged" Cursor="Hand"/>
+                                <RadioButton x:Name="DQ_GroupCategory" Content="Category" GroupName="DQGroup" Foreground="{DynamicResource TextBrush}" Margin="0,0,16,0" Checked="DQ_GroupChanged" Cursor="Hand"/>
+                                <RadioButton x:Name="DQ_GroupExt" Content="Extension" GroupName="DQGroup" Foreground="{DynamicResource TextBrush}" Margin="0,0,16,0" Checked="DQ_GroupChanged" Cursor="Hand"/>
+                                <RadioButton x:Name="DQ_GroupSubfolder" Content="Subfolder" GroupName="DQGroup" Foreground="{DynamicResource TextBrush}" Checked="DQ_GroupChanged" Cursor="Hand"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
                     
                     <!-- Behavior -->
-                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                    <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="Behavior" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                            <TextBlock Text="Behavior" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,12"/>
                             
                             <!-- Auto-open last project -->
                             <Grid Margin="0,0,0,12">
@@ -1402,8 +1323,8 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Remember Last Project" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Auto-open the last selected project on launch" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="Remember Last Project" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Auto-open the last selected project on launch" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </StackPanel>
                                 <ToggleButton x:Name="DQ_AutoOpenToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center"
                                               Checked="DQ_AutoOpenToggle_Changed" Unchecked="DQ_AutoOpenToggle_Changed" Cursor="Hand">
@@ -1417,10 +1338,10 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Recent Files Count" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
-                                    <TextBlock x:Name="DQ_RecentCountValue" Grid.Column="1" Text="10" FontSize="13" Foreground="{StaticResource PrimaryBrush}"/>
+                                    <TextBlock Grid.Column="0" Text="Recent Files Count" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}"/>
+                                    <TextBlock x:Name="DQ_RecentCountValue" Grid.Column="1" Text="10" FontSize="13" Foreground="{DynamicResource PrimaryBrush}"/>
                                 </Grid>
-                                <TextBlock Text="Number of recently opened files to remember (0 = disabled)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
+                                <TextBlock Text="Number of recently opened files to remember (0 = disabled)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,6"/>
                                 <Slider x:Name="DQ_RecentCountSlider" Minimum="0" Maximum="20" TickFrequency="1" IsSnapToTickEnabled="True"
                                         ValueChanged="DQ_RecentCountSlider_Changed" Style="{StaticResource StyledSlider}"/>
                             </StackPanel>
@@ -1432,16 +1353,16 @@
                     </Border>
                     
                     <!-- Frequent Projects Panel -->
-                    <Border x:Name="FrequentProjectsPanel" Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    <Border x:Name="FrequentProjectsPanel" Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             CornerRadius="8" Padding="20" Visibility="Collapsed">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
                     
                     <!-- Display Settings -->
-                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                    <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="Display" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                            <TextBlock Text="Display" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,12"/>
                             
                             <!-- Max Projects Shown -->
                             <StackPanel Margin="0,0,0,12">
@@ -1450,10 +1371,10 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Projects Shown" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
-                                    <TextBlock x:Name="FP_MaxShownValue" Grid.Column="1" Text="5" FontSize="13" Foreground="{StaticResource PrimaryBrush}"/>
+                                    <TextBlock Grid.Column="0" Text="Projects Shown" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}"/>
+                                    <TextBlock x:Name="FP_MaxShownValue" Grid.Column="1" Text="5" FontSize="13" Foreground="{DynamicResource PrimaryBrush}"/>
                                 </Grid>
-                                <TextBlock Text="Number of top projects displayed in the widget (1-10)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
+                                <TextBlock Text="Number of top projects displayed in the widget (1-10)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,6"/>
                                 <Slider x:Name="FP_MaxShownSlider" Minimum="1" Maximum="10" TickFrequency="1" IsSnapToTickEnabled="True"
                                         ValueChanged="FP_MaxShownSlider_Changed" Style="{StaticResource StyledSlider}"/>
                             </StackPanel>
@@ -1465,10 +1386,10 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Projects Tracked" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
-                                    <TextBlock x:Name="FP_MaxSavedValue" Grid.Column="1" Text="20" FontSize="13" Foreground="{StaticResource PrimaryBrush}"/>
+                                    <TextBlock Grid.Column="0" Text="Projects Tracked" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}"/>
+                                    <TextBlock x:Name="FP_MaxSavedValue" Grid.Column="1" Text="20" FontSize="13" Foreground="{DynamicResource PrimaryBrush}"/>
                                 </Grid>
-                                <TextBlock Text="Maximum number of projects to track launch counts for (5-50)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
+                                <TextBlock Text="Maximum number of projects to track launch counts for (5-50)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,6"/>
                                 <Slider x:Name="FP_MaxSavedSlider" Minimum="5" Maximum="50" TickFrequency="5" IsSnapToTickEnabled="True"
                                         ValueChanged="FP_MaxSavedSlider_Changed" Style="{StaticResource StyledSlider}"/>
                             </StackPanel>
@@ -1476,9 +1397,9 @@
                     </Border>
                     
                     <!-- Layout -->
-                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                    <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="Layout" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                            <TextBlock Text="Layout" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,12"/>
                             
                             <!-- Grid Mode Toggle -->
                             <Grid Margin="0,0,0,0">
@@ -1487,8 +1408,8 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Grid Mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Display projects in a compact grid instead of a vertical list" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Grid Mode" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Display projects in a compact grid instead of a vertical list" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 <ToggleButton x:Name="FP_GridModeToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
                                               Checked="FP_GridModeToggle_Changed" Unchecked="FP_GridModeToggle_Changed" Cursor="Hand">
@@ -1498,17 +1419,17 @@
                     </Border>
                     
                     <!-- Data Management -->
-                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                    <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="Data Management" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                            <TextBlock Text="Manage your project launch history" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
+                            <TextBlock Text="Data Management" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,4"/>
+                            <TextBlock Text="Manage your project launch history" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,12"/>
                             
-                            <TextBlock x:Name="FP_StatsText" Text="Loading stats..." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
+                            <TextBlock x:Name="FP_StatsText" Text="Loading stats..." FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,12"/>
                             
                             <!-- Reset Launch Data -->
                             <Button x:Name="FP_ResetDataButton" Content="Reset All Launch Data" Padding="16,8" Cursor="Hand"
                                     Click="FP_ResetData_Click"
-                                    Background="#30FF5252" Foreground="#FF5252" BorderBrush="#40FF5252">
+                                    Background="{DynamicResource RedBackgroundBrush}" Foreground="{DynamicResource RedBrush}" BorderBrush="{DynamicResource RedBackgroundBrush}">
                                 <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
                             </Button>
                         </StackPanel>
@@ -1519,16 +1440,16 @@
                     </Border>
                     
                     <!-- Quick Launch Panel -->
-                    <Border x:Name="QuickLaunchPanel" Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    <Border x:Name="QuickLaunchPanel" Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             CornerRadius="8" Padding="20" Visibility="Collapsed">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
                     
                     <!-- Layout -->
-                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                    <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="Layout" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                            <TextBlock Text="Layout" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,12"/>
                             
                             <!-- Horizontal Mode Toggle -->
                             <Grid Margin="0,0,0,0">
@@ -1537,8 +1458,8 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Horizontal Mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Display items in a horizontal row instead of a vertical list (max 5 visible before scrolling)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Horizontal Mode" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,2"/>
+                                    <TextBlock Text="Display items in a horizontal row instead of a vertical list (max 5 visible before scrolling)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 <ToggleButton x:Name="QL_HorizontalModeToggle" Style="{StaticResource ToggleSwitch}" Grid.Column="1" Width="50" Height="28" VerticalAlignment="Center" IsChecked="False"
                                               Checked="QL_HorizontalModeToggle_Changed" Unchecked="QL_HorizontalModeToggle_Changed" Cursor="Hand">
@@ -1548,21 +1469,21 @@
                     </Border>
                     
                     <!-- Drag and Drop Info -->
-                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                    <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="Adding Items" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                            <TextBlock Text="You can add items to Quick Launch in several ways:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
+                            <TextBlock Text="Adding Items" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,4"/>
+                            <TextBlock Text="You can add items to Quick Launch in several ways:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,12"/>
                             
                             <StackPanel Margin="0,0,0,4">
-                                <TextBlock FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6" TextWrapping="Wrap">
+                                <TextBlock FontSize="12" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,6" TextWrapping="Wrap">
                                     <Run FontWeight="SemiBold" Text="Drag &amp; Drop:"/> 
                                     <Run Text="Drag files or folders from File Explorer directly onto the Quick Launch widget"/>
                                 </TextBlock>
-                                <TextBlock FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6" TextWrapping="Wrap">
+                                <TextBlock FontSize="12" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,6" TextWrapping="Wrap">
                                     <Run FontWeight="SemiBold" Text="Browse:"/>
                                     <Run Text="Click the + button in the widget, then use the Browse button to pick a folder"/>
                                 </TextBlock>
-                                <TextBlock FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,0" TextWrapping="Wrap">
+                                <TextBlock FontSize="12" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,0" TextWrapping="Wrap">
                                     <Run FontWeight="SemiBold" Text="Manual:"/>
                                     <Run Text="Type or paste any file path, folder path, or URL into the path field"/>
                                 </TextBlock>
@@ -1571,17 +1492,17 @@
                     </Border>
                     
                     <!-- Current Items -->
-                    <Border Background="#18FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                    <Border Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="Current Items" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                            <TextBlock x:Name="QL_ItemCountText" Text="Loading..." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
+                            <TextBlock Text="Current Items" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="QL_ItemCountText" Text="Loading..." FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,12"/>
                             
                             <StackPanel x:Name="QL_ItemsList" Margin="0,0,0,8"/>
                             
                             <!-- Clear All -->
                             <Button x:Name="QL_ClearAllButton" Content="Clear All Items" Padding="16,8" Cursor="Hand"
                                     Click="QL_ClearAll_Click"
-                                    Background="#30FF5252" Foreground="#FF5252" BorderBrush="#40FF5252">
+                                    Background="{DynamicResource RedBackgroundBrush}" Foreground="{DynamicResource RedBrush}" BorderBrush="{DynamicResource RedBackgroundBrush}">
                                 <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
                             </Button>
                         </StackPanel>
@@ -1592,14 +1513,14 @@
                     </Border>
                     
                     <!-- Metrics Viewer Panel -->
-                    <Border x:Name="MetricsViewerPanel" Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    <Border x:Name="MetricsViewerPanel" Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             CornerRadius="8" Padding="20" Visibility="Collapsed">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
                                 <!-- Refresh Interval -->
-                                <Border Background="#18FFFFFF" 
-                                        BorderBrush="#22FFFFFF"
+                                <Border Background="{DynamicResource CardBrush}" 
+                                        BorderBrush="{DynamicResource CardBorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="8"
                                         Padding="16"
@@ -1608,11 +1529,11 @@
                                         <TextBlock Text="Metrics Settings" 
                                                    FontSize="16" 
                                                    FontWeight="SemiBold"
-                                                   Foreground="{StaticResource TextBrush}"
+                                                   Foreground="{DynamicResource TextBrush}"
                                                    Margin="0,0,0,4"/>
                                         <TextBlock Text="Configure metrics collection and display" 
                                                    FontSize="12" 
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                                    Margin="0,0,0,16"/>
 
                                         <!-- Auto-Refresh Interval -->
@@ -1622,12 +1543,12 @@
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="Auto-Refresh Interval" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
-                                                <TextBlock x:Name="MetricsRefreshIntervalValue" Grid.Column="1" Text="30s" FontSize="13" Foreground="{StaticResource PrimaryBrush}"/>
+                                                <TextBlock Grid.Column="0" Text="Auto-Refresh Interval" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}"/>
+                                                <TextBlock x:Name="MetricsRefreshIntervalValue" Grid.Column="1" Text="30s" FontSize="13" Foreground="{DynamicResource PrimaryBrush}"/>
                                             </Grid>
                                             <TextBlock Text="How often the metrics widget polls for updated data (10-120 seconds)" 
                                                        FontSize="11" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" 
+                                                       Foreground="{DynamicResource TextSecondaryBrush}" 
                                                        Margin="0,2,0,6"/>
                                             <Slider x:Name="MetricsRefreshIntervalSlider" 
                                                     Minimum="10" Maximum="120" 
@@ -1644,9 +1565,9 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                                <TextBlock Text="Snap Grid" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                                <TextBlock Text="Snap Grid" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}"/>
                                                 <TextBlock Text="When enabled, the metrics widget participates in edge snapping and overlap prevention. When disabled, it floats freely." 
-                                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                           FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                             </StackPanel>
                                             <ToggleButton x:Name="MetricsSnapGridToggle"
                                                           Grid.Column="1"
@@ -1664,11 +1585,14 @@
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="Week Start Day" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                                <TextBlock Grid.Column="0" Text="Week Start Day" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}"/>
                                                 <ComboBox x:Name="MetricsWeekStartDayCombo"
                                                           Grid.Column="1"
-                                                          Width="120"
-                                                          SelectionChanged="MetricsWeekStartDayCombo_Changed">
+                                                          Width="140"
+                                                          FontSize="13" Cursor="Hand"
+                                                          SelectionChanged="MetricsWeekStartDayCombo_Changed"
+                                                          Style="{StaticResource ThemedComboBox}"
+                                                          ItemContainerStyle="{StaticResource ThemedComboBoxItem}">
                                                     <ComboBoxItem Content="Sunday"/>
                                                     <ComboBoxItem Content="Monday"/>
                                                     <ComboBoxItem Content="Tuesday"/>
@@ -1680,7 +1604,7 @@
                                             </Grid>
                                             <TextBlock Text="Which day the admin metrics week begins on (e.g. Monday = Mon–Sun)" 
                                                        FontSize="11" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" 
+                                                       Foreground="{DynamicResource TextSecondaryBrush}" 
                                                        Margin="0,2,0,0"/>
                                         </StackPanel>
 
@@ -1691,12 +1615,12 @@
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="Metrics Range" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
-                                                <TextBlock x:Name="MetricsRangeWeeksValue" Grid.Column="1" Text="1 week" FontSize="13" Foreground="{StaticResource PrimaryBrush}"/>
+                                                <TextBlock Grid.Column="0" Text="Metrics Range" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}"/>
+                                                <TextBlock x:Name="MetricsRangeWeeksValue" Grid.Column="1" Text="1 week" FontSize="13" Foreground="{DynamicResource PrimaryBrush}"/>
                                             </Grid>
                                             <TextBlock Text="Number of weeks shown in the admin metrics view (1–4 weeks)" 
                                                        FontSize="11" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" 
+                                                       Foreground="{DynamicResource TextSecondaryBrush}" 
                                                        Margin="0,2,0,6"/>
                                             <Slider x:Name="MetricsRangeWeeksSlider" 
                                                     Minimum="1" Maximum="4" 
@@ -1712,13 +1636,13 @@
                     </Border>
 
                     <!-- Cheat Sheet Panel -->
-                    <Border x:Name="CheatSheetPanel" Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    <Border x:Name="CheatSheetPanel" Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             CornerRadius="8" Padding="20" Visibility="Collapsed">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
-                                <Border Background="#18FFFFFF" 
-                                        BorderBrush="#22FFFFFF"
+                                <Border Background="{DynamicResource CardBrush}" 
+                                        BorderBrush="{DynamicResource CardBorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="8"
                                         Padding="16"
@@ -1727,24 +1651,24 @@
                                         <TextBlock Text="Cheat Sheet Settings" 
                                                    FontSize="16" 
                                                    FontWeight="SemiBold"
-                                                   Foreground="{StaticResource TextBrush}"
+                                                   Foreground="{DynamicResource TextBrush}"
                                                    Margin="0,0,0,4"/>
                                         <TextBlock Text="Configure the engineering cheat sheets and reference tables widget" 
                                                    FontSize="12" 
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                                    TextWrapping="Wrap"
                                                    Margin="0,0,0,16"/>
 
-                                        <TextBlock Text="Disciplines" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
+                                        <TextBlock Text="Disciplines" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,8"/>
                                         <TextBlock Text="Electrical cheat sheets include NEC motor FLA tables, conductor sizing, conduit fill, transformer sizing, and more. Additional disciplines coming soon." 
                                                    FontSize="11" 
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                                    TextWrapping="Wrap"
                                                    Margin="0,0,0,12"/>
 
                                         <TextBlock Text="Data is stored locally and can be edited via the cheat sheet JSON file in AppData." 
                                                    FontSize="11" 
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                                    TextWrapping="Wrap"
                                                    Margin="0,0,0,16"/>
 
@@ -1755,9 +1679,9 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                                <TextBlock Text="Cross-Discipline Search" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                                <TextBlock Text="Cross-Discipline Search" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}"/>
                                                 <TextBlock Text="When searching and no results are found in the current discipline, show matching results from other disciplines." 
-                                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                           FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                             </StackPanel>
                                             <ToggleButton x:Name="CheatSheetCrossDisciplineToggle"
                                                           Grid.Column="1"
@@ -1775,9 +1699,9 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                                <TextBlock Text="Snap Grid" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                                <TextBlock Text="Snap Grid" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}"/>
                                                 <TextBlock Text="When enabled, the cheat sheet widget participates in edge snapping and overlap prevention. When disabled, it floats freely." 
-                                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                           FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                             </StackPanel>
                                             <ToggleButton x:Name="CheatSheetSnapGridToggle"
                                                           Grid.Column="1"
@@ -1793,17 +1717,17 @@
                         </ScrollViewer>
                     </Border>
                     <!-- Tags Panel -->
-                    <Border x:Name="TagsPanel" Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    <Border x:Name="TagsPanel" Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                             CornerRadius="8" Padding="20" Visibility="Collapsed">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
-                                <Border Background="#10FFFFFF" CornerRadius="6" Padding="16" Margin="0,0,0,12">
+                                <Border Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="16" Margin="0,0,0,12">
                                     <StackPanel>
                                         <TextBlock Text="Project Tags" FontSize="16" FontWeight="SemiBold"
-                                                   Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                                                   Foreground="{DynamicResource TextBrush}" Margin="0,0,0,4"/>
                                         <TextBlock Text="Tag projects with engineering data (voltage, HVAC type, generator, etc.) for quick filtering. Tags are stored securely in Firebase with HMAC-hashed project keys."
-                                                   FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,16"/>
+                                                   FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,16"/>
 
                                         <!-- Tag Search Enabled -->
                                         <Grid Margin="0,0,0,12">
@@ -1812,9 +1736,9 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                                <TextBlock Text="Tag Search" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                                <TextBlock Text="Tag Search" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}"/>
                                                 <TextBlock Text="Enable tag-based search filters (e.g. voltage:208, gen:Generac) in the project search bar."
-                                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                           FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                             </StackPanel>
                                             <ToggleButton x:Name="TagSearchEnabledToggle" Grid.Column="1"
                                                           Style="{StaticResource ToggleSwitch}" Margin="12,0,0,0" VerticalAlignment="Center"
@@ -1822,9 +1746,9 @@
                                         </Grid>
 
                                         <!-- Display Mode -->
-                                        <TextBlock Text="Display Mode" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Display Mode" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,0,0,4"/>
                                         <TextBlock Text="Choose how tag quick-filters are shown in the search overlay."
-                                                   FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                                         <ComboBox x:Name="TagDisplayModeCombo" Width="260" HorizontalAlignment="Left" Margin="0,0,0,16"
                                                   FontSize="13" Padding="10,8" Cursor="Hand"
                                                   SelectionChanged="TagDisplayModeCombo_Changed">
@@ -1839,14 +1763,14 @@
                                                                                   Focusable="False" ClickMode="Press">
                                                                         <ToggleButton.Template>
                                                                             <ControlTemplate TargetType="ToggleButton">
-                                                                                <Border Background="#333333" CornerRadius="6" BorderBrush="#555555" BorderThickness="1" Padding="10,8">
+                                                                                <Border Background="{DynamicResource SurfaceSolidBrush}" CornerRadius="6" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="10,8">
                                                                                     <Grid>
                                                                                         <Grid.ColumnDefinitions>
                                                                                             <ColumnDefinition Width="*"/>
                                                                                             <ColumnDefinition Width="Auto"/>
                                                                                         </Grid.ColumnDefinitions>
                                                                                         <ContentPresenter Grid.Column="0"/>
-                                                                                        <TextBlock Grid.Column="1" Text="▾" Foreground="#80FFFFFF" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                                                        <TextBlock Grid.Column="1" Text="▾" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0"/>
                                                                                     </Grid>
                                                                                 </Border>
                                                                             </ControlTemplate>
@@ -1857,12 +1781,12 @@
                                                                                       ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                                                                                       Margin="12,8,28,8" VerticalAlignment="Center" HorizontalAlignment="Left">
                                                                         <ContentPresenter.Resources>
-                                                                            <Style TargetType="TextBlock"><Setter Property="Foreground" Value="White"/></Style>
+                                                                            <Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/></Style>
                                                                         </ContentPresenter.Resources>
                                                                     </ContentPresenter>
                                                                     <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
                                                                            AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
-                                                                        <Border Background="#2A2A2A" CornerRadius="6" BorderBrush="#555555" BorderThickness="1"
+                                                                        <Border Background="{DynamicResource SurfaceSolidBrush}" CornerRadius="6" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                                                                                 MinWidth="{TemplateBinding ActualWidth}" Padding="4" Margin="0,2,0,0">
                                                                             <StackPanel IsItemsHost="True"/>
                                                                         </Border>
@@ -1875,7 +1799,7 @@
                                             </ComboBox.Style>
                                             <ComboBox.ItemContainerStyle>
                                                 <Style TargetType="ComboBoxItem">
-                                                    <Setter Property="Foreground" Value="White"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                                                     <Setter Property="Background" Value="Transparent"/>
                                                     <Setter Property="Padding" Value="10,6"/>
                                                     <Setter Property="Cursor" Value="Hand"/>
@@ -1887,10 +1811,10 @@
                                                                 </Border>
                                                                 <ControlTemplate.Triggers>
                                                                     <Trigger Property="IsHighlighted" Value="True">
-                                                                        <Setter TargetName="Bd" Property="Background" Value="#007ACC"/>
+                                                                        <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentBrush}"/>
                                                                     </Trigger>
                                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="Bd" Property="Background" Value="#33FFFFFF"/>
+                                                                        <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverStrongBrush}"/>
                                                                     </Trigger>
                                                                 </ControlTemplate.Triggers>
                                                             </ControlTemplate>
@@ -1909,9 +1833,9 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                                <TextBlock Text="Max Carousel Chips" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                                <TextBlock Text="Max Carousel Chips" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}"/>
                                                 <TextBlock Text="Maximum number of tag chips shown in the carousel (3-20)."
-                                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                           FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                             </StackPanel>
                                             <TextBox x:Name="TagCarouselMaxChipsBox" Grid.Column="1" Width="60"
                                                      HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,0,0"
@@ -1925,9 +1849,9 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                                <TextBlock Text="Auto-Refresh Carousel" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}"/>
+                                                <TextBlock Text="Auto-Refresh Carousel" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}"/>
                                                 <TextBlock Text="Automatically refresh carousel chips when tags are added or updated."
-                                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                           FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                             </StackPanel>
                                             <ToggleButton x:Name="TagCarouselAutoRefreshToggle" Grid.Column="1"
                                                           Style="{StaticResource ToggleSwitch}" Margin="12,0,0,0" VerticalAlignment="Center"
@@ -1935,14 +1859,14 @@
                                         </Grid>
 
                                         <!-- Search Syntax Help -->
-                                        <TextBlock Text="Search Syntax" FontSize="13" FontWeight="Medium" Foreground="{StaticResource TextBrush}" Margin="0,8,0,4"/>
-                                        <Border Background="#08FFFFFF" CornerRadius="4" Padding="10" Margin="0,0,0,4">
-                                            <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap">
-                                                <Run FontWeight="SemiBold" Foreground="#B0D0FF">voltage:208</Run><Run Text=" — filter by voltage" /><LineBreak/>
-                                                <Run FontWeight="SemiBold" Foreground="#B0D0FF">hvac:DX</Run><Run Text=" — filter by HVAC type" /><LineBreak/>
-                                                <Run FontWeight="SemiBold" Foreground="#B0D0FF">gen:Generac</Run><Run Text=" — generator brand (shorthand)" /><LineBreak/>
-                                                <Run FontWeight="SemiBold" Foreground="#B0D0FF">v:208; phase:3</Run><Run Text=" — combine with semicolons" /><LineBreak/>
-                                                <Run FontWeight="SemiBold" Foreground="#B0D0FF">eng:Smith</Run><Run Text=" — stamping engineer" />
+                                        <TextBlock Text="Search Syntax" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,8,0,4"/>
+                                        <Border Background="{DynamicResource FaintOverlayBrush}" CornerRadius="4" Padding="10" Margin="0,0,0,4">
+                                            <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap">
+                                                <Run FontWeight="SemiBold" Foreground="{DynamicResource BlueTextBrush}">voltage:208</Run><Run Text=" — filter by voltage" /><LineBreak/>
+                                                <Run FontWeight="SemiBold" Foreground="{DynamicResource BlueTextBrush}">hvac:DX</Run><Run Text=" — filter by HVAC type" /><LineBreak/>
+                                                <Run FontWeight="SemiBold" Foreground="{DynamicResource BlueTextBrush}">gen:Generac</Run><Run Text=" — generator brand (shorthand)" /><LineBreak/>
+                                                <Run FontWeight="SemiBold" Foreground="{DynamicResource BlueTextBrush}">v:208; phase:3</Run><Run Text=" — combine with semicolons" /><LineBreak/>
+                                                <Run FontWeight="SemiBold" Foreground="{DynamicResource BlueTextBrush}">eng:Smith</Run><Run Text=" — stamping engineer" />
                                             </TextBlock>
                                         </Border>
                                     </StackPanel>
@@ -1959,7 +1883,7 @@
                 <TextBlock x:Name="StatusText"
                            Text="Settings are saved automatically"
                            FontSize="12"
-                           Foreground="{StaticResource TextSecondaryBrush}"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
                            VerticalAlignment="Center"/>
             </Grid>
         </Grid>

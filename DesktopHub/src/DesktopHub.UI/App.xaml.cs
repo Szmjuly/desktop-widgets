@@ -19,10 +19,12 @@ public partial class App : System.Windows.Application
     private FirebaseLifecycleManager? _firebaseManager;
     private FirebaseService? _firebaseService;
     private TelemetryService? _telemetryService;
+    private ThemeService? _themeService;
     private readonly Stopwatch _startupStopwatch = Stopwatch.StartNew();
 
     public FirebaseLifecycleManager? FirebaseManager => _firebaseManager;
     public ITelemetryService? Telemetry => _telemetryService;
+    public ThemeService? Theme => _themeService;
 
     public App()
     {
@@ -87,6 +89,14 @@ public partial class App : System.Windows.Application
         // Create Start Menu shortcut on startup (only creates if it doesn't exist)
         StartMenuHelper.CreateStartMenuShortcut();
         
+        // Initialize theme service early (before any UI is created)
+        // NOTE: Cannot use LoadAsync().Wait() here — it deadlocks the WPF dispatcher.
+        // Use LoadSync() or a fresh SettingsService that loads synchronously.
+        var themeSettings = new DesktopHub.Infrastructure.Settings.SettingsService();
+        themeSettings.LoadSync();
+        _themeService = new ThemeService(themeSettings);
+        _themeService.Initialize();
+        
         // Manually create SearchOverlay (it will hide itself after initialization)
         var mainWindow = new SearchOverlay();
         MainWindow = mainWindow;
@@ -136,6 +146,54 @@ public partial class App : System.Windows.Application
                     if (_telemetryService != null && _firebaseService.IsInitialized)
                     {
                         _telemetryService.SetFirebaseService(_firebaseService);
+                    }
+
+                    // Wire forced update handler — when heartbeat detects admin push, trigger silent update
+                    if (_firebaseService.IsInitialized)
+                    {
+                        _firebaseService.ForcedUpdateDetected += async (sender, forcedInfo) =>
+                        {
+                            DebugLogger.Log($"App: Forced update detected — v{forcedInfo.TargetVersion} pushed by {forcedInfo.PushedBy}");
+                            try
+                            {
+                                await _firebaseService.UpdateForcedUpdateStatusAsync("downloading");
+
+                                var updateInfo = new Infrastructure.Firebase.Models.UpdateInfo
+                                {
+                                    LatestVersion = forcedInfo.TargetVersion,
+                                    CurrentVersion = _firebaseManager != null
+                                        ? (await _firebaseManager.CheckForUpdatesAsync())?.CurrentVersion ?? "0.0.0"
+                                        : "0.0.0",
+                                    DownloadUrl = forcedInfo.DownloadUrl,
+                                    ReleaseNotes = $"Pushed by admin ({forcedInfo.PushedBy})",
+                                    RequiredUpdate = true
+                                };
+
+                                // Get TrayIcon from SearchOverlay
+                                TrayIcon? trayIcon = null;
+                                Current.Dispatcher.Invoke(() =>
+                                {
+                                    if (MainWindow is SearchOverlay overlay)
+                                        trayIcon = overlay.TrayIconInstance;
+                                });
+
+                                if (trayIcon != null)
+                                {
+                                    await _firebaseService.UpdateForcedUpdateStatusAsync("installing");
+                                    await trayIcon.DownloadAndInstallUpdateAsync(updateInfo, silent: true);
+                                }
+                                else
+                                {
+                                    DebugLogger.Log("App: Forced update — TrayIcon not available");
+                                    await _firebaseService.UpdateForcedUpdateStatusAsync("failed", "TrayIcon not available");
+                                }
+                            }
+                            catch (Exception fuEx)
+                            {
+                                DebugLogger.Log($"App: Forced update failed: {fuEx.Message}");
+                                await _firebaseService.UpdateForcedUpdateStatusAsync("failed", fuEx.Message);
+                            }
+                        };
                     }
                     
                     // Check metrics viewer feature flag and update launcher button
@@ -505,6 +563,8 @@ public partial class App : System.Windows.Application
                 DebugLogger.Log($"Firebase shutdown error: {ex.Message}");
             }
         }
+        
+        _themeService?.Dispose();
         
         base.OnExit(e);
         _instanceMutex?.ReleaseMutex();

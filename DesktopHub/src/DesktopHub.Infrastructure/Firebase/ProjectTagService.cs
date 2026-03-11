@@ -480,12 +480,23 @@ public class ProjectTagService : IProjectTagService
             {
                 SetTagValueByKey(tags, key, value);
             }
-            else if (key == "custom" && value is Newtonsoft.Json.Linq.JObject customObj)
+            else if (key == "custom")
             {
-                tags.Custom = customObj.ToObject<Dictionary<string, string>>()
-                    ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                // Handle custom dict from multiple sources:
+                // - JObject: when reading directly from Firebase JSON
+                // - Dictionary<string,string>: after DecryptTagData converts JObject
+                Dictionary<string, string>? raw = null;
+                if (value is Newtonsoft.Json.Linq.JObject customObj)
+                    raw = customObj.ToObject<Dictionary<string, string>>();
+                else if (value is Dictionary<string, string> customDict)
+                    raw = customDict;
+
+                // Rebuild with OrdinalIgnoreCase comparer (JSON deserialization loses it)
+                tags.Custom = raw != null
+                    ? new Dictionary<string, string>(raw, StringComparer.OrdinalIgnoreCase)
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             }
-            else if (key != "custom")
+            else
             {
                 // Unknown key → treat as custom
                 tags.Custom[key] = value?.ToString() ?? "";
@@ -607,7 +618,11 @@ public class ProjectTagService : IProjectTagService
             foreach (var entry in cacheData.Entries)
             {
                 if (string.IsNullOrEmpty(entry.ProjectNumber)) continue;
-                _cache[entry.ProjectNumber] = entry.Tags ?? new ProjectTags();
+                var tags = entry.Tags ?? new ProjectTags();
+                // Rebuild Custom dict with OrdinalIgnoreCase (JSON deserialization loses it)
+                if (tags.Custom.Count > 0)
+                    tags.Custom = new Dictionary<string, string>(tags.Custom, StringComparer.OrdinalIgnoreCase);
+                _cache[entry.ProjectNumber] = tags;
                 if (!string.IsNullOrEmpty(entry.Hash))
                     _hashToNumber[entry.Hash] = entry.ProjectNumber;
             }

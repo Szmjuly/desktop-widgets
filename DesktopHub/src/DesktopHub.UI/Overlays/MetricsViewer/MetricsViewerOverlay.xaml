@@ -37,18 +37,13 @@
 
         <!-- Main content -->
         <Border x:Name="RootBorder"
-                Background="#A8121212"
+                Background="{DynamicResource WindowBackgroundAlphaBrush}"
                 CornerRadius="12"
-                BorderBrush="#3A2A2A2A"
+                BorderBrush="{DynamicResource WindowBorderBrush}"
                 BorderThickness="1"
                 Margin="3">
             <Grid>
-                <Border Margin="2"
-                        CornerRadius="10"
-                        BorderThickness="1"
-                        BorderBrush="#33FFFFFF"
-                        Background="#14000000"
-                        IsHitTestVisible="False"/>
+                <Border Style="{StaticResource GlassOverlayBorder}"/>
 
                 <Border Background="Transparent" Padding="18">
                     <ContentPresenter x:Name="WidgetHost"/>
@@ -56,7 +51,7 @@
 
                 <Ellipse x:Name="UpdateIndicator"
                          Width="10" Height="10"
-                         Fill="#4CAF50"
+                         Fill="{DynamicResource GreenBrush}"
                          HorizontalAlignment="Right"
                          VerticalAlignment="Bottom"
                          Margin="0,0,8,8"
@@ -66,9 +61,9 @@
                 <!-- Subtle resize grip indicator (bottom-right) -->
                 <Canvas Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,12,12"
                         IsHitTestVisible="False" Opacity="0.3">
-                    <Line X1="9" Y1="1" X2="1" Y2="9" Stroke="#6B7A85" StrokeThickness="1"/>
-                    <Line X1="9" Y1="4" X2="4" Y2="9" Stroke="#6B7A85" StrokeThickness="1"/>
-                    <Line X1="9" Y1="7" X2="7" Y2="9" Stroke="#6B7A85" StrokeThickness="1"/>
+                    <Line X1="9" Y1="1" X2="1" Y2="9" Stroke="{DynamicResource TextTertiaryBrush}" StrokeThickness="1"/>
+                    <Line X1="9" Y1="4" X2="4" Y2="9" Stroke="{DynamicResource TextTertiaryBrush}" StrokeThickness="1"/>
+                    <Line X1="9" Y1="7" X2="7" Y2="9" Stroke="{DynamicResource TextTertiaryBrush}" StrokeThickness="1"/>
                 </Canvas>
             </Grid>
         </Border>

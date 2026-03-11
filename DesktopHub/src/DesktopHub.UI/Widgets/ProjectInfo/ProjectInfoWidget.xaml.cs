@@ -156,8 +156,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             {
                 Text = icon,
                 FontSize = 14,
-                Foreground = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(160, 170, 185)),
+                Foreground = Helpers.ThemeHelper.TextSecondary,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -183,8 +182,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             var headerIcon = new TextBlock
             {
                 Text = icon, FontSize = 12,
-                Foreground = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(140, 155, 175)),
+                Foreground = Helpers.ThemeHelper.TextSecondary,
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0)
             };
             Grid.SetColumn(headerIcon, 0);
@@ -193,8 +191,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             var headerText = new TextBlock
             {
                 Text = catName, FontSize = 11, FontWeight = FontWeights.SemiBold,
-                Foreground = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(100, 155, 240)),
+                Foreground = Helpers.ThemeHelper.Accent,
                 VerticalAlignment = VerticalAlignment.Center
             };
             Grid.SetColumn(headerText, 1);
@@ -203,8 +200,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             var collapseArrow = new TextBlock
             {
                 Text = "\u25BC", FontSize = 8,
-                Foreground = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(120, 130, 140)),
+                Foreground = Helpers.ThemeHelper.TextTertiary,
                 VerticalAlignment = VerticalAlignment.Center,
                 RenderTransformOrigin = new System.Windows.Point(0.5, 0.5),
                 RenderTransform = new System.Windows.Media.RotateTransform(0)
@@ -465,9 +461,6 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             var val = GetControlText(control).Trim();
             if (string.IsNullOrEmpty(val)) continue;
             SetTagField(newTags, key, val);
-
-            if (_vocabService != null)
-                await _vocabService.AddValueAsync(key, val);
         }
 
         // Save multi-select fields
@@ -476,9 +469,6 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             if (values.Count == 0) continue;
             var joined = string.Join(", ", values);
             SetTagField(newTags, key, joined);
-
-            if (_vocabService != null)
-                await _vocabService.AddValuesAsync(key, values);
         }
 
         var isNew = !_tagService.HasTags(_currentProjectNumber);
@@ -522,10 +512,8 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             var capturedVal = val;
             var chipBorder = new Border
             {
-                Background = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromArgb(0x18, 100, 155, 240)),
-                BorderBrush = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromArgb(0x40, 100, 155, 240)),
+                Background = Helpers.ThemeHelper.AccentLight,
+                BorderBrush = Helpers.ThemeHelper.Accent,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(4),
                 Padding = new Thickness(5, 1, 3, 1),
@@ -537,8 +525,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             {
                 Text = val,
                 FontSize = 10,
-                Foreground = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(180, 200, 220)),
+                Foreground = Helpers.ThemeHelper.TextPrimary,
                 VerticalAlignment = VerticalAlignment.Center,
                 TextWrapping = TextWrapping.Wrap,
                 MaxWidth = 160
@@ -548,8 +535,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             {
                 Text = "\u2715",
                 FontSize = 7,
-                Foreground = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(120, 120, 130)),
+                Foreground = Helpers.ThemeHelper.TextTertiary,
                 VerticalAlignment = VerticalAlignment.Center,
                 Cursor = System.Windows.Input.Cursors.Hand,
                 Margin = new Thickness(4, 0, 0, 0)
@@ -557,14 +543,12 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             removeBtn.MouseEnter += (s, ev) =>
             {
                 if (s is TextBlock tb)
-                    tb.Foreground = new System.Windows.Media.SolidColorBrush(
-                        System.Windows.Media.Color.FromRgb(220, 80, 80));
+                    tb.Foreground = Helpers.ThemeHelper.Red;
             };
             removeBtn.MouseLeave += (s, ev) =>
             {
                 if (s is TextBlock tb)
-                    tb.Foreground = new System.Windows.Media.SolidColorBrush(
-                        System.Windows.Media.Color.FromRgb(120, 120, 130));
+                    tb.Foreground = Helpers.ThemeHelper.TextTertiary;
             };
             removeBtn.MouseLeftButtonDown += (s, ev) =>
             {
@@ -583,10 +567,10 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
         }
     }
 
-    private static readonly System.Windows.Media.SolidColorBrush _orangeOutlineBrush =
-        new(System.Windows.Media.Color.FromArgb(0x90, 255, 152, 0));
-    private static readonly System.Windows.Media.SolidColorBrush _normalBorderBrush =
-        new(System.Windows.Media.Color.FromRgb(0x48, 0x48, 0x48));
+    private static System.Windows.Media.SolidColorBrush _orangeOutlineBrush =>
+        Helpers.ThemeHelper.Orange;
+    private static System.Windows.Media.SolidColorBrush _normalBorderBrush =>
+        Helpers.ThemeHelper.Border;
 
     private void UpdateMissingIndicators()
     {

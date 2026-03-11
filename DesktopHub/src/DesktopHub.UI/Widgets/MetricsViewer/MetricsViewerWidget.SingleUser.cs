@@ -138,37 +138,37 @@ public partial class MetricsViewerWidget
     {
         ActivityRows.Children.Clear();
 
-        AddActivityRow("Project launches", summary.TotalProjectLaunches, "#66BB6A",
+        AddActivityRow("Project launches", summary.TotalProjectLaunches, Palette[1],
             "Times a project folder was opened from search results or frequent projects");
-        AddActivityRow("Doc opens", summary.TotalDocOpens, "#42A5F5",
+        AddActivityRow("Doc opens", summary.TotalDocOpens, Palette[4],
             "Times a document was opened via Doc Quick Open");
-        AddActivityRow("Doc searches", summary.TotalDocSearches, "#42A5F5",
+        AddActivityRow("Doc searches", summary.TotalDocSearches, Palette[4],
             "Number of search queries in Doc Quick Open");
-        AddActivityRow("Quick launch uses", summary.TotalQuickLaunchUses, "#FFA726",
+        AddActivityRow("Quick launch uses", summary.TotalQuickLaunchUses, Palette[2],
             "Times an item was launched from the Quick Launch widget");
-        AddActivityRow("Tasks created", summary.TotalTasksCreated, "#AB47BC",
+        AddActivityRow("Tasks created", summary.TotalTasksCreated, Palette[3],
             "Quick Tasks items created");
-        AddActivityRow("Tasks completed", summary.TotalTasksCompleted, "#66BB6A",
+        AddActivityRow("Tasks completed", summary.TotalTasksCompleted, Palette[1],
             "Quick Tasks items marked as done");
-        AddActivityRow("Timer uses", summary.TotalTimerUses, "#78909C",
+        AddActivityRow("Timer uses", summary.TotalTimerUses, Palette[9],
             "Times the timer was started");
-        AddActivityRow("Cheat sheet views", summary.TotalCheatSheetViews, "#78909C",
+        AddActivityRow("Cheat sheet views", summary.TotalCheatSheetViews, Palette[9],
             "Times a specific cheat sheet was opened inside the Cheat Sheets widget");
-        AddActivityRow("Hotkey presses", summary.TotalHotkeyPresses, "#5C6BC0",
+        AddActivityRow("Hotkey presses", summary.TotalHotkeyPresses, Palette[10],
             "Global hotkey activations (Ctrl+Alt+Space, close shortcut, etc.)");
-        AddActivityRow("Clipboard copies", summary.TotalClipboardCopies, "#26C6DA",
+        AddActivityRow("Clipboard copies", summary.TotalClipboardCopies, Palette[6],
             "Times a path or value was copied to the clipboard from any widget");
-        AddActivityRow("Filter changes", summary.TotalFilterChanges, "#FF7043",
+        AddActivityRow("Filter changes", summary.TotalFilterChanges, Palette[7],
             "Times a filter (year, drive, discipline) was changed");
-        AddActivityRow("Tags created", summary.TotalTagsCreated, "#7E57C2",
+        AddActivityRow("Tags created", summary.TotalTagsCreated, Palette[14],
             "New project tag entries created");
-        AddActivityRow("Tags updated", summary.TotalTagsUpdated, "#7E57C2",
+        AddActivityRow("Tags updated", summary.TotalTagsUpdated, Palette[14],
             "Existing project tag entries updated");
-        AddActivityRow("Tag searches", summary.TotalTagSearches, "#5C6BC0",
+        AddActivityRow("Tag searches", summary.TotalTagSearches, Palette[10],
             "Tag-based search queries executed (e.g. voltage:208)");
-        AddActivityRow("Tag carousel clicks", summary.TotalTagCarouselClicks, "#5C6BC0",
+        AddActivityRow("Tag carousel clicks", summary.TotalTagCarouselClicks, Palette[10],
             "Tag carousel chip clicks for quick filtering");
-        AddActivityRow("Errors", summary.TotalErrors, "#EF5350",
+        AddActivityRow("Errors", summary.TotalErrors, Palette[5],
             "Application or widget errors logged");
 
         if (ActivityRows.Children.Count == 0)
@@ -178,7 +178,7 @@ public partial class MetricsViewerWidget
                 Text = "No activity yet",
                 FontSize = 10,
                 FontStyle = FontStyles.Italic,
-                Foreground = new WpfSolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#6B7A85"))
+                Foreground = Helpers.ThemeHelper.TextTertiary
             });
         }
     }
@@ -198,7 +198,7 @@ public partial class MetricsViewerWidget
         {
             Text = label,
             FontSize = 11,
-            Foreground = new WpfSolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#B6C3CA"))
+            Foreground = Helpers.ThemeHelper.TextSecondary
         };
         Grid.SetColumn(labelBlock, 0);
         grid.Children.Add(labelBlock);
@@ -227,7 +227,7 @@ public partial class MetricsViewerWidget
                 Text = "No searches yet",
                 FontSize = 10,
                 FontStyle = FontStyles.Italic,
-                Foreground = new WpfSolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#6B7A85"))
+                Foreground = Helpers.ThemeHelper.TextTertiary
             });
             return;
         }
@@ -237,7 +237,7 @@ public partial class MetricsViewerWidget
             var queryItem = summary.TopSearchQueries[i];
             var row = new Border
             {
-                Background = new WpfSolidColorBrush(WpfColor.FromArgb(0x08, 0xF5, 0xF7, 0xFA)),
+                Background = Helpers.ThemeHelper.FaintOverlay,
                 CornerRadius = new CornerRadius(3),
                 Padding = new Thickness(6, 2, 6, 2),
                 Margin = new Thickness(0, 0, 0, 2)
@@ -265,7 +265,7 @@ public partial class MetricsViewerWidget
             {
                 Text = $"{i + 1}.",
                 FontSize = 10,
-                Foreground = new WpfSolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#6B7A85")),
+                Foreground = Helpers.ThemeHelper.TextTertiary,
                 Margin = new Thickness(0, 0, 6, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -276,7 +276,7 @@ public partial class MetricsViewerWidget
             {
                 Text = queryItem.Query,
                 FontSize = 11,
-                Foreground = new WpfSolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#F5F7FA")),
+                Foreground = Helpers.ThemeHelper.TextPrimary,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -288,7 +288,7 @@ public partial class MetricsViewerWidget
                 Text = $"{queryItem.Count}x",
                 FontSize = 10,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new WpfSolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#007ACC")),
+                Foreground = Helpers.ThemeHelper.Accent,
                 Margin = new Thickness(6, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -305,14 +305,14 @@ public partial class MetricsViewerWidget
                 {
                     var sourceColor = src.Key switch
                     {
-                        "typed" => "#42A5F5",
-                        "pasted" => "#FFA726",
-                        "history" => "#AB47BC",
-                        "frequent_project" => "#66BB6A",
-                        "smart_search" => "#26C6DA",
-                        "path_search" => "#78909C",
-                        "doc_search" => "#5C6BC0",
-                        _ => "#6B7A85"
+                        "typed" => Palette[4],
+                        "pasted" => Palette[2],
+                        "history" => Palette[3],
+                        "frequent_project" => Palette[1],
+                        "smart_search" => Palette[6],
+                        "path_search" => Palette[9],
+                        "doc_search" => Palette[10],
+                        _ => Palette[9]
                     };
 
                     var pill = new Border
@@ -352,7 +352,7 @@ public partial class MetricsViewerWidget
                 Text = "No widget events yet",
                 FontSize = 10,
                 FontStyle = FontStyles.Italic,
-                Foreground = new WpfSolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#6B7A85"))
+                Foreground = Helpers.ThemeHelper.TextTertiary
             });
             return;
         }
@@ -371,7 +371,7 @@ public partial class MetricsViewerWidget
             {
                 Text = displayName,
                 FontSize = 11,
-                Foreground = new WpfSolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#B6C3CA"))
+                Foreground = Helpers.ThemeHelper.TextSecondary
             };
             Grid.SetColumn(labelBlock, 0);
             grid.Children.Add(labelBlock);
@@ -381,7 +381,7 @@ public partial class MetricsViewerWidget
                 Text = kvp.Value.ToString(),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = new WpfSolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#007ACC"))
+                Foreground = Helpers.ThemeHelper.Accent
             };
             Grid.SetColumn(countBlock, 1);
             grid.Children.Add(countBlock);
@@ -413,7 +413,7 @@ public partial class MetricsViewerWidget
             {
                 Width = Math.Max(2, cellW - 1),
                 Height = barH,
-                Fill = new WpfSolidColorBrush(WpfColor.FromArgb(intensity, 0x00, 0x7A, 0xCC)),
+                Fill = Helpers.ThemeHelper.BrushFrom(Helpers.ThemeHelper.AccentColor, intensity),
                 RadiusX = 1, RadiusY = 1,
                 ToolTip = $"{i:00}:00 — {val} events"
             };
@@ -424,7 +424,7 @@ public partial class MetricsViewerWidget
             // Hour label every 4 hours
             if (i % 4 == 0)
             {
-                var tb = new TextBlock { Text = $"{i}", FontSize = 7, Foreground = Brush("#6B7A85") };
+                var tb = new TextBlock { Text = $"{i}", FontSize = 7, Foreground = Helpers.ThemeHelper.TextTertiary };
                 Canvas.SetLeft(tb, 1 + i * cellW);
                 Canvas.SetTop(tb, barAreaH + 1);
                 HourlyHeatmapCanvas.Children.Add(tb);
@@ -446,7 +446,7 @@ public partial class MetricsViewerWidget
             SessionTimelinePanel.Children.Add(new TextBlock
             {
                 Text = "No sessions", FontSize = 10, FontStyle = FontStyles.Italic,
-                Foreground = Brush("#6B7A85")
+                Foreground = Helpers.ThemeHelper.TextTertiary
             });
             return;
         }
@@ -459,7 +459,7 @@ public partial class MetricsViewerWidget
 
             var border = new Border
             {
-                Background = new WpfSolidColorBrush(WpfColor.FromArgb(0x08, 0xF5, 0xF7, 0xFA)),
+                Background = Helpers.ThemeHelper.FaintOverlay,
                 CornerRadius = new CornerRadius(4),
                 Padding = new Thickness(6, 4, 6, 4),
                 Margin = new Thickness(0, 0, 0, 4)
@@ -476,7 +476,7 @@ public partial class MetricsViewerWidget
             {
                 Text = $"{startStr}  ({durStr})",
                 FontSize = 10, FontWeight = FontWeights.SemiBold,
-                Foreground = Brush("#F5F7FA")
+                Foreground = Helpers.ThemeHelper.TextPrimary
             };
             Grid.SetColumn(timeBlock, 0);
             headerGrid.Children.Add(timeBlock);
@@ -484,7 +484,7 @@ public partial class MetricsViewerWidget
             var evtBlock = new TextBlock
             {
                 Text = $"{sess.EventCount} events",
-                FontSize = 9, Foreground = Brush("#6B7A85")
+                FontSize = 9, Foreground = Helpers.ThemeHelper.TextTertiary
             };
             Grid.SetColumn(evtBlock, 1);
             headerGrid.Children.Add(evtBlock);
@@ -530,7 +530,7 @@ public partial class MetricsViewerWidget
             TrendSparklines.Children.Add(new TextBlock
             {
                 Text = "Not enough data", FontSize = 10, FontStyle = FontStyles.Italic,
-                Foreground = Brush("#6B7A85")
+                Foreground = Helpers.ThemeHelper.TextTertiary
             });
             return;
         }
@@ -538,10 +538,10 @@ public partial class MetricsViewerWidget
         // Show sparklines for key metrics
         var sparkMetrics = new (string Label, Func<DailyMetricsSummary, int> Sel, string Color)[]
         {
-            ("Searches", s => s.TotalSearches + s.TotalSmartSearches + s.TotalDocSearches + s.TotalPathSearches, "#42A5F5"),
-            ("Launches", s => s.TotalProjectLaunches, "#66BB6A"),
-            ("Sessions", s => s.SessionCount, "#FFA726"),
-            ("Duration", s => (int)(s.TotalSessionDurationMs / 60_000), "#AB47BC"),
+            ("Searches", s => s.TotalSearches + s.TotalSmartSearches + s.TotalDocSearches + s.TotalPathSearches, Palette[4]),
+            ("Launches", s => s.TotalProjectLaunches, Palette[1]),
+            ("Sessions", s => s.SessionCount, Palette[2]),
+            ("Duration", s => (int)(s.TotalSessionDurationMs / 60_000), Palette[3]),
         };
 
         foreach (var (label, sel, color) in sparkMetrics)
@@ -606,7 +606,7 @@ public partial class MetricsViewerWidget
             var totalTb = new TextBlock
             {
                 Text = total.ToString(), FontSize = 10, FontWeight = FontWeights.SemiBold,
-                Foreground = Brush("#F5F7FA"), VerticalAlignment = VerticalAlignment.Center,
+                Foreground = Helpers.ThemeHelper.TextPrimary, VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(6, 0, 0, 0)
             };
             Grid.SetColumn(totalTb, 2);
@@ -625,7 +625,7 @@ public partial class MetricsViewerWidget
             TopProjectsPanel.Children.Add(new TextBlock
             {
                 Text = "No project activity", FontSize = 10, FontStyle = FontStyles.Italic,
-                Foreground = Brush("#6B7A85")
+                Foreground = Helpers.ThemeHelper.TextTertiary
             });
             return;
         }
@@ -649,7 +649,7 @@ public partial class MetricsViewerWidget
             {
                 Text = proj.ProjectNumber,
                 FontSize = 10, FontWeight = FontWeights.SemiBold,
-                Foreground = Brush("#F5F7FA"),
+                Foreground = Helpers.ThemeHelper.TextPrimary,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 MaxWidth = 100,
                 VerticalAlignment = VerticalAlignment.Center
@@ -660,7 +660,7 @@ public partial class MetricsViewerWidget
             // Mini bar showing relative usage
             var barBg = new Border
             {
-                Background = new WpfSolidColorBrush(WpfColor.FromArgb(0x10, 0xF5, 0xF7, 0xFA)),
+                Background = Helpers.ThemeHelper.Hover,
                 CornerRadius = new CornerRadius(2),
                 Height = 6,
                 Margin = new Thickness(6, 0, 6, 0),
@@ -709,14 +709,14 @@ public partial class MetricsViewerWidget
 
         var featureData = new (string Label, int Value, string Color)[]
         {
-            ("Search", summary.TotalSearches, "#42A5F5"),
-            ("Smart", summary.TotalSmartSearches, "#26C6DA"),
-            ("Doc", summary.TotalDocSearches + summary.TotalDocOpens, "#5C6BC0"),
-            ("Path", summary.TotalPathSearches, "#78909C"),
-            ("Launches", summary.TotalProjectLaunches, "#66BB6A"),
-            ("Tasks", summary.TotalTasksCreated + summary.TotalTasksCompleted, "#AB47BC"),
-            ("Timer", summary.TotalTimerUses, "#FFA726"),
-            ("Quick Launch", summary.TotalQuickLaunchUses, "#FF7043"),
+            ("Search", summary.TotalSearches, Palette[4]),
+            ("Smart", summary.TotalSmartSearches, Palette[6]),
+            ("Doc", summary.TotalDocSearches + summary.TotalDocOpens, Palette[10]),
+            ("Path", summary.TotalPathSearches, Palette[9]),
+            ("Launches", summary.TotalProjectLaunches, Palette[1]),
+            ("Tasks", summary.TotalTasksCreated + summary.TotalTasksCompleted, Palette[3]),
+            ("Timer", summary.TotalTimerUses, Palette[2]),
+            ("Quick Launch", summary.TotalQuickLaunchUses, Palette[7]),
         };
 
         var slices = featureData.Where(f => f.Value > 0).ToList();
@@ -725,7 +725,7 @@ public partial class MetricsViewerWidget
             FeatureDonutLegend.Children.Add(new TextBlock
             {
                 Text = "No feature activity", FontSize = 10, FontStyle = FontStyles.Italic,
-                Foreground = Brush("#6B7A85")
+                Foreground = Helpers.ThemeHelper.TextTertiary
             });
             return;
         }
@@ -764,13 +764,14 @@ public partial class MetricsViewerWidget
 
         // Donut hole
         var holeR = r * 0.5;
-        var hole = new WpfEllipse { Width = holeR * 2, Height = holeR * 2, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(0xF0, 0x12, 0x12, 0x12)) };
+        var holeColor = Helpers.ThemeHelper.GetColor("WindowBackgroundColor");
+        var hole = new WpfEllipse { Width = holeR * 2, Height = holeR * 2, Fill = new WpfSolidColorBrush(WpfColor.FromArgb(0xF0, holeColor.R, holeColor.G, holeColor.B)) };
         Canvas.SetLeft(hole, cx - holeR);
         Canvas.SetTop(hole, cy - holeR);
         FeatureDonutCanvas.Children.Add(hole);
 
         // Center total
-        var totalTb = new TextBlock { Text = total.ToString(), FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brush("#F5F7FA") };
+        var totalTb = new TextBlock { Text = total.ToString(), FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Helpers.ThemeHelper.TextPrimary };
         totalTb.Measure(new WpfSize(double.PositiveInfinity, double.PositiveInfinity));
         Canvas.SetLeft(totalTb, cx - totalTb.DesiredSize.Width / 2);
         Canvas.SetTop(totalTb, cy - totalTb.DesiredSize.Height / 2);
@@ -781,7 +782,7 @@ public partial class MetricsViewerWidget
         {
             var legendRow = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 1) };
             legendRow.Children.Add(new WpfRectangle { Width = 8, Height = 8, Fill = Brush(color), RadiusX = 1, RadiusY = 1, Margin = new Thickness(0, 1, 4, 0) });
-            legendRow.Children.Add(new TextBlock { Text = $"{label} {value}", FontSize = 8, Foreground = Brush("#B6C3CA") });
+            legendRow.Children.Add(new TextBlock { Text = $"{label} {value}", FontSize = 8, Foreground = Helpers.ThemeHelper.TextSecondary });
             FeatureDonutLegend.Children.Add(legendRow);
         }
     }
@@ -795,7 +796,7 @@ public partial class MetricsViewerWidget
 
         if (transitions.Count == 0)
         {
-            var tb = new TextBlock { Text = "No flow data yet", FontSize = 10, FontStyle = FontStyles.Italic, Foreground = Brush("#6B7A85") };
+            var tb = new TextBlock { Text = "No flow data yet", FontSize = 10, FontStyle = FontStyles.Italic, Foreground = Helpers.ThemeHelper.TextTertiary };
             Canvas.SetLeft(tb, w / 2 - 30);
             Canvas.SetTop(tb, h / 2 - 6);
             ActivityFlowCanvas.Children.Add(tb);
@@ -857,7 +858,7 @@ public partial class MetricsViewerWidget
 
             // Short label
             var shortLabel = cats[i].Length > 6 ? cats[i][..6] : cats[i];
-            var labelTb = new TextBlock { Text = shortLabel, FontSize = 7, Foreground = Brush("#B6C3CA") };
+            var labelTb = new TextBlock { Text = shortLabel, FontSize = 7, Foreground = Helpers.ThemeHelper.TextSecondary };
             Canvas.SetLeft(labelTb, pos.X - 12);
             Canvas.SetTop(labelTb, pos.Y + nodeSize / 2 + 1);
             ActivityFlowCanvas.Children.Add(labelTb);
@@ -886,8 +887,8 @@ public partial class MetricsViewerWidget
         // Normalize to 0-100 (cap at 200 raw points = 100 score)
         var normalizedScore = Math.Min(100, (int)(score / 2));
         InsightScoreLabel.Text = normalizedScore.ToString();
-        InsightScoreLabel.Foreground = normalizedScore >= 70 ? Brush("#66BB6A")
-            : normalizedScore >= 40 ? Brush("#FFA726") : Brush("#EF5350");
+        InsightScoreLabel.Foreground = normalizedScore >= 70 ? Helpers.ThemeHelper.Green
+            : normalizedScore >= 40 ? Helpers.ThemeHelper.Orange : Helpers.ThemeHelper.Red;
 
         // Peak hour
         InsightPeakLabel.Text = hourly.PeakCount > 0 ? $"{hourly.PeakHour:00}:00" : "--";

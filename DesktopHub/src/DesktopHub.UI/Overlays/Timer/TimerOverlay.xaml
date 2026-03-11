@@ -13,19 +13,14 @@
         KeyDown="Window_KeyDown">
     
     <Border x:Name="RootBorder"
-            Background="#A8121212"
+            Background="{DynamicResource WindowBackgroundAlphaBrush}"
             CornerRadius="12"
-            BorderBrush="#3A2A2A2A"
+            BorderBrush="{DynamicResource WindowBorderBrush}"
             BorderThickness="1"
             >
         <Grid>
             <!-- Glass overlay effect -->
-            <Border Margin="2"
-                    CornerRadius="10"
-                    BorderThickness="1"
-                    BorderBrush="#33FFFFFF"
-                    Background="#14000000"
-                    IsHitTestVisible="False"/>
+            <Border Style="{StaticResource GlassOverlayBorder}"/>
             
             <!-- Content -->
             <Border Background="Transparent" Padding="18">
@@ -43,11 +38,11 @@
                 <TextBlock Text="⏱️ Timer"
                           FontSize="14"
                           FontWeight="SemiBold"
-                          Foreground="#F5F7FA"
+                          Foreground="{DynamicResource TextPrimaryBrush}"
                           VerticalAlignment="Center"/>
                 <Border HorizontalAlignment="Right"
-                        Background="#10F5F7FA"
-                        BorderBrush="#30F5F7FA"
+                        Background="{DynamicResource HoverBrush}"
+                        BorderBrush="{DynamicResource SelectedBrush}"
                         BorderThickness="1"
                         CornerRadius="4"
                         Cursor="Hand"
@@ -57,14 +52,14 @@
                         <Style TargetType="Border">
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#25F5F7FA"/>
+                                    <Setter Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
                     <TextBlock Text="✕"
                               FontSize="14"
-                              Foreground="#F5F7FA"
+                              Foreground="{DynamicResource TextPrimaryBrush}"
                               FontWeight="SemiBold"/>
                 </Border>
             </Grid>
@@ -78,8 +73,8 @@
                 
                 <Border x:Name="StopwatchButton"
                         Grid.Column="0"
-                        Background="#20007ACC"
-                        BorderBrush="#30007ACC"
+                        Background="{DynamicResource AccentLightBrush}"
+                        BorderBrush="{DynamicResource AccentLightBrush}"
                         BorderThickness="1"
                         CornerRadius="6"
                         Padding="10,8"
@@ -90,7 +85,7 @@
                         <Style TargetType="Border">
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#30007ACC"/>
+                                    <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
@@ -98,7 +93,7 @@
                     <TextBlock Text="Stopwatch"
                               FontSize="12"
                               FontWeight="Medium"
-                              Foreground="#F5F7FA"
+                              Foreground="{DynamicResource TextPrimaryBrush}"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Center"/>
                 </Border>
@@ -106,7 +101,7 @@
                 <Border x:Name="TimerButton"
                         Grid.Column="1"
                         Background="Transparent"
-                        BorderBrush="#30F5F7FA"
+                        BorderBrush="{DynamicResource SelectedBrush}"
                         BorderThickness="1"
                         CornerRadius="6"
                         Padding="10,8"
@@ -117,7 +112,7 @@
                         <Style TargetType="Border">
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#20F5F7FA"/>
+                                    <Setter Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
@@ -125,7 +120,7 @@
                     <TextBlock Text="Timer"
                               FontSize="12"
                               FontWeight="Medium"
-                              Foreground="#F5F7FA"
+                              Foreground="{DynamicResource TextPrimaryBrush}"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Center"/>
                 </Border>
@@ -133,8 +128,8 @@
             
             <!-- Time Display -->
             <Border Grid.Row="2"
-                    Background="#10007ACC"
-                    BorderBrush="#20007ACC"
+                    Background="{DynamicResource AccentLightBrush}"
+                    BorderBrush="{DynamicResource AccentLightBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="20,16"
@@ -143,7 +138,7 @@
                           Text="00:00:00"
                           FontSize="36"
                           FontWeight="Bold"
-                          Foreground="#F5F7FA"
+                          Foreground="{DynamicResource TextPrimaryBrush}"
                           HorizontalAlignment="Center"
                           VerticalAlignment="Center"/>
             </Border>
@@ -166,9 +161,9 @@
                         Text="0"
                         FontSize="18"
                         FontWeight="SemiBold"
-                        Background="#15F5F7FA"
-                        Foreground="#F5F7FA"
-                        BorderBrush="#30F5F7FA"
+                        Background="{DynamicResource HoverBrush}"
+                        Foreground="{DynamicResource TextPrimaryBrush}"
+                        BorderBrush="{DynamicResource SelectedBrush}"
                         BorderThickness="1"
                         Padding="10,8"
                         HorizontalContentAlignment="Center"
@@ -185,7 +180,7 @@
                           Text=":"
                           FontSize="18"
                           FontWeight="Bold"
-                          Foreground="#888888"
+                          Foreground="{DynamicResource TextSecondaryBrush}"
                           Margin="6,0"
                           VerticalAlignment="Center"/>
                 
@@ -194,9 +189,9 @@
                         Text="0"
                         FontSize="18"
                         FontWeight="SemiBold"
-                        Background="#15F5F7FA"
-                        Foreground="#F5F7FA"
-                        BorderBrush="#30F5F7FA"
+                        Background="{DynamicResource HoverBrush}"
+                        Foreground="{DynamicResource TextPrimaryBrush}"
+                        BorderBrush="{DynamicResource SelectedBrush}"
                         BorderThickness="1"
                         Padding="10,8"
                         HorizontalContentAlignment="Center"
@@ -213,7 +208,7 @@
                           Text=":"
                           FontSize="18"
                           FontWeight="Bold"
-                          Foreground="#888888"
+                          Foreground="{DynamicResource TextSecondaryBrush}"
                           Margin="6,0"
                           VerticalAlignment="Center"/>
                 
@@ -222,9 +217,9 @@
                         Text="0"
                         FontSize="18"
                         FontWeight="SemiBold"
-                        Background="#15F5F7FA"
-                        Foreground="#F5F7FA"
-                        BorderBrush="#30F5F7FA"
+                        Background="{DynamicResource HoverBrush}"
+                        Foreground="{DynamicResource TextPrimaryBrush}"
+                        BorderBrush="{DynamicResource SelectedBrush}"
                         BorderThickness="1"
                         Padding="10,8"
                         HorizontalContentAlignment="Center"
@@ -247,8 +242,8 @@
                 
                 <Border x:Name="StartPauseButton"
                         Grid.Column="0"
-                        Background="#30007ACC"
-                        BorderBrush="#40007ACC"
+                        Background="{DynamicResource AccentLightBrush}"
+                        BorderBrush="{DynamicResource AccentLightBrush}"
                         BorderThickness="1"
                         CornerRadius="6"
                         Padding="14,10"
@@ -259,7 +254,7 @@
                         <Style TargetType="Border">
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#45007ACC"/>
+                                    <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
@@ -268,15 +263,15 @@
                               Text="Start"
                               FontSize="13"
                               FontWeight="SemiBold"
-                              Foreground="#F5F7FA"
+                              Foreground="{DynamicResource TextPrimaryBrush}"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Center"/>
                 </Border>
                 
                 <Border x:Name="ResetButton"
                         Grid.Column="1"
-                        Background="#15F5F7FA"
-                        BorderBrush="#30F5F7FA"
+                        Background="{DynamicResource HoverBrush}"
+                        BorderBrush="{DynamicResource SelectedBrush}"
                         BorderThickness="1"
                         CornerRadius="6"
                         Padding="14,10"
@@ -287,7 +282,7 @@
                         <Style TargetType="Border">
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#30F5F7FA"/>
+                                    <Setter Property="Background" Value="{DynamicResource SelectedBrush}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
@@ -295,7 +290,7 @@
                     <TextBlock Text="Reset"
                               FontSize="13"
                               FontWeight="SemiBold"
-                              Foreground="#F5F7FA"
+                              Foreground="{DynamicResource TextPrimaryBrush}"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Center"/>
                 </Border>
@@ -306,7 +301,7 @@
             <!-- Update available indicator -->
             <Ellipse x:Name="UpdateIndicator"
                      Width="10" Height="10"
-                     Fill="#4CAF50"
+                     Fill="{DynamicResource GreenBrush}"
                      HorizontalAlignment="Right"
                      VerticalAlignment="Bottom"
                      Margin="0,0,8,8"

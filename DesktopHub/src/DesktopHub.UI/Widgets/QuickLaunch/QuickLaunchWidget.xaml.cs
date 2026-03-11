@@ -105,7 +105,7 @@ public partial class QuickLaunchWidget : System.Windows.Controls.UserControl
             Text = item.Name,
             FontSize = 12,
             FontWeight = FontWeights.SemiBold,
-            Foreground = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#F5F7FA")),
+            Foreground = Helpers.ThemeHelper.TextPrimary,
             TextTrimming = TextTrimming.CharacterEllipsis
         };
 
@@ -113,7 +113,7 @@ public partial class QuickLaunchWidget : System.Windows.Controls.UserControl
         {
             Text = item.Path,
             FontSize = 10,
-            Foreground = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#B6C3CA")),
+            Foreground = Helpers.ThemeHelper.TextSecondary,
             TextTrimming = TextTrimming.CharacterEllipsis
         };
 
@@ -134,12 +134,12 @@ public partial class QuickLaunchWidget : System.Windows.Controls.UserControl
             {
                 Text = "\u2715",
                 FontSize = 10,
-                Foreground = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#90F5F7FA"))
+                Foreground = Helpers.ThemeHelper.TextSecondary
             }
         };
         deleteBtn.MouseEnter += (s, _) =>
         {
-            if (s is Border b) b.Background = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#30FF5252"));
+            if (s is Border b) b.Background = Helpers.ThemeHelper.RedBackground;
         };
         deleteBtn.MouseLeave += (s, _) =>
         {
@@ -163,8 +163,8 @@ public partial class QuickLaunchWidget : System.Windows.Controls.UserControl
 
         var tile = new Border
         {
-            Background = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#2AF5F7FA")),
-            BorderBrush = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#40FFFFFF")),
+            Background = Helpers.ThemeHelper.HoverMedium,
+            BorderBrush = Helpers.ThemeHelper.ScrollbarThumb,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(10, 8, 10, 8),
@@ -178,11 +178,11 @@ public partial class QuickLaunchWidget : System.Windows.Controls.UserControl
         tile.MouseLeftButtonDown += Tile_Click;
         tile.MouseEnter += (s, _) =>
         {
-            if (s is Border b) b.Background = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#3AF5F7FA"));
+            if (s is Border b) b.Background = Helpers.ThemeHelper.Selected;
         };
         tile.MouseLeave += (s, _) =>
         {
-            if (s is Border b) b.Background = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#2AF5F7FA"));
+            if (s is Border b) b.Background = Helpers.ThemeHelper.HoverMedium;
         };
 
         return tile;
@@ -204,7 +204,7 @@ public partial class QuickLaunchWidget : System.Windows.Controls.UserControl
         {
             Text = item.Name,
             FontSize = 10,
-            Foreground = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#E0F5F7FA")),
+            Foreground = Helpers.ThemeHelper.TextPrimary,
             TextTrimming = TextTrimming.CharacterEllipsis,
             TextWrapping = TextWrapping.Wrap,
             MaxHeight = 28,
@@ -222,8 +222,8 @@ public partial class QuickLaunchWidget : System.Windows.Controls.UserControl
 
         var tile = new Border
         {
-            Background = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#2AF5F7FA")),
-            BorderBrush = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#40FFFFFF")),
+            Background = Helpers.ThemeHelper.HoverMedium,
+            BorderBrush = Helpers.ThemeHelper.ScrollbarThumb,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(10),
             Width = HorizontalTileWidth,
@@ -239,11 +239,11 @@ public partial class QuickLaunchWidget : System.Windows.Controls.UserControl
         tile.MouseLeftButtonDown += Tile_Click;
         tile.MouseEnter += (s, _) =>
         {
-            if (s is Border b) b.Background = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#3AF5F7FA"));
+            if (s is Border b) b.Background = Helpers.ThemeHelper.Selected;
         };
         tile.MouseLeave += (s, _) =>
         {
-            if (s is Border b) b.Background = new SolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString("#2AF5F7FA"));
+            if (s is Border b) b.Background = Helpers.ThemeHelper.HoverMedium;
         };
 
         return tile;

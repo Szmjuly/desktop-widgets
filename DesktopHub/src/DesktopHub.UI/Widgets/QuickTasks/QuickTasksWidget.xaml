@@ -4,15 +4,7 @@
              HorizontalAlignment="Stretch">
     
     <UserControl.Resources>
-        <!-- Priority dot colors -->
-        <SolidColorBrush x:Key="HighPriorityBrush" Color="#FF5252"/>
-        <SolidColorBrush x:Key="NormalPriorityBrush" Color="#B0BEC5"/>
-        <SolidColorBrush x:Key="LowPriorityBrush" Color="#546E7A"/>
-        <SolidColorBrush x:Key="AccentBrush" Color="#4FC3F7"/>
-        <SolidColorBrush x:Key="TextBrush" Color="#F5F7FA"/>
-        <SolidColorBrush x:Key="DimTextBrush" Color="#90A4AE"/>
-        <SolidColorBrush x:Key="SurfaceBrush" Color="#10F5F7FA"/>
-        <SolidColorBrush x:Key="HoverBrush" Color="#20F5F7FA"/>
+        <SolidColorBrush x:Key="DimTextBrush" Color="{DynamicResource TextSecondaryColor}"/>
     </UserControl.Resources>
     
     <Grid>
@@ -28,13 +20,13 @@
                           Text="Quick Tasks"
                           FontSize="14"
                           FontWeight="SemiBold"
-                          Foreground="{StaticResource TextBrush}"/>
+                          Foreground="{DynamicResource TextBrush}"/>
                 
                 <TextBlock x:Name="DateLabel"
                           Grid.Column="1"
                           Text="Feb 9, 2026"
                           FontSize="11"
-                          Foreground="{StaticResource DimTextBrush}"
+                          Foreground="{DynamicResource DimTextBrush}"
                           VerticalAlignment="Center"
                           Cursor="Hand"
                           MouseLeftButtonDown="DateLabel_Click"
@@ -43,7 +35,7 @@
                         <Style TargetType="TextBlock">
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
@@ -73,12 +65,12 @@
                         <Style TargetType="Border">
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                    <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
-                    <TextBlock Text="&lt;" FontSize="12" FontWeight="Bold" Foreground="{StaticResource DimTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="&lt;" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource DimTextBrush}" VerticalAlignment="Center"/>
                 </Border>
                 
                 <!-- Today Button -->
@@ -94,12 +86,12 @@
                         <Style TargetType="Border">
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                    <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
-                    <TextBlock x:Name="TodayButtonText" Text="Today" FontSize="10" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="TodayButtonText" Text="Today" FontSize="10" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                 </Border>
                 
                 <!-- Next Day -->
@@ -114,12 +106,12 @@
                         <Style TargetType="Border">
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                    <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
-                    <TextBlock Text="&gt;" FontSize="12" FontWeight="Bold" Foreground="{StaticResource DimTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="&gt;" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource DimTextBrush}" VerticalAlignment="Center"/>
                 </Border>
                 
                 <!-- Spacer -->
@@ -128,8 +120,8 @@
                 <!-- Add Task Button -->
                 <Border Grid.Column="4"
                         x:Name="AddTaskButton"
-                        Background="{StaticResource SurfaceBrush}"
-                        BorderBrush="#30F5F7FA"
+                        Background="{DynamicResource SurfaceBrush}"
+                        BorderBrush="{DynamicResource SelectedBrush}"
                         BorderThickness="1"
                         CornerRadius="4"
                         Padding="10,4"
@@ -139,19 +131,19 @@
                         <Style TargetType="Border">
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                    <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
-                    <TextBlock Text="+ Add Task" FontSize="11" Foreground="{StaticResource AccentBrush}"/>
+                    <TextBlock Text="+ Add Task" FontSize="11" Foreground="{DynamicResource AccentBrush}"/>
                 </Border>
             </Grid>
             
             <!-- New Task Input (hidden by default) -->
             <Border x:Name="NewTaskPanel"
                     Visibility="Collapsed"
-                    Background="{StaticResource SurfaceBrush}"
+                    Background="{DynamicResource SurfaceBrush}"
                     CornerRadius="6"
                     Padding="10,8"
                     Margin="0,0,0,8">
@@ -165,8 +157,8 @@
                             Grid.Column="0"
                             Background="Transparent"
                             BorderThickness="0"
-                            Foreground="{StaticResource TextBrush}"
-                            CaretBrush="{StaticResource TextBrush}"
+                            Foreground="{DynamicResource TextBrush}"
+                            CaretBrush="{DynamicResource TextBrush}"
                             FontSize="12"
                             VerticalAlignment="Center"
                             KeyDown="NewTaskInput_KeyDown"
@@ -180,7 +172,7 @@
                                                 <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
                                                 <TextBlock x:Name="Placeholder"
                                                           Text="Type a task and press Enter..."
-                                                          Foreground="#60F5F7FA"
+                                                          Foreground="{DynamicResource TextPlaceholderBrush}"
                                                           FontSize="12"
                                                           VerticalAlignment="Center"
                                                           IsHitTestVisible="False"
@@ -201,7 +193,7 @@
                     <TextBlock Grid.Column="1"
                               Text="ESC to cancel"
                               FontSize="9"
-                              Foreground="#40F5F7FA"
+                              Foreground="{DynamicResource TextTertiaryBrush}"
                               VerticalAlignment="Center"
                               Margin="8,0,0,0"/>
                 </Grid>
@@ -226,11 +218,11 @@
                 <StackPanel HorizontalAlignment="Center">
                     <TextBlock Text="No tasks for this day"
                               FontSize="12"
-                              Foreground="#40F5F7FA"
+                              Foreground="{DynamicResource TextTertiaryBrush}"
                               HorizontalAlignment="Center"/>
                     <TextBlock Text="Click '+ Add Task' to get started"
                               FontSize="10"
-                              Foreground="#30F5F7FA"
+                              Foreground="{DynamicResource TextTertiaryBrush}"
                               HorizontalAlignment="Center"
                               Margin="0,4,0,0"/>
                 </StackPanel>
@@ -238,7 +230,7 @@
             
             <!-- Footer: Counts + Search -->
             <Border Margin="0,10,0,0"
-                    BorderBrush="#15F5F7FA"
+                    BorderBrush="{DynamicResource BorderSubtleBrush}"
                     BorderThickness="0,1,0,0"
                     Padding="0,8,0,0">
                 <Grid>
@@ -251,7 +243,7 @@
                               Grid.Column="0"
                               Text="0 active"
                               FontSize="10"
-                              Foreground="#50F5F7FA"
+                              Foreground="{DynamicResource TextTertiaryBrush}"
                               VerticalAlignment="Center"/>
                     
                     <!-- Search Toggle -->
@@ -266,7 +258,7 @@
                             <Style TargetType="Border">
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                        <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
@@ -279,15 +271,15 @@
             <!-- Search Panel (hidden by default) -->
             <Border x:Name="SearchPanel"
                     Visibility="Collapsed"
-                    Background="{StaticResource SurfaceBrush}"
+                    Background="{DynamicResource SurfaceBrush}"
                     CornerRadius="6"
                     Padding="10,8"
                     Margin="0,6,0,0">
                 <TextBox x:Name="SearchInput"
                         Background="Transparent"
                         BorderThickness="0"
-                        Foreground="{StaticResource TextBrush}"
-                        CaretBrush="{StaticResource TextBrush}"
+                        Foreground="{DynamicResource TextBrush}"
+                        CaretBrush="{DynamicResource TextBrush}"
                         FontSize="11"
                         TextChanged="SearchInput_TextChanged"
                         KeyDown="SearchInput_KeyDown">
@@ -300,7 +292,7 @@
                                             <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
                                             <TextBlock x:Name="Placeholder"
                                                       Text="Search all tasks..."
-                                                      Foreground="#60F5F7FA"
+                                                      Foreground="{DynamicResource TextPlaceholderBrush}"
                                                       FontSize="11"
                                                       VerticalAlignment="Center"
                                                       IsHitTestVisible="False"
