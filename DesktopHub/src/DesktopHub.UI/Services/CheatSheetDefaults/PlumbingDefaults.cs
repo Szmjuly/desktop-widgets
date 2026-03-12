@@ -13,6 +13,7 @@ internal static partial class CheatSheetPlumbingDefaults
     {
         AddCoreTables(store);
         AddWaterMeterTable(store); // in PlumbingDefaults.WaterMeter.cs
+        AddHydraulicCalcSheets(store); // in PlumbingDefaults.HydraulicCalc.cs
     }
 
     private static void AddCoreTables(CheatSheetDataStore store)
@@ -249,6 +250,40 @@ internal static partial class CheatSheetPlumbingDefaults
                 new() { "10", "2,500", "1,000", "3,800", "5,600" },
                 new() { "12", "3,900", "1,500", "6,000", "8,400" },
                 new() { "15", "7,000", "Note c", "Note c", "Note c" }
+            },
+            Steps = new List<GuideStep>
+            {
+                new()
+                {
+                    Number = 1, Title = "Count DFU", Icon = "\U0001F4CA",
+                    Description = "Sum drainage fixture units for the pipe section.",
+                    Fields = new List<StepField>
+                    {
+                        new() { Id = "hb_dfu", Label = "Total DFU", Unit = "d.f.u.", Default = "20", Hint = "Sum from Table 709.1" }
+                    },
+                    Tip = "Use the \"Drainage Fixture Units\" sheet for per-fixture DFU values.",
+                    Reference = "dfu-fixtures-groups"
+                },
+                new()
+                {
+                    Number = 2, Title = "Select Pipe Type", Icon = "\U0001F527",
+                    Description = "Choose which column applies to your installation.",
+                    Fields = new List<StepField>
+                    {
+                        new() { Id = "hb_type", Label = "Pipe Type", Hint = "Horizontal Branch, 1 Interval, Stack \u22643, or Stack >3" }
+                    },
+                    Tip = "Horizontal Branch = lateral pipe from fixtures. Stack = vertical riser. Branch Interval = floor-to-floor distance on a stack."
+                },
+                new()
+                {
+                    Number = 3, Title = "Read Minimum Pipe Size", Icon = "\u2705",
+                    Description = "Find the smallest pipe whose DFU capacity \u2265 your total.",
+                    Fields = new List<StepField>
+                    {
+                        new() { Id = "hb_result", Label = "Min. Pipe Diameter", Unit = "in", Hint = "From table above" }
+                    },
+                    Tip = "Example: 20 DFU on a horizontal branch \u2192 3\" pipe (capacity 20 DFU). Always round up to the next available size."
+                }
             }
         });
 
@@ -305,6 +340,51 @@ internal static partial class CheatSheetPlumbingDefaults
                 new() { "WC, private (>1.6 gpf)", "4", "Per outlet" },
                 new() { "WC, public (1.6 gpf)", "4", "Per outlet" },
                 new() { "WC, public (>1.6 gpf)", "6", "Per outlet" }
+            },
+            Steps = new List<GuideStep>
+            {
+                new()
+                {
+                    Number = 1, Title = "List Fixtures", Icon = "\U0001F4CB",
+                    Description = "Count each plumbing fixture type in your project.",
+                    Fields = new List<StepField>
+                    {
+                        new() { Id = "df_wc", Label = "Water Closets (1.6 gpf)", Default = "4", Hint = "Private = 3 DFU each" },
+                        new() { Id = "df_lav", Label = "Lavatories", Default = "4", Hint = "1 DFU each" },
+                        new() { Id = "df_shower", Label = "Showers (\u22645.7 gpm)", Default = "2", Hint = "2 DFU each" },
+                        new() { Id = "df_tub", Label = "Bathtubs", Default = "2", Hint = "2 DFU each" },
+                        new() { Id = "df_ksink", Label = "Kitchen Sinks", Default = "1", Hint = "2 DFU each" },
+                        new() { Id = "df_dw", Label = "Dishwashers", Default = "1", Hint = "2 DFU each" },
+                        new() { Id = "df_cw", Label = "Clothes Washers", Default = "1", Hint = "2 DFU each (residential)" }
+                    }
+                },
+                new()
+                {
+                    Number = 2, Title = "Calculate Total DFU", Icon = "\U0001F4CA",
+                    Description = "Multiply counts by DFU values and sum.",
+                    Fields = new List<StepField>
+                    {
+                        new() { Id = "df_wc_total", Label = "WC DFU", Unit = "d.f.u.", IsOutput = true, Formula = "{df_wc} * 3" },
+                        new() { Id = "df_lav_total", Label = "Lav DFU", Unit = "d.f.u.", IsOutput = true, Formula = "{df_lav} * 1" },
+                        new() { Id = "df_shower_total", Label = "Shower DFU", Unit = "d.f.u.", IsOutput = true, Formula = "{df_shower} * 2" },
+                        new() { Id = "df_tub_total", Label = "Tub DFU", Unit = "d.f.u.", IsOutput = true, Formula = "{df_tub} * 2" },
+                        new() { Id = "df_ksink_total", Label = "K. Sink DFU", Unit = "d.f.u.", IsOutput = true, Formula = "{df_ksink} * 2" },
+                        new() { Id = "df_dw_total", Label = "DW DFU", Unit = "d.f.u.", IsOutput = true, Formula = "{df_dw} * 2" },
+                        new() { Id = "df_cw_total", Label = "CW DFU", Unit = "d.f.u.", IsOutput = true, Formula = "{df_cw} * 2" }
+                    }
+                },
+                new()
+                {
+                    Number = 3, Title = "Total DFU", Icon = "\u2705",
+                    Description = "Sum all fixture DFU values.",
+                    Fields = new List<StepField>
+                    {
+                        new() { Id = "df_grand_total", Label = "TOTAL DFU", Unit = "d.f.u.", IsOutput = true,
+                                Formula = "{df_wc_total} + {df_lav_total} + {df_shower_total} + {df_tub_total} + {df_ksink_total} + {df_dw_total} + {df_cw_total}" }
+                    },
+                    Tip = "Use this total with the Building Drains table or Horizontal Branches table to size your pipes.",
+                    Reference = "horizontal-branches-stacks"
+                }
             }
         });
     }

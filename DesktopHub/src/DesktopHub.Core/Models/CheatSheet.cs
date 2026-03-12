@@ -94,6 +94,48 @@ public class CheatSheet
 
     /// <summary>Free-form content for Note type sheets.</summary>
     public string? NoteContent { get; set; }
+
+    /// <summary>Structured step-by-step guide data. When populated, enables Interactive and Visual rendering modes.</summary>
+    public List<GuideStep> Steps { get; set; } = new();
+}
+
+/// <summary>
+/// A single field (input or computed output) within a guide step.
+/// </summary>
+public class StepField
+{
+    /// <summary>Unique identifier used in formula references, e.g. "height".</summary>
+    public string Id { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
+    /// <summary>Display unit, e.g. "PSI", "ft", "gpm".</summary>
+    public string? Unit { get; set; }
+    /// <summary>Default value pre-filled in Interactive mode.</summary>
+    public string? Default { get; set; }
+    /// <summary>Placeholder / helper text shown in the input.</summary>
+    public string? Hint { get; set; }
+    /// <summary>True = computed output; false = user input.</summary>
+    public bool IsOutput { get; set; }
+    /// <summary>Math formula referencing other field IDs, e.g. "{height} / 2.31". Only for outputs.</summary>
+    public string? Formula { get; set; }
+    /// <summary>"positive-negative" to color green when ≥ 0, red when &lt; 0.</summary>
+    public string? Highlight { get; set; }
+}
+
+/// <summary>
+/// One step in a structured step-by-step guide (used by Interactive and Visual rendering modes).
+/// </summary>
+public class GuideStep
+{
+    public int Number { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public List<StepField> Fields { get; set; } = new();
+    /// <summary>Practical tip or rule-of-thumb shown in a callout.</summary>
+    public string? Tip { get; set; }
+    /// <summary>Sheet Id to link to (e.g. "wsfu-to-gpm-demand").</summary>
+    public string? Reference { get; set; }
+    /// <summary>Emoji or icon key for Visual mode.</summary>
+    public string? Icon { get; set; }
 }
 
 /// <summary>

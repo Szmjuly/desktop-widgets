@@ -382,8 +382,11 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         TableModePanel.Visibility = Visibility.Collapsed;
         TableView.Visibility = Visibility.Collapsed;
         NoteView.Visibility = Visibility.Collapsed;
+        NoteInteractivePanel.Visibility = Visibility.Collapsed;
+        NoteVisualPanel.Visibility = Visibility.Collapsed;
         OutputPanel.Visibility = Visibility.Collapsed;
         ViewModeToggle.Visibility = Visibility.Collapsed;
+        NoteModeTabs.Visibility = Visibility.Collapsed;
 
         _inputTextBoxes.Clear();
         _inputCombos.Clear();
@@ -391,6 +394,26 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         OutputFields.Children.Clear();
         _selectedVoltageHeader = null;
         _lastOutputText = null;
+        _noteMode = NoteMode.Text;
+
+        // Show Steps mode tabs for any sheet type that has structured steps
+        var hasSteps = _activeSheet.Steps != null && _activeSheet.Steps.Count > 0;
+        if (hasSteps)
+        {
+            NoteModeTabs.Visibility = Visibility.Visible;
+            NoteTabTextLabel.Text = _activeSheet.SheetType == CheatSheetType.Note ? "Text" : "Table";
+            var accent = FindResource("AccentBrush") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.DodgerBlue;
+            var surface = FindResource("SurfaceBrush") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.Transparent;
+            var textSec = FindResource("TextSecondaryBrush") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.Gray;
+            NoteTabText.Background = accent;
+            NoteTabTextLabel.Foreground = System.Windows.Media.Brushes.White;
+            NoteTabInteractive.Background = surface;
+            NoteTabInteractiveLabel.Foreground = textSec;
+            NoteTabVisual.Background = surface;
+            NoteTabVisualLabel.Foreground = textSec;
+            NoteInteractivePanel.Children.Clear();
+            NoteVisualPanel.Children.Clear();
+        }
 
         switch (_activeSheet.SheetType)
         {

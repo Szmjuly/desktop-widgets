@@ -170,7 +170,50 @@ internal static class CheatSheetMechanicalDefaults
                           "except where loads are incorporated into HVAC design.\n\n" +
                           "Also required above all appliances producing products of combustion that don't produce grease/smoke.\n\n" +
                           "Spaces with appliances not requiring Type II hoods: exhaust at 0.70 cfm/ft\u00b2. " +
-                          "Each appliance not under a hood = minimum 100 ft\u00b2 at 0.70 cfm/ft\u00b2."
+                          "Each appliance not under a hood = minimum 100 ft\u00b2 at 0.70 cfm/ft\u00b2.",
+            Steps = new List<GuideStep>
+            {
+                new()
+                {
+                    Number = 1, Title = "Identify Appliance", Icon = "\U0001F373",
+                    Description = "What type of cooking/heat-producing appliance is being installed?",
+                    Fields = new List<StepField>
+                    {
+                        new() { Id = "hood_appliance", Label = "Appliance Type", Hint = "Cooking (grease/smoke), dishwasher, heat/moisture only, etc." }
+                    }
+                },
+                new()
+                {
+                    Number = 2, Title = "Grease or Smoke?", Icon = "\U0001F32B",
+                    Description = "Does the appliance produce grease or smoke?",
+                    Fields = new List<StepField>
+                    {
+                        new() { Id = "hood_grease", Label = "Produces Grease/Smoke?", Hint = "Yes = Type I required, No = check Step 3" }
+                    },
+                    Tip = "TYPE I required for medium-duty, heavy-duty, and extra-heavy-duty cooking. Exception: electric appliances \u22645 mg/m\u00b3 grease (UL 710B at 500 cfm)."
+                },
+                new()
+                {
+                    Number = 3, Title = "Heat or Moisture?", Icon = "\U0001F4A8",
+                    Description = "Does the appliance produce heat, moisture, or products of combustion (but NOT grease)?",
+                    Fields = new List<StepField>
+                    {
+                        new() { Id = "hood_heat", Label = "Produces Heat/Moisture?", Hint = "Yes = Type II required (unless HVAC handles loads)" }
+                    },
+                    Tip = "TYPE II required above dishwashers and heat/moisture appliances \u2014 UNLESS loads are incorporated into HVAC system design."
+                },
+                new()
+                {
+                    Number = 4, Title = "No Hood Required?", Icon = "\u2705",
+                    Description = "If no hood is required, calculate the exhaust for the space.",
+                    Fields = new List<StepField>
+                    {
+                        new() { Id = "hood_area", Label = "Floor Area", Unit = "ft\u00b2", Default = "100", Hint = "Per appliance, min 100 ft\u00b2" },
+                        new() { Id = "hood_exhaust", Label = "Exhaust Required", Unit = "cfm", IsOutput = true, Formula = "{hood_area} * 0.70" }
+                    },
+                    Tip = "Spaces with appliances not under a hood: exhaust at 0.70 cfm/ft\u00b2. Minimum 100 ft\u00b2 per appliance."
+                }
+            }
         });
 
         // Local Exhaust R-2/R-3/R-4 (Table 403.3.2.3)
@@ -304,6 +347,54 @@ internal static class CheatSheetMechanicalDefaults
                 new() { "Workrooms \u2014 Darkrooms", "\u2014", "\u2014", "\u2014", "1.0" },
                 new() { "Workrooms \u2014 Pharmacy (prep. area)", "10", "5", "0.18", "\u2014" },
                 new() { "Workrooms \u2014 Photo studios", "10", "5", "0.12", "\u2014" }
+            },
+            Steps = new List<GuideStep>
+            {
+                new()
+                {
+                    Number = 1, Title = "Select Occupancy", Icon = "\U0001F3E2",
+                    Description = "Find your space type in the table above and note the Rp, Ra, and Density values.",
+                    Fields = new List<StepField>
+                    {
+                        new() { Id = "vr_rp", Label = "Rp (per person)", Unit = "cfm", Default = "5", Hint = "From table \u2014 outdoor air per person" },
+                        new() { Id = "vr_ra", Label = "Ra (per area)", Unit = "cfm/ft\u00b2", Default = "0.06", Hint = "From table \u2014 outdoor air per ft\u00b2" },
+                        new() { Id = "vr_density", Label = "Default Density", Unit = "#/1000ft\u00b2", Default = "5", Hint = "From table \u2014 people per 1000 ft\u00b2" }
+                    },
+                    Tip = "Common: Office = Rp 5, Ra 0.06, Density 5. Classroom (9+) = Rp 10, Ra 0.12, Density 35."
+                },
+                new()
+                {
+                    Number = 2, Title = "Enter Space Info", Icon = "\U0001F4CF",
+                    Description = "Enter the actual floor area and expected number of occupants.",
+                    Fields = new List<StepField>
+                    {
+                        new() { Id = "vr_area", Label = "Floor Area", Unit = "ft\u00b2", Default = "1000" },
+                        new() { Id = "vr_people", Label = "Expected Occupants", Default = "5", Hint = "Or use: Area \u00f7 1000 \u00d7 Density" }
+                    }
+                },
+                new()
+                {
+                    Number = 3, Title = "Calculate OA", Icon = "\U0001F4A8",
+                    Description = "Compute outdoor air requirement using the Ventilation Rate Procedure.",
+                    Fields = new List<StepField>
+                    {
+                        new() { Id = "vr_people_oa", Label = "People OA (Rp \u00d7 people)", Unit = "cfm", IsOutput = true, Formula = "{vr_rp} * {vr_people}" },
+                        new() { Id = "vr_area_oa", Label = "Area OA (Ra \u00d7 area)", Unit = "cfm", IsOutput = true, Formula = "{vr_ra} * {vr_area}" },
+                        new() { Id = "vr_total_oa", Label = "TOTAL OUTDOOR AIR", Unit = "cfm", IsOutput = true, Formula = "{vr_people_oa} + {vr_area_oa}" }
+                    },
+                    Tip = "Total OA = (Rp \u00d7 people) + (Ra \u00d7 area). This is the breathing zone outdoor airflow (Vbz)."
+                },
+                new()
+                {
+                    Number = 4, Title = "Check Exhaust", Icon = "\u26A1",
+                    Description = "Some spaces also require exhaust. Check the Exhaust column in the table.",
+                    Fields = new List<StepField>
+                    {
+                        new() { Id = "vr_exhaust_rate", Label = "Exhaust Rate", Unit = "cfm/ft\u00b2", Default = "0", Hint = "From table \u2014 0 if dash" },
+                        new() { Id = "vr_exhaust", Label = "Exhaust Required", Unit = "cfm", IsOutput = true, Formula = "{vr_exhaust_rate} * {vr_area}" }
+                    },
+                    Tip = "Exhaust-only spaces (kitchens, toilets, parking) may not have Rp/Ra values \u2014 use exhaust rate \u00d7 area instead."
+                }
             }
         });
     }

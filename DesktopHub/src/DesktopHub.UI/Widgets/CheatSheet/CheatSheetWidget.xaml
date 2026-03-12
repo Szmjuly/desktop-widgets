@@ -411,6 +411,7 @@
             <Grid x:Name="SheetDetailPanel" Visibility="Collapsed">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
@@ -489,8 +490,35 @@
                     </Border>
                 </Grid>
                 
-                <!-- Row 1: Main content area (mode-dependent) -->
-                <ScrollViewer Grid.Row="1"
+                <!-- Row 1: Steps mode tabs (visible when any sheet has Steps) -->
+                <Border x:Name="NoteModeTabs" Grid.Row="1" Visibility="Collapsed" Margin="0,0,0,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border x:Name="NoteTabText" Grid.Column="0" Background="{DynamicResource AccentBrush}" CornerRadius="4,0,0,4"
+                                Padding="8,5" Cursor="Hand" MouseLeftButtonDown="NoteTabText_Click">
+                            <TextBlock x:Name="NoteTabTextLabel" Text="Table" FontSize="10" FontWeight="SemiBold" Foreground="White"
+                                      HorizontalAlignment="Center"/>
+                        </Border>
+                        <Border x:Name="NoteTabInteractive" Grid.Column="1" Background="{DynamicResource SurfaceBrush}"
+                                Padding="8,5" Cursor="Hand" MouseLeftButtonDown="NoteTabInteractive_Click"
+                                BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,1,0,1">
+                            <TextBlock x:Name="NoteTabInteractiveLabel" Text="Interactive" FontSize="10" FontWeight="SemiBold"
+                                      Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                        </Border>
+                        <Border x:Name="NoteTabVisual" Grid.Column="2" Background="{DynamicResource SurfaceBrush}" CornerRadius="0,4,4,0"
+                                Padding="8,5" Cursor="Hand" MouseLeftButtonDown="NoteTabVisual_Click">
+                            <TextBlock x:Name="NoteTabVisualLabel" Text="Visual" FontSize="10" FontWeight="SemiBold"
+                                      Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                </Border>
+                
+                <!-- Row 2: Main content area (mode-dependent) -->
+                <ScrollViewer Grid.Row="2"
                              x:Name="DetailScroller"
                              VerticalScrollBarVisibility="Hidden"
                              HorizontalScrollBarVisibility="Disabled">
@@ -753,7 +781,7 @@
                                 <RowDefinition Height="*"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-                            <Border Grid.Row="0"
+                            <Border x:Name="NoteTextPanel" Grid.Row="0"
                                     Background="{DynamicResource SurfaceBrush}"
                                     CornerRadius="6"
                                     Padding="12,10"
@@ -784,11 +812,17 @@
                                 <TextBlock x:Name="CopyNoteLabel" Text="&#128203; Copy" FontSize="11" Foreground="{DynamicResource AccentBrush}"/>
                             </Border>
                         </Grid>
+                        
+                        <!-- INTERACTIVE MODE (Steps-based, works with any sheet type) -->
+                        <StackPanel x:Name="NoteInteractivePanel" Visibility="Collapsed"/>
+                        
+                        <!-- VISUAL MODE (Steps-based, works with any sheet type) -->
+                        <StackPanel x:Name="NoteVisualPanel" Visibility="Collapsed"/>
                     </Grid>
                 </ScrollViewer>
 
-                <!-- Row 2: Footer -->
-                <Border Grid.Row="2"
+                <!-- Row 3: Footer -->
+                <Border Grid.Row="3"
                         Margin="0,6,0,0"
                         BorderBrush="{DynamicResource BorderSubtleBrush}"
                         BorderThickness="0,1,0,0"

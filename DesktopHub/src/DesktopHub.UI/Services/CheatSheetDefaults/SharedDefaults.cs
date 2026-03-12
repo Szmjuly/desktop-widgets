@@ -15,6 +15,9 @@ internal static class CheatSheetSharedDefaults
         store.CodeBooks.Add(new CodeBook { Id = "ipc2021", Name = "IPC", Edition = "2021", Year = 2021, Discipline = Discipline.Plumbing });
         store.CodeBooks.Add(new CodeBook { Id = "fmc2023", Name = "FMC", Edition = "2023", Year = 2023, Discipline = Discipline.Mechanical });
         store.CodeBooks.Add(new CodeBook { Id = "fbc-energy-2023", Name = "FBC Energy", Edition = "2023", Year = 2023, Discipline = Discipline.Electrical });
+        store.CodeBooks.Add(new CodeBook { Id = "nfpa13-2022", Name = "NFPA 13", Edition = "2022", Year = 2022, Discipline = Discipline.FireProtection });
+        store.CodeBooks.Add(new CodeBook { Id = "nfpa14-2019", Name = "NFPA 14", Edition = "2019", Year = 2019, Discipline = Discipline.FireProtection });
+        store.CodeBooks.Add(new CodeBook { Id = "nfpa20-2022", Name = "NFPA 20", Edition = "2022", Year = 2022, Discipline = Discipline.FireProtection });
 
         // --- Jurisdictions ---
         store.Jurisdictions.Add(new JurisdictionCodeAdoption

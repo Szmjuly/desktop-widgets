@@ -90,14 +90,25 @@ public class CheatSheetService
             }
         }
 
-        var existingSheetIds = new HashSet<string>(_store.Sheets.Select(s => s.Id), StringComparer.OrdinalIgnoreCase);
+        var existingSheetMap = _store.Sheets.ToDictionary(s => s.Id, s => s, StringComparer.OrdinalIgnoreCase);
         foreach (var sheet in defaults.Sheets)
         {
-            if (!existingSheetIds.Contains(sheet.Id))
+            if (!existingSheetMap.ContainsKey(sheet.Id))
             {
                 _store.Sheets.Add(sheet);
                 merged = true;
                 DebugLogger.Log($"CheatSheetService: Merged new sheet '{sheet.Title}' ({sheet.Discipline})");
+            }
+            else
+            {
+                // Patch existing sheet if default has Steps data that the cached version lacks
+                var existing = existingSheetMap[sheet.Id];
+                if ((sheet.Steps?.Count ?? 0) > 0 && (existing.Steps?.Count ?? 0) < sheet.Steps!.Count)
+                {
+                    existing.Steps = sheet.Steps;
+                    merged = true;
+                    DebugLogger.Log($"CheatSheetService: Updated Steps on '{sheet.Title}' ({sheet.Steps.Count} steps)");
+                }
             }
         }
 
@@ -564,6 +575,7 @@ public class CheatSheetService
         CheatSheetElectricalDefaults.AddTo(store);
         CheatSheetPlumbingDefaults.AddTo(store);
         CheatSheetMechanicalDefaults.AddTo(store);
+        CheatSheetFireProtectionDefaults.AddTo(store);
 
         return store;
     }
