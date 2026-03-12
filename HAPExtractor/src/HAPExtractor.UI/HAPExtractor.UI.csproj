@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyTitle>HAPExtractor</AssemblyTitle>
+    <Product>HAPExtractor</Product>
+    <AssemblyName>HAPExtractor</AssemblyName>
+    <RootNamespace>HAPExtractor.UI</RootNamespace>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HAPExtractor.Core\HAPExtractor.Core.csproj" />
+  </ItemGroup>
+
+</Project>
