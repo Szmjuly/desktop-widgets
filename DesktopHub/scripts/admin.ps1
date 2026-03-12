@@ -63,6 +63,7 @@ param(
     [string]$ReleaseNotes,
     [string]$CsvFile,
     [string]$DeviceId,
+    [string]$Collections,
     [string]$ServiceAccountPath
 )
 
@@ -127,8 +128,8 @@ function Show-Menu {
     Write-Host "    [1]  Dump database structure"
     Write-Host "    [2]  Dump database (full detail)"
     Write-Host "    [3]  Wipe devices node"
-    Write-Host "    [4]  Wipe project tags"
-    Write-Host "    [5]  Wipe ALL (full reset, preserves licenses/versions/admins)"
+    Write-Host "    [4]  Backup entire database"
+    Write-Host "    [5]  Wipe ALL (preserves licenses/versions/admins/tags)"
     Write-Host ""
     Write-Host "  PROJECT TAGS" -ForegroundColor Yellow
     Write-Host "    [10] Get tags for a project"
@@ -165,6 +166,12 @@ function Show-Menu {
     Write-Host "    [62] Push update to all outdated devices"
     Write-Host "    [63] Check push-update status"
     Write-Host "    [64] Clear completed/failed push entries"
+    Write-Host ""
+    Write-Host "  BACKUP & TAGS" -ForegroundColor Yellow
+    Write-Host "    [70] Backup entire database"
+    Write-Host "    [71] Backup specific collections"
+    Write-Host "    [72] Wipe tagging data (interactive)"
+    Write-Host "    [73] Wipe ALL tagging data"
     Write-Host ""
     Write-Host "    [H]  Help" -ForegroundColor DarkGray
     Write-Host "    [Q]  Quit" -ForegroundColor DarkGray
@@ -215,7 +222,13 @@ if ($Action) {
         "db-dump"          { & "$scriptDir\dump-database.ps1" @sa }
         "db-wipe-all"      { & "$scriptDir\dump-database.ps1" -WipeAll @sa }
         "db-wipe-devices"  { & "$scriptDir\dump-database.ps1" -WipeDevices @sa }
-        "db-wipe-tags"     { & "$scriptDir\dump-database.ps1" -WipeTags @sa }
+        "db-backup"        { & "$scriptDir\backup-database.ps1" @sa }
+        "db-backup-cols"   {
+            if (-not $Collections) { $Collections = Read-Host "Collections (comma-separated)" }
+            & "$scriptDir\backup-database.ps1" -Collections $Collections @sa
+        }
+        "tags-wipe"        { & "$scriptDir\wipe-tags.ps1" @sa }
+        "tags-wipe-all"    { & "$scriptDir\wipe-tags.ps1" -All @sa }
         "tags-get"         { & "$scriptDir\tag-manager.ps1" -Action get -ProjectNumber $ProjectNumber @sa }
         "tags-list"        { & "$scriptDir\tag-manager.ps1" -Action list @sa }
         "tags-decrypt"     { & "$scriptDir\tag-manager.ps1" -Action decrypt-dump @sa }
@@ -261,10 +274,10 @@ while ($true) {
         "1" { Invoke-Script "dump-database.ps1" }
         "2" { Invoke-Script "dump-database.ps1" @{Full=$true} }
         "3" { Invoke-Script "dump-database.ps1" @{WipeDevices=$true; Force=$true} }
-        "4" { Invoke-Script "dump-database.ps1" @{WipeTags=$true; Force=$true} }
+        "4" { Invoke-Script "backup-database.ps1" }
         "5" {
             Write-Host ""
-            Write-Host "  WARNING: This will wipe EVERYTHING except app_versions and admin_users." -ForegroundColor Red
+            Write-Host "  WARNING: This will wipe EVERYTHING except app_versions, admin_users, and tagging data." -ForegroundColor Red
             $confirm = Read-Host "  Type 'WIPE' to confirm full reset"
             if ($confirm -eq "WIPE") {
                 Invoke-Script "dump-database.ps1" @{WipeAll=$true; Force=$true}
@@ -341,6 +354,15 @@ while ($true) {
         "62" { Invoke-Script "push-update.ps1" @{Action="push-all"} }
         "63" { Invoke-Script "push-update.ps1" @{Action="status"} }
         "64" { Invoke-Script "push-update.ps1" @{Action="clear"} }
+
+        # --- BACKUP & TAGS ---
+        "70" { Invoke-Script "backup-database.ps1" }
+        "71" {
+            $cols = Prompt-Input "Collections (comma-separated, e.g. devices,users,project_tags)"
+            Invoke-Script "backup-database.ps1" @{Collections=$cols}
+        }
+        "72" { Invoke-Script "wipe-tags.ps1" }
+        "73" { Invoke-Script "wipe-tags.ps1" @{All=$true} }
 
         # --- HELP ---
         "H" {

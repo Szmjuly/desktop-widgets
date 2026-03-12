@@ -11,7 +11,6 @@
 param(
     [switch]$Full,
     [switch]$WipeDevices,
-    [switch]$WipeTags,
     [switch]$WipeAll,
     [switch]$Force,
     [string]$ServiceAccountPath
@@ -277,8 +276,8 @@ foreach ($node in $topNodes) {
 # WIPE OPERATIONS
 # ============================================================
 
-# Nodes that are NEVER wiped (critical system data)
-$PreservedNodes = @("app_versions", "admin_users")
+# Nodes that are NEVER wiped (critical system data + tagging)
+$PreservedNodes = @("app_versions", "admin_users", "project_tags", "tag_vocabulary", "tag_registry")
 
 function Wipe-Node([string]$nodeName) {
     $count = Count-Children (fb-get $nodeName)
@@ -313,21 +312,6 @@ if ($WipeDevices -and -not $WipeAll) {
     $confirm = if ($Force) { "YES" } else { Read-Host "  Type 'YES' to wipe devices/" }
     if ($confirm -eq "YES") { Wipe-Node "devices" }
     else { Write-Host "  Cancelled." -ForegroundColor Gray }
-    Write-Host ""
-}
-
-if ($WipeTags -and -not $WipeAll) {
-    Write-Host "========================================" -ForegroundColor Red
-    Write-Host "  WIPE PROJECT TAGS + VOCABULARY" -ForegroundColor Red
-    Write-Host "========================================" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "  Tags will be recreated when users save project info." -ForegroundColor Gray
-    $confirm = if ($Force) { "YES" } else { Read-Host "  Type 'YES' to wipe project_tags/ and tag_vocabulary/" }
-    if ($confirm -eq "YES") {
-        Wipe-Node "project_tags"
-        Wipe-Node "tag_vocabulary"
-        Clear-LocalCaches
-    } else { Write-Host "  Cancelled." -ForegroundColor Gray }
     Write-Host ""
 }
 
@@ -367,10 +351,6 @@ if ($WipeAll) {
             Wipe-Node $node
         }
     }
-
-    # Clear local caches
-    Write-Host ""
-    Clear-LocalCaches
 
     Write-Host ""
     Write-Host "  Database reset complete. Preserved: $($PreservedNodes -join ', ')" -ForegroundColor Cyan
