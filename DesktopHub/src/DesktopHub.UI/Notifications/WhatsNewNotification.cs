@@ -178,13 +178,13 @@ internal class WhatsNewNotification : Window
         {
             return new[]
             {
-                "Project Tagging — tag projects with voltage, phase, HVAC, location & 20+ fields",
-                "Tag Carousel — quick-filter chips below search bar from popular tag values",
-                "Tag Search — filter results with key:value syntax (e.g. voltage:208)",
-                "Shared Vocabulary — tag dropdown values sync across all users via Firebase",
-                "GEC Calculator — NEC 250.66(B) parallel conductor sizing in Cheat Sheets",
-                "Runtime Admin — Firebase-based admin detection replaces compile-time flag",
-                "Metrics & Telemetry — tag usage tracking, dedicated Firebase metrics sync"
+                "Dynamic Theming — full DynamicResource brush system across all overlays and widgets",
+                "Step-by-Step Guides — Interactive and Visual modes in Cheat Sheets with formula calculators",
+                "GEC Wire Reference Table — collapsible circular mil and mm² reference in GEC Calculator",
+                "Non-Live Widget Grid — auto-grid positioning with pinned positions per monitor layout",
+                "Remote Forced Updates — admin can push updates to specific devices via Firebase",
+                "Tag Registry Sync — custom tag keys register to shared Firebase vocabulary automatically",
+                "View Mode Toggle Polish — cleaner Table/Lookup switch with consistent label sizing"
             };
         }
 
