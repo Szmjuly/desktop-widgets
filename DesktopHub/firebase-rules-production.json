@@ -67,6 +67,14 @@
       }
     },
 
+    "force_update": {
+      "$deviceId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".indexOn": ["app_id", "status"]
+      }
+    },
+
     "feature_flags": {
       ".read": "auth != null",
       ".write": false

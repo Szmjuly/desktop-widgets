@@ -16,11 +16,14 @@ param(
     [string]$Action,
 
     [string]$DeviceId,
-    [string]$ServiceAccountPath
+    [string]$ServiceAccountPath,
+
+    [ValidateSet("desktophub", "hapextractor")]
+    [string]$AppId = "desktophub"
 )
 
 $baseUrl = "https://licenses-ff136-default-rtdb.firebaseio.com"
-$appId = "desktophub"
+$appId = $AppId
 
 # ============================================================
 # SERVICE ACCOUNT AUTH
@@ -317,6 +320,7 @@ switch ($Action) {
 
         $now = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
         $pushData = @{
+            app_id            = $appId
             target_version    = $latestVersion
             download_url      = $downloadUrl
             pushed_by         = $env:USERNAME.ToLower()
@@ -378,6 +382,7 @@ switch ($Action) {
         foreach ($d in $outdated) {
             try {
                 $pushData = @{
+                    app_id            = $appId
                     target_version    = $latestVersion
                     download_url      = $downloadUrl
                     pushed_by         = $env:USERNAME.ToLower()

@@ -1,11 +1,13 @@
 using System.Data;
 using System.IO;
+using System.Net.Http;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Microsoft.Win32;
 using HAPExtractor.Core.Models;
 using HAPExtractor.Core.Services;
+using HAPExtractor.Infrastructure.Firebase.Models;
 
 namespace HAPExtractor.UI;
 
@@ -13,14 +15,19 @@ public partial class MainWindow : Window
 {
     private readonly HapPdfExtractor _pdf1Extractor = new();
     private readonly DesignLoadExtractor _pdf2Extractor = new();
+    private readonly AirSystemSizingExtractor _pdf3Extractor = new();
     private readonly DataCombiner _combiner = new();
     private readonly ExcelExporter _excelExporter = new();
 
     private string? _pdf1Path;
     private string? _pdf2Path;
+    private string? _pdf3Path;
     private HapProject? _pdf1Data;
     private List<SpaceComponentLoads>? _pdf2Data;
+    private List<AirSystemSizingData>? _pdf3Data;
     private List<CombinedSpaceData>? _combinedData;
+
+    private System.Threading.Timer? _updateCheckTimer;
 
     private enum SidebarMode { All, BySystem, ByZone }
     private SidebarMode _currentMode = SidebarMode.All;
@@ -31,6 +38,267 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Logger.Info("MainWindow initialized");
+
+        Closed += MainWindow_Closed;
+
+        // Start background update check (15s initial delay, 30min interval)
+        _updateCheckTimer = new System.Threading.Timer(
+            async _ => await BackgroundUpdateCheckAsync(),
+            null,
+            TimeSpan.FromSeconds(15),
+            TimeSpan.FromMinutes(30));
+    }
+
+    private void MainWindow_Closed(object? sender, EventArgs e)
+    {
+        _updateCheckTimer?.Dispose();
+        _updateCheckTimer = null;
+    }
+
+    // ── Update Checking ─────────────────────────────────────────
+
+    private void CheckUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        CheckUpdatesButton.IsEnabled = false;
+        CheckUpdatesButton.Content = "Checking...";
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                var app = Application.Current as App;
+                var firebaseManager = app?.FirebaseManager;
+
+                if (firebaseManager == null)
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show("Update checking unavailable (offline mode).",
+                            "Check for Updates", MessageBoxButton.OK, MessageBoxImage.Information);
+                    });
+                    return;
+                }
+
+                var updateInfo = await firebaseManager.CheckForUpdatesAsync();
+
+                Dispatcher.Invoke(() =>
+                {
+                    if (updateInfo == null)
+                    {
+                        MessageBox.Show("Could not check for updates. Please try again later.",
+                            "Check for Updates", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    if (updateInfo.UpdateAvailable)
+                    {
+                        var message = $"Version {FormatVersion(updateInfo.LatestVersion)} is available!\n\nCurrent: {FormatVersion(updateInfo.CurrentVersion)}";
+                        if (!string.IsNullOrEmpty(updateInfo.ReleaseNotes))
+                            message += $"\n\n{updateInfo.ReleaseNotes}";
+                        message += "\n\nWould you like to download and install this update now?";
+
+                        var result = MessageBox.Show(message, "Update Available",
+                            MessageBoxButton.YesNo, MessageBoxImage.Information);
+
+                        if (result == MessageBoxResult.Yes)
+                        {
+                            Logger.Info("User confirmed update installation");
+                            _ = Task.Run(async () => await DownloadAndInstallUpdateAsync(updateInfo));
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show($"You're up to date! (v{FormatVersion(updateInfo.CurrentVersion)})",
+                            "Check for Updates", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Update check failed", ex);
+                Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show("Update check failed. Please try again later.",
+                        "Check for Updates", MessageBoxButton.OK, MessageBoxImage.Warning);
+                });
+            }
+            finally
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    CheckUpdatesButton.Content = "Check for Updates";
+                    CheckUpdatesButton.IsEnabled = true;
+                });
+            }
+        });
+    }
+
+    private async Task BackgroundUpdateCheckAsync()
+    {
+        try
+        {
+            var app = Application.Current as App;
+            var firebaseManager = app?.FirebaseManager;
+            if (firebaseManager == null) return;
+
+            var updateInfo = await firebaseManager.CheckForUpdatesAsync();
+            if (updateInfo != null && updateInfo.UpdateAvailable)
+            {
+                Logger.Info($"Background update check: v{updateInfo.LatestVersion} available");
+                _ = Dispatcher.BeginInvoke(() =>
+                {
+                    StatusText.Text = $"Update available: v{FormatVersion(updateInfo.LatestVersion)} — click 'Check for Updates' to install";
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("Background update check failed", ex);
+        }
+    }
+
+    public async Task DownloadAndInstallUpdateAsync(UpdateInfo updateInfo, bool silent = false)
+    {
+        try
+        {
+            Logger.Info($"Download and install update: v{updateInfo.LatestVersion} from {updateInfo.DownloadUrl}");
+
+            if (string.IsNullOrEmpty(updateInfo.DownloadUrl))
+            {
+                Logger.Error("Download URL is empty");
+                if (!silent)
+                    Dispatcher.Invoke(() => MessageBox.Show("Update download URL is missing.",
+                        "Update Error", MessageBoxButton.OK, MessageBoxImage.Warning));
+                return;
+            }
+
+            _ = Dispatcher.BeginInvoke(() =>
+                StatusText.Text = $"Downloading v{FormatVersion(updateInfo.LatestVersion)}...");
+
+            var tempPath = Path.Combine(Path.GetTempPath(), $"HAPExtractor-{updateInfo.LatestVersion}.exe");
+
+            using (var client = new HttpClient(new HttpClientHandler
+            {
+                AllowAutoRedirect = true,
+                MaxAutomaticRedirections = 10
+            }))
+            {
+                client.Timeout = TimeSpan.FromMinutes(5);
+                client.DefaultRequestHeaders.Add("User-Agent", "HAPExtractor-AutoUpdater/1.0");
+
+                var response = await client.GetAsync(updateInfo.DownloadUrl);
+                response.EnsureSuccessStatusCode();
+
+                var updateData = await response.Content.ReadAsByteArrayAsync();
+                Logger.Info($"Download complete, size: {updateData.Length} bytes");
+
+                await File.WriteAllBytesAsync(tempPath, updateData);
+            }
+
+            var currentExePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+            if (string.IsNullOrEmpty(currentExePath) || currentExePath.EndsWith(".dll"))
+                currentExePath = Path.Combine(AppContext.BaseDirectory, "HAPExtractor.exe");
+
+            var updateBatchPath = Path.Combine(Path.GetTempPath(), "HAPExtractor-Update.bat");
+            var batchContent = $@"@echo off
+echo Waiting for HAPExtractor to close...
+timeout /t 3 /nobreak > nul
+
+:WAIT_LOOP
+tasklist /FI ""IMAGENAME eq HAPExtractor.exe"" 2>NUL | find /I /N ""HAPExtractor.exe"">NUL
+if ""%ERRORLEVEL%""==""0"" (
+    timeout /t 1 /nobreak > nul
+    goto WAIT_LOOP
+)
+
+echo Process closed, replacing exe...
+timeout /t 1 /nobreak > nul
+
+:DELETE_RETRY
+if exist ""{currentExePath}"" (
+    del /F /Q ""{currentExePath}"" 2>NUL
+    if exist ""{currentExePath}"" (
+        timeout /t 1 /nobreak > nul
+        goto DELETE_RETRY
+    )
+)
+
+copy /Y ""{tempPath}"" ""{currentExePath}"" > nul
+
+if not exist ""{currentExePath}"" (
+    echo ERROR: Failed to copy new version!
+    pause
+    exit /b 1
+)
+
+del ""{tempPath}"" > nul
+
+echo Starting updated version...
+timeout /t 1 /nobreak > nul
+start """" ""{currentExePath}""
+
+(goto) 2>nul & del ""%~f0""
+";
+
+            await File.WriteAllTextAsync(updateBatchPath, batchContent);
+            Logger.Info($"Created update script at {updateBatchPath}");
+
+            if (silent)
+            {
+                Logger.Info("Silent mode — auto-restarting in 10 seconds");
+                _ = Dispatcher.BeginInvoke(() =>
+                    StatusText.Text = $"Update pushed by admin — restarting in 10 seconds to install v{FormatVersion(updateInfo.LatestVersion)}...");
+
+                await Task.Delay(10_000);
+            }
+
+            Dispatcher.Invoke(() =>
+            {
+                if (!silent)
+                {
+                    var result = MessageBox.Show(
+                        "Update ready to install!\n\nHAPExtractor will restart to complete the update.",
+                        "Install Update", MessageBoxButton.OKCancel, MessageBoxImage.Information);
+
+                    if (result != MessageBoxResult.OK)
+                    {
+                        Logger.Info("User cancelled installation");
+                        StatusText.Text = "Update cancelled.";
+                        return;
+                    }
+                }
+
+                Logger.Info("Starting update installer");
+                var startInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = updateBatchPath,
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+                };
+                System.Diagnostics.Process.Start(startInfo);
+                Application.Current.Shutdown();
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("Failed to download/install update", ex);
+            if (!silent)
+                Dispatcher.Invoke(() => MessageBox.Show("Update failed. Please try again later.",
+                    "Update Error", MessageBoxButton.OK, MessageBoxImage.Warning));
+        }
+    }
+
+    private static string FormatVersion(string version)
+    {
+        // Strip trailing ".0" components for display: "1.8.0.0" → "1.8.0"
+        if (Version.TryParse(version, out var v))
+        {
+            if (v.Revision == 0 && v.Build == 0) return $"{v.Major}.{v.Minor}";
+            if (v.Revision == 0) return $"{v.Major}.{v.Minor}.{v.Build}";
+            return v.ToString();
+        }
+        return version;
     }
 
     // ── PDF Browse ──────────────────────────────────────────────
@@ -45,15 +313,7 @@ public partial class MainWindow : Window
         };
 
         if (dialog.ShowDialog() == true)
-        {
-            _pdf1Path = dialog.FileName;
-            Pdf1PathText.Text = dialog.FileName;
-            Pdf1PathText.Foreground = (SolidColorBrush)FindResource("TextPrimaryBrush");
-            Pdf1StatusDot.Foreground = GreenDot;
-            UpdateProcessButton();
-            Logger.Info($"PDF 1 loaded: {dialog.FileName}");
-            StatusText.Text = "PDF 1 loaded. Load PDF 2 to continue.";
-        }
+            SetPdf1(dialog.FileName);
     }
 
     private void BrowsePdf2_Click(object sender, RoutedEventArgs e)
@@ -66,15 +326,129 @@ public partial class MainWindow : Window
         };
 
         if (dialog.ShowDialog() == true)
+            SetPdf2(dialog.FileName);
+    }
+
+    private void BrowsePdf3_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
         {
-            _pdf2Path = dialog.FileName;
-            Pdf2PathText.Text = dialog.FileName;
-            Pdf2PathText.Foreground = (SolidColorBrush)FindResource("TextPrimaryBrush");
-            Pdf2StatusDot.Foreground = GreenDot;
-            UpdateProcessButton();
-            Logger.Info($"PDF 2 loaded: {dialog.FileName}");
-            StatusText.Text = "PDF 2 loaded. Click 'Process & Combine' to extract data.";
+            Title = "Select Air System Sizing Summary PDF",
+            Filter = "PDF Files (*.pdf)|*.pdf",
+            Multiselect = false
+        };
+
+        if (dialog.ShowDialog() == true)
+            SetPdf3(dialog.FileName);
+    }
+
+    private void SetPdf1(string path)
+    {
+        _pdf1Path = path;
+        Pdf1PathText.Text = path;
+        Pdf1PathText.Foreground = (SolidColorBrush)FindResource("TextPrimaryBrush");
+        Pdf1StatusDot.Foreground = GreenDot;
+        UpdateProcessButton();
+        Logger.Info($"PDF 1 loaded: {path}");
+        StatusText.Text = string.IsNullOrEmpty(_pdf2Path)
+            ? "Zone Sizing Summary loaded. Load Space Design Load Summary to continue."
+            : "Both PDFs loaded. Click 'Process & Combine' to extract data.";
+    }
+
+    private void SetPdf2(string path)
+    {
+        _pdf2Path = path;
+        Pdf2PathText.Text = path;
+        Pdf2PathText.Foreground = (SolidColorBrush)FindResource("TextPrimaryBrush");
+        Pdf2StatusDot.Foreground = GreenDot;
+        UpdateProcessButton();
+        Logger.Info($"PDF 2 loaded: {path}");
+        StatusText.Text = string.IsNullOrEmpty(_pdf1Path)
+            ? "Space Design Load Summary loaded. Load Zone Sizing Summary to continue."
+            : "Both PDFs loaded. Click 'Process & Combine' to extract data.";
+    }
+
+    private void SetPdf3(string path)
+    {
+        _pdf3Path = path;
+        Pdf3PathText.Text = path;
+        Pdf3PathText.Foreground = (SolidColorBrush)FindResource("TextPrimaryBrush");
+        Pdf3StatusDot.Foreground = GreenDot;
+        Logger.Info($"PDF 3 loaded: {path}");
+        StatusText.Text = "Air System Sizing Summary loaded.";
+    }
+
+    // ── Drag & Drop ──────────────────────────────────────────────
+
+    private void EmptyState_DragOver(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+            bool hasPdf = files.Any(f => f.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase));
+            e.Effects = hasPdf ? DragDropEffects.Copy : DragDropEffects.None;
         }
+        else
+        {
+            e.Effects = DragDropEffects.None;
+        }
+        e.Handled = true;
+    }
+
+    private void EmptyState_Drop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+
+        var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+        var pdfFiles = files.Where(f => f.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (pdfFiles.Count == 0)
+        {
+            StatusText.Text = "No PDF files found in dropped items.";
+            return;
+        }
+
+        string? zoneSizingPath = null;
+        string? designLoadPath = null;
+        string? airSystemSizingPath = null;
+        var unknowns = new List<string>();
+
+        foreach (var pdf in pdfFiles)
+        {
+            var pdfType = PdfClassifier.Classify(pdf);
+            switch (pdfType)
+            {
+                case PdfType.ZoneSizingSummary:
+                    zoneSizingPath = pdf;
+                    break;
+                case PdfType.SpaceDesignLoadSummary:
+                    designLoadPath = pdf;
+                    break;
+                case PdfType.AirSystemSizingSummary:
+                    airSystemSizingPath = pdf;
+                    break;
+                default:
+                    unknowns.Add(Path.GetFileName(pdf));
+                    break;
+            }
+        }
+
+        if (unknowns.Count > 0 && zoneSizingPath == null && designLoadPath == null && airSystemSizingPath == null)
+        {
+            MessageBox.Show(
+                $"Could not identify PDF type for:\n\n{string.Join("\n", unknowns)}\n\n" +
+                "Expected a Zone Sizing Summary, Space Design Load Summary, or Air System Sizing Summary from HAP.",
+                "Unrecognized PDF", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (zoneSizingPath != null) SetPdf1(zoneSizingPath);
+        if (designLoadPath != null) SetPdf2(designLoadPath);
+        if (airSystemSizingPath != null) SetPdf3(airSystemSizingPath);
+
+        // Auto-process if both are now loaded
+        if (!string.IsNullOrEmpty(_pdf1Path) && !string.IsNullOrEmpty(_pdf2Path))
+            Process_Click(sender, new RoutedEventArgs());
     }
 
     private void UpdateProcessButton()
@@ -100,6 +474,20 @@ public partial class MainWindow : Window
             _pdf2Data = _pdf2Extractor.Extract(_pdf2Path);
             Logger.Info($"PDF 2 extracted: {_pdf2Data.Count} space component load tables");
 
+            // PDF 3 (optional)
+            if (!string.IsNullOrEmpty(_pdf3Path))
+            {
+                StatusText.Text = "Extracting PDF 3 (Air System Sizing Summary)...";
+                _pdf3Data = _pdf3Extractor.Extract(_pdf3Path);
+                Logger.Info($"PDF 3 extracted: {_pdf3Data.Count} air system sizing entries");
+                foreach (var s in _pdf3Data)
+                    Logger.Info($"  {s.SystemName}: ft²/Ton={s.SqftPerTon}, FloorArea={s.FloorArea}, Tons={s.TotalCoilLoadTons}");
+            }
+            else
+            {
+                _pdf3Data = null;
+            }
+
             StatusText.Text = "Combining data...";
             _combinedData = _combiner.Combine(_pdf1Data, _pdf2Data);
             Logger.Info($"Combined: {_combinedData.Count} records");
@@ -111,13 +499,17 @@ public partial class MainWindow : Window
             ResultsPanel.Visibility = Visibility.Visible;
             EmptyState.Visibility = Visibility.Collapsed;
             ExportExcelButton.IsEnabled = true;
+            MattsWayButton.IsEnabled = true;
 
             // Populate sidebar and grid
             SetSidebarMode(SidebarMode.All);
 
-            StatusText.Text = $"Processed: {_pdf1Data.AirSystems.Count} systems, " +
+            var statusParts = $"Processed: {_pdf1Data.AirSystems.Count} systems, " +
                               $"{_pdf2Data.Count} spaces extracted, " +
-                              $"{_combinedData.Count} combined — Log: {Logger.LogFilePath}";
+                              $"{_combinedData.Count} combined";
+            if (_pdf3Data != null)
+                statusParts += $", {_pdf3Data.Count} air system sizing entries";
+            StatusText.Text = statusParts + $" — Log: {Logger.LogFilePath}";
         }
         catch (Exception ex)
         {
@@ -645,6 +1037,34 @@ public partial class MainWindow : Window
         {
             Logger.Error("Excel export failed", ex);
             MessageBox.Show($"Failed to export Excel:\n\n{ex.Message}",
+                "Export Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void ExportMattsWay_Click(object sender, RoutedEventArgs e)
+    {
+        if (_pdf1Data == null) return;
+
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export Matt's Way",
+            Filter = "Excel Files (*.xlsx)|*.xlsx",
+            FileName = $"{SanitizeFileName(_pdf1Data.ProjectName)}_MattsWay.xlsx"
+        };
+
+        if (dialog.ShowDialog() != true) return;
+
+        try
+        {
+            Logger.Info($"Exporting Matt's Way to {dialog.FileName}");
+            _excelExporter.ExportMattsWay(dialog.FileName, _pdf1Data, _pdf3Data);
+            Logger.Info("Matt's Way export complete");
+            StatusText.Text = $"Exported to {dialog.FileName}";
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("Matt's Way export failed", ex);
+            MessageBox.Show($"Failed to export Matt's Way:\n\n{ex.Message}",
                 "Export Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }

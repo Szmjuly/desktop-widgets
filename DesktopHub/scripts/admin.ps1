@@ -167,6 +167,12 @@ function Show-Menu {
     Write-Host "    [63] Check push-update status"
     Write-Host "    [64] Clear completed/failed push entries"
     Write-Host ""
+    Write-Host "  HAPEXTRACTOR" -ForegroundColor Yellow
+    Write-Host "    [80] Update HAPExtractor Firebase version"
+    Write-Host "    [81] List HAPExtractor devices & versions"
+    Write-Host "    [82] Push HAPExtractor update to a specific device"
+    Write-Host "    [83] Push HAPExtractor update to all outdated devices"
+    Write-Host ""
     Write-Host "  BACKUP & TAGS" -ForegroundColor Yellow
     Write-Host "    [70] Backup entire database"
     Write-Host "    [71] Backup specific collections"
@@ -354,6 +360,29 @@ while ($true) {
         "62" { Invoke-Script "push-update.ps1" @{Action="push-all"} }
         "63" { Invoke-Script "push-update.ps1" @{Action="status"} }
         "64" { Invoke-Script "push-update.ps1" @{Action="clear"} }
+
+        # --- HAPEXTRACTOR ---
+        "80" {
+            $ver = Prompt-Input "HAPExtractor version (e.g. 1.0.0)"
+            $notes = Prompt-Input "Release notes" "New version available"
+            $hapScriptDir = Join-Path (Split-Path -Parent $scriptDir) "HAPExtractor\scripts"
+            $hapScript = Join-Path $hapScriptDir "update-version.ps1"
+            if (Test-Path $hapScript) {
+                $sa = Build-SaParams
+                & $hapScript -Version $ver -ReleaseNotes $notes @sa
+            } else {
+                Write-Host "  HAPExtractor update-version.ps1 not found at: $hapScript" -ForegroundColor Red
+            }
+            Write-Host ""
+            Write-Host "  Press Enter to continue..." -ForegroundColor DarkGray
+            Read-Host | Out-Null
+        }
+        "81" { Invoke-Script "push-update.ps1" @{Action="list"; AppId="hapextractor"} }
+        "82" {
+            $did = Prompt-Input "Device ID (run option 81 to list)"
+            Invoke-Script "push-update.ps1" @{Action="push"; DeviceId=$did; AppId="hapextractor"}
+        }
+        "83" { Invoke-Script "push-update.ps1" @{Action="push-all"; AppId="hapextractor"} }
 
         # --- BACKUP & TAGS ---
         "70" { Invoke-Script "backup-database.ps1" }

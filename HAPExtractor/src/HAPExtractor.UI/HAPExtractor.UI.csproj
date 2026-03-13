@@ -15,6 +15,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HAPExtractor.Core\HAPExtractor.Core.csproj" />
+    <ProjectReference Include="..\HAPExtractor.Infrastructure\HAPExtractor.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('..\..\secrets\firebase-license.json')">
+    <EmbeddedResource Include="..\..\secrets\firebase-license.json" Link="firebase-license.json" />
   </ItemGroup>
 
 </Project>

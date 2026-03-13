@@ -17,14 +17,27 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,12">
-            <TextBlock Text="HAP Extractor"
-                       Foreground="{StaticResource TextPrimaryBrush}"
-                       FontSize="24" FontWeight="Bold"/>
-            <TextBlock Text="Load Zone Sizing Summary + Space Design Load Summary PDFs to extract and export component loads"
-                       Foreground="{StaticResource TextMutedBrush}"
-                       FontSize="13" Margin="0,4,0,0"/>
-        </StackPanel>
+        <Grid Grid.Row="0" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="HAP Extractor"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           FontSize="24" FontWeight="Bold"/>
+                <TextBlock Text="Load Zone Sizing Summary + Space Design Load Summary PDFs to extract and export component loads"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           FontSize="13" Margin="0,4,0,0"/>
+            </StackPanel>
+            <Button x:Name="CheckUpdatesButton" Grid.Column="1"
+                    Content="Check for Updates"
+                    Style="{StaticResource SubtleButton}"
+                    Click="CheckUpdates_Click"
+                    Padding="12,6" FontSize="11"
+                    VerticalAlignment="Top" Margin="8,4,0,0"
+                    ToolTip="Check for a newer version"/>
+        </Grid>
 
         <!-- Dual PDF input bar -->
         <Border Grid.Row="1" Background="{StaticResource SurfaceBrush}"
@@ -32,6 +45,8 @@
                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="8"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="8"/>
                     <RowDefinition Height="Auto"/>
@@ -95,8 +110,39 @@
                             Click="BrowsePdf2_Click" Padding="14,6" FontSize="12"/>
                 </Grid>
 
+                <!-- PDF 3: Air System Sizing Summary (optional) -->
+                <Grid Grid.Row="4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="180"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock x:Name="Pdf3StatusDot" Text="●" FontSize="10" Margin="0,0,6,0"
+                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Air System Sizing Summary"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Text="(optional)"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   FontSize="11" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" Background="{StaticResource CardBrush}"
+                            CornerRadius="5" Padding="10,6" Margin="0,0,8,0"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <TextBlock x:Name="Pdf3PathText"
+                                   Text="Not loaded"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   VerticalAlignment="Center" FontSize="12"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </Border>
+                    <Button Grid.Column="2" Content="Browse"
+                            Style="{StaticResource SubtleButton}"
+                            Click="BrowsePdf3_Click" Padding="14,6" FontSize="12"/>
+                </Grid>
+
                 <!-- Action buttons -->
-                <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+                <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button x:Name="ProcessButton" Content="Process &amp; Combine"
                             Style="{StaticResource AccentButton}"
                             Click="Process_Click" IsEnabled="False"
@@ -104,6 +150,10 @@
                     <Button x:Name="ExportExcelButton" Content="Export Excel"
                             Style="{StaticResource SubtleButton}"
                             Click="ExportExcel_Click" IsEnabled="False"
+                            Padding="16,8" FontSize="13" Margin="0,0,8,0"/>
+                    <Button x:Name="MattsWayButton" Content="Matt's Way"
+                            Style="{StaticResource SubtleButton}"
+                            Click="ExportMattsWay_Click" IsEnabled="False"
                             Padding="16,8" FontSize="13"/>
                 </StackPanel>
             </Grid>
@@ -271,15 +321,16 @@
         <Border Grid.Row="3" x:Name="EmptyState"
                 Background="{StaticResource SurfaceBrush}"
                 CornerRadius="12"
-                BorderBrush="{StaticResource BorderBrush}" BorderThickness="2">
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="2"
+                AllowDrop="True" DragOver="EmptyState_DragOver" Drop="EmptyState_Drop">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                 <TextBlock Text="&#xE8E5;" FontFamily="Segoe MDL2 Assets"
                            FontSize="48" HorizontalAlignment="Center"
                            Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12"/>
-                <TextBlock Text="Load both PDFs above, then click Process &amp; Combine"
+                <TextBlock Text="Drop both PDFs here, or use Browse above"
                            Foreground="{StaticResource TextSecondaryBrush}"
                            FontSize="16" HorizontalAlignment="Center"/>
-                <TextBlock Text="1. Zone Sizing Summary  ·  2. Space Design Load Summary"
+                <TextBlock Text="1. Zone Sizing Summary  ·  2. Space Design Load Summary  ·  3. Air System Sizing Summary (optional)"
                            Foreground="{StaticResource TextMutedBrush}"
                            FontSize="12" HorizontalAlignment="Center" Margin="0,6,0,0"/>
             </StackPanel>

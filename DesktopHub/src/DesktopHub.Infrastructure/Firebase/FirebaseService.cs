@@ -849,6 +849,11 @@ public class FirebaseService : IFirebaseService
             if (data == null)
                 return null;
 
+            // Filter by app_id — only process entries for this app (or legacy entries with no app_id)
+            var entryAppId = data.GetValueOrDefault("app_id")?.ToString();
+            if (!string.IsNullOrEmpty(entryAppId) && entryAppId != AppId)
+                return null;
+
             var status = data.GetValueOrDefault("status")?.ToString();
             if (status != "pending")
                 return null;

@@ -1,0 +1,122 @@
+using System.Management;
+using System.Net.NetworkInformation;
+using System.Security.Cryptography;
+using System.Text;
+using HAPExtractor.Infrastructure.Firebase.Models;
+
+namespace HAPExtractor.Infrastructure.Firebase.Utilities;
+
+public static class DeviceIdentifier
+{
+    private static readonly string DeviceIdFile = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "HAPExtractor",
+        "device_id.txt"
+    );
+
+    public static string GetDeviceId()
+    {
+        if (File.Exists(DeviceIdFile))
+        {
+            var existingId = File.ReadAllText(DeviceIdFile).Trim();
+            if (!string.IsNullOrWhiteSpace(existingId))
+            {
+                return existingId;
+            }
+        }
+
+        var newDeviceId = Guid.NewGuid().ToString();
+
+        var directory = Path.GetDirectoryName(DeviceIdFile);
+        if (directory != null && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        File.WriteAllText(DeviceIdFile, newDeviceId);
+        return newDeviceId;
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    public static DeviceInfo GetDeviceInfo()
+    {
+        var deviceId = GetDeviceId();
+        var macAddress = GetMacAddress();
+        var deviceName = GetDeviceName();
+
+        return new DeviceInfo
+        {
+            DeviceId = deviceId,
+            DeviceName = deviceName,
+            Platform = Environment.OSVersion.Platform.ToString(),
+            PlatformVersion = Environment.OSVersion.Version.ToString(),
+            MachineName = Environment.MachineName,
+            MacAddress = macAddress,
+            ProcessorArchitecture = Environment.Is64BitOperatingSystem ? "x64" : "x86"
+        };
+    }
+
+    private static string? GetMacAddress()
+    {
+        try
+        {
+            var nics = NetworkInterface.GetAllNetworkInterfaces()
+                .Where(n => n.OperationalStatus == OperationalStatus.Up &&
+                           n.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+                .OrderBy(n => n.NetworkInterfaceType)
+                .ToList();
+
+            var nic = nics.FirstOrDefault();
+            if (nic != null)
+            {
+                var macBytes = nic.GetPhysicalAddress().GetAddressBytes();
+                return string.Join(":", macBytes.Select(b => b.ToString("X2")));
+            }
+        }
+        catch
+        {
+            // Fall back to alternative method
+        }
+
+        return GetMacAddressFallback();
+    }
+
+    private static string? GetMacAddressFallback()
+    {
+        try
+        {
+            var machineInfo = $"{Environment.MachineName}{Environment.ProcessorCount}{Environment.UserName}";
+            using var md5 = MD5.Create();
+            var hash = md5.ComputeHash(Encoding.UTF8.GetBytes(machineInfo));
+            return string.Join(":", hash.Take(6).Select(b => b.ToString("X2")));
+        }
+        catch
+        {
+            return "unknown";
+        }
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static string GetDeviceName()
+    {
+        try
+        {
+            using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_ComputerSystem");
+            foreach (var obj in searcher.Get())
+            {
+                var model = obj["Model"]?.ToString();
+                var manufacturer = obj["Manufacturer"]?.ToString();
+                if (!string.IsNullOrEmpty(model) && !string.IsNullOrEmpty(manufacturer))
+                {
+                    return $"{manufacturer} {model}";
+                }
+            }
+        }
+        catch
+        {
+            // Fall back to machine name
+        }
+
+        return Environment.MachineName;
+    }
+}
