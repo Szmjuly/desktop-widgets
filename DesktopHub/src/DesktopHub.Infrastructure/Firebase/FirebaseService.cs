@@ -776,6 +776,49 @@ public class FirebaseService : IFirebaseService
         }
     }
 
+    public async Task<bool> IsCheatSheetEditorAsync(string? windowsUsername = null)
+    {
+        if (!_isInitialized || _httpClient == null)
+            return false;
+
+        try
+        {
+            var username = (windowsUsername ?? Environment.UserName).ToLowerInvariant();
+
+            // Check dedicated editor role first
+            var editorFlag = await GetDataAsync<object>($"cheat_sheet_editors/{username}");
+            if (editorFlag != null)
+            {
+                var isEditor = ParseBool(editorFlag.ToString()) ?? false;
+                if (isEditor)
+                {
+                    InfraLogger.Log($"Firebase: CheatSheet editor check for '{username}' = true (editor role)");
+                    return true;
+                }
+            }
+
+            // Fall back to admin check — admins automatically have editor privileges
+            var adminFlag = await GetDataAsync<object>($"admin_users/{username}");
+            if (adminFlag != null)
+            {
+                var isAdmin = ParseBool(adminFlag.ToString()) ?? false;
+                if (isAdmin)
+                {
+                    InfraLogger.Log($"Firebase: CheatSheet editor check for '{username}' = true (admin role)");
+                    return true;
+                }
+            }
+
+            InfraLogger.Log($"Firebase: CheatSheet editor check for '{username}' = false");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            InfraLogger.Log($"Firebase: CheatSheet editor check failed: {ex.Message}");
+            return false;
+        }
+    }
+
     public async Task LogUpdateInstalledAsync(string version)
     {
         if (!_isInitialized || _httpClient == null || _deviceInfo == null)

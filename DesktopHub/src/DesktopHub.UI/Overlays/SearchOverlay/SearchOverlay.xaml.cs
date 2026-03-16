@@ -44,6 +44,7 @@ public partial class SearchOverlay : Window
     private DocOpenService? _docService;
     private SmartProjectSearchService? _smartProjectSearchService;
     private CheatSheetService? _cheatSheetService;
+    private Core.Abstractions.ICheatSheetDataService? _cheatSheetDataService;
     private SmartProjectSearchWidget? _smartProjectSearchAttachedWidget;
     private IProjectLaunchDataStore? _launchDataStore;
     private IProjectTagService? _tagService;

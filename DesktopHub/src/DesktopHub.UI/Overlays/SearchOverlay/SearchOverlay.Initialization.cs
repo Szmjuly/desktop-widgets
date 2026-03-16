@@ -45,7 +45,15 @@ public partial class SearchOverlay
         _taskService = new TaskService(new Infrastructure.Data.TaskDataStore());
         _docService = new DocOpenService(new Infrastructure.Scanning.DocumentScanner());
         _smartProjectSearchService = new SmartProjectSearchService(new Infrastructure.Scanning.DocumentScanner(), _settings);
-        _cheatSheetService = new CheatSheetService();
+        if (firebaseService != null)
+        {
+            _cheatSheetDataService = new CheatSheetDataService(firebaseService);
+            _cheatSheetService = new CheatSheetService(_cheatSheetDataService);
+        }
+        else
+        {
+            _cheatSheetService = new CheatSheetService();
+        }
 
         // Setup transparency when window handle is available
         SourceInitialized += (s, e) =>

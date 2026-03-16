@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 using DesktopHub.Core.Abstractions;
+using DesktopHub.Infrastructure.Firebase;
 using DesktopHub.UI.Helpers;
 using DesktopHub.UI.Services;
 using DesktopHub.UI.Widgets;
@@ -13,12 +14,13 @@ public partial class CheatSheetOverlay : Window
 
     public CheatSheetWidget Widget { get; }
 
-    public CheatSheetOverlay(CheatSheetService service, ISettingsService settings)
+    public CheatSheetOverlay(CheatSheetService service, ISettingsService settings,
+        ICheatSheetDataService? dataService = null, IFirebaseService? firebaseService = null)
     {
         InitializeComponent();
         _settings = settings;
 
-        Widget = new CheatSheetWidget(service, settings);
+        Widget = new CheatSheetWidget(service, settings, dataService, firebaseService);
         Widget.DesiredWidthChanged += OnDesiredWidthChanged;
         WidgetHost.Content = Widget;
     }

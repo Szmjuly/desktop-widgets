@@ -605,7 +605,8 @@ public partial class SearchOverlay
         if (_cheatSheetService == null)
             return;
 
-        _cheatSheetOverlay = new CheatSheetOverlay(_cheatSheetService, _settings);
+        var fbSvc = ((App)System.Windows.Application.Current).FirebaseManager?.FirebaseService;
+        _cheatSheetOverlay = new CheatSheetOverlay(_cheatSheetService, _settings, _cheatSheetDataService, fbSvc);
         ApplyResponsiveWidgetWidth(_cheatSheetOverlay);
         RegisterWidgetWindow(_cheatSheetOverlay);
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();

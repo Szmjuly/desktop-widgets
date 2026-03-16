@@ -4,15 +4,19 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using DesktopHub.Core.Abstractions;
 using DesktopHub.Core.Models;
 
 namespace DesktopHub.UI.Services;
 
 /// <summary>
-/// Manages cheat sheet data: loading, saving, searching, and inputâ†’output lookups.
+/// Manages cheat sheet data: loading, saving, searching, and input→output lookups.
+/// When backed by ICheatSheetDataService, data comes from Firebase with local cache.
+/// Falls back to hardcoded defaults when no data service is provided.
 /// </summary>
 public class CheatSheetService
 {
+    private readonly ICheatSheetDataService? _dataService;
     private readonly string _dataFilePath;
     private CheatSheetDataStore _store = new();
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -21,6 +25,19 @@ public class CheatSheetService
         PropertyNameCaseInsensitive = true
     };
 
+    /// <summary>
+    /// Creates a CheatSheetService backed by the Firebase data service.
+    /// </summary>
+    public CheatSheetService(ICheatSheetDataService dataService)
+    {
+        _dataService = dataService;
+        _dataService.DataUpdated += OnDataServiceUpdated;
+        _dataFilePath = string.Empty; // Not used when data service is present
+    }
+
+    /// <summary>
+    /// Creates a CheatSheetService with local-only fallback (no Firebase).
+    /// </summary>
     public CheatSheetService()
     {
         var appDataPath = Path.Combine(
@@ -35,14 +52,47 @@ public class CheatSheetService
 
     public async Task LoadAsync()
     {
+        if (_dataService != null)
+        {
+            try
+            {
+                await _dataService.InitializeAsync();
+                RefreshFromDataService();
+
+                // If data service has no sheets yet (first launch, Firebase empty),
+                // seed from hardcoded defaults
+                if (_store.Sheets.Count == 0)
+                {
+                    DebugLogger.Log("CheatSheetService: No sheets from data service, seeding defaults...");
+                    var defaults = CreateDefaultData();
+                    _store = defaults;
+
+                    // Also seed the data service so Firebase gets populated
+                    if (_dataService is DesktopHub.Infrastructure.Firebase.CheatSheetDataService fbService)
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            try { await fbService.SeedFromDataStoreAsync(defaults); }
+                            catch (Exception ex) { DebugLogger.Log($"CheatSheetService: Seed failed: {ex.Message}"); }
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"CheatSheetService.LoadAsync: Data service error, falling back to defaults: {ex.Message}");
+                _store = CreateDefaultData();
+            }
+            return;
+        }
+
+        // Legacy local-only path
         try
         {
             if (File.Exists(_dataFilePath))
             {
                 var json = await File.ReadAllTextAsync(_dataFilePath);
                 _store = JsonSerializer.Deserialize<CheatSheetDataStore>(json, JsonOptions) ?? new CheatSheetDataStore();
-
-                // Auto-merge any new default sheets/code books that don't exist in saved data
                 MergeDefaults();
                 await SaveAsync();
             }
@@ -57,6 +107,29 @@ public class CheatSheetService
             DebugLogger.Log($"CheatSheetService.LoadAsync: Error: {ex.Message}");
             _store = CreateDefaultData();
         }
+    }
+
+    /// <summary>
+    /// Refreshes the in-memory store from the data service cache.
+    /// Called after initialization and whenever DataUpdated fires.
+    /// </summary>
+    private void RefreshFromDataService()
+    {
+        if (_dataService == null) return;
+
+        _store = new CheatSheetDataStore
+        {
+            Sheets = _dataService.GetCachedSheets(),
+            CodeBooks = _dataService.GetCachedCodeBooks(),
+            Jurisdictions = _dataService.GetCachedJurisdictions()
+        };
+
+        DebugLogger.Log($"CheatSheetService: Refreshed from data service — {_store.Sheets.Count} sheets");
+    }
+
+    private void OnDataServiceUpdated()
+    {
+        RefreshFromDataService();
     }
 
     /// <summary>
@@ -567,7 +640,11 @@ public class CheatSheetService
         return score;
     }
 
-    private static CheatSheetDataStore CreateDefaultData()
+    /// <summary>
+    /// Creates the default cheat sheet data store from hardcoded providers.
+    /// Used for initial Firebase seeding, offline fallback, and legacy local-only mode.
+    /// </summary>
+    internal static CheatSheetDataStore CreateDefaultData()
     {
         var store = new CheatSheetDataStore();
 

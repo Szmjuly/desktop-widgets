@@ -28,6 +28,9 @@ public interface IFirebaseService
     // Admin management — checks Firebase for Windows username-based admin privileges
     Task<bool> IsUserAdminAsync(string? windowsUsername = null);
 
+    // Cheat sheet editor role — independent from admin, edit access = admin OR editor
+    Task<bool> IsCheatSheetEditorAsync(string? windowsUsername = null);
+
     // Metrics sync — dedicated metrics/ node for admin multi-user view
     Task SyncDailyMetricsAsync(string date, Dictionary<string, object> data);
     Task<Dictionary<string, Dictionary<string, Dictionary<string, object>>>?> GetAllDeviceMetricsAsync();

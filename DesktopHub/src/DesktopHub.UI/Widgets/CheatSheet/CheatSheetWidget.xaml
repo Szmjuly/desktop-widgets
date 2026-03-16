@@ -400,10 +400,38 @@
                         BorderBrush="{DynamicResource BorderSubtleBrush}"
                         BorderThickness="0,1,0,0"
                         Padding="0,6,0,0">
-                    <TextBlock x:Name="SheetCountLabel"
-                              Text="0 sheets"
-                              FontSize="10"
-                              Foreground="{DynamicResource MutedTextBrush}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="SheetCountLabel"
+                                  Grid.Column="0"
+                                  Text="0 sheets"
+                                  FontSize="10"
+                                  Foreground="{DynamicResource MutedTextBrush}"
+                                  VerticalAlignment="Center"/>
+                        <!-- Add Sheet button (editor only) -->
+                        <Border x:Name="AddSheetButton"
+                                Grid.Column="1"
+                                Visibility="Collapsed"
+                                Background="{DynamicResource SurfaceBrush}"
+                                CornerRadius="4"
+                                Padding="8,3"
+                                Cursor="Hand"
+                                MouseLeftButtonDown="AddSheetButton_Click">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="+ Add Sheet" FontSize="10" Foreground="{DynamicResource AccentBrush}"/>
+                        </Border>
+                    </Grid>
                 </Border>
             </Grid>
             
@@ -416,11 +444,12 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 
-                <!-- Row 0: Back + title + view mode toggle -->
+                <!-- Row 0: Back + title + edit button + view mode toggle -->
                 <Grid Grid.Row="0" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     
@@ -458,8 +487,31 @@
                                   TextWrapping="Wrap"/>
                     </StackPanel>
 
-                    <!-- View mode toggle: Lookup / Table -->
+                    <!-- Edit button (editor only) -->
                     <Border Grid.Column="2"
+                            x:Name="EditSheetButton"
+                            Visibility="Collapsed"
+                            Background="{DynamicResource SurfaceBrush}"
+                            CornerRadius="4"
+                            Padding="8,4"
+                            Cursor="Hand"
+                            VerticalAlignment="Top"
+                            Margin="4,0,0,0"
+                            MouseLeftButtonDown="EditSheetButton_Click">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock Text="&#9998;" FontSize="12" Foreground="{DynamicResource AccentBrush}" ToolTip="Edit Sheet"/>
+                    </Border>
+
+                    <!-- View mode toggle: Lookup / Table -->
+                    <Border Grid.Column="3"
                             x:Name="ViewModeToggle"
                             Visibility="Collapsed"
                             Background="{DynamicResource SurfaceBrush}"

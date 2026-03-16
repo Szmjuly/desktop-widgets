@@ -5,7 +5,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using DesktopHub.Core.Abstractions;
 using DesktopHub.Core.Models;
+using DesktopHub.Infrastructure.Firebase;
 using DesktopHub.UI.Services;
 
 namespace DesktopHub.UI.Widgets;
@@ -13,7 +15,9 @@ namespace DesktopHub.UI.Widgets;
 public partial class CheatSheetWidget : System.Windows.Controls.UserControl
 {
     private readonly CheatSheetService _service;
-    private readonly DesktopHub.Core.Abstractions.ISettingsService? _settings;
+    private readonly ISettingsService? _settings;
+    private readonly ICheatSheetDataService? _dataService;
+    private readonly IFirebaseService? _firebaseService;
     private Discipline _currentDiscipline = Discipline.Electrical;
     private CheatSheet? _activeSheet;
     private List<CheatSheet> _currentSheets = new();
@@ -25,6 +29,8 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
     private bool _crossDisciplineVisible = true;
     private bool _isLookupMode = true;
     private CheatSheetLayout _activeLayout;
+    private bool _isEditor;
+    private bool _isAdmin;
 
     /// <summary>
     /// Fired when the widget wants the hosting overlay to resize.
@@ -35,13 +41,36 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
     /// <summary>Default/list-view width for the overlay.</summary>
     private const double ListViewWidth = 420;
 
-    public CheatSheetWidget(CheatSheetService service, DesktopHub.Core.Abstractions.ISettingsService? settings = null)
+    public CheatSheetWidget(CheatSheetService service, ISettingsService? settings = null,
+        ICheatSheetDataService? dataService = null, IFirebaseService? firebaseService = null)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _settings = settings;
+        _dataService = dataService;
+        _firebaseService = firebaseService;
         _crossDisciplineVisible = settings?.GetCheatSheetCrossDisciplineSearch() ?? true;
         InitializeComponent();
         Loaded += OnLoaded;
+
+        // Subscribe to data service updates for live refresh
+        if (_dataService != null)
+            _dataService.DataUpdated += OnDataServiceUpdated;
+    }
+
+    private void OnDataServiceUpdated()
+    {
+        try
+        {
+            Dispatcher.BeginInvoke(() =>
+            {
+                RefreshSheetList();
+                UpdateCodeBookLabel();
+            });
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"CheatSheetWidget.OnDataServiceUpdated: {ex.Message}");
+        }
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -51,11 +80,47 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             await _service.LoadAsync();
             RefreshSheetList();
             UpdateCodeBookLabel();
+
+            // Check editor permissions in background
+            _ = CheckEditorPermissionsAsync();
         }
         catch (Exception ex)
         {
             DebugLogger.Log($"CheatSheetWidget.OnLoaded: Error: {ex.Message}");
         }
+    }
+
+    private async Task CheckEditorPermissionsAsync()
+    {
+        try
+        {
+            if (_firebaseService == null || !_firebaseService.IsInitialized)
+                return;
+
+            _isEditor = await _firebaseService.IsCheatSheetEditorAsync();
+            _isAdmin = await _firebaseService.IsUserAdminAsync();
+
+            DebugLogger.Log($"CheatSheetWidget: Editor={_isEditor}, Admin={_isAdmin}");
+
+            // Update UI visibility on dispatcher thread
+            await Dispatcher.InvokeAsync(() =>
+            {
+                UpdateEditorButtonVisibility();
+            });
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"CheatSheetWidget: Editor permission check failed: {ex.Message}");
+        }
+    }
+
+    private void UpdateEditorButtonVisibility()
+    {
+        // These buttons are added dynamically — check if they exist before setting visibility
+        if (AddSheetButton != null)
+            AddSheetButton.Visibility = _isEditor ? Visibility.Visible : Visibility.Collapsed;
+        if (EditSheetButton != null)
+            EditSheetButton.Visibility = (_isEditor && _activeSheet != null) ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void DisciplineCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -387,6 +452,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         OutputPanel.Visibility = Visibility.Collapsed;
         ViewModeToggle.Visibility = Visibility.Collapsed;
         NoteModeTabs.Visibility = Visibility.Collapsed;
+        EditSheetButton.Visibility = (_isEditor && _dataService != null) ? Visibility.Visible : Visibility.Collapsed;
 
         _inputTextBoxes.Clear();
         _inputCombos.Clear();
@@ -1377,6 +1443,421 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
     {
         ShowListView();
         RefreshSheetList();
+    }
+
+    private void AddSheetButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (!_isEditor || _dataService == null) return;
+
+        var newSheet = new CheatSheet
+        {
+            Id = $"custom-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString()[..6]}",
+            Title = "New Sheet",
+            Discipline = _currentDiscipline,
+            SheetType = CheatSheetType.Table,
+            Layout = CheatSheetLayout.CompactLookup,
+            Columns = new List<CheatSheetColumn>
+            {
+                new() { Header = "Input", IsInputColumn = true },
+                new() { Header = "Output", IsOutputColumn = true }
+            },
+            Rows = new List<List<string>> { new() { "", "" } }
+        };
+
+        OpenSheetEditor(newSheet, isNew: true);
+    }
+
+    private void EditSheetButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (!_isEditor || _dataService == null || _activeSheet == null) return;
+        OpenSheetEditor(_activeSheet, isNew: false);
+    }
+
+    private void OpenSheetEditor(CheatSheet sheet, bool isNew)
+    {
+        // Build editor UI inline in the detail panel area
+        SheetListPanel.Visibility = Visibility.Collapsed;
+        SheetDetailPanel.Visibility = Visibility.Collapsed;
+
+        // Create editor panel dynamically
+        var editorPanel = BuildSheetEditorPanel(sheet, isNew);
+
+        // Place it in the main content grid (row 1)
+        var mainGrid = SheetListPanel.Parent as Grid;
+        if (mainGrid == null) return;
+
+        // Remove any existing editor panel
+        var existingEditor = mainGrid.Children.OfType<FrameworkElement>().FirstOrDefault(c => c.Name == "SheetEditorPanel");
+        if (existingEditor != null) mainGrid.Children.Remove(existingEditor);
+
+        editorPanel.Name = "SheetEditorPanel";
+        Grid.SetRow(editorPanel, 0); // Same row as list/detail (they're overlapping states)
+        Grid.SetRowSpan(editorPanel, 2);
+        mainGrid.Children.Add(editorPanel);
+    }
+
+    private ScrollViewer BuildSheetEditorPanel(CheatSheet sheet, bool isNew)
+    {
+        var username = Environment.UserName.ToLowerInvariant();
+
+        // Clone the sheet to avoid modifying the original until save
+        var editSheet = System.Text.Json.JsonSerializer.Deserialize<CheatSheet>(
+            System.Text.Json.JsonSerializer.Serialize(sheet)) ?? sheet;
+
+        var outerScroll = new ScrollViewer
+        {
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+        };
+
+        var stack = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
+
+        // --- Header: Back + Title ---
+        var headerGrid = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var backBtn = new Border
+        {
+            Background = System.Windows.Media.Brushes.Transparent,
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(6, 3, 6, 3),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            Margin = new Thickness(0, 0, 8, 0)
+        };
+        backBtn.Child = new TextBlock { Text = "\u2190", FontSize = 14, Foreground = Helpers.ThemeHelper.Accent };
+        backBtn.MouseLeftButtonDown += (_, _) => CloseEditor();
+        Grid.SetColumn(backBtn, 0);
+        headerGrid.Children.Add(backBtn);
+
+        var headerLabel = new TextBlock
+        {
+            Text = isNew ? "New Cheat Sheet" : $"Edit: {editSheet.Title}",
+            FontSize = 13, FontWeight = FontWeights.SemiBold,
+            Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(headerLabel, 1);
+        headerGrid.Children.Add(headerLabel);
+        stack.Children.Add(headerGrid);
+
+        // --- Metadata Fields ---
+        var titleBox = AddEditorField(stack, "Title", editSheet.Title);
+        var subtitleBox = AddEditorField(stack, "Subtitle", editSheet.Subtitle ?? "");
+        var descBox = AddEditorField(stack, "Description", editSheet.Description ?? "");
+        var tagsBox = AddEditorField(stack, "Tags (comma-separated)", string.Join(", ", editSheet.Tags));
+
+        // Discipline dropdown
+        var disciplineCombo = new System.Windows.Controls.ComboBox
+        {
+            FontSize = 12, Margin = new Thickness(0, 0, 0, 6),
+            Style = (System.Windows.Style)FindResource("DarkComboBox")
+        };
+        foreach (var d in new[] { "Electrical", "Mechanical", "Plumbing", "Fire Protection" })
+            disciplineCombo.Items.Add(new ComboBoxItem { Content = d });
+        disciplineCombo.SelectedIndex = editSheet.Discipline switch
+        {
+            Discipline.Electrical => 0,
+            Discipline.Mechanical => 1,
+            Discipline.Plumbing => 2,
+            Discipline.FireProtection => 3,
+            _ => 0
+        };
+        stack.Children.Add(new TextBlock { Text = "Discipline", FontSize = 10, Foreground = Helpers.ThemeHelper.TextSecondary, Margin = new Thickness(0, 4, 0, 2) });
+        stack.Children.Add(disciplineCombo);
+
+        // SheetType dropdown
+        var typeCombo = new System.Windows.Controls.ComboBox
+        {
+            FontSize = 12, Margin = new Thickness(0, 0, 0, 6),
+            Style = (System.Windows.Style)FindResource("DarkComboBox")
+        };
+        foreach (var t in new[] { "Table", "Calculator", "Note" })
+            typeCombo.Items.Add(new ComboBoxItem { Content = t });
+        typeCombo.SelectedIndex = (int)editSheet.SheetType;
+        stack.Children.Add(new TextBlock { Text = "Sheet Type", FontSize = 10, Foreground = Helpers.ThemeHelper.TextSecondary, Margin = new Thickness(0, 4, 0, 2) });
+        stack.Children.Add(typeCombo);
+
+        // --- Columns Section ---
+        stack.Children.Add(new TextBlock
+        {
+            Text = "COLUMNS", FontSize = 10, FontWeight = FontWeights.SemiBold,
+            Foreground = Helpers.ThemeHelper.Accent, Margin = new Thickness(0, 12, 0, 4)
+        });
+
+        var colsPanel = new StackPanel();
+        var colEditors = new List<(System.Windows.Controls.TextBox header, System.Windows.Controls.TextBox unit, System.Windows.Controls.CheckBox isInput, System.Windows.Controls.CheckBox isOutput)>();
+
+        void AddColumnEditor(CheatSheetColumn col)
+        {
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 3) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var hdr = new System.Windows.Controls.TextBox
+            {
+                Text = col.Header, FontSize = 11, Padding = new Thickness(4, 2, 4, 2),
+                Background = Helpers.ThemeHelper.HoverMedium, Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
+                BorderThickness = new Thickness(0), Margin = new Thickness(0, 0, 4, 0)
+            };
+            Grid.SetColumn(hdr, 0);
+            row.Children.Add(hdr);
+
+            var unitTb = new System.Windows.Controls.TextBox
+            {
+                Text = col.Unit ?? "", FontSize = 11, Padding = new Thickness(4, 2, 4, 2),
+                Background = Helpers.ThemeHelper.HoverMedium, Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
+                BorderThickness = new Thickness(0), Margin = new Thickness(0, 0, 4, 0)
+            };
+            Grid.SetColumn(unitTb, 1);
+            row.Children.Add(unitTb);
+
+            var isInp = new System.Windows.Controls.CheckBox { Content = "In", IsChecked = col.IsInputColumn, Foreground = Helpers.ThemeHelper.TextSecondary, FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) };
+            Grid.SetColumn(isInp, 2);
+            row.Children.Add(isInp);
+
+            var isOut = new System.Windows.Controls.CheckBox { Content = "Out", IsChecked = col.IsOutputColumn, Foreground = Helpers.ThemeHelper.TextSecondary, FontSize = 10, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(isOut, 3);
+            row.Children.Add(isOut);
+
+            colsPanel.Children.Add(row);
+            colEditors.Add((hdr, unitTb, isInp, isOut));
+        }
+
+        foreach (var col in editSheet.Columns) AddColumnEditor(col);
+
+        stack.Children.Add(colsPanel);
+
+        // Add column button
+        var addColBtn = new Border
+        {
+            Background = Helpers.ThemeHelper.Hover, CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(8, 3, 8, 3), Cursor = System.Windows.Input.Cursors.Hand,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Left, Margin = new Thickness(0, 4, 0, 0)
+        };
+        addColBtn.Child = new TextBlock { Text = "+ Column", FontSize = 10, Foreground = Helpers.ThemeHelper.Accent };
+        addColBtn.MouseLeftButtonDown += (_, _) => AddColumnEditor(new CheatSheetColumn { Header = "New Column" });
+        stack.Children.Add(addColBtn);
+
+        // --- Rows Section ---
+        stack.Children.Add(new TextBlock
+        {
+            Text = $"ROWS ({editSheet.Rows.Count})", FontSize = 10, FontWeight = FontWeights.SemiBold,
+            Foreground = Helpers.ThemeHelper.Accent, Margin = new Thickness(0, 12, 0, 4)
+        });
+
+        var rowsPanel = new StackPanel();
+        var rowEditors = new List<List<System.Windows.Controls.TextBox>>();
+
+        void AddRowEditor(List<string> rowData)
+        {
+            var rowGrid = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+            var rowCells = new List<System.Windows.Controls.TextBox>();
+            for (var c = 0; c < Math.Max(editSheet.Columns.Count, rowData.Count); c++)
+            {
+                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                var cellTb = new System.Windows.Controls.TextBox
+                {
+                    Text = c < rowData.Count ? rowData[c] : "",
+                    FontSize = 10, Padding = new Thickness(3, 1, 3, 1),
+                    Background = Helpers.ThemeHelper.HoverMedium, Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
+                    BorderThickness = new Thickness(0), Margin = new Thickness(0, 0, 2, 0)
+                };
+                Grid.SetColumn(cellTb, c);
+                rowGrid.Children.Add(cellTb);
+                rowCells.Add(cellTb);
+            }
+            rowsPanel.Children.Add(rowGrid);
+            rowEditors.Add(rowCells);
+        }
+
+        foreach (var row in editSheet.Rows) AddRowEditor(row);
+
+        var rowScrollViewer = new ScrollViewer
+        {
+            MaxHeight = 200, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Content = rowsPanel
+        };
+        stack.Children.Add(rowScrollViewer);
+
+        // Add row button
+        var addRowBtn = new Border
+        {
+            Background = Helpers.ThemeHelper.Hover, CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(8, 3, 8, 3), Cursor = System.Windows.Input.Cursors.Hand,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Left, Margin = new Thickness(0, 4, 0, 0)
+        };
+        addRowBtn.Child = new TextBlock { Text = "+ Row", FontSize = 10, Foreground = Helpers.ThemeHelper.Accent };
+        addRowBtn.MouseLeftButtonDown += (_, _) =>
+        {
+            var emptyCells = Enumerable.Range(0, editSheet.Columns.Count).Select(_ => "").ToList();
+            AddRowEditor(emptyCells);
+        };
+        stack.Children.Add(addRowBtn);
+
+        // --- Save / Cancel Buttons ---
+        var buttonRow = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, Margin = new Thickness(0, 16, 0, 0) };
+
+        var saveBtn = new Border
+        {
+            Background = Helpers.ThemeHelper.Accent, CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(16, 6, 16, 6), Cursor = System.Windows.Input.Cursors.Hand, Margin = new Thickness(0, 0, 8, 0)
+        };
+        saveBtn.Child = new TextBlock { Text = "Save", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = System.Windows.Media.Brushes.White };
+        saveBtn.MouseLeftButtonDown += async (_, _) =>
+        {
+            // Collect edited data
+            editSheet.Title = titleBox.Text?.Trim() ?? "Untitled";
+            editSheet.Subtitle = string.IsNullOrWhiteSpace(subtitleBox.Text) ? null : subtitleBox.Text.Trim();
+            editSheet.Description = string.IsNullOrWhiteSpace(descBox.Text) ? null : descBox.Text.Trim();
+            editSheet.Tags = (tagsBox.Text ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            editSheet.Discipline = disciplineCombo.SelectedIndex switch
+            {
+                0 => Discipline.Electrical,
+                1 => Discipline.Mechanical,
+                2 => Discipline.Plumbing,
+                3 => Discipline.FireProtection,
+                _ => Discipline.Electrical
+            };
+            editSheet.SheetType = (CheatSheetType)typeCombo.SelectedIndex;
+
+            // Collect columns
+            editSheet.Columns.Clear();
+            foreach (var (hdr, unitTb, isInp, isOut) in colEditors)
+            {
+                if (string.IsNullOrWhiteSpace(hdr.Text)) continue;
+                editSheet.Columns.Add(new CheatSheetColumn
+                {
+                    Header = hdr.Text.Trim(),
+                    Unit = string.IsNullOrWhiteSpace(unitTb.Text) ? null : unitTb.Text.Trim(),
+                    IsInputColumn = isInp.IsChecked ?? false,
+                    IsOutputColumn = isOut.IsChecked ?? false
+                });
+            }
+
+            // Collect rows
+            editSheet.Rows.Clear();
+            foreach (var rowCells in rowEditors)
+            {
+                var rowData = rowCells.Select(tb => tb.Text ?? "").ToList();
+                // Skip completely empty rows
+                if (rowData.All(string.IsNullOrWhiteSpace)) continue;
+                editSheet.Rows.Add(rowData);
+            }
+
+            // Save via data service
+            try
+            {
+                await _dataService!.SaveSheetAsync(editSheet, username);
+                DebugLogger.Log($"CheatSheetWidget: Saved sheet '{editSheet.Id}' by {username}");
+
+                // Refresh and show the saved sheet
+                CloseEditor();
+                await _service.LoadAsync();
+                RefreshSheetList();
+                OpenSheet(editSheet);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"CheatSheetWidget: Save failed: {ex.Message}");
+                System.Windows.MessageBox.Show($"Save failed: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        };
+        buttonRow.Children.Add(saveBtn);
+
+        var cancelBtn = new Border
+        {
+            Background = Helpers.ThemeHelper.Hover, CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(16, 6, 16, 6), Cursor = System.Windows.Input.Cursors.Hand
+        };
+        cancelBtn.Child = new TextBlock { Text = "Cancel", FontSize = 12, Foreground = (System.Windows.Media.Brush)FindResource("TextBrush") };
+        cancelBtn.MouseLeftButtonDown += (_, _) => CloseEditor();
+        buttonRow.Children.Add(cancelBtn);
+
+        // Disable/Enable + Delete buttons (if editing existing sheet)
+        if (!isNew)
+        {
+            var disableBtn = new Border
+            {
+                Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x20, 0xFF, 0xD5, 0x4F)),
+                CornerRadius = new CornerRadius(6), Padding = new Thickness(12, 6, 12, 6),
+                Cursor = System.Windows.Input.Cursors.Hand, Margin = new Thickness(8, 0, 0, 0)
+            };
+            disableBtn.Child = new TextBlock { Text = "Disable", FontSize = 11, Foreground = Helpers.ThemeHelper.GoldDark };
+            disableBtn.MouseLeftButtonDown += async (_, _) =>
+            {
+                await _dataService!.DisableSheetAsync(editSheet.Id, username);
+                CloseEditor();
+                await _service.LoadAsync();
+                RefreshSheetList();
+            };
+            buttonRow.Children.Add(disableBtn);
+
+            if (_isAdmin)
+            {
+                var deleteBtn = new Border
+                {
+                    Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x20, 0xFF, 0x44, 0x44)),
+                    CornerRadius = new CornerRadius(6), Padding = new Thickness(12, 6, 12, 6),
+                    Cursor = System.Windows.Input.Cursors.Hand, Margin = new Thickness(8, 0, 0, 0)
+                };
+                deleteBtn.Child = new TextBlock { Text = "Delete", FontSize = 11, Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0x55, 0x55)) };
+                deleteBtn.MouseLeftButtonDown += async (_, _) =>
+                {
+                    var result = System.Windows.MessageBox.Show(
+                        $"Permanently delete '{editSheet.Title}'?\nThis cannot be undone.",
+                        "Delete Sheet", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                    if (result != MessageBoxResult.Yes) return;
+
+                    await _dataService!.DeleteSheetAsync(editSheet.Id, username);
+                    CloseEditor();
+                    await _service.LoadAsync();
+                    RefreshSheetList();
+                };
+                buttonRow.Children.Add(deleteBtn);
+            }
+        }
+
+        stack.Children.Add(buttonRow);
+
+        outerScroll.Content = stack;
+        return outerScroll;
+    }
+
+    private System.Windows.Controls.TextBox AddEditorField(StackPanel parent, string label, string value)
+    {
+        parent.Children.Add(new TextBlock
+        {
+            Text = label, FontSize = 10,
+            Foreground = Helpers.ThemeHelper.TextSecondary,
+            Margin = new Thickness(0, 4, 0, 2)
+        });
+
+        var tb = new System.Windows.Controls.TextBox
+        {
+            Text = value, FontSize = 12,
+            Padding = new Thickness(6, 4, 6, 4),
+            Background = Helpers.ThemeHelper.HoverMedium,
+            Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
+            CaretBrush = (System.Windows.Media.Brush)FindResource("TextBrush"),
+            BorderThickness = new Thickness(0),
+            Margin = new Thickness(0, 0, 0, 4)
+        };
+        parent.Children.Add(tb);
+        return tb;
+    }
+
+    private void CloseEditor()
+    {
+        var mainGrid = SheetListPanel.Parent as Grid;
+        if (mainGrid != null)
+        {
+            var editor = mainGrid.Children.OfType<FrameworkElement>().FirstOrDefault(c => c.Name == "SheetEditorPanel");
+            if (editor != null) mainGrid.Children.Remove(editor);
+        }
+        ShowListView();
     }
 
     private void LookupButton_Click(object sender, MouseButtonEventArgs e)
