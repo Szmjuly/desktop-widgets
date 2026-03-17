@@ -1,3 +1,4 @@
+using System.Reflection;
 using HAPExtractor.Infrastructure.Firebase;
 using HAPExtractor.Infrastructure.Firebase.Models;
 
@@ -93,7 +94,30 @@ public class FirebaseLifecycleManager
     {
         try
         {
-            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            var asm = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
+
+            // Prefer informational version (set from <Version> in csproj / -p:Version when building).
+            // Release builds use e.g. 1.0.4.HAP so we report that and don't show "update available" for same version.
+            var infoVersion = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+            if (!string.IsNullOrWhiteSpace(infoVersion))
+            {
+                // Strip optional metadata (e.g. "1.0.4.HAP+abc123" → "1.0.4.HAP")
+                var main = infoVersion.Split('+')[0].Trim();
+                if (main.Length > 0)
+                    return main;
+            }
+
+            // Fallback: file version from the exe (ProductVersion)
+            var location = asm.Location;
+            if (!string.IsNullOrWhiteSpace(location) && System.IO.File.Exists(location))
+            {
+                var fvi = System.Diagnostics.FileVersionInfo.GetVersionInfo(location);
+                var product = fvi.ProductVersion?.Trim();
+                if (!string.IsNullOrWhiteSpace(product))
+                    return product;
+            }
+
+            var version = asm.GetName().Version;
             return version?.ToString() ?? "1.0.0";
         }
         catch

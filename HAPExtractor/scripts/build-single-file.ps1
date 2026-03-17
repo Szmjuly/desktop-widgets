@@ -14,9 +14,9 @@ $outputDir = Join-Path $projectRoot "src\HAPExtractor.UI\bin\Release\net8.0-wind
 Write-Host "Cleaning previous build..." -ForegroundColor Yellow
 dotnet clean $projectPath -c Release
 
-# Build and publish as single file
-Write-Host "Building and publishing as single file..." -ForegroundColor Yellow
-dotnet publish $projectPath -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -o $outputDir
+# Build and publish as single file (pass Version so the exe reports it for update checks)
+Write-Host "Building and publishing as single file (Version=$Version)..." -ForegroundColor Yellow
+dotnet publish $projectPath -c Release -r win-x64 --self-contained -p:Version=$Version -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -o $outputDir
 
 # Check if build succeeded
 if ($LASTEXITCODE -eq 0) {

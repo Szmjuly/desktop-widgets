@@ -316,9 +316,9 @@ start """" ""{currentExePath}""
                 var startInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = updateBatchPath,
-                    CreateNoWindow = true,
-                    UseShellExecute = false,
-                    WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+                    UseShellExecute = true,
+                    WorkingDirectory = Path.GetTempPath(),
+                    Verb = ""
                 };
                 System.Diagnostics.Process.Start(startInfo);
                 Application.Current.Shutdown();
