@@ -31,6 +31,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
     private CheatSheetLayout _activeLayout;
     private bool _isEditor;
     private bool _isAdmin;
+    private string? _tableSystemFilter;
 
     /// <summary>
     /// Fired when the widget wants the hosting overlay to resize.
@@ -136,6 +137,11 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             _ => Discipline.Electrical
         };
 
+        // Track discipline change
+        TelemetryAccessor.TrackCheatSheetEvent(
+            TelemetryEventType.CheatSheetDisciplineChanged,
+            discipline: _currentDiscipline.ToString());
+
         // Go back to list if viewing detail
         ShowListView();
         RefreshSheetList();
@@ -161,6 +167,15 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             ? Visibility.Collapsed
             : Visibility.Visible;
         RefreshSheetList();
+
+        var query = SearchBox?.Text?.Trim() ?? "";
+        if (!string.IsNullOrEmpty(query) && query.Length >= 2)
+        {
+            TelemetryAccessor.TrackCheatSheetEvent(
+                TelemetryEventType.CheatSheetSearched,
+                searchQuery: query,
+                discipline: _currentDiscipline.ToString());
+        }
     }
 
     private void ClearSearchButton_Click(object sender, MouseButtonEventArgs e)
@@ -414,13 +429,21 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         return card;
     }
 
+    private DateTime _sheetOpenedAt;
+
     private void OpenSheet(CheatSheet sheet)
     {
         _activeSheet = sheet;
+        _sheetOpenedAt = DateTime.UtcNow;
         ShowDetailView();
 
-        // Track cheat sheet view
+        // Track cheat sheet view with details
         TelemetryAccessor.TrackCheatSheet(sheet.Id);
+        TelemetryAccessor.TrackCheatSheetEvent(
+            TelemetryEventType.CheatSheetViewed,
+            sheetId: sheet.Id,
+            sheetTitle: sheet.Title,
+            discipline: sheet.Discipline.ToString());
     }
 
     private void ShowListView()
@@ -516,8 +539,9 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             TableModePanel.Visibility = Visibility.Visible;
             TableView.Visibility = Visibility.Visible;
             ViewModeLabel.Text = "Lookup";
+            BuildTableSystemFilter();
             if (_activeSheet != null)
-                RenderDataGrid(_activeSheet, null);
+                RenderDataGrid(_activeSheet, _tableSystemFilter == null ? null : GetFilteredRowIndices());
         }
 
         if (_activeSheet != null)
@@ -527,6 +551,109 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
     private void ViewModeToggle_Click(object sender, MouseButtonEventArgs e)
     {
         SetViewMode(!_isLookupMode);
+        TelemetryAccessor.TrackCheatSheetEvent(
+            TelemetryEventType.CheatSheetViewModeChanged,
+            sheetId: _activeSheet?.Id,
+            viewMode: _isLookupMode ? "lookup" : "table");
+    }
+
+    /// <summary>
+    /// Builds a system-type filter dropdown above the table for sheets with a "System" input column.
+    /// Allows quick filtering of feeder schedule rows by system type (1Ø 2W+G, 3Ø 4W+G, etc.)
+    /// </summary>
+    private void BuildTableSystemFilter()
+    {
+        if (_activeSheet == null) return;
+
+        // Check if this sheet has a "System" input column
+        var systemColIdx = _activeSheet.Columns.FindIndex(c =>
+            c.Header.Equals("System", StringComparison.OrdinalIgnoreCase) && c.IsInputColumn);
+        if (systemColIdx < 0) return;
+
+        // Get distinct system values
+        var systems = _activeSheet.Rows
+            .Where(r => systemColIdx < r.Count && !string.IsNullOrWhiteSpace(r[systemColIdx]))
+            .Select(r => r[systemColIdx])
+            .Distinct()
+            .ToList();
+        if (systems.Count <= 1) return;
+
+        // Build filter combo inline in the FindBar area (before the search box row)
+        var filterGrid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+        filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var filterLabel = new TextBlock
+        {
+            Text = "System:",
+            FontSize = 11,
+            Foreground = (System.Windows.Media.Brush)FindResource("DimTextBrush"),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0)
+        };
+        Grid.SetColumn(filterLabel, 0);
+        filterGrid.Children.Add(filterLabel);
+
+        var filterCombo = new System.Windows.Controls.ComboBox
+        {
+            FontSize = 12,
+            Padding = new Thickness(6, 3, 6, 3),
+            Style = (System.Windows.Style)FindResource("DarkComboBox")
+        };
+        filterCombo.Items.Add(new ComboBoxItem
+        {
+            Content = "All Systems",
+            Tag = "",
+            Foreground = (System.Windows.Media.Brush)FindResource("MutedTextBrush")
+        });
+        foreach (var sys in systems)
+        {
+            filterCombo.Items.Add(new ComboBoxItem { Content = sys, Tag = sys });
+        }
+        filterCombo.SelectedIndex = 0;
+        filterCombo.SelectionChanged += (_, _) =>
+        {
+            var selected = (filterCombo.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+            _tableSystemFilter = string.IsNullOrEmpty(selected) ? null : selected;
+            if (_activeSheet != null)
+                RenderDataGrid(_activeSheet, _tableSystemFilter == null ? null : GetFilteredRowIndices());
+        };
+        Grid.SetColumn(filterCombo, 1);
+        filterGrid.Children.Add(filterCombo);
+
+        // Insert at the beginning of the TableModePanel (before FindBar)
+        if (TableModePanel is StackPanel tableStack)
+        {
+            // Remove any previous filter
+            var existing = tableStack.Children.OfType<FrameworkElement>().FirstOrDefault(c => c.Tag as string == "SystemFilter");
+            if (existing != null) tableStack.Children.Remove(existing);
+
+            filterGrid.Tag = "SystemFilter";
+            tableStack.Children.Insert(0, filterGrid);
+        }
+    }
+
+    /// <summary>
+    /// Returns row indices matching the current _tableSystemFilter value.
+    /// </summary>
+    private List<int>? GetFilteredRowIndices()
+    {
+        if (_activeSheet == null || _tableSystemFilter == null) return null;
+
+        var systemColIdx = _activeSheet.Columns.FindIndex(c =>
+            c.Header.Equals("System", StringComparison.OrdinalIgnoreCase));
+        if (systemColIdx < 0) return null;
+
+        var indices = new List<int>();
+        for (var i = 0; i < _activeSheet.Rows.Count; i++)
+        {
+            if (systemColIdx < _activeSheet.Rows[i].Count &&
+                _activeSheet.Rows[i][systemColIdx].Equals(_tableSystemFilter, StringComparison.OrdinalIgnoreCase))
+            {
+                indices.Add(i);
+            }
+        }
+        return indices;
     }
 
     /// <summary>
@@ -598,6 +725,9 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             if (IsMotorFlaSheet(sheet))
                 BuildMotorVoltageSelector(sheet);
 
+            if (IsFeederScheduleSheet(sheet))
+                BuildMcaInput(sheet);
+
             _allInputsAreDropdowns = dropdownCount == inputCols.Count;
             LookupButton.Visibility = _allInputsAreDropdowns ? Visibility.Collapsed : Visibility.Visible;
         }
@@ -634,7 +764,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             .Distinct()
             .ToList();
 
-        var useDropdown = distinctValues.Count > 1 && distinctValues.Count <= 30;
+        var useDropdown = distinctValues.Count > 1 && distinctValues.Count <= 40;
 
         var fieldGrid = new Grid { Margin = new Thickness(0, 0, 0, 4) };
         fieldGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
@@ -672,6 +802,13 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
                 if (_isUpdatingCascade) return;
                 var selected = (combo.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
                 proxyBox.Text = selected;
+
+                // If user manually changed the OCPD dropdown, clear MCA-driven flag
+                if (col.Header == "OCPD" && !_mcaDriven)
+                    _mcaDriven = false;
+                // Reset MCA-driven flag after it's been consumed
+                if (_mcaDriven && col.Header == "OCPD")
+                    _mcaDriven = false;
 
                 // Cascade: update other dropdowns based on current selections
                 RefreshCascadingDropdowns(sheet);
@@ -1115,6 +1252,13 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
 
         var totalCmil = cmilEntry.Cmil * numSets;
         var isCu = matTag == "cu";
+
+        // Track GEC calculator usage
+        TelemetryAccessor.TrackCheatSheetEvent(
+            TelemetryEventType.CheatSheetLookup,
+            sheetId: "nec-250-66",
+            sheetTitle: "GEC Sizing",
+            ocpdValue: $"{sizeTag}/{numSets}sets/{matTag}");
 
         // Walk the threshold table to find the matching GEC row
         string gecCu = "3/0", gecAl = "250";
@@ -2011,12 +2155,42 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         _lastOutputText = string.Join("\n", copyLines);
         CopyOutputLabel.Text = "\U0001F4CB Copy";
 
+        // Track lookup event
+        var systemVal = inputs.TryGetValue("System", out var sv) ? sv : null;
+        var ocpdVal = inputs.TryGetValue("OCPD", out var ov) ? ov : null;
+        TelemetryAccessor.TrackCheatSheetEvent(
+            TelemetryEventType.CheatSheetLookup,
+            sheetId: _activeSheet.Id,
+            sheetTitle: _activeSheet.Title,
+            systemType: systemVal,
+            ocpdValue: ocpdVal);
+
+        // Build CES copy text for feeder schedule sheets
+        if (IsFeederScheduleSheet(_activeSheet))
+        {
+            var cesLines = new List<string>();
+            foreach (var result in results)
+            {
+                if (result.TryGetValue("Sizing", out var sizing))
+                    cesLines.Add(ConvertToCesFormat(sizing));
+            }
+            _lastCesOutputText = string.Join("\n", cesLines);
+            CesCopyButton.Visibility = Visibility.Visible;
+            CesCopyLabel.Text = "CES Copy";
+        }
+        else
+        {
+            _lastCesOutputText = null;
+            CesCopyButton.Visibility = Visibility.Collapsed;
+        }
+
         // Highlight matching rows in the table
         var matchedRowIndices = GetMatchedRowIndicesStrict(_activeSheet, inputs);
         RenderDataGrid(_activeSheet, matchedRowIndices.Count > 0 ? matchedRowIndices : null);
     }
 
     private string? _lastOutputText;
+    private string? _lastCesOutputText;
 
     private void CopyOutputButton_Click(object sender, MouseButtonEventArgs e)
     {
@@ -2025,6 +2199,10 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         {
             System.Windows.Clipboard.SetText(_lastOutputText);
             TelemetryAccessor.TrackClipboardCopy("output_values", "CheatSheet");
+            TelemetryAccessor.TrackCheatSheetEvent(
+                TelemetryEventType.CheatSheetCopied,
+                sheetId: _activeSheet?.Id,
+                copyFormat: "standard");
             CopyOutputLabel.Text = "\u2714 Copied!";
             var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
             timer.Tick += (_, _) =>
@@ -2038,6 +2216,253 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         {
             DebugLogger.Log($"CheatSheetWidget.CopyOutput: {ex.Message}");
         }
+    }
+
+    private void CesCopyButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (string.IsNullOrEmpty(_lastCesOutputText)) return;
+        try
+        {
+            System.Windows.Clipboard.SetText(_lastCesOutputText);
+            TelemetryAccessor.TrackClipboardCopy("ces_output", "CheatSheet");
+            TelemetryAccessor.TrackCheatSheetEvent(
+                TelemetryEventType.CheatSheetCopied,
+                sheetId: _activeSheet?.Id,
+                copyFormat: "ces");
+            CesCopyLabel.Text = "\u2714 Copied!";
+            var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            timer.Tick += (_, _) =>
+            {
+                CesCopyLabel.Text = "CES Copy";
+                timer.Stop();
+            };
+            timer.Start();
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"CheatSheetWidget.CesCopy: {ex.Message}");
+        }
+    }
+
+    private static bool IsFeederScheduleSheet(CheatSheet sheet)
+        => sheet.Id == "feeder-schedule";
+
+    /// <summary>
+    /// NEC 240.6(A) Standard Ampere Ratings for fuses and inverse time circuit breakers.
+    /// </summary>
+    private static readonly int[] Nec240_6A_StandardSizes = new[]
+    {
+        15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100,
+        110, 125, 150, 175, 200, 225, 250, 300, 350, 400, 450,
+        500, 600, 700, 800, 1000, 1200, 1600, 2000, 2500, 3000,
+        4000, 5000, 6000
+    };
+
+    /// <summary>
+    /// Given an MCA or arbitrary amperage, returns the next standard OCPD size up per NEC 240.6(A).
+    /// </summary>
+    private static int GetNextStandardOcpd(double amps)
+    {
+        foreach (var std in Nec240_6A_StandardSizes)
+        {
+            if (std >= amps) return std;
+        }
+        return Nec240_6A_StandardSizes[^1]; // Max available
+    }
+
+    /// <summary>
+    /// Builds an MCA/Amperage input field for the feeder schedule sheet.
+    /// When the user types an amperage, it auto-selects the next standard OCPD size up
+    /// per NEC 240.6(A) in the OCPD dropdown and triggers the lookup.
+    /// </summary>
+    private void BuildMcaInput(CheatSheet sheet)
+    {
+        // Separator
+        InputFields.Children.Add(new Border
+        {
+            BorderBrush = (System.Windows.Media.Brush)FindResource("HoverBrush"),
+            BorderThickness = new Thickness(0, 1, 0, 0),
+            Margin = new Thickness(0, 6, 0, 6)
+        });
+
+        // "OR enter MCA" label
+        InputFields.Children.Add(new TextBlock
+        {
+            Text = "OR \u2014 Enter MCA / Amperage:",
+            FontSize = 10,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Helpers.ThemeHelper.Orange,
+            Margin = new Thickness(0, 0, 0, 4)
+        });
+
+        var mcaGrid = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+        mcaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
+        mcaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        mcaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
+
+        var mcaLabel = new TextBlock
+        {
+            Text = "MCA (A):",
+            FontSize = 11,
+            Foreground = (System.Windows.Media.Brush)FindResource("DimTextBrush"),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0),
+            MinWidth = 60
+        };
+        Grid.SetColumn(mcaLabel, 0);
+        mcaGrid.Children.Add(mcaLabel);
+
+        var mcaInput = new System.Windows.Controls.TextBox
+        {
+            Background = Helpers.ThemeHelper.HoverMedium,
+            BorderThickness = new Thickness(0),
+            Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
+            CaretBrush = (System.Windows.Media.Brush)FindResource("TextBrush"),
+            FontSize = 12,
+            Padding = new Thickness(6, 3, 6, 3)
+        };
+        Grid.SetColumn(mcaInput, 1);
+        mcaGrid.Children.Add(mcaInput);
+
+        var mcaResultLabel = new TextBlock
+        {
+            Text = "",
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Helpers.ThemeHelper.Green,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(8, 0, 0, 0)
+        };
+        Grid.SetColumn(mcaResultLabel, 2);
+        mcaGrid.Children.Add(mcaResultLabel);
+
+        System.Windows.Threading.DispatcherTimer? mcaDebounce = null;
+
+        mcaInput.TextChanged += (_, _) =>
+        {
+            // Debounce: wait 300ms after last keystroke before triggering
+            mcaDebounce?.Stop();
+            mcaDebounce = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(300)
+            };
+            mcaDebounce.Tick += (_, _) =>
+            {
+                mcaDebounce.Stop();
+                if (!string.IsNullOrWhiteSpace(mcaInput.Text))
+                {
+                    _mcaDriven = true;
+                    ApplyMcaLookup(mcaInput.Text, mcaResultLabel);
+                }
+                else
+                {
+                    mcaResultLabel.Text = "";
+                }
+            };
+            mcaDebounce.Start();
+        };
+
+        InputFields.Children.Add(mcaGrid);
+
+        // Hint text
+        InputFields.Children.Add(new TextBlock
+        {
+            Text = "Rounds up to next standard OCPD per NEC 240.6(A)",
+            FontSize = 9,
+            FontStyle = FontStyles.Italic,
+            Foreground = (System.Windows.Media.Brush)FindResource("MutedTextBrush"),
+            Margin = new Thickness(0, 0, 0, 2)
+        });
+    }
+
+    private bool _mcaDriven;
+
+    private void ApplyMcaLookup(string mcaText, TextBlock resultLabel)
+    {
+        if (!double.TryParse(mcaText?.Trim(), out var amps) || amps <= 0)
+        {
+            resultLabel.Text = "";
+            return;
+        }
+
+        var nextOcpd = GetNextStandardOcpd(amps);
+        resultLabel.Text = $"\u2192 {nextOcpd}A";
+
+        // Track MCA lookup
+        TelemetryAccessor.TrackCheatSheetEvent(
+            TelemetryEventType.CheatSheetMcaLookup,
+            sheetId: _activeSheet?.Id,
+            mcaValue: amps.ToString("F1"),
+            ocpdValue: nextOcpd.ToString());
+
+        // Auto-select the OCPD value in the dropdown or textbox
+        // Always update the textbox (proxy or direct input) so PerformLookup reads the value
+        if (_inputTextBoxes.TryGetValue("OCPD", out var ocpdProxy))
+            ocpdProxy.Text = nextOcpd.ToString();
+
+        if (_inputCombos.TryGetValue("OCPD", out var ocpdCombo))
+        {
+
+            var targetValue = nextOcpd.ToString();
+            var found = false;
+
+            for (var i = 1; i < ocpdCombo.Items.Count; i++)
+            {
+                if ((ocpdCombo.Items[i] as ComboBoxItem)?.Tag as string == targetValue)
+                {
+                    _mcaDriven = true;
+                    ocpdCombo.SelectedIndex = i;
+                    found = true;
+                    break;
+                }
+            }
+
+            // If exact match not found, find nearest available OCPD >= nextOcpd
+            if (!found)
+            {
+                for (var i = 1; i < ocpdCombo.Items.Count; i++)
+                {
+                    var tag = (ocpdCombo.Items[i] as ComboBoxItem)?.Tag as string;
+                    if (tag != null && int.TryParse(tag, out var available) && available >= nextOcpd)
+                    {
+                        _mcaDriven = true;
+                        ocpdCombo.SelectedIndex = i;
+                        if (ocpdProxy != null) ocpdProxy.Text = available.ToString();
+                        resultLabel.Text = $"\u2192 {available}A (nearest available)";
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!found)
+            {
+                resultLabel.Text = $"\u2192 {nextOcpd}A (not in table)";
+            }
+
+            // Explicitly trigger lookup in case SelectionChanged didn't fire
+            _mcaDriven = false;
+            PerformLookup();
+        }
+        else
+        {
+            // No OCPD combo (textbox-only mode) — trigger lookup directly
+            PerformLookup();
+        }
+    }
+
+    /// <summary>
+    /// Converts a feeder sizing string like "3#12 &amp; 1#12G IN 3/4"C" to CES format "3#12,1#12G,3/4"C".
+    /// Splits on " IN " → conductors part and conduit part, then replaces " &amp; " with "," in conductors.
+    /// </summary>
+    private static string ConvertToCesFormat(string sizing)
+    {
+        var inIdx = sizing.IndexOf(" IN ", StringComparison.OrdinalIgnoreCase);
+        if (inIdx < 0) return sizing.Replace(" & ", ",");
+
+        var conductors = sizing[..inIdx].Replace(" & ", ",");
+        var conduit = sizing[(inIdx + 4)..];
+        return $"{conductors},{conduit}";
     }
 
     private static bool IsMotorFlaSheet(CheatSheet sheet)
@@ -2092,6 +2517,17 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
                     RenderDataGrid(_activeSheet, null);
                 return;
             }
+
+            // Track motor voltage selector usage
+            if (_activeSheet != null)
+            {
+                TelemetryAccessor.TrackCheatSheetEvent(
+                    TelemetryEventType.CheatSheetLookup,
+                    sheetId: _activeSheet.Id,
+                    sheetTitle: _activeSheet.Title,
+                    systemType: _selectedVoltageHeader);
+            }
+
             PerformLookup();
         };
         Grid.SetColumn(combo, 1);

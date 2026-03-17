@@ -67,6 +67,13 @@ public static class TelemetryEventType
 
     // CheatSheet
     public const string CheatSheetViewed = "cheat_sheet_viewed";
+    public const string CheatSheetSearched = "cheat_sheet_searched";
+    public const string CheatSheetLookup = "cheat_sheet_lookup";
+    public const string CheatSheetMcaLookup = "cheat_sheet_mca_lookup";
+    public const string CheatSheetCopied = "cheat_sheet_copied";
+    public const string CheatSheetViewModeChanged = "cheat_sheet_view_mode_changed";
+    public const string CheatSheetDisciplineChanged = "cheat_sheet_discipline_changed";
+    public const string CheatSheetEdited = "cheat_sheet_edited";
 
     // Widget visibility
     public const string WidgetOpened = "widget_opened";
@@ -167,6 +174,13 @@ public class DailyMetricsSummary
     public int TotalTagsUpdated { get; set; }
     public int TotalTagSearches { get; set; }
     public int TotalTagCarouselClicks { get; set; }
+    public int TotalCheatSheetLookups { get; set; }
+    public int TotalCheatSheetCopies { get; set; }
+    public int TotalCheatSheetSearches { get; set; }
+    public Dictionary<string, int> CheatSheetUsageFrequency { get; set; } = new();
+    public Dictionary<string, int> CheatSheetLookupFrequency { get; set; } = new();
+    public Dictionary<string, int> CheatSheetCopyFrequency { get; set; } = new();
+    public Dictionary<string, Dictionary<string, int>> CheatSheetInteractions { get; set; } = new();
 
     // Device/user identity for admin telemetry
     public string DeviceName { get; set; } = string.Empty;

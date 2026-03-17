@@ -346,6 +346,12 @@ public class MetricsDatabase
             summary.TotalDocOpens = eventCounts.GetValueOrDefault(TelemetryEventType.DocOpened, 0);
             summary.TotalTimerUses = eventCounts.GetValueOrDefault(TelemetryEventType.TimerStarted, 0);
             summary.TotalCheatSheetViews = eventCounts.GetValueOrDefault(TelemetryEventType.CheatSheetViewed, 0);
+            summary.TotalCheatSheetLookups = eventCounts.GetValueOrDefault(TelemetryEventType.CheatSheetLookup, 0);
+            summary.TotalCheatSheetCopies = eventCounts.GetValueOrDefault(TelemetryEventType.CheatSheetCopied, 0);
+            summary.TotalCheatSheetSearches = eventCounts.GetValueOrDefault(TelemetryEventType.CheatSheetSearched, 0);
+
+            // Per-sheet cheat sheet metrics from DataJson
+            await AggregateCheatSheetMetricsAsync(connection, dayStart, dayEnd, summary);
 
             // Widget usage counts
             summary.WidgetUsageCounts = await GetWidgetUsageCountsAsync(connection, dayStart, dayEnd);
@@ -526,6 +532,93 @@ public class MetricsDatabase
         }
 
         return freq;
+    }
+
+    private async Task AggregateCheatSheetMetricsAsync(
+        SqliteConnection connection, string dayStart, string dayEnd, DailyMetricsSummary summary)
+    {
+        try
+        {
+            // Query all cheat sheet events with their DataJson for per-sheet breakdown
+            var sql = @"
+                SELECT event_type, data_json
+                FROM telemetry_events
+                WHERE timestamp >= @from AND timestamp < @to
+                  AND category = 'cheat_sheet'
+                  AND data_json IS NOT NULL
+            ";
+
+            using var command = new SqliteCommand(sql, connection);
+            command.Parameters.AddWithValue("@from", dayStart);
+            command.Parameters.AddWithValue("@to", dayEnd);
+
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var eventType = reader.GetString(0);
+                var dataJson = reader.GetString(1);
+
+                // Parse sheetId from the JSON data
+                string? sheetId = null;
+                string? copyFormat = null;
+                try
+                {
+                    var doc = System.Text.Json.JsonDocument.Parse(dataJson);
+                    if (doc.RootElement.TryGetProperty("sheetId", out var idEl))
+                        sheetId = idEl.GetString();
+                    if (doc.RootElement.TryGetProperty("copyFormat", out var cfEl))
+                        copyFormat = cfEl.GetString();
+                }
+                catch { continue; }
+
+                if (string.IsNullOrEmpty(sheetId)) continue;
+
+                // Per-sheet usage frequency (views)
+                if (eventType == TelemetryEventType.CheatSheetViewed)
+                {
+                    summary.CheatSheetUsageFrequency.TryGetValue(sheetId, out var c);
+                    summary.CheatSheetUsageFrequency[sheetId] = c + 1;
+                }
+
+                // Per-sheet lookup frequency
+                if (eventType == TelemetryEventType.CheatSheetLookup)
+                {
+                    summary.CheatSheetLookupFrequency.TryGetValue(sheetId, out var c);
+                    summary.CheatSheetLookupFrequency[sheetId] = c + 1;
+                }
+
+                // Per-sheet copy frequency
+                if (eventType == TelemetryEventType.CheatSheetCopied)
+                {
+                    summary.CheatSheetCopyFrequency.TryGetValue(sheetId, out var c);
+                    summary.CheatSheetCopyFrequency[sheetId] = c + 1;
+                }
+
+                // Per-sheet special interactions (MCA lookup, CES copy, GEC calc, voltage selector, etc.)
+                string? interactionType = null;
+                if (eventType == TelemetryEventType.CheatSheetMcaLookup)
+                    interactionType = "mca_lookup";
+                else if (eventType == TelemetryEventType.CheatSheetCopied && copyFormat == "ces")
+                    interactionType = "ces_copy";
+                else if (eventType == TelemetryEventType.CheatSheetViewModeChanged)
+                    interactionType = "view_mode_changed";
+
+                if (interactionType != null)
+                {
+                    if (!summary.CheatSheetInteractions.TryGetValue(sheetId, out var interactions))
+                    {
+                        interactions = new Dictionary<string, int>();
+                        summary.CheatSheetInteractions[sheetId] = interactions;
+                    }
+                    interactions.TryGetValue(interactionType, out var ic);
+                    interactions[interactionType] = ic + 1;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            InfraLogger.Log($"MetricsDatabase: Failed to aggregate cheat sheet metrics: {ex.Message}");
+        }
     }
 
     private async Task<List<SearchQueryCount>> GetTopSearchQueriesAsync(

@@ -77,6 +77,11 @@ public class CheatSheetService
                         });
                     }
                 }
+                else
+                {
+                    // Reconcile: remove stale default sheets and update existing ones
+                    ReconcileWithDefaults();
+                }
             }
             catch (Exception ex)
             {
@@ -130,6 +135,106 @@ public class CheatSheetService
     private void OnDataServiceUpdated()
     {
         RefreshFromDataService();
+        // Re-reconcile after every sync — background sync may re-introduce stale sheets
+        // from Firebase before the delete operations complete
+        ReconcileWithDefaults();
+    }
+
+    /// <summary>
+    /// Reconciles the data service cache with hardcoded defaults.
+    /// Removes stale sheets (IDs no longer in defaults), adds missing sheets,
+    /// and updates existing default sheets with latest data.
+    /// Runs in background to avoid blocking UI.
+    /// </summary>
+    private void ReconcileWithDefaults()
+    {
+        if (_dataService == null) return;
+
+        var defaults = CreateDefaultData();
+        var defaultSheetIds = new HashSet<string>(defaults.Sheets.Select(s => s.Id), StringComparer.OrdinalIgnoreCase);
+        var currentSheetIds = new HashSet<string>(_store.Sheets.Select(s => s.Id), StringComparer.OrdinalIgnoreCase);
+        var username = Environment.UserName.ToLowerInvariant();
+        var needsRefresh = false;
+
+        // Remove stale sheets whose IDs no longer exist in defaults
+        var staleIds = currentSheetIds.Where(id => !defaultSheetIds.Contains(id)).ToList();
+        if (staleIds.Count > 0)
+        {
+            DebugLogger.Log($"CheatSheetService: Reconcile — removing {staleIds.Count} stale sheet(s)");
+            foreach (var staleId in staleIds)
+            {
+                var staleSheet = _store.Sheets.FirstOrDefault(s => s.Id.Equals(staleId, StringComparison.OrdinalIgnoreCase));
+                if (staleSheet != null)
+                {
+                    _store.Sheets.Remove(staleSheet);
+                    DebugLogger.Log($"  Removed: '{staleSheet.Title}' (ID: {staleId})");
+                }
+            }
+            needsRefresh = true;
+
+            // Background: delete from data service + Firebase
+            _ = Task.Run(async () =>
+            {
+                foreach (var staleId in staleIds)
+                {
+                    try { await _dataService.DeleteSheetAsync(staleId, username); }
+                    catch (Exception ex) { DebugLogger.Log($"  Delete failed for {staleId}: {ex.Message}"); }
+                }
+            });
+        }
+
+        // Add missing sheets and update existing ones with latest default data
+        var existingMap = _store.Sheets.ToDictionary(s => s.Id, s => s, StringComparer.OrdinalIgnoreCase);
+        foreach (var sheet in defaults.Sheets)
+        {
+            if (!existingMap.ContainsKey(sheet.Id))
+            {
+                _store.Sheets.Add(sheet);
+                needsRefresh = true;
+                DebugLogger.Log($"  Added: '{sheet.Title}' (ID: {sheet.Id})");
+
+                // Background: save to data service
+                var sheetToSave = sheet;
+                _ = Task.Run(async () =>
+                {
+                    try { await _dataService.SaveSheetAsync(sheetToSave, username); }
+                    catch (Exception ex) { DebugLogger.Log($"  Save failed for {sheetToSave.Id}: {ex.Message}"); }
+                });
+            }
+            else
+            {
+                // Update existing sheet with latest default data
+                var existing = existingMap[sheet.Id];
+                var changed = existing.Title != sheet.Title ||
+                              existing.Columns.Count != sheet.Columns.Count ||
+                              existing.Rows.Count != sheet.Rows.Count;
+
+                existing.Title = sheet.Title;
+                existing.Subtitle = sheet.Subtitle;
+                existing.Description = sheet.Description;
+                existing.Tags = sheet.Tags;
+                existing.Columns = sheet.Columns;
+                existing.Rows = sheet.Rows;
+                existing.Layout = sheet.Layout;
+                if ((sheet.Steps?.Count ?? 0) > 0)
+                    existing.Steps = sheet.Steps!;
+
+                if (changed)
+                {
+                    needsRefresh = true;
+                    // Background: save updated sheet to data service
+                    var sheetToSave = existing;
+                    _ = Task.Run(async () =>
+                    {
+                        try { await _dataService.SaveSheetAsync(sheetToSave, username); }
+                        catch (Exception ex) { DebugLogger.Log($"  Update failed for {sheetToSave.Id}: {ex.Message}"); }
+                    });
+                }
+            }
+        }
+
+        if (needsRefresh)
+            DebugLogger.Log($"CheatSheetService: Reconcile complete — now {_store.Sheets.Count} sheets");
     }
 
     /// <summary>
@@ -163,6 +268,16 @@ public class CheatSheetService
             }
         }
 
+        // Remove cached sheets whose IDs no longer exist in defaults (e.g. old split feeder sheets)
+        var defaultSheetIds = new HashSet<string>(defaults.Sheets.Select(s => s.Id), StringComparer.OrdinalIgnoreCase);
+        var staleSheets = _store.Sheets.Where(s => !defaultSheetIds.Contains(s.Id)).ToList();
+        foreach (var stale in staleSheets)
+        {
+            _store.Sheets.Remove(stale);
+            merged = true;
+            DebugLogger.Log($"CheatSheetService: Removed stale sheet '{stale.Title}' (ID: {stale.Id})");
+        }
+
         var existingSheetMap = _store.Sheets.ToDictionary(s => s.Id, s => s, StringComparer.OrdinalIgnoreCase);
         foreach (var sheet in defaults.Sheets)
         {
@@ -174,19 +289,23 @@ public class CheatSheetService
             }
             else
             {
-                // Patch existing sheet if default has Steps data that the cached version lacks
+                // Update existing sheets with latest default data (columns, rows, tags, etc.)
                 var existing = existingSheetMap[sheet.Id];
-                if ((sheet.Steps?.Count ?? 0) > 0 && (existing.Steps?.Count ?? 0) < sheet.Steps!.Count)
-                {
-                    existing.Steps = sheet.Steps;
-                    merged = true;
-                    DebugLogger.Log($"CheatSheetService: Updated Steps on '{sheet.Title}' ({sheet.Steps.Count} steps)");
-                }
+                existing.Title = sheet.Title;
+                existing.Subtitle = sheet.Subtitle;
+                existing.Description = sheet.Description;
+                existing.Tags = sheet.Tags;
+                existing.Columns = sheet.Columns;
+                existing.Rows = sheet.Rows;
+                existing.Layout = sheet.Layout;
+                if ((sheet.Steps?.Count ?? 0) > 0)
+                    existing.Steps = sheet.Steps!;
+                merged = true;
             }
         }
 
         if (merged)
-            DebugLogger.Log("CheatSheetService: Default data merge complete â€” new entries added");
+            DebugLogger.Log("CheatSheetService: Default data merge complete");
     }
 
     public async Task SaveAsync()

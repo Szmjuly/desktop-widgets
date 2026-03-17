@@ -179,218 +179,153 @@ internal static class CheatSheetElectricalDefaults
             }
         });
 
-        // 3) Feeder Schedules — Copper, THHN/THWN, 75°C terminations
-        //    Organized by system configuration: 1Ø 2W+G, 1Ø 3W+G, 3Ø 3W+G, 3Ø 4W+G
-
-        // --- Single Phase 2-Wire + Ground (Hot + Neutral + Ground) ---
+        // 3) Feeder Schedule — Copper, THHN/THWN, 75°C terminations
+        //    Combined table: System selector → OCPD → Conductors & Conduit
+        //    Systems: 1Ø 2W+G, 1Ø 3W+G, 3Ø 3W+G, 3Ø 4W+G
         store.Sheets.Add(new CheatSheet
         {
-            Id = "feeder-1ph-2w",
-            Title = "Feeder Schedule \u2014 1\u00d8 2W+G",
-            Subtitle = "Copper, THHN/THWN, 75\u00b0C \u2014 Single Phase 2-Wire + Ground",
-            Description = "Single-phase 2-wire + ground feeder/branch circuit sizing (120V or 240V)",
+            Id = "feeder-schedule",
+            Title = "Feeder Schedule",
+            Subtitle = "Copper, THHN/THWN, 75\u00b0C terminations",
+            Description = "Branch circuit and feeder conductor/conduit sizing by system type and OCPD rating. Select a system configuration to filter, or scroll through all systems.",
             Discipline = Discipline.Electrical,
             SheetType = CheatSheetType.Table,
             Layout = CheatSheetLayout.CompactLookup,
             CodeBookId = "nec2020",
-            Tags = new List<string> { "feeder", "single phase", "1-phase", "2-wire", "2W", "OCPD", "wire", "conduit", "conductor", "schedule", "branch circuit" },
+            Tags = new List<string> { "feeder", "branch circuit", "OCPD", "wire", "conduit", "conductor", "schedule",
+                "single phase", "1-phase", "three phase", "3-phase", "2-wire", "3-wire", "4-wire",
+                "2W", "3W", "4W", "delta", "wye", "120/240" },
             Columns = new List<CheatSheetColumn>
             {
-                new() { Header = "Ckt", IsInputColumn = true },
+                new() { Header = "System", IsInputColumn = true },
                 new() { Header = "OCPD", Unit = "A", IsInputColumn = true },
-                new() { Header = "Conductors & Ground", IsOutputColumn = true },
-                new() { Header = "Conduit", IsOutputColumn = true }
+                new() { Header = "Sizing", IsOutputColumn = true }
             },
             Rows = new List<List<string>>
             {
-                new() { "1",   "15",  "2#12 & 1#12G",          "1/2\"" },
-                new() { "2",   "20",  "2#12 & 1#12G",          "1/2\"" },
-                new() { "2.5", "25",  "2#10 & 1#10G",          "1/2\"" },
-                new() { "3",   "30",  "2#10 & 1#10G",          "1/2\"" },
-                new() { "3.5", "35",  "2#8 & 1#10G",           "1/2\"" },
-                new() { "4",   "40",  "2#8 & 1#10G",           "1/2\"" },
-                new() { "4.5", "45",  "2#8 & 1#10G",           "1/2\"" },
-                new() { "5",   "50",  "2#8 & 1#10G",           "3/4\"" },
-                new() { "6",   "60",  "2#6 & 1#10G",           "3/4\"" },
-                new() { "7",   "70",  "2#4 & 1#8G",            "1\"" },
-                new() { "8",   "80",  "2#4 & 1#8G",            "1\"" },
-                new() { "9",   "90",  "2#3 & 1#8G",            "1\"" },
-                new() { "10",  "100", "2#3 & 1#8G",            "1\"" },
-                new() { "11",  "110", "2#2 & 1#6G",            "1\"" },
-                new() { "12",  "125", "2#1 & 1#6G",            "1-1/4\"" },
-                new() { "15",  "150", "2#1/0 & 1#6G",          "1-1/2\"" },
-                new() { "17",  "175", "2#2/0 & 1#6G",          "1-1/2\"" },
-                new() { "20",  "200", "2#3/0 & 1#6G",          "1-1/2\"" },
-                new() { "22",  "225", "2#4/0 & 1#4G",          "2\"" },
-                new() { "25",  "250", "2#250KCMIL & 1#4G",     "2-1/2\"" },
-                new() { "30",  "300", "2#350KCMIL & 1#4G",     "2-1/2\"" },
-                new() { "35",  "350", "2#500KCMIL & 1#3G",     "3\"" },
-                new() { "40",  "400", "2#600KCMIL & 1#3G",     "3\"" }
-            }
-        });
+                // ── 1Ø 2W+G (Hot + Neutral + Ground) ──
+                new() { "1\u00d8 2W+G", "15",  "2#12 & 1#12G IN 1/2\"C" },
+                new() { "1\u00d8 2W+G", "20",  "2#12 & 1#12G IN 1/2\"C" },
+                new() { "1\u00d8 2W+G", "25",  "2#10 & 1#10G IN 1/2\"C" },
+                new() { "1\u00d8 2W+G", "30",  "2#10 & 1#10G IN 1/2\"C" },
+                new() { "1\u00d8 2W+G", "35",  "2#8 & 1#10G IN 1/2\"C" },
+                new() { "1\u00d8 2W+G", "40",  "2#8 & 1#10G IN 1/2\"C" },
+                new() { "1\u00d8 2W+G", "45",  "2#8 & 1#10G IN 1/2\"C" },
+                new() { "1\u00d8 2W+G", "50",  "2#8 & 1#10G IN 3/4\"C" },
+                new() { "1\u00d8 2W+G", "60",  "2#6 & 1#10G IN 3/4\"C" },
+                new() { "1\u00d8 2W+G", "70",  "2#4 & 1#8G IN 1\"C" },
+                new() { "1\u00d8 2W+G", "80",  "2#4 & 1#8G IN 1\"C" },
+                new() { "1\u00d8 2W+G", "90",  "2#3 & 1#8G IN 1\"C" },
+                new() { "1\u00d8 2W+G", "100", "2#3 & 1#8G IN 1\"C" },
+                new() { "1\u00d8 2W+G", "110", "2#2 & 1#6G IN 1\"C" },
+                new() { "1\u00d8 2W+G", "125", "2#1 & 1#6G IN 1-1/4\"C" },
+                new() { "1\u00d8 2W+G", "150", "2#1/0 & 1#6G IN 1-1/2\"C" },
+                new() { "1\u00d8 2W+G", "175", "2#2/0 & 1#6G IN 1-1/2\"C" },
+                new() { "1\u00d8 2W+G", "200", "2#3/0 & 1#6G IN 1-1/2\"C" },
+                new() { "1\u00d8 2W+G", "225", "2#4/0 & 1#4G IN 2\"C" },
+                new() { "1\u00d8 2W+G", "250", "2#250KCMIL & 1#4G IN 2-1/2\"C" },
+                new() { "1\u00d8 2W+G", "300", "2#350KCMIL & 1#4G IN 2-1/2\"C" },
+                new() { "1\u00d8 2W+G", "350", "2#500KCMIL & 1#3G IN 3\"C" },
+                new() { "1\u00d8 2W+G", "400", "2#600KCMIL & 1#3G IN 3\"C" },
 
-        // --- Single Phase 3-Wire + Ground (Hot-Hot-Neutral + Ground, 120/240V) ---
-        store.Sheets.Add(new CheatSheet
-        {
-            Id = "feeder-1ph-3w",
-            Title = "Feeder Schedule \u2014 1\u00d8 3W+G",
-            Subtitle = "Copper, THHN/THWN, 75\u00b0C \u2014 Single Phase 3-Wire + Ground (120/240V)",
-            Description = "Single-phase 3-wire + ground feeder sizing (2 hots + neutral + ground)",
-            Discipline = Discipline.Electrical,
-            SheetType = CheatSheetType.Table,
-            Layout = CheatSheetLayout.CompactLookup,
-            CodeBookId = "nec2020",
-            Tags = new List<string> { "feeder", "single phase", "1-phase", "3-wire", "3W", "OCPD", "wire", "conduit", "conductor", "schedule", "120/240" },
-            Columns = new List<CheatSheetColumn>
-            {
-                new() { Header = "Ckt", IsInputColumn = true },
-                new() { Header = "OCPD", Unit = "A", IsInputColumn = true },
-                new() { Header = "Conductors & Ground", IsOutputColumn = true },
-                new() { Header = "Conduit", IsOutputColumn = true }
-            },
-            Rows = new List<List<string>>
-            {
-                new() { "1",   "15",  "3#12 & 1#12G",          "3/4\"" },
-                new() { "2",   "20",  "3#12 & 1#12G",          "3/4\"" },
-                new() { "2.5", "25",  "3#10 & 1#10G",          "3/4\"" },
-                new() { "3",   "30",  "3#10 & 1#10G",          "3/4\"" },
-                new() { "3.5", "35",  "3#8 & 1#10G",           "3/4\"" },
-                new() { "4",   "40",  "3#8 & 1#10G",           "3/4\"" },
-                new() { "4.5", "45",  "3#8 & 1#10G",           "3/4\"" },
-                new() { "5",   "50",  "3#8 & 1#10G",           "1\"" },
-                new() { "6",   "60",  "3#6 & 1#10G",           "1\"" },
-                new() { "7",   "70",  "3#4 & 1#8G",            "1-1/4\"" },
-                new() { "8",   "80",  "3#4 & 1#8G",            "1-1/4\"" },
-                new() { "9",   "90",  "3#3 & 1#8G",            "1-1/4\"" },
-                new() { "10",  "100", "3#3 & 1#8G",            "1-1/4\"" },
-                new() { "11",  "110", "3#2 & 1#6G",            "1-1/4\"" },
-                new() { "12",  "125", "3#1 & 1#6G",            "1-1/2\"" },
-                new() { "15",  "150", "3#1/0 & 1#6G",          "2\"" },
-                new() { "17",  "175", "3#2/0 & 1#6G",          "2\"" },
-                new() { "20",  "200", "3#3/0 & 1#6G",          "2\"" },
-                new() { "22",  "225", "3#4/0 & 1#4G",          "2-1/2\"" },
-                new() { "25",  "250", "3#250KCMIL & 1#4G",     "3\"" },
-                new() { "30",  "300", "3#350KCMIL & 1#4G",     "3\"" },
-                new() { "35",  "350", "3#500KCMIL & 1#3G",     "4\"" },
-                new() { "40",  "400", "3#600KCMIL & 1#3G",     "4\"" }
-            }
-        });
+                // ── 1Ø 3W+G (Hot-Hot-Neutral + Ground, 120/240V) ──
+                new() { "1\u00d8 3W+G", "15",  "3#12 & 1#12G IN 3/4\"C" },
+                new() { "1\u00d8 3W+G", "20",  "3#12 & 1#12G IN 3/4\"C" },
+                new() { "1\u00d8 3W+G", "25",  "3#10 & 1#10G IN 3/4\"C" },
+                new() { "1\u00d8 3W+G", "30",  "3#10 & 1#10G IN 3/4\"C" },
+                new() { "1\u00d8 3W+G", "35",  "3#8 & 1#10G IN 3/4\"C" },
+                new() { "1\u00d8 3W+G", "40",  "3#8 & 1#10G IN 3/4\"C" },
+                new() { "1\u00d8 3W+G", "45",  "3#8 & 1#10G IN 3/4\"C" },
+                new() { "1\u00d8 3W+G", "50",  "3#8 & 1#10G IN 1\"C" },
+                new() { "1\u00d8 3W+G", "60",  "3#6 & 1#10G IN 1\"C" },
+                new() { "1\u00d8 3W+G", "70",  "3#4 & 1#8G IN 1-1/4\"C" },
+                new() { "1\u00d8 3W+G", "80",  "3#4 & 1#8G IN 1-1/4\"C" },
+                new() { "1\u00d8 3W+G", "90",  "3#3 & 1#8G IN 1-1/4\"C" },
+                new() { "1\u00d8 3W+G", "100", "3#3 & 1#8G IN 1-1/4\"C" },
+                new() { "1\u00d8 3W+G", "110", "3#2 & 1#6G IN 1-1/4\"C" },
+                new() { "1\u00d8 3W+G", "125", "3#1 & 1#6G IN 1-1/2\"C" },
+                new() { "1\u00d8 3W+G", "150", "3#1/0 & 1#6G IN 2\"C" },
+                new() { "1\u00d8 3W+G", "175", "3#2/0 & 1#6G IN 2\"C" },
+                new() { "1\u00d8 3W+G", "200", "3#3/0 & 1#6G IN 2\"C" },
+                new() { "1\u00d8 3W+G", "225", "3#4/0 & 1#4G IN 2-1/2\"C" },
+                new() { "1\u00d8 3W+G", "250", "3#250KCMIL & 1#4G IN 3\"C" },
+                new() { "1\u00d8 3W+G", "300", "3#350KCMIL & 1#4G IN 3\"C" },
+                new() { "1\u00d8 3W+G", "350", "3#500KCMIL & 1#3G IN 4\"C" },
+                new() { "1\u00d8 3W+G", "400", "3#600KCMIL & 1#3G IN 4\"C" },
 
-        // --- Three Phase 3-Wire + Ground (3 phases + ground, delta / no neutral) ---
-        store.Sheets.Add(new CheatSheet
-        {
-            Id = "feeder-3ph-3w",
-            Title = "Feeder Schedule \u2014 3\u00d8 3W+G",
-            Subtitle = "Copper, THHN/THWN, 75\u00b0C \u2014 Three Phase 3-Wire + Ground",
-            Description = "Three-phase 3-wire + ground feeder sizing (3 phases + ground, no neutral)",
-            Discipline = Discipline.Electrical,
-            SheetType = CheatSheetType.Table,
-            Layout = CheatSheetLayout.CompactLookup,
-            CodeBookId = "nec2020",
-            Tags = new List<string> { "feeder", "three phase", "3-phase", "3-wire", "3W", "delta", "OCPD", "wire", "conduit", "conductor", "schedule" },
-            Columns = new List<CheatSheetColumn>
-            {
-                new() { Header = "Ckt", IsInputColumn = true },
-                new() { Header = "OCPD", Unit = "A", IsInputColumn = true },
-                new() { Header = "Conductors & Ground", IsOutputColumn = true },
-                new() { Header = "Conduit", IsOutputColumn = true }
-            },
-            Rows = new List<List<string>>
-            {
-                new() { "1",   "15",   "3#12 & 1#12G",                                "3/4\"" },
-                new() { "2",   "20",   "3#12 & 1#12G",                                "3/4\"" },
-                new() { "2.5", "25",   "3#10 & 1#10G",                                "3/4\"" },
-                new() { "3",   "30",   "3#10 & 1#10G",                                "3/4\"" },
-                new() { "3.5", "35",   "3#8 & 1#10G",                                 "3/4\"" },
-                new() { "4",   "40",   "3#8 & 1#10G",                                 "3/4\"" },
-                new() { "4.5", "45",   "3#8 & 1#10G",                                 "3/4\"" },
-                new() { "5",   "50",   "3#8 & 1#10G",                                 "1\"" },
-                new() { "6",   "60",   "3#6 & 1#10G",                                 "1\"" },
-                new() { "7",   "70",   "3#4 & 1#8G",                                  "1-1/4\"" },
-                new() { "8",   "80",   "3#4 & 1#8G",                                  "1-1/4\"" },
-                new() { "9",   "90",   "3#3 & 1#8G",                                  "1-1/4\"" },
-                new() { "10",  "100",  "3#3 & 1#8G",                                  "1-1/4\"" },
-                new() { "11",  "110",  "3#2 & 1#6G",                                  "1-1/4\"" },
-                new() { "12",  "125",  "3#1 & 1#6G",                                  "1-1/2\"" },
-                new() { "15",  "150",  "3#1/0 & 1#6G",                                "2\"" },
-                new() { "17",  "175",  "3#2/0 & 1#6G",                                "2\"" },
-                new() { "20",  "200",  "3#3/0 & 1#6G",                                "2\"" },
-                new() { "22",  "225",  "3#4/0 & 1#4G",                                "2-1/2\"" },
-                new() { "25",  "250",  "3#250KCMIL & 1#4G",                           "3\"" },
-                new() { "30",  "300",  "3#350KCMIL & 1#4G",                           "3\"" },
-                new() { "35",  "350",  "3#500KCMIL & 1#3G",                           "4\"" },
-                new() { "40",  "400",  "3#600KCMIL & 1#3G",                           "4\"" },
-                new() { "45",  "450",  "(2)3#4/0 & 1#2G",                             "(2) 2-1/2\"" },
-                new() { "50",  "500",  "(2)3#250KCMIL & 1#2G",                        "(2) 3\"" },
-                new() { "60",  "600",  "(2)3#350KCMIL & 1#1G",                        "(2) 3\"" },
-                new() { "70",  "700",  "(2)3#500KCMIL & 1#1/0G",                      "(2) 4\"" },
-                new() { "80",  "800",  "(2)3#600KCMIL & 1#1/0G",                      "(2) 4\"" },
-                new() { "90",  "900",  "(3)3#350KCMIL & 1#2/0G",                      "(3) 3\"" },
-                new() { "100", "1000", "(3)3#500KCMIL & 1#2/0G",                      "(3) 4\"" },
-                new() { "120", "1200", "(4)3#350KCMIL & 1#3/0G",                      "(4) 3\"" },
-                new() { "160", "1600", "(4)3#600KCMIL & 1#4/0G",                      "(4) 3\"" },
-                new() { "200", "2000", "5 SETS OF 3#600KCMIL & 1#250KCMIL(G)",        "(5) 3\"" },
-                new() { "250", "2500", "6 SETS OF 3#600KCMIL & 1#350KCMIL(G)",        "(6) 3\"" },
-                new() { "300", "3000", "8 SETS OF 3#500KCMIL & 1#500KCMIL(G)",        "(8) 3\"" }
-            }
-        });
+                // ── 3Ø 3W+G (3 phases + ground, delta) ──
+                new() { "3\u00d8 3W+G", "15",   "3#12 & 1#12G IN 3/4\"C" },
+                new() { "3\u00d8 3W+G", "20",   "3#12 & 1#12G IN 3/4\"C" },
+                new() { "3\u00d8 3W+G", "25",   "3#10 & 1#10G IN 3/4\"C" },
+                new() { "3\u00d8 3W+G", "30",   "3#10 & 1#10G IN 3/4\"C" },
+                new() { "3\u00d8 3W+G", "35",   "3#8 & 1#10G IN 3/4\"C" },
+                new() { "3\u00d8 3W+G", "40",   "3#8 & 1#10G IN 3/4\"C" },
+                new() { "3\u00d8 3W+G", "45",   "3#8 & 1#10G IN 3/4\"C" },
+                new() { "3\u00d8 3W+G", "50",   "3#8 & 1#10G IN 1\"C" },
+                new() { "3\u00d8 3W+G", "60",   "3#6 & 1#10G IN 1\"C" },
+                new() { "3\u00d8 3W+G", "70",   "3#4 & 1#8G IN 1-1/4\"C" },
+                new() { "3\u00d8 3W+G", "80",   "3#4 & 1#8G IN 1-1/4\"C" },
+                new() { "3\u00d8 3W+G", "90",   "3#3 & 1#8G IN 1-1/4\"C" },
+                new() { "3\u00d8 3W+G", "100",  "3#3 & 1#8G IN 1-1/4\"C" },
+                new() { "3\u00d8 3W+G", "110",  "3#2 & 1#6G IN 1-1/4\"C" },
+                new() { "3\u00d8 3W+G", "125",  "3#1 & 1#6G IN 1-1/2\"C" },
+                new() { "3\u00d8 3W+G", "150",  "3#1/0 & 1#6G IN 2\"C" },
+                new() { "3\u00d8 3W+G", "175",  "3#2/0 & 1#6G IN 2\"C" },
+                new() { "3\u00d8 3W+G", "200",  "3#3/0 & 1#6G IN 2\"C" },
+                new() { "3\u00d8 3W+G", "225",  "3#4/0 & 1#4G IN 2-1/2\"C" },
+                new() { "3\u00d8 3W+G", "250",  "3#250KCMIL & 1#4G IN 3\"C" },
+                new() { "3\u00d8 3W+G", "300",  "3#350KCMIL & 1#4G IN 3\"C" },
+                new() { "3\u00d8 3W+G", "350",  "3#500KCMIL & 1#3G IN 4\"C" },
+                new() { "3\u00d8 3W+G", "400",  "3#600KCMIL & 1#3G IN 4\"C" },
+                new() { "3\u00d8 3W+G", "450",  "(2)3#4/0 & 1#2G IN (2) 2-1/2\"C" },
+                new() { "3\u00d8 3W+G", "500",  "(2)3#250KCMIL & 1#2G IN (2) 3\"C" },
+                new() { "3\u00d8 3W+G", "600",  "(2)3#350KCMIL & 1#1G IN (2) 3\"C" },
+                new() { "3\u00d8 3W+G", "700",  "(2)3#500KCMIL & 1#1/0G IN (2) 4\"C" },
+                new() { "3\u00d8 3W+G", "800",  "(2)3#600KCMIL & 1#1/0G IN (2) 4\"C" },
+                new() { "3\u00d8 3W+G", "900",  "(3)3#350KCMIL & 1#2/0G IN (3) 3\"C" },
+                new() { "3\u00d8 3W+G", "1000", "(3)3#500KCMIL & 1#2/0G IN (3) 4\"C" },
+                new() { "3\u00d8 3W+G", "1200", "(4)3#350KCMIL & 1#3/0G IN (4) 3\"C" },
+                new() { "3\u00d8 3W+G", "1600", "(4)3#600KCMIL & 1#4/0G IN (4) 3\"C" },
+                new() { "3\u00d8 3W+G", "2000", "5 SETS OF 3#600KCMIL & 1#250KCMIL(G) IN (5) 3\"C" },
+                new() { "3\u00d8 3W+G", "2500", "6 SETS OF 3#600KCMIL & 1#350KCMIL(G) IN (6) 3\"C" },
+                new() { "3\u00d8 3W+G", "3000", "8 SETS OF 3#500KCMIL & 1#500KCMIL(G) IN (8) 3\"C" },
 
-        // --- Three Phase 4-Wire + Ground (3 phases + neutral + ground, wye) ---
-        store.Sheets.Add(new CheatSheet
-        {
-            Id = "feeder-3ph-4w",
-            Title = "Feeder Schedule \u2014 3\u00d8 4W+G",
-            Subtitle = "Copper, THHN/THWN, 75\u00b0C \u2014 Three Phase 4-Wire + Ground",
-            Description = "Three-phase 4-wire + ground feeder sizing (3 phases + neutral + ground, wye)",
-            Discipline = Discipline.Electrical,
-            SheetType = CheatSheetType.Table,
-            Layout = CheatSheetLayout.CompactLookup,
-            CodeBookId = "nec2020",
-            Tags = new List<string> { "feeder", "three phase", "3-phase", "4-wire", "4W", "wye", "OCPD", "wire", "conduit", "conductor", "schedule" },
-            Columns = new List<CheatSheetColumn>
-            {
-                new() { Header = "Ckt", IsInputColumn = true },
-                new() { Header = "OCPD", Unit = "A", IsInputColumn = true },
-                new() { Header = "Conductors & Ground", IsOutputColumn = true },
-                new() { Header = "Conduit", IsOutputColumn = true }
-            },
-            Rows = new List<List<string>>
-            {
-                new() { "1",   "15",   "4#12 & 1#12G",                                "3/4\"" },
-                new() { "2",   "20",   "4#12 & 1#12G",                                "3/4\"" },
-                new() { "2.5", "25",   "4#10 & 1#10G",                                "3/4\"" },
-                new() { "3",   "30",   "4#10 & 1#10G",                                "3/4\"" },
-                new() { "3.5", "35",   "4#8 & 1#10G",                                 "3/4\"" },
-                new() { "4",   "40",   "4#8 & 1#10G",                                 "1\"" },
-                new() { "4.5", "45",   "4#8 & 1#10G",                                 "1\"" },
-                new() { "5",   "50",   "4#8 & 1#10G",                                 "1\"" },
-                new() { "6",   "60",   "4#6 & 1#10G",                                 "1\"" },
-                new() { "7",   "70",   "4#4 & 1#8G",                                  "1-1/4\"" },
-                new() { "8",   "80",   "4#4 & 1#8G",                                  "1-1/4\"" },
-                new() { "9",   "90",   "4#3 & 1#8G",                                  "1-1/4\"" },
-                new() { "10",  "100",  "4#3 & 1#8G",                                  "1-1/4\"" },
-                new() { "11",  "110",  "4#2 & 1#6G",                                  "1-1/2\"" },
-                new() { "12",  "125",  "4#1 & 1#6G",                                  "2\"" },
-                new() { "15",  "150",  "4#1/0 & 1#6G",                                "2\"" },
-                new() { "17",  "175",  "4#2/0 & 1#6G",                                "2\"" },
-                new() { "20",  "200",  "4#3/0 & 1#6G",                                "2-1/2\"" },
-                new() { "22",  "225",  "4#4/0 & 1#4G",                                "2-1/2\"" },
-                new() { "25",  "250",  "4#250KCMIL & 1#4G",                           "3\"" },
-                new() { "30",  "300",  "4#350KCMIL & 1#4G",                           "4\"" },
-                new() { "35",  "350",  "4#500KCMIL & 1#3G",                           "4\"" },
-                new() { "40",  "400",  "4#600KCMIL & 1#3G",                           "4\"" },
-                new() { "45",  "450",  "2 SETS OF 4#4/0 & 1#2G",                      "(2) 2-1/2\"" },
-                new() { "50",  "500",  "2 SETS OF 4#250KCMIL & 1#2G",                 "(2) 3\"" },
-                new() { "60",  "600",  "2 SETS OF 4#350KCMIL & 1#1G",                 "(2) 4\"" },
-                new() { "70",  "700",  "2 SETS OF 4#500KCMIL & 1#1/0G",               "(2) 4\"" },
-                new() { "80",  "800",  "2 SETS OF 4#600KCMIL & 1#1/0G",               "(2) 4\"" },
-                new() { "90",  "900",  "3 SETS OF 4#350KCMIL & 1#2/0G",               "(3) 4\"" },
-                new() { "100", "1000", "3 SETS OF 4#500KCMIL & 1#2/0G",               "(3) 4\"" },
-                new() { "120", "1200", "4 SETS OF 4#350KCMIL & 1#3/0G",               "(4) 4\"" },
-                new() { "160", "1600", "4 SETS OF 4#600KCMIL & 1#4/0G",               "(4) 4\"" },
-                new() { "200", "2000", "5 SETS OF 4#600KCMIL & 1#250KCMIL(G)",        "(5) 4\"" },
-                new() { "250", "2500", "6 SETS OF 4#600KCMIL & 1#350KCMIL(G)",        "(6) 4\"" },
-                new() { "300", "3000", "8 SETS OF 4#500KCMIL & 1#500KCMIL(G)",        "(8) 4\"" }
+                // ── 3Ø 4W+G (3 phases + neutral + ground, wye) ──
+                new() { "3\u00d8 4W+G", "15",   "4#12 & 1#12G IN 3/4\"C" },
+                new() { "3\u00d8 4W+G", "20",   "4#12 & 1#12G IN 3/4\"C" },
+                new() { "3\u00d8 4W+G", "25",   "4#10 & 1#10G IN 3/4\"C" },
+                new() { "3\u00d8 4W+G", "30",   "4#10 & 1#10G IN 3/4\"C" },
+                new() { "3\u00d8 4W+G", "35",   "4#8 & 1#10G IN 3/4\"C" },
+                new() { "3\u00d8 4W+G", "40",   "4#8 & 1#10G IN 1\"C" },
+                new() { "3\u00d8 4W+G", "45",   "4#8 & 1#10G IN 1\"C" },
+                new() { "3\u00d8 4W+G", "50",   "4#8 & 1#10G IN 1\"C" },
+                new() { "3\u00d8 4W+G", "60",   "4#6 & 1#10G IN 1\"C" },
+                new() { "3\u00d8 4W+G", "70",   "4#4 & 1#8G IN 1-1/4\"C" },
+                new() { "3\u00d8 4W+G", "80",   "4#4 & 1#8G IN 1-1/4\"C" },
+                new() { "3\u00d8 4W+G", "90",   "4#3 & 1#8G IN 1-1/4\"C" },
+                new() { "3\u00d8 4W+G", "100",  "4#3 & 1#8G IN 1-1/4\"C" },
+                new() { "3\u00d8 4W+G", "110",  "4#2 & 1#6G IN 1-1/2\"C" },
+                new() { "3\u00d8 4W+G", "125",  "4#1 & 1#6G IN 2\"C" },
+                new() { "3\u00d8 4W+G", "150",  "4#1/0 & 1#6G IN 2\"C" },
+                new() { "3\u00d8 4W+G", "175",  "4#2/0 & 1#6G IN 2\"C" },
+                new() { "3\u00d8 4W+G", "200",  "4#3/0 & 1#6G IN 2-1/2\"C" },
+                new() { "3\u00d8 4W+G", "225",  "4#4/0 & 1#4G IN 2-1/2\"C" },
+                new() { "3\u00d8 4W+G", "250",  "4#250KCMIL & 1#4G IN 3\"C" },
+                new() { "3\u00d8 4W+G", "300",  "4#350KCMIL & 1#4G IN 4\"C" },
+                new() { "3\u00d8 4W+G", "350",  "4#500KCMIL & 1#3G IN 4\"C" },
+                new() { "3\u00d8 4W+G", "400",  "4#600KCMIL & 1#3G IN 4\"C" },
+                new() { "3\u00d8 4W+G", "450",  "2 SETS OF 4#4/0 & 1#2G IN (2) 2-1/2\"C" },
+                new() { "3\u00d8 4W+G", "500",  "2 SETS OF 4#250KCMIL & 1#2G IN (2) 3\"C" },
+                new() { "3\u00d8 4W+G", "600",  "2 SETS OF 4#350KCMIL & 1#1G IN (2) 4\"C" },
+                new() { "3\u00d8 4W+G", "700",  "2 SETS OF 4#500KCMIL & 1#1/0G IN (2) 4\"C" },
+                new() { "3\u00d8 4W+G", "800",  "2 SETS OF 4#600KCMIL & 1#1/0G IN (2) 4\"C" },
+                new() { "3\u00d8 4W+G", "900",  "3 SETS OF 4#350KCMIL & 1#2/0G IN (3) 4\"C" },
+                new() { "3\u00d8 4W+G", "1000", "3 SETS OF 4#500KCMIL & 1#2/0G IN (3) 4\"C" },
+                new() { "3\u00d8 4W+G", "1200", "4 SETS OF 4#350KCMIL & 1#3/0G IN (4) 4\"C" },
+                new() { "3\u00d8 4W+G", "1600", "4 SETS OF 4#600KCMIL & 1#4/0G IN (4) 4\"C" },
+                new() { "3\u00d8 4W+G", "2000", "5 SETS OF 4#600KCMIL & 1#250KCMIL(G) IN (5) 4\"C" },
+                new() { "3\u00d8 4W+G", "2500", "6 SETS OF 4#600KCMIL & 1#350KCMIL(G) IN (6) 4\"C" },
+                new() { "3\u00d8 4W+G", "3000", "8 SETS OF 4#500KCMIL & 1#500KCMIL(G) IN (8) 4\"C" }
             }
         });
 
@@ -422,51 +357,6 @@ internal static class CheatSheetElectricalDefaults
                 new() { "Over 350 thru 600", "Over 500 thru 900", "1/0", "3/0" },
                 new() { "Over 600 thru 1100", "Over 900 thru 1750", "2/0", "4/0" },
                 new() { "Over 1100", "Over 1750", "3/0", "250" }
-            }
-        });
-
-        // Service Conduit Schedule (15A-3000A)
-        store.Sheets.Add(new CheatSheet
-        {
-            Id = "service-conduit-schedule",
-            Title = "Service Conduit Schedule",
-            Subtitle = "Service entrance conductors & conduit by ampacity",
-            Description = "Service entrance conductor and conduit sizing from 15A to 3000A (NEC Article 230)",
-            Discipline = Discipline.Electrical,
-            SheetType = CheatSheetType.Table,
-            Layout = CheatSheetLayout.FullTable,
-            CodeBookId = "nec2020",
-            Tags = new List<string> { "service", "conduit", "schedule", "ampacity", "entrance", "230", "feeder" },
-            Columns = new List<CheatSheetColumn>
-            {
-                new() { Header = "Service (A)", Unit = "A", IsInputColumn = true },
-                new() { Header = "Conductors", IsOutputColumn = true },
-                new() { Header = "Ground", IsOutputColumn = true },
-                new() { Header = "Conduit", IsOutputColumn = true }
-            },
-            Rows = new List<List<string>>
-            {
-                new() { "15",   "4#12",                    "1#12G",        "1/2\"C" },
-                new() { "20",   "4#10",                    "1#12G",        "3/4\"C" },
-                new() { "30",   "4#10",                    "1#10G",        "3/4\"C" },
-                new() { "60",   "4#6",                     "1#10G",        "1\"C" },
-                new() { "100",  "4#3",                     "1#8G",         "1-1/4\"C" },
-                new() { "125",  "4#1",                     "1#6G",         "1-1/2\"C" },
-                new() { "150",  "4#1/0",                   "1#6G",         "2\"C" },
-                new() { "200",  "4#3/0",                   "1#4G",         "2\"C" },
-                new() { "225",  "4#4/0",                   "1#4G",         "2-1/2\"C" },
-                new() { "250",  "4#250 KCMIL",             "1#4G",         "2-1/2\"C" },
-                new() { "300",  "4#350 KCMIL",             "1#2G",         "3\"C" },
-                new() { "350",  "4#350 KCMIL",             "1#2G",         "3\"C" },
-                new() { "400",  "4#500 KCMIL",             "1#1G",         "3-1/2\"C" },
-                new() { "600",  "2 SETS 4#350 KCMIL",      "1#500 KCMIL",  "(2)3\"C" },
-                new() { "800",  "2 SETS 4#500 KCMIL",      "1#500 KCMIL",  "(2)3-1/2\"C" },
-                new() { "1000", "3 SETS 4#500 KCMIL",      "1#500 KCMIL",  "(3)3-1/2\"C" },
-                new() { "1200", "4 SETS 4#400 KCMIL",      "1#500 KCMIL",  "(4)3\"C" },
-                new() { "1600", "4 SETS 4#500 KCMIL",      "1#500 KCMIL",  "(4)3-1/2\"C" },
-                new() { "2000", "5 SETS 4#500 KCMIL",      "1#500 KCMIL",  "(5)4\"C" },
-                new() { "2500", "6 SETS 4#500 KCMIL",      "1#500 KCMIL",  "(6)4\"C" },
-                new() { "3000", "(8) SETS 4#500 KCMIL",    "1#500 KCMIL",  "(8)4\"C" }
             }
         });
 

@@ -572,8 +572,11 @@
                 <!-- Row 2: Main content area (mode-dependent) -->
                 <ScrollViewer Grid.Row="2"
                              x:Name="DetailScroller"
-                             VerticalScrollBarVisibility="Hidden"
+                             VerticalScrollBarVisibility="Auto"
                              HorizontalScrollBarVisibility="Disabled">
+                    <ScrollViewer.Resources>
+                        <Style TargetType="ScrollBar" BasedOn="{StaticResource ThinScrollBar}"/>
+                    </ScrollViewer.Resources>
                     <Grid>
                         <!-- LOOKUP MODE: Input + Output -->
                         <StackPanel x:Name="LookupModePanel" Visibility="Collapsed">
@@ -625,6 +628,7 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0"
                                                   Text="OUTPUT"
@@ -634,6 +638,26 @@
                                                   Opacity="0.8"
                                                   VerticalAlignment="Center"/>
                                         <Border Grid.Column="1"
+                                                x:Name="CesCopyButton"
+                                                Visibility="Collapsed"
+                                                Background="Transparent"
+                                                CornerRadius="3"
+                                                Padding="6,2"
+                                                Margin="0,0,4,0"
+                                                Cursor="Hand"
+                                                MouseLeftButtonDown="CesCopyButton_Click">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource BlueBackgroundBrush}"/>
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock x:Name="CesCopyLabel" Text="CES Copy" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource BlueBorderBrush}"/>
+                                        </Border>
+                                        <Border Grid.Column="2"
                                                 x:Name="CopyOutputButton"
                                                 Background="Transparent"
                                                 CornerRadius="3"

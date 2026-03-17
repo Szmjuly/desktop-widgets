@@ -70,6 +70,27 @@ public static class TelemetryAccessor
         _service?.TrackCheatSheet(sheetId, timeVisibleMs);
     }
 
+    public static void TrackCheatSheetEvent(string eventType, string? sheetId = null,
+        string? sheetTitle = null, string? discipline = null, string? searchQuery = null,
+        string? viewMode = null, string? systemType = null, string? ocpdValue = null,
+        string? mcaValue = null, long? durationMs = null, string? copyFormat = null)
+    {
+        _service?.TrackEvent(TelemetryCategory.CheatSheet, eventType,
+            new Dictionary<string, object?>
+            {
+                ["sheetId"] = sheetId,
+                ["sheetTitle"] = sheetTitle,
+                ["discipline"] = discipline,
+                ["searchQuery"] = searchQuery,
+                ["viewMode"] = viewMode,
+                ["systemType"] = systemType,
+                ["ocpdValue"] = ocpdValue,
+                ["mcaValue"] = mcaValue,
+                ["durationMs"] = durationMs,
+                ["copyFormat"] = copyFormat
+            });
+    }
+
     public static void TrackHotkey(string hotkeyGroup, int widgetCount)
     {
         _service?.TrackEvent(TelemetryCategory.Hotkey, TelemetryEventType.HotkeyPressed,
