@@ -31,6 +31,8 @@ public class ProjectTags
 
     // --- People ---
     public string? StampingEngineer { get; set; }
+    public string? LightingDesigner { get; set; }
+    public string? AvItDesigner { get; set; }
     public List<string> Engineers { get; set; } = new();
 
     // --- Code ---

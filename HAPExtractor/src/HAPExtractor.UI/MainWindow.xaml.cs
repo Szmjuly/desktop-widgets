@@ -22,6 +22,10 @@ public partial class MainWindow : Window
     private string? _pdf1Path;
     private string? _pdf2Path;
     private string? _pdf3Path;
+    private bool _singlePdfModeEnabled;
+    private bool _useCombinedPdf;
+    private string? _combinedPdfPath;
+    private Dictionary<PdfType, List<int>>? _combinedPageBuckets;
     private HapProject? _pdf1Data;
     private List<SpaceComponentLoads>? _pdf2Data;
     private List<AirSystemSizingData>? _pdf3Data;
@@ -47,6 +51,46 @@ public partial class MainWindow : Window
             null,
             TimeSpan.FromSeconds(15),
             TimeSpan.FromMinutes(30));
+    }
+
+    private void BeginProcessing(string status)
+    {
+        ProcessingProgressBar.Visibility = Visibility.Visible;
+        ProcessingProgressBar.IsIndeterminate = true;
+        ProcessingProgressBar.Value = 0;
+
+        ProcessButton.IsEnabled = false;
+        ExportExcelButton.IsEnabled = false;
+        MattsWayButton.IsEnabled = false;
+
+        StatusText.Text = status;
+    }
+
+    private void ReportProgress(string status, double percent, bool indeterminate = false)
+    {
+        StatusText.Text = status;
+        // Keep the bar as a consistent "working" indicator that matches the app theme.
+        ProcessingProgressBar.IsIndeterminate = true;
+        ProcessingProgressBar.Value = 0;
+    }
+
+    private void EndProcessing(string status)
+    {
+        ProcessingProgressBar.Visibility = Visibility.Collapsed;
+        ProcessingProgressBar.IsIndeterminate = true;
+        ProcessingProgressBar.Value = 0;
+        StatusText.Text = status;
+
+        UpdateProcessButton();
+        ExportExcelButton.IsEnabled = _combinedData != null;
+        MattsWayButton.IsEnabled = _combinedData != null;
+    }
+
+    private void SinglePdfModeToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        _singlePdfModeEnabled = SinglePdfModeToggle.IsChecked == true;
+        PdfInputRowsPanel.Visibility = _singlePdfModeEnabled ? Visibility.Collapsed : Visibility.Visible;
+        Logger.Info($"Single combined PDF mode: {(_singlePdfModeEnabled ? "ON" : "OFF")}");
     }
 
     private void MainWindow_Closed(object? sender, EventArgs e)
@@ -344,6 +388,7 @@ start """" ""{currentExePath}""
 
     private void SetPdf1(string path)
     {
+        ClearCombinedPdfState();
         _pdf1Path = path;
         Pdf1PathText.Text = path;
         Pdf1PathText.Foreground = (SolidColorBrush)FindResource("TextPrimaryBrush");
@@ -357,6 +402,7 @@ start """" ""{currentExePath}""
 
     private void SetPdf2(string path)
     {
+        ClearCombinedPdfState();
         _pdf2Path = path;
         Pdf2PathText.Text = path;
         Pdf2PathText.Foreground = (SolidColorBrush)FindResource("TextPrimaryBrush");
@@ -370,6 +416,7 @@ start """" ""{currentExePath}""
 
     private void SetPdf3(string path)
     {
+        ClearCombinedPdfState();
         _pdf3Path = path;
         Pdf3PathText.Text = path;
         Pdf3PathText.Foreground = (SolidColorBrush)FindResource("TextPrimaryBrush");
@@ -395,7 +442,7 @@ start """" ""{currentExePath}""
         e.Handled = true;
     }
 
-    private void EmptyState_Drop(object sender, DragEventArgs e)
+    private async void EmptyState_Drop(object sender, DragEventArgs e)
     {
         if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
 
@@ -405,6 +452,68 @@ start """" ""{currentExePath}""
         if (pdfFiles.Count == 0)
         {
             StatusText.Text = "No PDF files found in dropped items.";
+            return;
+        }
+
+        if (_singlePdfModeEnabled && pdfFiles.Count == 1)
+        {
+            var pdf = pdfFiles[0];
+            try
+            {
+                BeginProcessing("Scanning combined PDF pages...");
+
+                var buckets = await Task.Run(() =>
+                {
+                    using var document = UglyToad.PdfPig.PdfDocument.Open(pdf);
+                    return PdfClassifier.ClassifyPages(document, assignUnknownToPrevious: true);
+                });
+
+                var zonePages = buckets.GetValueOrDefault(PdfType.ZoneSizingSummary) ?? new List<int>();
+                var designPages = buckets.GetValueOrDefault(PdfType.SpaceDesignLoadSummary) ?? new List<int>();
+                var airSizingPages = buckets.GetValueOrDefault(PdfType.AirSystemSizingSummary) ?? new List<int>();
+                var unknownPages = buckets.GetValueOrDefault(PdfType.Unknown) ?? new List<int>();
+
+                if (zonePages.Count == 0 || designPages.Count == 0)
+                {
+                    StatusText.Text = "Combined PDF is missing required sections (Zone Sizing Summary and/or Design Load Summary).";
+                    MessageBox.Show(
+                        "Could not find required sections in the combined PDF.\n\n" +
+                        "Required:\n" +
+                        "- Zone Sizing Summary\n" +
+                        "- Space Design Load Summary\n\n" +
+                        "Make sure the merged PDF contains those report pages and the headers are present.",
+                        "Combined PDF Missing Sections", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                SetCombinedPdfState(pdf, buckets);
+
+                if (unknownPages.Count > 0)
+                {
+                    StatusText.Text = $"Combined PDF loaded (with {unknownPages.Count} unclassified pages). Processing…";
+                    if (unknownPages.Count >= 5)
+                    {
+                        MessageBox.Show(
+                            $"Some pages in the combined PDF could not be classified by header text.\n\n" +
+                            $"Unclassified pages: {unknownPages.Count}\n\n" +
+                            "This may still work if those pages are irrelevant, but if results look wrong, re-export from HAP or ensure the section headers are present on continuation pages.",
+                            "Combined PDF Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                }
+                else
+                {
+                    StatusText.Text = "Combined PDF loaded. Processing…";
+                }
+
+                await ProcessAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Failed to classify combined PDF", ex);
+                EndProcessing($"Error: {ex.Message}");
+                MessageBox.Show($"Failed to read combined PDF:\n\n{ex.Message}",
+                    "PDF Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
             return;
         }
 
@@ -448,51 +557,100 @@ start """" ""{currentExePath}""
 
         // Auto-process if both are now loaded
         if (!string.IsNullOrEmpty(_pdf1Path) && !string.IsNullOrEmpty(_pdf2Path))
-            Process_Click(sender, new RoutedEventArgs());
+            await ProcessAsync();
     }
 
     private void UpdateProcessButton()
     {
+        if (_useCombinedPdf && _combinedPageBuckets != null)
+        {
+            var hasZone = _combinedPageBuckets.TryGetValue(PdfType.ZoneSizingSummary, out var zonePages) && zonePages.Count > 0;
+            var hasDesign = _combinedPageBuckets.TryGetValue(PdfType.SpaceDesignLoadSummary, out var designPages) && designPages.Count > 0;
+            ProcessButton.IsEnabled = hasZone && hasDesign && !string.IsNullOrEmpty(_combinedPdfPath);
+            return;
+        }
+
         ProcessButton.IsEnabled = !string.IsNullOrEmpty(_pdf1Path) && !string.IsNullOrEmpty(_pdf2Path);
     }
 
     // ── Process & Combine ───────────────────────────────────────
 
-    private void Process_Click(object sender, RoutedEventArgs e)
+    private async void Process_Click(object sender, RoutedEventArgs e)
     {
-        if (string.IsNullOrEmpty(_pdf1Path) || string.IsNullOrEmpty(_pdf2Path)) return;
+        await ProcessAsync();
+    }
+
+    private async Task ProcessAsync()
+    {
+        if (_useCombinedPdf)
+        {
+            if (string.IsNullOrEmpty(_combinedPdfPath) || _combinedPageBuckets == null) return;
+        }
+        else
+        {
+            if (string.IsNullOrEmpty(_pdf1Path) || string.IsNullOrEmpty(_pdf2Path)) return;
+        }
 
         try
         {
             Logger.Info("Starting extraction...");
-            StatusText.Text = "Extracting PDF 1 (Zone Sizing Summary)...";
-            _pdf1Data = _pdf1Extractor.Extract(_pdf1Path);
-            Logger.Info($"PDF 1 extracted: {_pdf1Data.AirSystems.Count} systems, " +
-                        $"{_pdf1Data.AirSystems.Sum(s => s.Spaces.Count)} spaces");
+            BeginProcessing("Preparing...");
+            ReportProgress("Extracting PDF 1 (Zone Sizing Summary)...", 10, indeterminate: true);
 
-            StatusText.Text = "Extracting PDF 2 (Space Design Load Summary)...";
-            _pdf2Data = _pdf2Extractor.Extract(_pdf2Path);
-            Logger.Info($"PDF 2 extracted: {_pdf2Data.Count} space component load tables");
-
-            // PDF 3 (optional)
-            if (!string.IsNullOrEmpty(_pdf3Path))
+            if (_useCombinedPdf)
             {
-                StatusText.Text = "Extracting PDF 3 (Air System Sizing Summary)...";
-                _pdf3Data = _pdf3Extractor.Extract(_pdf3Path);
-                Logger.Info($"PDF 3 extracted: {_pdf3Data.Count} air system sizing entries");
-                foreach (var s in _pdf3Data)
-                    Logger.Info($"  {s.SystemName}: ft²/Ton={s.SqftPerTon}, FloorArea={s.FloorArea}, Tons={s.TotalCoilLoadTons}");
+                var combinedPath = _combinedPdfPath!;
+                var buckets = _combinedPageBuckets;
+                await Task.Run(() =>
+                {
+                    using var document = UglyToad.PdfPig.PdfDocument.Open(combinedPath);
+                    var zonePages = buckets![PdfType.ZoneSizingSummary];
+                    var designPages = buckets[PdfType.SpaceDesignLoadSummary];
+
+                    _pdf1Data = _pdf1Extractor.Extract(document, zonePages);
+                    _pdf1Data.SourceFile = combinedPath;
+
+                    _pdf2Data = _pdf2Extractor.Extract(document, designPages);
+
+                    if (buckets.TryGetValue(PdfType.AirSystemSizingSummary, out var airSizingPages) &&
+                        airSizingPages.Count > 0)
+                        _pdf3Data = _pdf3Extractor.Extract(document, airSizingPages);
+                    else
+                        _pdf3Data = null;
+                });
+
+                Logger.Info($"PDF 1 extracted (combined mode): {_pdf1Data!.AirSystems.Count} systems, " +
+                            $"{_pdf1Data.AirSystems.Sum(s => s.Spaces.Count)} spaces");
+                Logger.Info($"PDF 2 extracted (combined mode): {_pdf2Data!.Count} space component load tables");
+                if (_pdf3Data != null)
+                    Logger.Info($"PDF 3 extracted (combined mode): {_pdf3Data.Count} air system sizing entries");
             }
             else
             {
-                _pdf3Data = null;
+                var pdf1 = _pdf1Path!;
+                var pdf2 = _pdf2Path!;
+                var pdf3 = _pdf3Path;
+                await Task.Run(() =>
+                {
+                    _pdf1Data = _pdf1Extractor.Extract(pdf1);
+                    _pdf2Data = _pdf2Extractor.Extract(pdf2);
+                    _pdf3Data = !string.IsNullOrEmpty(pdf3) ? _pdf3Extractor.Extract(pdf3!) : null;
+                });
+
+                Logger.Info($"PDF 1 extracted: {_pdf1Data!.AirSystems.Count} systems, " +
+                            $"{_pdf1Data.AirSystems.Sum(s => s.Spaces.Count)} spaces");
+                Logger.Info($"PDF 2 extracted: {_pdf2Data!.Count} space component load tables");
+                if (_pdf3Data != null)
+                    Logger.Info($"PDF 3 extracted: {_pdf3Data.Count} air system sizing entries");
             }
 
-            StatusText.Text = "Combining data...";
-            _combinedData = _combiner.Combine(_pdf1Data, _pdf2Data);
-            Logger.Info($"Combined: {_combinedData.Count} records");
+            ReportProgress("Combining data...", 75, indeterminate: true);
+            var combined = await Task.Run(() => _combiner.Combine(_pdf1Data!, _pdf2Data!));
+            _combinedData = combined;
+            Logger.Info($"Combined: {combined.Count} records");
 
             // Update UI
+            ReportProgress("Rendering results...", 95, indeterminate: true);
             ProjectNameText.Text = _pdf1Data.ProjectName;
             MatchedCountText.Text = _combinedData.Count.ToString();
             ResultsInfoCard.Visibility = Visibility.Visible;
@@ -509,15 +667,56 @@ start """" ""{currentExePath}""
                               $"{_combinedData.Count} combined";
             if (_pdf3Data != null)
                 statusParts += $", {_pdf3Data.Count} air system sizing entries";
-            StatusText.Text = statusParts + $" — Log: {Logger.LogFilePath}";
+            EndProcessing(statusParts + $" — Log: {Logger.LogFilePath}");
         }
         catch (Exception ex)
         {
             Logger.Error("Process_Click failed", ex);
-            StatusText.Text = $"Error: {ex.Message}";
+            EndProcessing($"Error: {ex.Message}");
             MessageBox.Show($"Failed to process PDFs:\n\n{ex.Message}\n\nLog: {Logger.LogFilePath}",
                 "Processing Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    private void SetCombinedPdfState(string pdfPath, Dictionary<PdfType, List<int>> buckets)
+    {
+        _useCombinedPdf = true;
+        _combinedPdfPath = pdfPath;
+        _combinedPageBuckets = buckets;
+
+        _pdf1Path = pdfPath;
+        _pdf2Path = pdfPath;
+        _pdf3Path = (buckets.TryGetValue(PdfType.AirSystemSizingSummary, out var air) && air.Count > 0) ? pdfPath : null;
+
+        Pdf1PathText.Text = pdfPath;
+        Pdf1PathText.Foreground = (SolidColorBrush)FindResource("TextPrimaryBrush");
+        Pdf1StatusDot.Foreground = GreenDot;
+
+        Pdf2PathText.Text = pdfPath;
+        Pdf2PathText.Foreground = (SolidColorBrush)FindResource("TextPrimaryBrush");
+        Pdf2StatusDot.Foreground = GreenDot;
+
+        if (_pdf3Path != null)
+        {
+            Pdf3PathText.Text = pdfPath;
+            Pdf3PathText.Foreground = (SolidColorBrush)FindResource("TextPrimaryBrush");
+            Pdf3StatusDot.Foreground = GreenDot;
+        }
+        else
+        {
+            Pdf3PathText.Text = "Not loaded";
+            Pdf3PathText.Foreground = (SolidColorBrush)FindResource("TextMutedBrush");
+            Pdf3StatusDot.Foreground = (SolidColorBrush)FindResource("TextMutedBrush");
+        }
+
+        UpdateProcessButton();
+    }
+
+    private void ClearCombinedPdfState()
+    {
+        _useCombinedPdf = false;
+        _combinedPdfPath = null;
+        _combinedPageBuckets = null;
     }
 
     // ── Sidebar Mode Switching ──────────────────────────────────

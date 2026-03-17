@@ -59,6 +59,8 @@ public class TagVocabularyService : ITagVocabularyService
             added += MergeValue("location_municipality", tags.LocationMunicipality);
             added += MergeValue("location_address", tags.LocationAddress);
             added += MergeValue("stamping_engineer", tags.StampingEngineer);
+            added += MergeValue("lighting_designer", tags.LightingDesigner);
+            added += MergeValue("av_it_designer", tags.AvItDesigner);
 
             foreach (var eng in tags.Engineers)
                 added += MergeValue("engineers", eng);

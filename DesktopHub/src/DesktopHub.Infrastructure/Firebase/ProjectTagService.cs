@@ -390,6 +390,8 @@ public class ProjectTagService : IProjectTagService
             "location_municipality" => tags.LocationMunicipality,
             "location_address" => tags.LocationAddress,
             "stamping_engineer" => tags.StampingEngineer,
+            "lighting_designer" => tags.LightingDesigner,
+            "av_it_designer" => tags.AvItDesigner,
             "engineers" => tags.Engineers.Count > 0 ? string.Join(", ", tags.Engineers) : null,
             "code_refs" => tags.CodeReferences.Count > 0 ? string.Join(", ", tags.CodeReferences) : null,
             _ => null
@@ -418,6 +420,8 @@ public class ProjectTagService : IProjectTagService
             case "location_municipality": tags.LocationMunicipality = strVal; break;
             case "location_address": tags.LocationAddress = strVal; break;
             case "stamping_engineer": tags.StampingEngineer = strVal; break;
+            case "lighting_designer": tags.LightingDesigner = strVal; break;
+            case "av_it_designer": tags.AvItDesigner = strVal; break;
             case "engineers":
                 if (value is Newtonsoft.Json.Linq.JArray engArr)
                     tags.Engineers = engArr.ToObject<List<string>>() ?? new();
@@ -528,6 +532,8 @@ public class ProjectTagService : IProjectTagService
         AddIfNotNull("location_municipality", tags.LocationMunicipality);
         AddIfNotNull("location_address", tags.LocationAddress);
         AddIfNotNull("stamping_engineer", tags.StampingEngineer);
+        AddIfNotNull("lighting_designer", tags.LightingDesigner);
+        AddIfNotNull("av_it_designer", tags.AvItDesigner);
 
         if (tags.Engineers.Count > 0)
             data["engineers"] = tags.Engineers;

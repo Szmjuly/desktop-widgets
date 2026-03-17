@@ -10,57 +10,26 @@ internal static class CheatSheetElectricalDefaults
 {
     internal static void AddTo(CheatSheetDataStore store)
     {
-        // 1) Motor FLA (NEC Table 430.248 single-phase)
+        // 1) Motor FLA (NEC Tables 430.248 1Ø + 430.250 3Ø)
         store.Sheets.Add(new CheatSheet
         {
-            Id = "motor-fla-1ph",
-            Title = "Motor FLA - Single Phase",
-            Subtitle = "NEC Table 430.248",
-            Description = "Full-Load Current in Amperes for Single-Phase AC Motors",
+            Id = "motor-fla",
+            Title = "Motor FLA",
+            Subtitle = "NEC Tables 430.248 (1Ø) + 430.250 (3Ø)",
+            Description = "Full-Load Current in Amperes for AC Motors (Single-Phase and Three-Phase)",
             Discipline = Discipline.Electrical,
             SheetType = CheatSheetType.Table,
             Layout = CheatSheetLayout.CompactLookup,
             CodeBookId = "nec2020",
-            Tags = new List<string> { "motor", "FLA", "full load", "ampere", "single phase", "430.248", "HP" },
-            Columns = new List<CheatSheetColumn>
+            Tags = new List<string>
             {
-                new() { Header = "HP", Unit = "HP", IsInputColumn = true },
-                new() { Header = "115V", Unit = "A", IsOutputColumn = true },
-                new() { Header = "200V", Unit = "A", IsOutputColumn = true },
-                new() { Header = "208V", Unit = "A", IsOutputColumn = true },
-                new() { Header = "230V", Unit = "A", IsOutputColumn = true }
+                "motor", "FLA", "full load", "ampere",
+                "single phase", "1-phase", "three phase", "3-phase",
+                "430.248", "430.250", "HP"
             },
-            Rows = new List<List<string>>
-            {
-                new() { "1/6", "4.4", "2.5", "2.4", "2.2" },
-                new() { "1/4", "5.8", "3.3", "3.2", "2.9" },
-                new() { "1/3", "7.2", "4.1", "4.0", "3.6" },
-                new() { "1/2", "9.8", "5.6", "5.4", "4.9" },
-                new() { "3/4", "13.8", "7.9", "7.6", "6.9" },
-                new() { "1", "16", "9.2", "8.8", "8" },
-                new() { "1-1/2", "20", "11.5", "11", "10" },
-                new() { "2", "24", "13.8", "13.2", "12" },
-                new() { "3", "34", "19.6", "18.7", "17" },
-                new() { "5", "56", "32.2", "30.8", "28" },
-                new() { "7-1/2", "80", "46", "44", "40" },
-                new() { "10", "100", "57.5", "55", "50" }
-            }
-        });
-
-        // Motor FLA (NEC Table 430.250 three-phase)
-        store.Sheets.Add(new CheatSheet
-        {
-            Id = "motor-fla-3ph",
-            Title = "Motor FLA - Three Phase",
-            Subtitle = "NEC Table 430.250",
-            Description = "Full-Load Current in Amperes for Three-Phase AC Motors",
-            Discipline = Discipline.Electrical,
-            SheetType = CheatSheetType.Table,
-            Layout = CheatSheetLayout.CompactLookup,
-            CodeBookId = "nec2020",
-            Tags = new List<string> { "motor", "FLA", "full load", "ampere", "three phase", "3-phase", "430.250", "HP" },
             Columns = new List<CheatSheetColumn>
             {
+                new() { Header = "Phase", IsInputColumn = true },
                 new() { Header = "HP", Unit = "HP", IsInputColumn = true },
                 new() { Header = "115V", Unit = "A", IsOutputColumn = true },
                 new() { Header = "200V", Unit = "A", IsOutputColumn = true },
@@ -71,111 +40,110 @@ internal static class CheatSheetElectricalDefaults
             },
             Rows = new List<List<string>>
             {
-                new() { "1/2", "4.4", "2.5", "2.4", "2.2", "1.1", "0.9" },
-                new() { "3/4", "6.4", "3.7", "3.5", "3.2", "1.6", "1.3" },
-                new() { "1", "8.4", "4.8", "4.6", "4.2", "2.1", "1.7" },
-                new() { "1-1/2", "12", "6.9", "6.6", "6", "3", "2.4" },
-                new() { "2", "13.6", "7.8", "7.5", "6.8", "3.4", "2.7" },
-                new() { "3", "\u2014", "11", "10.6", "9.6", "4.8", "3.9" },
-                new() { "5", "\u2014", "17.5", "16.7", "15.2", "7.6", "6.1" },
-                new() { "7-1/2", "\u2014", "25.3", "24.2", "22", "11", "9" },
-                new() { "10", "\u2014", "32.2", "30.8", "28", "14", "11" },
-                new() { "15", "\u2014", "48.3", "46.2", "42", "21", "17" },
-                new() { "20", "\u2014", "62.1", "59.4", "54", "27", "22" },
-                new() { "25", "\u2014", "78.2", "74.8", "68", "34", "27" },
-                new() { "30", "\u2014", "92", "88", "80", "40", "32" },
-                new() { "40", "\u2014", "120", "114", "104", "52", "41" },
-                new() { "50", "\u2014", "150", "143", "130", "65", "52" },
-                new() { "60", "\u2014", "177", "169", "154", "77", "62" },
-                new() { "75", "\u2014", "221", "211", "192", "96", "77" },
-                new() { "100", "\u2014", "285", "273", "248", "124", "99" },
-                new() { "125", "\u2014", "359", "343", "312", "156", "125" },
-                new() { "150", "\u2014", "414", "396", "360", "180", "144" },
-                new() { "200", "\u2014", "552", "528", "480", "240", "192" }
+                // 1Ø (430.248) — 460V/575V not applicable
+                new() { "1Ø", "1/6", "4.4", "2.5", "2.4", "2.2", "—", "—" },
+                new() { "1Ø", "1/4", "5.8", "3.3", "3.2", "2.9", "—", "—" },
+                new() { "1Ø", "1/3", "7.2", "4.1", "4.0", "3.6", "—", "—" },
+                new() { "1Ø", "1/2", "9.8", "5.6", "5.4", "4.9", "—", "—" },
+                new() { "1Ø", "3/4", "13.8", "7.9", "7.6", "6.9", "—", "—" },
+                new() { "1Ø", "1", "16", "9.2", "8.8", "8", "—", "—" },
+                new() { "1Ø", "1-1/2", "20", "11.5", "11", "10", "—", "—" },
+                new() { "1Ø", "2", "24", "13.8", "13.2", "12", "—", "—" },
+                new() { "1Ø", "3", "34", "19.6", "18.7", "17", "—", "—" },
+                new() { "1Ø", "5", "56", "32.2", "30.8", "28", "—", "—" },
+                new() { "1Ø", "7-1/2", "80", "46", "44", "40", "—", "—" },
+                new() { "1Ø", "10", "100", "57.5", "55", "50", "—", "—" },
+
+                // 3Ø (430.250)
+                new() { "3Ø", "1/2", "4.4", "2.5", "2.4", "2.2", "1.1", "0.9" },
+                new() { "3Ø", "3/4", "6.4", "3.7", "3.5", "3.2", "1.6", "1.3" },
+                new() { "3Ø", "1", "8.4", "4.8", "4.6", "4.2", "2.1", "1.7" },
+                new() { "3Ø", "1-1/2", "12", "6.9", "6.6", "6", "3", "2.4" },
+                new() { "3Ø", "2", "13.6", "7.8", "7.5", "6.8", "3.4", "2.7" },
+                new() { "3Ø", "3", "—", "11", "10.6", "9.6", "4.8", "3.9" },
+                new() { "3Ø", "5", "—", "17.5", "16.7", "15.2", "7.6", "6.1" },
+                new() { "3Ø", "7-1/2", "—", "25.3", "24.2", "22", "11", "9" },
+                new() { "3Ø", "10", "—", "32.2", "30.8", "28", "14", "11" },
+                new() { "3Ø", "15", "—", "48.3", "46.2", "42", "21", "17" },
+                new() { "3Ø", "20", "—", "62.1", "59.4", "54", "27", "22" },
+                new() { "3Ø", "25", "—", "78.2", "74.8", "68", "34", "27" },
+                new() { "3Ø", "30", "—", "92", "88", "80", "40", "32" },
+                new() { "3Ø", "40", "—", "120", "114", "104", "52", "41" },
+                new() { "3Ø", "50", "—", "150", "143", "130", "65", "52" },
+                new() { "3Ø", "60", "—", "177", "169", "154", "77", "62" },
+                new() { "3Ø", "75", "—", "221", "211", "192", "96", "77" },
+                new() { "3Ø", "100", "—", "285", "273", "248", "124", "99" },
+                new() { "3Ø", "125", "—", "359", "343", "312", "156", "125" },
+                new() { "3Ø", "150", "—", "414", "396", "360", "180", "144" },
+                new() { "3Ø", "200", "—", "552", "528", "480", "240", "192" }
             }
         });
 
-        // 2) Transformer KVA Rating - Single Phase
+        // 2) Transformer FLA (1Ø + 3Ø) — full-load amperes by KVA and voltage
         store.Sheets.Add(new CheatSheet
         {
-            Id = "xfmr-kva-1ph",
-            Title = "Transformer FLA - Single Phase",
-            Subtitle = "Single-Phase Transformer Full-Load Amperes by KVA",
-            Description = "Full-load current for single-phase transformers based on KVA rating and voltage",
+            Id = "xfmr-kva",
+            Title = "Transformer FLA",
+            Subtitle = "Transformer Full-Load Amperes by KVA (1Ø and 3Ø)",
+            Description = "Full-load current for transformers based on KVA rating, phase, and voltage",
             Discipline = Discipline.Electrical,
             SheetType = CheatSheetType.Calculator,
             Layout = CheatSheetLayout.CompactLookup,
             CodeBookId = "nec2020",
-            Tags = new List<string> { "transformer", "KVA", "FLA", "single phase", "ampere", "voltage" },
+            Tags = new List<string>
+            {
+                "transformer", "KVA", "kVA", "FLA", "ampere", "voltage",
+                "single phase", "1-phase", "three phase", "3-phase"
+            },
             Columns = new List<CheatSheetColumn>
             {
+                new() { Header = "Phase", IsInputColumn = true },
                 new() { Header = "KVA", Unit = "kVA", IsInputColumn = true },
                 new() { Header = "120V", Unit = "A", IsOutputColumn = true },
                 new() { Header = "208V", Unit = "A", IsOutputColumn = true },
                 new() { Header = "240V", Unit = "A", IsOutputColumn = true },
                 new() { Header = "277V", Unit = "A", IsOutputColumn = true },
-                new() { Header = "480V", Unit = "A", IsOutputColumn = true }
-            },
-            Rows = new List<List<string>>
-            {
-                new() { "1", "8.3", "4.8", "4.2", "3.6", "2.1" },
-                new() { "1.5", "12.5", "7.2", "6.3", "5.4", "3.1" },
-                new() { "2", "16.7", "9.6", "8.3", "7.2", "4.2" },
-                new() { "3", "25.0", "14.4", "12.5", "10.8", "6.3" },
-                new() { "5", "41.7", "24.0", "20.8", "18.1", "10.4" },
-                new() { "7.5", "62.5", "36.1", "31.3", "27.1", "15.6" },
-                new() { "10", "83.3", "48.1", "41.7", "36.1", "20.8" },
-                new() { "15", "125.0", "72.1", "62.5", "54.2", "31.3" },
-                new() { "25", "208.3", "120.2", "104.2", "90.3", "52.1" },
-                new() { "37.5", "312.5", "180.3", "156.3", "135.4", "78.1" },
-                new() { "50", "416.7", "240.4", "208.3", "180.5", "104.2" },
-                new() { "75", "625.0", "360.6", "312.5", "270.8", "156.3" },
-                new() { "100", "833.3", "480.8", "416.7", "361.0", "208.3" },
-                new() { "150", "1250.0", "721.2", "625.0", "541.5", "312.5" },
-                new() { "167", "1391.7", "802.9", "695.8", "602.9", "347.9" },
-                new() { "200", "1666.7", "961.5", "833.3", "722.0", "416.7" },
-                new() { "250", "2083.3", "1201.9", "1041.7", "902.5", "520.8" },
-                new() { "333", "2775.0", "1601.4", "1387.5", "1202.2", "693.8" },
-                new() { "500", "4166.7", "2403.8", "2083.3", "1805.1", "1041.7" }
-            }
-        });
-
-        // Transformer KVA Rating - Three Phase
-        store.Sheets.Add(new CheatSheet
-        {
-            Id = "xfmr-kva-3ph",
-            Title = "Transformer FLA - Three Phase",
-            Subtitle = "Three-Phase Transformer Full-Load Amperes by KVA",
-            Description = "Full-load current for three-phase transformers based on KVA rating and voltage",
-            Discipline = Discipline.Electrical,
-            SheetType = CheatSheetType.Calculator,
-            Layout = CheatSheetLayout.CompactLookup,
-            CodeBookId = "nec2020",
-            Tags = new List<string> { "transformer", "KVA", "FLA", "three phase", "3-phase", "ampere", "voltage" },
-            Columns = new List<CheatSheetColumn>
-            {
-                new() { Header = "KVA", Unit = "kVA", IsInputColumn = true },
-                new() { Header = "208V", Unit = "A", IsOutputColumn = true },
-                new() { Header = "240V", Unit = "A", IsOutputColumn = true },
                 new() { Header = "480V", Unit = "A", IsOutputColumn = true },
                 new() { Header = "600V", Unit = "A", IsOutputColumn = true }
             },
             Rows = new List<List<string>>
             {
-                new() { "15", "41.7", "36.1", "18.0", "14.4" },
-                new() { "30", "83.3", "72.2", "36.1", "28.9" },
-                new() { "45", "125.0", "108.3", "54.1", "43.3" },
-                new() { "75", "208.2", "180.4", "90.2", "72.2" },
-                new() { "112.5", "312.3", "270.6", "135.3", "108.3" },
-                new() { "150", "416.4", "360.8", "180.4", "144.3" },
-                new() { "225", "624.6", "541.3", "270.6", "216.5" },
-                new() { "300", "832.8", "721.7", "360.8", "288.7" },
-                new() { "500", "1388.0", "1202.8", "601.4", "481.1" },
-                new() { "750", "2081.9", "1804.2", "902.1", "721.7" },
-                new() { "1000", "2775.9", "2405.6", "1202.8", "962.3" },
-                new() { "1500", "4163.8", "3608.4", "1804.2", "1443.4" },
-                new() { "2000", "5551.8", "4811.3", "2405.6", "1924.5" },
-                new() { "2500", "6939.7", "6014.1", "3007.0", "2405.6" }
+                // 1Ø — 600V not applicable
+                new() { "1Ø", "1", "8.3", "4.8", "4.2", "3.6", "2.1", "—" },
+                new() { "1Ø", "1.5", "12.5", "7.2", "6.3", "5.4", "3.1", "—" },
+                new() { "1Ø", "2", "16.7", "9.6", "8.3", "7.2", "4.2", "—" },
+                new() { "1Ø", "3", "25.0", "14.4", "12.5", "10.8", "6.3", "—" },
+                new() { "1Ø", "5", "41.7", "24.0", "20.8", "18.1", "10.4", "—" },
+                new() { "1Ø", "7.5", "62.5", "36.1", "31.3", "27.1", "15.6", "—" },
+                new() { "1Ø", "10", "83.3", "48.1", "41.7", "36.1", "20.8", "—" },
+                new() { "1Ø", "15", "125.0", "72.1", "62.5", "54.2", "31.3", "—" },
+                new() { "1Ø", "25", "208.3", "120.2", "104.2", "90.3", "52.1", "—" },
+                new() { "1Ø", "37.5", "312.5", "180.3", "156.3", "135.4", "78.1", "—" },
+                new() { "1Ø", "50", "416.7", "240.4", "208.3", "180.5", "104.2", "—" },
+                new() { "1Ø", "75", "625.0", "360.6", "312.5", "270.8", "156.3", "—" },
+                new() { "1Ø", "100", "833.3", "480.8", "416.7", "361.0", "208.3", "—" },
+                new() { "1Ø", "150", "1250.0", "721.2", "625.0", "541.5", "312.5", "—" },
+                new() { "1Ø", "167", "1391.7", "802.9", "695.8", "602.9", "347.9", "—" },
+                new() { "1Ø", "200", "1666.7", "961.5", "833.3", "722.0", "416.7", "—" },
+                new() { "1Ø", "250", "2083.3", "1201.9", "1041.7", "902.5", "520.8", "—" },
+                new() { "1Ø", "333", "2775.0", "1601.4", "1387.5", "1202.2", "693.8", "—" },
+                new() { "1Ø", "500", "4166.7", "2403.8", "2083.3", "1805.1", "1041.7", "—" },
+
+                // 3Ø — 120V/277V not applicable
+                new() { "3Ø", "15", "—", "41.7", "36.1", "—", "18.0", "14.4" },
+                new() { "3Ø", "30", "—", "83.3", "72.2", "—", "36.1", "28.9" },
+                new() { "3Ø", "45", "—", "125.0", "108.3", "—", "54.1", "43.3" },
+                new() { "3Ø", "75", "—", "208.2", "180.4", "—", "90.2", "72.2" },
+                new() { "3Ø", "112.5", "—", "312.3", "270.6", "—", "135.3", "108.3" },
+                new() { "3Ø", "150", "—", "416.4", "360.8", "—", "180.4", "144.3" },
+                new() { "3Ø", "225", "—", "624.6", "541.3", "—", "270.6", "216.5" },
+                new() { "3Ø", "300", "—", "832.8", "721.7", "—", "360.8", "288.7" },
+                new() { "3Ø", "500", "—", "1388.0", "1202.8", "—", "601.4", "481.1" },
+                new() { "3Ø", "750", "—", "2081.9", "1804.2", "—", "902.1", "721.7" },
+                new() { "3Ø", "1000", "—", "2775.9", "2405.6", "—", "1202.8", "962.3" },
+                new() { "3Ø", "1500", "—", "4163.8", "3608.4", "—", "1804.2", "1443.4" },
+                new() { "3Ø", "2000", "—", "5551.8", "4811.3", "—", "2405.6", "1924.5" },
+                new() { "3Ø", "2500", "—", "6939.7", "6014.1", "—", "3007.0", "2405.6" }
             }
         });
 
@@ -369,7 +337,7 @@ internal static class CheatSheetElectricalDefaults
             Description = "Equipment Grounding Conductor (EGC) sizing based on OCPD rating",
             Discipline = Discipline.Electrical,
             SheetType = CheatSheetType.Table,
-            Layout = CheatSheetLayout.SimpleList,
+            Layout = CheatSheetLayout.CompactLookup,
             CodeBookId = "nec2020",
             Tags = new List<string> { "EGC", "equipment", "grounding", "conductor", "250.122", "OCPD" },
             Columns = new List<CheatSheetColumn>

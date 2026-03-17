@@ -26,9 +26,21 @@
                 <TextBlock Text="HAP Extractor"
                            Foreground="{StaticResource TextPrimaryBrush}"
                            FontSize="24" FontWeight="Bold"/>
-                <TextBlock Text="Load Zone Sizing Summary + Space Design Load Summary PDFs to extract and export component loads"
-                           Foreground="{StaticResource TextMutedBrush}"
-                           FontSize="13" Margin="0,4,0,0"/>
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                    <TextBlock Text="Load Zone Sizing Summary + Space Design Load Summary PDFs to extract and export component loads"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               FontSize="13" VerticalAlignment="Center"/>
+                    <Border Width="12"/>
+                    <CheckBox x:Name="SinglePdfModeToggle"
+                              Content="Single combined PDF"
+                              Style="{StaticResource ToggleSwitchCheckBox}"
+                              Foreground="{StaticResource TextSecondaryBrush}"
+                              FontSize="12"
+                              VerticalAlignment="Center"
+                              ToolTip="Enable to drop one merged HAP report PDF (the app will detect which pages belong to each report)."
+                              Checked="SinglePdfModeToggle_Changed"
+                              Unchecked="SinglePdfModeToggle_Changed"/>
+                </StackPanel>
             </StackPanel>
             <Button x:Name="CheckUpdatesButton" Grid.Column="1"
                     Content="Check for Updates"
@@ -43,25 +55,17 @@
         <Border Grid.Row="1" Background="{StaticResource SurfaceBrush}"
                 CornerRadius="8" Padding="16" Margin="0,0,0,12"
                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="8"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="8"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="10"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
+            <StackPanel>
+                <!-- Three PDF browse rows (hidden when Single combined PDF is on) -->
+                <StackPanel x:Name="PdfInputRowsPanel">
                 <!-- PDF 1: Zone Sizing Summary -->
-                <Grid Grid.Row="0">
+                <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="180"/>
+                        <ColumnDefinition Width="300"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
                         <TextBlock x:Name="Pdf1StatusDot" Text="●" FontSize="10" Margin="0,0,6,0"
                                    Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="Zone Sizing Summary"
@@ -81,15 +85,16 @@
                             Style="{StaticResource SubtleButton}"
                             Click="BrowsePdf1_Click" Padding="14,6" FontSize="12"/>
                 </Grid>
+                <Border Height="8"/>
 
                 <!-- PDF 2: Space Design Load Summary -->
-                <Grid Grid.Row="2">
+                <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="180"/>
+                        <ColumnDefinition Width="300"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
                         <TextBlock x:Name="Pdf2StatusDot" Text="●" FontSize="10" Margin="0,0,6,0"
                                    Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="Space Design Load Summary"
@@ -109,15 +114,16 @@
                             Style="{StaticResource SubtleButton}"
                             Click="BrowsePdf2_Click" Padding="14,6" FontSize="12"/>
                 </Grid>
+                <Border Height="8"/>
 
                 <!-- PDF 3: Air System Sizing Summary (optional) -->
-                <Grid Grid.Row="4">
+                <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="180"/>
+                        <ColumnDefinition Width="300"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
                         <TextBlock x:Name="Pdf3StatusDot" Text="●" FontSize="10" Margin="0,0,6,0"
                                    Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="Air System Sizing Summary"
@@ -140,9 +146,12 @@
                             Style="{StaticResource SubtleButton}"
                             Click="BrowsePdf3_Click" Padding="14,6" FontSize="12"/>
                 </Grid>
+                </StackPanel>
+
+                <Border Height="10"/>
 
                 <!-- Action buttons -->
-                <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button x:Name="ProcessButton" Content="Process &amp; Combine"
                             Style="{StaticResource AccentButton}"
                             Click="Process_Click" IsEnabled="False"
@@ -156,7 +165,7 @@
                             Click="ExportMattsWay_Click" IsEnabled="False"
                             Padding="16,8" FontSize="13"/>
                 </StackPanel>
-            </Grid>
+            </StackPanel>
         </Border>
 
         <!-- Results info card -->
@@ -340,10 +349,26 @@
         <Border Grid.Row="4" Margin="0,10,0,0" Padding="8,6"
                 Background="{StaticResource SurfaceBrush}"
                 CornerRadius="6">
-            <TextBlock x:Name="StatusText"
-                       Text="Ready — load both PDFs to begin"
-                       Foreground="{StaticResource TextMutedBrush}"
-                       FontSize="12"/>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="6"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" x:Name="StatusText"
+                           Text="Ready — load both PDFs to begin"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           FontSize="12"/>
+
+                <ProgressBar Grid.Row="2"
+                             x:Name="ProcessingProgressBar"
+                             Style="{StaticResource SlimAccentProgressBar}"
+                             Minimum="0" Maximum="100"
+                             Value="0"
+                             Visibility="Collapsed"
+                             IsIndeterminate="True"/>
+            </Grid>
         </Border>
     </Grid>
 </Window>

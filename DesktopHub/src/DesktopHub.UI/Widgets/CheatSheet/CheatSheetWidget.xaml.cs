@@ -722,7 +722,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             foreach (var col in inputCols)
                 dropdownCount += BuildInputField(sheet, col);
 
-            if (IsMotorFlaSheet(sheet))
+            if (IsVoltageSelectableSheet(sheet))
                 BuildMotorVoltageSelector(sheet);
 
             if (IsFeederScheduleSheet(sheet))
@@ -2021,7 +2021,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
                 inputs[kvp.Key] = val;
         }
 
-        if (IsMotorFlaSheet(_activeSheet) && string.IsNullOrWhiteSpace(_selectedVoltageHeader))
+        if (IsVoltageSelectableSheet(_activeSheet) && string.IsNullOrWhiteSpace(_selectedVoltageHeader))
         {
             var hasOtherInputs = inputs.Count > 0;
             if (hasOtherInputs)
@@ -2064,7 +2064,7 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         OutputPanel.Visibility = Visibility.Visible;
 
         var outputCols = _activeSheet.Columns.Where(c => c.IsOutputColumn).ToList();
-        if (IsMotorFlaSheet(_activeSheet) && !string.IsNullOrWhiteSpace(_selectedVoltageHeader))
+        if (IsVoltageSelectableSheet(_activeSheet) && !string.IsNullOrWhiteSpace(_selectedVoltageHeader))
         {
             outputCols = outputCols
                 .Where(c => c.Header.Equals(_selectedVoltageHeader, StringComparison.OrdinalIgnoreCase))
@@ -2466,7 +2466,13 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
     }
 
     private static bool IsMotorFlaSheet(CheatSheet sheet)
-        => sheet.Id == "motor-fla-1ph" || sheet.Id == "motor-fla-3ph";
+        => sheet.Id == "motor-fla";
+
+    private static bool IsTransformerSheet(CheatSheet sheet)
+        => sheet.Id == "xfmr-kva";
+
+    private static bool IsVoltageSelectableSheet(CheatSheet sheet)
+        => IsMotorFlaSheet(sheet) || IsTransformerSheet(sheet);
 
     private void BuildMotorVoltageSelector(CheatSheet sheet)
     {

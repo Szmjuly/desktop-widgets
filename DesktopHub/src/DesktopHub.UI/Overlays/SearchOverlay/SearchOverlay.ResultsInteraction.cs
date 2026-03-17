@@ -1406,6 +1406,8 @@ public partial class SearchOverlay
             case "location_municipality": tags.LocationMunicipality = value; break;
             case "location_address": tags.LocationAddress = value; break;
             case "stamping_engineer": tags.StampingEngineer = value; break;
+            case "lighting_designer": tags.LightingDesigner = value; break;
+            case "av_it_designer": tags.AvItDesigner = value; break;
             case "engineers":
                 tags.Engineers = value.Split(',', StringSplitOptions.TrimEntries).Where(s => s.Length > 0).ToList();
                 break;

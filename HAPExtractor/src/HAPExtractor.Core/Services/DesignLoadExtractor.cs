@@ -23,14 +23,24 @@ public class DesignLoadExtractor
     /// </summary>
     public List<SpaceComponentLoads> Extract(string pdfPath)
     {
+        using var document = PdfDocument.Open(pdfPath);
+        return Extract(document, Enumerable.Range(1, document.NumberOfPages).ToList());
+    }
+
+    public List<SpaceComponentLoads> Extract(PdfDocument document, IReadOnlyList<int> pages)
+    {
         var results = new List<SpaceComponentLoads>();
 
-        using var document = PdfDocument.Open(pdfPath);
+        var pageList = pages
+            .Where(p => p >= 1 && p <= document.NumberOfPages)
+            .Distinct()
+            .OrderBy(p => p)
+            .ToList();
 
         var allPageLines = new List<List<PdfLine>>();
-        for (int i = 1; i <= document.NumberOfPages; i++)
+        foreach (var pageIndex in pageList)
         {
-            var page = document.GetPage(i);
+            var page = document.GetPage(pageIndex);
             var words = page.GetWords()
                 .Select(w => new PdfWord(w.Text, w.BoundingBox.Left, w.BoundingBox.Bottom,
                                           w.BoundingBox.Top, w.BoundingBox.Right))
@@ -38,12 +48,9 @@ public class DesignLoadExtractor
             allPageLines.Add(GroupWordsIntoLines(words));
         }
 
-        // Split into system sections by "Space Design Load Summary for XXX"
         var systemSections = SplitBySystemHeader(allPageLines);
-
         foreach (var (systemName, sectionLines) in systemSections)
         {
-            // Within each system section, find each TABLE 1.1.A
             var spaceTables = FindComponentLoadTables(sectionLines, systemName);
             results.AddRange(spaceTables);
         }

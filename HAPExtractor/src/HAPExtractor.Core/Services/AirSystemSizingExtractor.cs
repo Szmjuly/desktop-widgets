@@ -12,29 +12,34 @@ public class AirSystemSizingExtractor
     /// </summary>
     public List<AirSystemSizingData> Extract(string pdfPath)
     {
+        using var document = PdfDocument.Open(pdfPath);
+        return Extract(document, Enumerable.Range(1, document.NumberOfPages).ToList());
+    }
+
+    public List<AirSystemSizingData> Extract(PdfDocument document, IReadOnlyList<int> pages)
+    {
         var results = new List<AirSystemSizingData>();
 
-        using var document = PdfDocument.Open(pdfPath);
+        var pageList = pages
+            .Where(p => p >= 1 && p <= document.NumberOfPages)
+            .Distinct()
+            .OrderBy(p => p)
+            .ToList();
 
-        // Each page (or set of pages) contains data for one air system.
-        // We look for "Air System Sizing Summary for XXXX" headers and
-        // extract key values from the page text.
         string? currentSystemName = null;
         var currentPageTexts = new List<string>();
 
-        for (int i = 1; i <= document.NumberOfPages; i++)
+        foreach (var pageIndex in pageList)
         {
-            var page = document.GetPage(i);
+            var page = document.GetPage(pageIndex);
             var pageText = string.Join(" ", page.GetWords().Select(w => w.Text));
 
-            // Check for a new system header
             var headerMatch = Regex.Match(pageText,
                 @"Air\s+System\s+Sizing\s+Summary\s+for\s+(\S+)",
                 RegexOptions.IgnoreCase);
 
             if (headerMatch.Success)
             {
-                // Flush previous system if any
                 if (currentSystemName != null && currentPageTexts.Count > 0)
                 {
                     var data = ParseSystemPages(currentSystemName, currentPageTexts);
@@ -46,12 +51,10 @@ public class AirSystemSizingExtractor
             }
             else if (currentSystemName != null)
             {
-                // Continuation page for current system
                 currentPageTexts.Add(pageText);
             }
         }
 
-        // Flush last system
         if (currentSystemName != null && currentPageTexts.Count > 0)
         {
             var data = ParseSystemPages(currentSystemName, currentPageTexts);

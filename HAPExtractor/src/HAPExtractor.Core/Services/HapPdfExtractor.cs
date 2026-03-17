@@ -38,15 +38,28 @@ public class HapPdfExtractor
     /// </summary>
     public HapProject Extract(string pdfPath)
     {
-        var project = new HapProject { SourceFile = pdfPath };
-
         using var document = PdfDocument.Open(pdfPath);
+        return Extract(document, Enumerable.Range(1, document.NumberOfPages).ToList(), sourceFile: pdfPath);
+    }
 
-        // Extract all words with positions from all pages
+    public HapProject Extract(PdfDocument document, IReadOnlyList<int> pages)
+        => Extract(document, pages, sourceFile: null);
+
+    private HapProject Extract(PdfDocument document, IReadOnlyList<int> pages, string? sourceFile)
+    {
+        var project = new HapProject { SourceFile = sourceFile ?? "" };
+
+        var pageList = pages
+            .Where(p => p >= 1 && p <= document.NumberOfPages)
+            .Distinct()
+            .OrderBy(p => p)
+            .ToList();
+
+        // Extract all words with positions from selected pages
         var allPageLines = new List<List<PdfLine>>();
-        for (int i = 1; i <= document.NumberOfPages; i++)
+        foreach (var pageIndex in pageList)
         {
-            var page = document.GetPage(i);
+            var page = document.GetPage(pageIndex);
             var words = page.GetWords()
                 .Select(w => new PdfWord(w.Text, w.BoundingBox.Left, w.BoundingBox.Bottom,
                                           w.BoundingBox.Top, w.BoundingBox.Right))
@@ -56,22 +69,16 @@ public class HapPdfExtractor
             allPageLines.Add(lines);
         }
 
-        // Extract project name from first page
+        // Extract project name from first selected page
         if (allPageLines.Count > 0)
-        {
             project.ProjectName = ExtractProjectName(allPageLines[0]);
-        }
 
-        // Split pages into air system sections
         var systemSections = SplitIntoAirSystemSections(allPageLines);
-
         foreach (var section in systemSections)
         {
             var airSystem = ParseAirSystemSection(section);
             if (!string.IsNullOrEmpty(airSystem.Name))
-            {
                 project.AirSystems.Add(airSystem);
-            }
         }
 
         return project;

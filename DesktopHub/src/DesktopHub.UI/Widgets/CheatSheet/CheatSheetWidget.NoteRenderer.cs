@@ -29,7 +29,8 @@ public partial class CheatSheetWidget
     private void SwitchNoteMode(NoteMode mode)
     {
         _noteMode = mode;
-        if (_activeSheet == null) return;
+        var sheet = _activeSheet;
+        if (sheet == null) return;
 
         var accent = FindResource("AccentBrush") as Brush ?? Brushes.DodgerBlue;
         var surface = FindResource("SurfaceBrush") as Brush ?? Brushes.Transparent;
@@ -47,16 +48,26 @@ public partial class CheatSheetWidget
 
         // Show/hide the default content (table or note) vs steps-based panels
         var showDefault = mode == NoteMode.Text;
-        if (_activeSheet.SheetType == CheatSheetType.Note)
+        if (sheet.SheetType == CheatSheetType.Note)
         {
             NoteView.Visibility = showDefault ? Visibility.Visible : Visibility.Collapsed;
         }
         else
         {
-            // Table/Calculator sheets: show/hide lookup+table panels
-            LookupModePanel.Visibility = showDefault && _isLookupMode ? Visibility.Visible : Visibility.Collapsed;
-            TableModePanel.Visibility = showDefault && !_isLookupMode ? Visibility.Visible : Visibility.Collapsed;
-            ViewModeToggle.Visibility = showDefault ? Visibility.Visible : Visibility.Collapsed;
+            // Table/Calculator sheets: restore based on the sheet's resolved layout.
+            // CompactLookup supports Lookup/Table toggle; FullTable/SimpleList are always Table-only.
+            var hasLookupMode = _activeLayout == CheatSheetLayout.CompactLookup;
+
+            ViewModeToggle.Visibility = showDefault && hasLookupMode ? Visibility.Visible : Visibility.Collapsed;
+            LookupModePanel.Visibility = showDefault && hasLookupMode && _isLookupMode ? Visibility.Visible : Visibility.Collapsed;
+
+            var showTable = showDefault && (!hasLookupMode || !_isLookupMode);
+            TableModePanel.Visibility = showTable ? Visibility.Visible : Visibility.Collapsed;
+
+            // When returning to Text mode, the DataGrid can be empty because it was collapsed while
+            // in Interactive/Visual. Re-render to restore content.
+            if (showTable)
+                RenderDataGrid(sheet, _tableSystemFilter == null ? null : GetFilteredRowIndices());
         }
 
         NoteInteractivePanel.Visibility = mode == NoteMode.Interactive ? Visibility.Visible : Visibility.Collapsed;
@@ -64,12 +75,12 @@ public partial class CheatSheetWidget
 
         // Render if switching to Interactive or Visual for the first time
         if (mode == NoteMode.Interactive && NoteInteractivePanel.Children.Count == 0)
-            RenderNoteInteractive(_activeSheet);
+            RenderNoteInteractive(sheet);
         if (mode == NoteMode.Visual && NoteVisualPanel.Children.Count == 0)
-            RenderNoteVisual(_activeSheet);
+            RenderNoteVisual(sheet);
 
         // Update footer
-        var baseLabel = _activeSheet.SheetType == CheatSheetType.Note ? "Note" : "Table";
+        var baseLabel = sheet.SheetType == CheatSheetType.Note ? "Note" : "Table";
         DetailFooterLabel.Text = mode switch
         {
             NoteMode.Text => baseLabel,

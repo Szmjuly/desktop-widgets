@@ -138,6 +138,20 @@ public static class TagFieldRegistry
         },
         new()
         {
+            Key = "lighting_designer", DisplayName = "Lighting Designer", Category = "People",
+            Aliases = new[] { "ld", "lighting", "lighting_des", "light_des" },
+            SuggestedValues = Array.Empty<string>(),
+            InputMode = TagInputMode.Dropdown
+        },
+        new()
+        {
+            Key = "av_it_designer", DisplayName = "AV/IT Designer", Category = "People",
+            Aliases = new[] { "av", "it", "av_it", "av_des", "it_des", "av_designer", "it_designer" },
+            SuggestedValues = Array.Empty<string>(),
+            InputMode = TagInputMode.Dropdown
+        },
+        new()
+        {
             Key = "engineers", DisplayName = "Engineers", Category = "People",
             Aliases = new[] { "team_eng", "project_eng" },
             SuggestedValues = Array.Empty<string>(),

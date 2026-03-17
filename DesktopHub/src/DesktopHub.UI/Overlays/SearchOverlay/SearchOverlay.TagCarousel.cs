@@ -126,6 +126,8 @@ public partial class SearchOverlay
         Add("location_state", tags.LocationState);
         Add("location_municipality", tags.LocationMunicipality);
         Add("stamping_engineer", tags.StampingEngineer);
+        Add("lighting_designer", tags.LightingDesigner);
+        Add("av_it_designer", tags.AvItDesigner);
 
         foreach (var (key, value) in tags.Custom)
             Add(key, value);

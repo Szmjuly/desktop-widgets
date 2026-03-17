@@ -663,6 +663,8 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
         "location_municipality" => tags.LocationMunicipality,
         "location_address" => tags.LocationAddress,
         "stamping_engineer" => tags.StampingEngineer,
+        "lighting_designer" => tags.LightingDesigner,
+        "av_it_designer" => tags.AvItDesigner,
         "engineers" => tags.Engineers.Count > 0 ? string.Join(", ", tags.Engineers) : null,
         "code_refs" => tags.CodeReferences.Count > 0 ? string.Join(", ", tags.CodeReferences) : null,
         _ => null
@@ -689,6 +691,8 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             case "location_municipality": tags.LocationMunicipality = value; break;
             case "location_address": tags.LocationAddress = value; break;
             case "stamping_engineer": tags.StampingEngineer = value; break;
+            case "lighting_designer": tags.LightingDesigner = value; break;
+            case "av_it_designer": tags.AvItDesigner = value; break;
             case "engineers":
                 tags.Engineers = value.Split(',', StringSplitOptions.TrimEntries).Where(s => s.Length > 0).ToList();
                 break;
