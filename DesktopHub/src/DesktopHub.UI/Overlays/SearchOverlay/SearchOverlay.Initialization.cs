@@ -209,6 +209,23 @@ public partial class SearchOverlay
                 throw;
             }
 
+            // Load persisted search history
+            try
+            {
+                _searchHistoryStore = new Infrastructure.Data.SearchHistoryStore();
+                await _searchHistoryStore.LoadAsync();
+
+                var retentionDays = _settings.GetSearchHistoryRetentionDays();
+                await _searchHistoryStore.PruneOlderThanAsync(retentionDays);
+
+                _searchHistory = _searchHistoryStore.GetEntries(25);
+                DebugLogger.Log($"SearchOverlay: Loaded {_searchHistory.Count} search history entries");
+            }
+            catch (Exception histEx)
+            {
+                DebugLogger.Log($"SearchOverlay: Search history load failed (non-fatal): {histEx.Message}");
+            }
+
             var (modifiers, key) = _settings.GetHotkey();
             var hotkeyLabel = FormatHotkey(modifiers, key);
 

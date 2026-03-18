@@ -30,6 +30,10 @@ public partial class MetricsViewerWidget
 
             _adminSummaries = await service.GetAllUsersSummariesAsync(_adminRangeStart, _adminRangeEnd);
 
+            var prevStart = _adminRangeStart.AddDays(-_adminRangeDays);
+            var prevEnd = _adminRangeEnd.AddDays(-_adminRangeDays);
+            _previousPeriodSummaries = await service.GetAllUsersSummariesAsync(prevStart, prevEnd);
+
             AdminDateRangeLabel.Text = $"{_adminRangeStart:MMM dd} - {_adminRangeEnd:MMM dd}";
 
             // Build user list and toggles
@@ -49,6 +53,10 @@ public partial class MetricsViewerWidget
 
             RenderAdminSummaryTable();
             RenderAdminInsights(_adminRangeStart);
+            RenderAdminInsightCallouts();
+            RenderPeriodComparison();
+            PopulateAdminCompareUsers(users);
+            UpdateAdminUserComparison();
 
             if (!string.IsNullOrEmpty(_selectedChartType))
                 RenderChart(_selectedChartType);
@@ -125,14 +133,15 @@ public partial class MetricsViewerWidget
 
     private void RenderAdminInsights(DateTime from)
     {
-        // Admin flow
+        // Admin flow and panels
         AdminFlowCanvas.Children.Clear();
         AdminTopProjectsPanel.Children.Clear();
         AdminFeatureRows.Children.Clear();
+        AdminCheatSheetPanel.Children.Clear();
 
         if (_filteredAdminSummaries.Count == 0) return;
 
-        // Feature usage breakdown (horizontal bars)
+        // Feature usage breakdown (horizontal bars) — includes cheat sheet and other metrics
         var featureData = new (string Label, int Value, string Color)[]
         {
             ("Searches", _filteredAdminSummaries.Sum(s => s.TotalSearches), Palette[4]),
@@ -144,6 +153,10 @@ public partial class MetricsViewerWidget
             ("Tasks", _filteredAdminSummaries.Sum(s => s.TotalTasksCreated + s.TotalTasksCompleted), Palette[3]),
             ("Timer", _filteredAdminSummaries.Sum(s => s.TotalTimerUses), Palette[2]),
             ("Quick Launch", _filteredAdminSummaries.Sum(s => s.TotalQuickLaunchUses), Palette[7]),
+            ("Cheat Sheet (views)", _filteredAdminSummaries.Sum(s => s.TotalCheatSheetViews), Palette[9]),
+            ("Cheat Sheet (lookups)", _filteredAdminSummaries.Sum(s => s.TotalCheatSheetLookups), Palette[9]),
+            ("Cheat Sheet (copies)", _filteredAdminSummaries.Sum(s => s.TotalCheatSheetCopies), Palette[6]),
+            ("Cheat Sheet (searches)", _filteredAdminSummaries.Sum(s => s.TotalCheatSheetSearches), Palette[6]),
             ("Hotkeys", _filteredAdminSummaries.Sum(s => s.TotalHotkeyPresses), Palette[10]),
             ("Clipboard", _filteredAdminSummaries.Sum(s => s.TotalClipboardCopies), Palette[6]),
         };
@@ -179,6 +192,25 @@ public partial class MetricsViewerWidget
             row.Children.Add(val);
 
             AdminFeatureRows.Children.Add(row);
+        }
+
+        // Cheat sheet metrics (aggregate)
+        var csViews = _filteredAdminSummaries.Sum(s => s.TotalCheatSheetViews);
+        var csLookups = _filteredAdminSummaries.Sum(s => s.TotalCheatSheetLookups);
+        var csCopies = _filteredAdminSummaries.Sum(s => s.TotalCheatSheetCopies);
+        var csSearches = _filteredAdminSummaries.Sum(s => s.TotalCheatSheetSearches);
+        AdminCheatSheetPanel.Children.Add(AddAdminCheatSheetRow("Views", csViews));
+        AdminCheatSheetPanel.Children.Add(AddAdminCheatSheetRow("Lookups", csLookups));
+        AdminCheatSheetPanel.Children.Add(AddAdminCheatSheetRow("Copies", csCopies));
+        AdminCheatSheetPanel.Children.Add(AddAdminCheatSheetRow("Searches", csSearches));
+        var usageBySheet = _filteredAdminSummaries
+            .SelectMany(s => s.CheatSheetUsageFrequency ?? new Dictionary<string, int>())
+            .GroupBy(kv => kv.Key)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Value));
+        foreach (var kv in usageBySheet.OrderByDescending(x => x.Value).Take(5))
+        {
+            var shortId = kv.Key.Length > 18 ? kv.Key[..15] + "..." : kv.Key;
+            AdminCheatSheetPanel.Children.Add(AddAdminCheatSheetRow(shortId, kv.Value, isSubItem: true));
         }
 
         // Admin flow — aggregate transitions from all users' project types
@@ -287,52 +319,810 @@ public partial class MetricsViewerWidget
             return;
         }
 
-        // Aggregate per user (filtered)
+        // Aggregate per user — 11 columns
         var byUser = _filteredAdminSummaries
             .GroupBy(s => string.IsNullOrEmpty(s.UserName) ? s.DeviceName : s.UserName)
             .Select(g => new
             {
-                User = g.Key,
-                Sessions = g.Sum(x => x.SessionCount),
-                Searches = g.Sum(x => x.TotalSearches + x.TotalSmartSearches + x.TotalPathSearches),
-                Launches = g.Sum(x => x.TotalProjectLaunches),
-                DurationMin = g.Sum(x => x.TotalSessionDurationMs) / 60_000
+                User       = g.Key,
+                Sessions   = g.Sum(x => x.SessionCount),
+                Searches   = g.Sum(x => x.TotalSearches + x.TotalSmartSearches + x.TotalPathSearches),
+                Launches   = g.Sum(x => x.TotalProjectLaunches),
+                Docs       = g.Sum(x => x.TotalDocOpens),
+                Tasks      = g.Sum(x => x.TotalTasksCreated + x.TotalTasksCompleted),
+                QL         = g.Sum(x => x.TotalQuickLaunchUses),
+                Timer      = g.Sum(x => x.TotalTimerUses),
+                CS         = g.Sum(x => x.TotalCheatSheetViews + x.TotalCheatSheetLookups),
+                Errors     = g.Sum(x => x.TotalErrors),
+                DurationMin = g.Sum(x => x.TotalSessionDurationMs) / 60_000,
+                Summaries  = g.ToList()
             })
             .OrderByDescending(x => x.Sessions)
             .ToList();
 
         // Header
-        AddAdminRow("User", "Sess", "Srch", "Proj", "Time", true);
+        AddAdminRow11("User", "Sess", "Srch", "Proj", "Docs", "Tasks", "QL", "Tmr", "CS", "Err", "Time",
+            isHeader: true, isHighlight: false);
 
         foreach (var u in byUser)
         {
-            var timeStr = u.DurationMin >= 60 ? $"{u.DurationMin / 60}h{u.DurationMin % 60}m" : $"{u.DurationMin}m";
-            AddAdminRow(u.User, u.Sessions.ToString(), u.Searches.ToString(), u.Launches.ToString(), timeStr, false);
+            var timeStr = FormatDuration(u.DurationMin);
+            var userRow = AddAdminRow11(u.User, u.Sessions.ToString(), u.Searches.ToString(),
+                u.Launches.ToString(), u.Docs.ToString(), u.Tasks.ToString(),
+                u.QL.ToString(), u.Timer.ToString(), u.CS.ToString(),
+                u.Errors.ToString(), timeStr, isHeader: false, isHighlight: false);
+
+            // Clickable expansion for per-day detail
+            var capturedUser = u;
+            var expansionPanel = new StackPanel { Visibility = Visibility.Collapsed, Margin = new Thickness(4, 0, 0, 6) };
+            userRow.Cursor = System.Windows.Input.Cursors.Hand;
+            userRow.ToolTip = "Click to expand daily breakdown";
+            userRow.MouseLeftButtonDown += (s, e) =>
+            {
+                e.Handled = true;
+                if (expansionPanel.Visibility == Visibility.Visible)
+                {
+                    expansionPanel.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    expansionPanel.Children.Clear();
+                    var dailySorted = capturedUser.Summaries.OrderByDescending(d => d.Date).ToList();
+                    foreach (var day in dailySorted)
+                    {
+                        var daySearches = day.TotalSearches + day.TotalSmartSearches + day.TotalPathSearches;
+                        var dayTasks = day.TotalTasksCreated + day.TotalTasksCompleted;
+                        var dayCS = day.TotalCheatSheetViews + day.TotalCheatSheetLookups;
+                        var dayDur = FormatDuration(day.TotalSessionDurationMs / 60_000);
+                        AddAdminRow11(day.Date, day.SessionCount.ToString(), daySearches.ToString(),
+                            day.TotalProjectLaunches.ToString(), day.TotalDocOpens.ToString(),
+                            dayTasks.ToString(), day.TotalQuickLaunchUses.ToString(),
+                            day.TotalTimerUses.ToString(), dayCS.ToString(),
+                            day.TotalErrors.ToString(), dayDur,
+                            isHeader: false, isHighlight: false, target: expansionPanel, fontSize: 7);
+                    }
+                    expansionPanel.Visibility = Visibility.Visible;
+                }
+            };
+            AdminSummaryRows.Children.Add(expansionPanel);
         }
+
+        // Total row
+        var totSess     = byUser.Sum(u => u.Sessions);
+        var totSearch   = byUser.Sum(u => u.Searches);
+        var totLaunch   = byUser.Sum(u => u.Launches);
+        var totDocs     = byUser.Sum(u => u.Docs);
+        var totTasks    = byUser.Sum(u => u.Tasks);
+        var totQL       = byUser.Sum(u => u.QL);
+        var totTimer    = byUser.Sum(u => u.Timer);
+        var totCS       = byUser.Sum(u => u.CS);
+        var totErr      = byUser.Sum(u => u.Errors);
+        var totDur      = byUser.Sum(u => u.DurationMin);
+
+        AddAdminRow11("TOTAL", totSess.ToString(), totSearch.ToString(),
+            totLaunch.ToString(), totDocs.ToString(), totTasks.ToString(),
+            totQL.ToString(), totTimer.ToString(), totCS.ToString(),
+            totErr.ToString(), FormatDuration(totDur),
+            isHeader: false, isHighlight: true);
+
+        // Avg/day row
+        var totalDays = Math.Max(_filteredAdminSummaries.Select(s => s.Date).Distinct().Count(), 1);
+        AddAdminRow11("Avg/day",
+            $"{totSess / (double)totalDays:F1}", $"{totSearch / (double)totalDays:F1}",
+            $"{totLaunch / (double)totalDays:F1}", $"{totDocs / (double)totalDays:F1}",
+            $"{totTasks / (double)totalDays:F1}", $"{totQL / (double)totalDays:F1}",
+            $"{totTimer / (double)totalDays:F1}", $"{totCS / (double)totalDays:F1}",
+            $"{totErr / (double)totalDays:F1}", $"{totDur / totalDays}m",
+            isHeader: false, isHighlight: true);
     }
 
-    private void AddAdminRow(string col1, string col2, string col3, string col4, string col5, bool isHeader)
+    private static string FormatDuration(long minutes)
     {
-        var grid = new Grid { Margin = new Thickness(0, 0, 0, isHeader ? 4 : 2) };
-        for (int i = 0; i < 5; i++)
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = i == 0 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
+        return minutes >= 60 ? $"{minutes / 60}h{minutes % 60}m" : $"{minutes}m";
+    }
 
-        var vals = new[] { col1, col2, col3, col4, col5 };
-        for (int i = 0; i < 5; i++)
+    private Border AddAdminRow11(string c0, string c1, string c2, string c3,
+        string c4, string c5, string c6, string c7, string c8, string c9, string c10,
+        bool isHeader, bool isHighlight, StackPanel? target = null, int fontSize = 0)
+    {
+        target ??= AdminSummaryRows;
+        var baseFontSize = fontSize > 0 ? fontSize : (isHeader ? 7 : 8);
+
+        var border = new Border
+        {
+            Background = isHighlight
+                ? Helpers.ThemeHelper.FaintOverlay
+                : System.Windows.Media.Brushes.Transparent,
+            CornerRadius = new CornerRadius(isHighlight ? 3 : 0),
+            Padding = new Thickness(0, isHighlight ? 2 : 0, 0, isHighlight ? 2 : 0),
+            Margin = new Thickness(0, 0, 0, isHeader ? 3 : 1)
+        };
+
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        for (int i = 1; i <= 10; i++)
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var vals = new[] { c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10 };
+        for (int i = 0; i < 11; i++)
         {
             var tb = new TextBlock
             {
                 Text = vals[i],
-                FontSize = isHeader ? 9 : 10,
-                FontWeight = isHeader ? FontWeights.Bold : FontWeights.Normal,
-                Foreground = isHeader ? Helpers.ThemeHelper.TextTertiary : (i == 0 ? Helpers.ThemeHelper.TextPrimary : Helpers.ThemeHelper.TextSecondary),
-                Margin = new Thickness(i > 0 ? 8 : 0, 0, 0, 0),
-                TextTrimming = i == 0 ? TextTrimming.CharacterEllipsis : TextTrimming.None
+                FontSize = baseFontSize,
+                FontWeight = (isHeader || isHighlight) ? FontWeights.Bold : FontWeights.Normal,
+                Foreground = isHeader
+                    ? Helpers.ThemeHelper.TextTertiary
+                    : (i == 0 ? Helpers.ThemeHelper.TextPrimary : Helpers.ThemeHelper.TextSecondary),
+                Margin = new Thickness(i > 0 ? 6 : 0, 0, 0, 0),
+                TextTrimming = i == 0 ? TextTrimming.CharacterEllipsis : TextTrimming.None,
+                VerticalAlignment = VerticalAlignment.Center
             };
             Grid.SetColumn(tb, i);
             grid.Children.Add(tb);
         }
 
-        AdminSummaryRows.Children.Add(grid);
+        border.Child = grid;
+        target.Children.Add(border);
+        return border;
+    }
+
+    private void AddAdminRow(string col1, string col2, string col3, string col4, string col5, bool isHeader)
+    {
+        AddAdminRow11(col1, col2, col3, col4, "", "", "", "", "", "", col5, isHeader, false);
+    }
+
+    private static Grid AddAdminCheatSheetRow(string label, int value, bool isSubItem = false)
+    {
+        var grid = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var lbl = new TextBlock
+        {
+            Text = label,
+            FontSize = isSubItem ? 8 : 9,
+            Foreground = Helpers.ThemeHelper.TextSecondary,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
+        Grid.SetColumn(lbl, 0);
+        grid.Children.Add(lbl);
+        var val = new TextBlock
+        {
+            Text = value.ToString(),
+            FontSize = isSubItem ? 8 : 9,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Helpers.ThemeHelper.TextPrimary,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(val, 1);
+        grid.Children.Add(val);
+        return grid;
+    }
+
+    private void RenderAdminInsightCallouts()
+    {
+        AdminInsightCalloutsPanel.Children.Clear();
+        if (_filteredAdminSummaries.Count == 0)
+        {
+            AdminInsightCalloutsPanel.Children.Add(new TextBlock
+            {
+                Text = "No data — select users and range.",
+                FontSize = 9,
+                FontStyle = FontStyles.Italic,
+                Foreground = Helpers.ThemeHelper.TextTertiary
+            });
+            return;
+        }
+
+        var byUser = _filteredAdminSummaries
+            .GroupBy(s => string.IsNullOrEmpty(s.UserName) ? s.DeviceName : s.UserName)
+            .Select(g => new { User = g.Key, Summaries = g.ToList() })
+            .ToList();
+        var totalSearches = _filteredAdminSummaries.Sum(s => s.TotalSearches + s.TotalSmartSearches + s.TotalPathSearches);
+        var totalSessions = _filteredAdminSummaries.Sum(s => s.SessionCount);
+        var totalCsViews = _filteredAdminSummaries.Sum(s => s.TotalCheatSheetViews);
+
+        if (byUser.Count > 0)
+        {
+            var topUser = byUser.OrderByDescending(u => u.Summaries.Sum(x => x.TotalSearches + x.TotalProjectLaunches)).First();
+            var uSearches = topUser.Summaries.Sum(s => s.TotalSearches + s.TotalSmartSearches);
+            var uSessions = topUser.Summaries.Sum(s => s.SessionCount);
+            AdminInsightCalloutsPanel.Children.Add(AddInsightLine($"Top user: {topUser.User} (searches: {uSearches}, sessions: {uSessions})"));
+        }
+        if (totalCsViews > 0)
+            AdminInsightCalloutsPanel.Children.Add(AddInsightLine($"Cheat sheet usage: {totalCsViews} views across {byUser.Count} user(s)."));
+        var byDay = _filteredAdminSummaries.GroupBy(s => s.Date).OrderByDescending(g => g.Sum(x => x.TotalSearches + x.SessionCount)).FirstOrDefault();
+        if (byDay != null)
+            AdminInsightCalloutsPanel.Children.Add(AddInsightLine($"Peak day: {byDay.Key:ddd MMM dd} ({byDay.Sum(s => s.TotalSearches + s.SessionCount)} events)."));
+        if (totalSessions > 0)
+            AdminInsightCalloutsPanel.Children.Add(AddInsightLine($"Total: {totalSearches} searches, {totalSessions} sessions in range."));
+    }
+
+    private static TextBlock AddInsightLine(string text)
+    {
+        return new TextBlock
+        {
+            Text = text,
+            FontSize = 9,
+            Foreground = Helpers.ThemeHelper.TextSecondary,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 2)
+        };
+    }
+
+    private void RenderPeriodComparison()
+    {
+        AdminPeriodComparisonPanel.Children.Clear();
+        if (_filteredAdminSummaries.Count == 0 || _previousPeriodSummaries.Count == 0)
+        {
+            AdminPeriodComparisonPanel.Children.Add(new TextBlock
+            {
+                Text = "This vs previous period (need both).",
+                FontSize = 8,
+                Foreground = Helpers.ThemeHelper.TextTertiary,
+                Margin = new Thickness(0, 0, 0, 2)
+            });
+            return;
+        }
+
+        int Cur(string key) => _filteredAdminSummaries.Sum(GetMetricSelector(key));
+        int Prev(string key) => _previousPeriodSummaries.Sum(GetMetricSelector(key));
+        var metrics = new[]
+        {
+            ("searches",        "Searches"),
+            ("smart_searches",  "Smart Search"),
+            ("sessions",        "Sessions"),
+            ("launches",        "Launches"),
+            ("doc_opens",       "Doc Opens"),
+            ("tasks_created",   "Tasks Created"),
+            ("tasks_done",      "Tasks Done"),
+            ("cheatsheet",      "Cheat Sheet"),
+            ("hotkeys",         "Hotkeys"),
+            ("errors",          "Errors"),
+        };
+        foreach (var (id, label) in metrics)
+        {
+            var c = Cur(id);
+            var p = Prev(id);
+            if (c == 0 && p == 0) continue;
+            var delta = p > 0 ? (c - p) * 100.0 / p : (c > 0 ? 100 : 0);
+            var isUp = delta >= 0;
+            var grid = new Grid { Margin = new Thickness(0, 0, 0, 1) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(38) });
+
+            var lblTb = new TextBlock { Text = label, FontSize = 8, Foreground = Helpers.ThemeHelper.TextSecondary };
+            Grid.SetColumn(lblTb, 0);
+            grid.Children.Add(lblTb);
+
+            var valTb = new TextBlock
+            {
+                Text = $"{c} / {p}",
+                FontSize = 8, Foreground = Helpers.ThemeHelper.TextSecondary,
+                Margin = new Thickness(0, 0, 4, 0), HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+            };
+            Grid.SetColumn(valTb, 1);
+            grid.Children.Add(valTb);
+
+            var deltaTb = new TextBlock
+            {
+                Text = $"{(isUp ? "▲" : "▼")}{Math.Abs(delta):F0}%",
+                FontSize = 8,
+                Foreground = isUp ? Helpers.ThemeHelper.Green : Helpers.ThemeHelper.Red,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+            };
+            Grid.SetColumn(deltaTb, 2);
+            grid.Children.Add(deltaTb);
+
+            AdminPeriodComparisonPanel.Children.Add(grid);
+        }
+    }
+
+    private void PopulateAdminCompareUsers(List<string> users)
+    {
+        var list = new List<string> { "" };
+        list.AddRange(users);
+        AdminCompareUserA.ItemsSource = list;
+        AdminCompareUserB.ItemsSource = list;
+        AdminCompareUserA.SelectedIndex = 0;
+        AdminCompareUserB.SelectedIndex = 0;
+        AdminCompareUserA.SelectionChanged -= AdminCompareUser_SelectionChanged;
+        AdminCompareUserB.SelectionChanged -= AdminCompareUser_SelectionChanged;
+        AdminCompareUserA.SelectionChanged += AdminCompareUser_SelectionChanged;
+        AdminCompareUserB.SelectionChanged += AdminCompareUser_SelectionChanged;
+    }
+
+    private void AdminCompareUser_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateAdminUserComparison();
+
+    private void UpdateAdminUserComparison()
+    {
+        AdminUserComparisonResultPanel.Children.Clear();
+        var userA = AdminCompareUserA.SelectedItem as string;
+        var userB = AdminCompareUserB.SelectedItem as string;
+        if (string.IsNullOrEmpty(userA) || string.IsNullOrEmpty(userB) || userA == userB)
+            return;
+        var listA = _filteredAdminSummaries.Where(s => (string.IsNullOrEmpty(s.UserName) ? s.DeviceName : s.UserName) == userA).ToList();
+        var listB = _filteredAdminSummaries.Where(s => (string.IsNullOrEmpty(s.UserName) ? s.DeviceName : s.UserName) == userB).ToList();
+        if (listA.Count == 0 || listB.Count == 0) return;
+        int Sum(List<DailyMetricsSummary> list, string key) => list.Sum(GetMetricSelector(key));
+        var metrics = new[]
+        {
+            ("searches",        "Searches"),
+            ("smart_searches",  "Smart Search"),
+            ("sessions",        "Sessions"),
+            ("launches",        "Launches"),
+            ("doc_opens",       "Doc Opens"),
+            ("tasks_created",   "Tasks Created"),
+            ("tasks_done",      "Tasks Done"),
+            ("cheatsheet",      "Cheat Sheet"),
+            ("hotkeys",         "Hotkeys"),
+            ("errors",          "Errors"),
+        };
+        var headerGrid = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
+        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var h0 = new TextBlock { Text = "", FontSize = 8, FontWeight = FontWeights.SemiBold, Foreground = Helpers.ThemeHelper.TextTertiary };
+        var h1 = new TextBlock { Text = userA, FontSize = 8, FontWeight = FontWeights.SemiBold, Foreground = Helpers.ThemeHelper.TextTertiary, TextTrimming = TextTrimming.CharacterEllipsis };
+        var h2 = new TextBlock { Text = userB, FontSize = 8, FontWeight = FontWeights.SemiBold, Foreground = Helpers.ThemeHelper.TextTertiary, TextTrimming = TextTrimming.CharacterEllipsis };
+        headerGrid.Children.Add(h0);
+        headerGrid.Children.Add(h1);
+        headerGrid.Children.Add(h2);
+        Grid.SetColumn(h0, 0);
+        Grid.SetColumn(h1, 1);
+        Grid.SetColumn(h2, 2);
+        AdminUserComparisonResultPanel.Children.Add(headerGrid);
+        foreach (var (id, label) in metrics)
+        {
+            var grid = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var tbLabel = new TextBlock { Text = label, FontSize = 8, Foreground = Helpers.ThemeHelper.TextTertiary, VerticalAlignment = VerticalAlignment.Center };
+            var tbA = new TextBlock { Text = Sum(listA, id).ToString(), FontSize = 9, Foreground = Helpers.ThemeHelper.TextPrimary, VerticalAlignment = VerticalAlignment.Center };
+            var tbB = new TextBlock { Text = Sum(listB, id).ToString(), FontSize = 9, Foreground = Helpers.ThemeHelper.TextPrimary, VerticalAlignment = VerticalAlignment.Center };
+            grid.Children.Add(tbLabel);
+            grid.Children.Add(tbA);
+            grid.Children.Add(tbB);
+            Grid.SetColumn(tbLabel, 0);
+            Grid.SetColumn(tbA, 1);
+            Grid.SetColumn(tbB, 2);
+            AdminUserComparisonResultPanel.Children.Add(grid);
+        }
+    }
+
+    // ===== Admin right-panel tabs =====
+
+    private void BuildAdminRightTabs()
+    {
+        AdminRightTabBar.Children.Clear();
+
+        var tabs = new[] { ("overview", "Overview"), ("category", "Category Detail") };
+        foreach (var (id, label) in tabs)
+        {
+            var capturedId = id;
+            var isActive = id == _adminRightTab;
+            var pill = new Border
+            {
+                Background = isActive ? Helpers.ThemeHelper.AccentLight : Helpers.ThemeHelper.Hover,
+                BorderBrush = isActive ? Helpers.ThemeHelper.Accent : Helpers.ThemeHelper.HoverMedium,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(10, 4, 10, 4),
+                Margin = new Thickness(0, 0, 5, 0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = id
+            };
+            pill.Child = new TextBlock
+            {
+                Text = label, FontSize = 10,
+                Foreground = isActive ? Helpers.ThemeHelper.Accent : Helpers.ThemeHelper.TextSecondary
+            };
+            pill.MouseLeftButtonDown += (s, e) =>
+            {
+                e.Handled = true;
+                SwitchAdminRightTab(capturedId);
+            };
+            AdminRightTabBar.Children.Add(pill);
+        }
+    }
+
+    private void SwitchAdminRightTab(string tabId)
+    {
+        _adminRightTab = tabId;
+        BuildAdminRightTabs();
+
+        if (tabId == "overview")
+        {
+            AdminOverviewTab.Visibility = Visibility.Visible;
+            AdminCategoryDetailTab.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            AdminOverviewTab.Visibility = Visibility.Collapsed;
+            AdminCategoryDetailTab.Visibility = Visibility.Visible;
+            RenderCategoryDetail(_selectedCategoryDetailId);
+        }
+    }
+
+    // ===== Category detail tab =====
+
+    private static readonly (string Id, string Label)[] CategoryDefs = new[]
+    {
+        ("search",       "Search"),
+        ("smart_search", "Smart Search"),
+        ("cheat_sheet",  "Cheat Sheet"),
+        ("tasks",        "Tasks"),
+        ("timer",        "Timer"),
+        ("quick_launch", "Quick Launch"),
+        ("doc_access",   "Doc Access"),
+        ("tags",         "Tags"),
+        ("hotkeys",      "Hotkeys"),
+        ("clipboard",    "Clipboard"),
+        ("errors",       "Errors"),
+        ("performance",  "Performance"),
+        ("settings",     "Settings"),
+    };
+
+    private void BuildCategorySelectorPills()
+    {
+        CategorySelectorPills.Children.Clear();
+        foreach (var (id, label) in CategoryDefs)
+        {
+            var capturedId = id;
+            var isActive = id == _selectedCategoryDetailId;
+            var pill = new Border
+            {
+                Background = isActive ? Helpers.ThemeHelper.AccentLight : Helpers.ThemeHelper.Hover,
+                BorderBrush = isActive ? Helpers.ThemeHelper.Accent : Helpers.ThemeHelper.HoverMedium,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(7, 3, 7, 3),
+                Margin = new Thickness(0, 0, 4, 4),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = id
+            };
+            pill.Child = new TextBlock
+            {
+                Text = label, FontSize = 9,
+                Foreground = isActive ? Helpers.ThemeHelper.Accent : Helpers.ThemeHelper.TextSecondary
+            };
+            pill.MouseLeftButtonDown += (s, e) =>
+            {
+                e.Handled = true;
+                _selectedCategoryDetailId = capturedId;
+                BuildCategorySelectorPills();
+                RenderCategoryDetail(capturedId);
+            };
+            CategorySelectorPills.Children.Add(pill);
+        }
+    }
+
+    private void RenderCategoryDetail(string categoryId)
+    {
+        CategoryDetailContent.Children.Clear();
+
+        if (_filteredAdminSummaries.Count == 0)
+        {
+            CategoryDetailContent.Children.Add(new TextBlock
+            {
+                Text = "No data for current selection.",
+                FontSize = 10, FontStyle = FontStyles.Italic,
+                Foreground = Helpers.ThemeHelper.TextTertiary
+            });
+            return;
+        }
+
+        var byUser = _filteredAdminSummaries
+            .GroupBy(s => string.IsNullOrEmpty(s.UserName) ? s.DeviceName : s.UserName)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        switch (categoryId)
+        {
+            case "cheat_sheet":
+                RenderCategoryCheatSheet(byUser);
+                break;
+            case "search":
+                RenderCategorySearch(byUser);
+                break;
+            case "smart_search":
+                RenderCategorySmartSearch(byUser);
+                break;
+            case "tasks":
+                RenderCategoryTasks(byUser);
+                break;
+            default:
+                RenderCategoryGeneric(categoryId, byUser);
+                break;
+        }
+    }
+
+    private void RenderCategoryCheatSheet(Dictionary<string, List<DailyMetricsSummary>> byUser)
+    {
+        // Aggregate totals
+        var totalViews   = _filteredAdminSummaries.Sum(s => s.TotalCheatSheetViews);
+        var totalLookups = _filteredAdminSummaries.Sum(s => s.TotalCheatSheetLookups);
+        var totalCopies  = _filteredAdminSummaries.Sum(s => s.TotalCheatSheetCopies);
+        var totalSearches = _filteredAdminSummaries.Sum(s => s.TotalCheatSheetSearches);
+
+        AddCategoryHeader("CHEAT SHEET TOTALS");
+        AddCategoryMetricRow("Views", totalViews, Palette[9]);
+        AddCategoryMetricRow("Lookups", totalLookups, Palette[6]);
+        AddCategoryMetricRow("Copies", totalCopies, Palette[4]);
+        AddCategoryMetricRow("Searches", totalSearches, Palette[10]);
+
+        // Per-user breakdown
+        AddCategoryHeader("PER USER");
+        foreach (var (user, summaries) in byUser.OrderByDescending(kv => kv.Value.Sum(s => s.TotalCheatSheetViews)))
+        {
+            var uViews = summaries.Sum(s => s.TotalCheatSheetViews);
+            var uLookups = summaries.Sum(s => s.TotalCheatSheetLookups);
+            var uCopies = summaries.Sum(s => s.TotalCheatSheetCopies);
+            if (uViews + uLookups + uCopies == 0) continue;
+
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 3) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var lbl = new TextBlock
+            {
+                Text = user, FontSize = 9, Foreground = Helpers.ThemeHelper.TextPrimary,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            Grid.SetColumn(lbl, 0);
+            row.Children.Add(lbl);
+
+            var pills = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+            if (uViews > 0) AddMiniPill(pills, $"V:{uViews}", Palette[9]);
+            if (uLookups > 0) AddMiniPill(pills, $"L:{uLookups}", Palette[6]);
+            if (uCopies > 0) AddMiniPill(pills, $"C:{uCopies}", Palette[4]);
+            Grid.SetColumn(pills, 1);
+            row.Children.Add(pills);
+            CategoryDetailContent.Children.Add(row);
+        }
+
+        // Per-sheet aggregate across all users
+        var usageBySheet = _filteredAdminSummaries
+            .SelectMany(s => s.CheatSheetUsageFrequency ?? new Dictionary<string, int>())
+            .GroupBy(kv => kv.Key)
+            .Select(g => new { Sheet = g.Key, Views = g.Sum(x => x.Value) })
+            .OrderByDescending(x => x.Views)
+            .ToList();
+
+        if (usageBySheet.Count > 0)
+        {
+            AddCategoryHeader($"PER SHEET ({usageBySheet.Count})");
+            var maxSheet = usageBySheet[0].Views;
+            int ci = 0;
+            foreach (var sheet in usageBySheet.Take(15))
+            {
+                var shortId = sheet.Sheet.Length > 20 ? sheet.Sheet[..17] + "..." : sheet.Sheet;
+                var row = new Grid { Margin = new Thickness(0, 0, 0, 2), ToolTip = sheet.Sheet };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                var lbl = new TextBlock { Text = shortId, FontSize = 8, Foreground = PaletteBrush(ci), TextTrimming = TextTrimming.CharacterEllipsis };
+                Grid.SetColumn(lbl, 0);
+                row.Children.Add(lbl);
+
+                var bar = new Border
+                {
+                    Background = PaletteBrush(ci), CornerRadius = new CornerRadius(2), Height = 5,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                    Width = Math.Max(3, sheet.Views / (double)maxSheet * 36),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                Grid.SetColumn(bar, 1);
+                row.Children.Add(bar);
+
+                var val = new TextBlock { Text = sheet.Views.ToString(), FontSize = 8, Foreground = Helpers.ThemeHelper.TextSecondary, Margin = new Thickness(4, 0, 0, 0) };
+                Grid.SetColumn(val, 2);
+                row.Children.Add(val);
+                CategoryDetailContent.Children.Add(row);
+                ci++;
+            }
+        }
+    }
+
+    private void RenderCategorySearch(Dictionary<string, List<DailyMetricsSummary>> byUser)
+    {
+        var total = _filteredAdminSummaries.Sum(s => s.TotalSearches);
+        var totalSmart = _filteredAdminSummaries.Sum(s => s.TotalSmartSearches);
+        var totalDoc = _filteredAdminSummaries.Sum(s => s.TotalDocSearches);
+        var totalPath = _filteredAdminSummaries.Sum(s => s.TotalPathSearches);
+        var totalClicks = _filteredAdminSummaries.Sum(s => s.TotalSearchResultClicks);
+
+        AddCategoryHeader("SEARCH TOTALS");
+        AddCategoryMetricRow("Project Search", total, Palette[4]);
+        AddCategoryMetricRow("Smart Search", totalSmart, Palette[6]);
+        AddCategoryMetricRow("Doc Search", totalDoc, Palette[10]);
+        AddCategoryMetricRow("Path Search", totalPath, Palette[9]);
+        AddCategoryMetricRow("Result Clicks", totalClicks, Palette[1]);
+
+        var withTiming = _filteredAdminSummaries.Where(s => s.AvgSearchTimingMs > 0).ToList();
+        if (withTiming.Count > 0)
+        {
+            var avgTiming = withTiming.Average(s => s.AvgSearchTimingMs);
+            AddCategoryMetricRow("Avg Search Time", (int)avgTiming, Palette[2], suffix: "ms");
+        }
+
+        AddCategoryHeader("PER USER");
+        foreach (var (user, summaries) in byUser.OrderByDescending(kv => kv.Value.Sum(s => s.TotalSearches + s.TotalSmartSearches)))
+        {
+            var uTotal = summaries.Sum(s => s.TotalSearches + s.TotalSmartSearches + s.TotalDocSearches + s.TotalPathSearches);
+            if (uTotal == 0) continue;
+            AddCategoryMetricRow(user, uTotal, Palette[4]);
+        }
+    }
+
+    private void RenderCategorySmartSearch(Dictionary<string, List<DailyMetricsSummary>> byUser)
+    {
+        var total = _filteredAdminSummaries.Sum(s => s.TotalSmartSearches);
+        var filters = _filteredAdminSummaries.Sum(s => s.TotalSmartSearchFilterUses);
+
+        AddCategoryHeader("SMART SEARCH TOTALS");
+        AddCategoryMetricRow("Searches", total, Palette[6]);
+        AddCategoryMetricRow("Filter Uses", filters, Palette[7]);
+
+        AddCategoryHeader("PER USER");
+        foreach (var (user, summaries) in byUser.OrderByDescending(kv => kv.Value.Sum(s => s.TotalSmartSearches)))
+        {
+            var u = summaries.Sum(s => s.TotalSmartSearches);
+            var uf = summaries.Sum(s => s.TotalSmartSearchFilterUses);
+            if (u == 0) continue;
+
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var lbl = new TextBlock { Text = user, FontSize = 9, Foreground = Helpers.ThemeHelper.TextPrimary, TextTrimming = TextTrimming.CharacterEllipsis };
+            Grid.SetColumn(lbl, 0);
+            row.Children.Add(lbl);
+            var pills = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+            AddMiniPill(pills, $"srch:{u}", Palette[6]);
+            if (uf > 0) AddMiniPill(pills, $"flt:{uf}", Palette[7]);
+            Grid.SetColumn(pills, 1);
+            row.Children.Add(pills);
+            CategoryDetailContent.Children.Add(row);
+        }
+    }
+
+    private void RenderCategoryTasks(Dictionary<string, List<DailyMetricsSummary>> byUser)
+    {
+        var created = _filteredAdminSummaries.Sum(s => s.TotalTasksCreated);
+        var completed = _filteredAdminSummaries.Sum(s => s.TotalTasksCompleted);
+        var deleted = _filteredAdminSummaries.Sum(s => s.TotalTasksDeleted);
+
+        AddCategoryHeader("TASKS TOTALS");
+        AddCategoryMetricRow("Created", created, Palette[3]);
+        AddCategoryMetricRow("Completed", completed, Palette[1]);
+        AddCategoryMetricRow("Deleted", deleted, Palette[5]);
+
+        AddCategoryHeader("PER USER");
+        foreach (var (user, summaries) in byUser.OrderByDescending(kv => kv.Value.Sum(s => s.TotalTasksCreated)))
+        {
+            var uc = summaries.Sum(s => s.TotalTasksCreated);
+            var ud = summaries.Sum(s => s.TotalTasksCompleted);
+            var udel = summaries.Sum(s => s.TotalTasksDeleted);
+            if (uc + ud + udel == 0) continue;
+
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var lbl = new TextBlock { Text = user, FontSize = 9, Foreground = Helpers.ThemeHelper.TextPrimary, TextTrimming = TextTrimming.CharacterEllipsis };
+            Grid.SetColumn(lbl, 0);
+            row.Children.Add(lbl);
+            var pills = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+            if (uc > 0) AddMiniPill(pills, $"+{uc}", Palette[3]);
+            if (ud > 0) AddMiniPill(pills, $"\u2713{ud}", Palette[1]);
+            if (udel > 0) AddMiniPill(pills, $"\u2212{udel}", Palette[5]);
+            Grid.SetColumn(pills, 1);
+            row.Children.Add(pills);
+            CategoryDetailContent.Children.Add(row);
+        }
+    }
+
+    private void RenderCategoryGeneric(string categoryId, Dictionary<string, List<DailyMetricsSummary>> byUser)
+    {
+        // Map category to metric selector(s)
+        var metricMap = categoryId switch
+        {
+            "timer"        => new (string Label, Func<DailyMetricsSummary, int> Sel)[] { ("Timer Uses", s => s.TotalTimerUses) },
+            "quick_launch" => new[] { ("Launches", (Func<DailyMetricsSummary, int>)(s => s.TotalQuickLaunchUses)), ("Adds", s => s.TotalQuickLaunchAdds), ("Removes", s => s.TotalQuickLaunchRemoves) },
+            "doc_access"   => new[] { ("Doc Opens", (Func<DailyMetricsSummary, int>)(s => s.TotalDocOpens)), ("Doc Searches", s => s.TotalDocSearches) },
+            "tags"         => new[] { ("Created", (Func<DailyMetricsSummary, int>)(s => s.TotalTagsCreated)), ("Updated", s => s.TotalTagsUpdated), ("Searches", s => s.TotalTagSearches), ("Carousel", s => s.TotalTagCarouselClicks) },
+            "hotkeys"      => new[] { ("Presses", (Func<DailyMetricsSummary, int>)(s => s.TotalHotkeyPresses)) },
+            "clipboard"    => new[] { ("Copies", (Func<DailyMetricsSummary, int>)(s => s.TotalClipboardCopies)) },
+            "errors"       => new[] { ("Errors", (Func<DailyMetricsSummary, int>)(s => s.TotalErrors)) },
+            "performance"  => new[] { ("Avg Startup (ms)", (Func<DailyMetricsSummary, int>)(s => (int)s.AvgStartupTimingMs)), ("Avg Search (ms)", s => (int)s.AvgSearchTimingMs) },
+            "settings"     => new[] { ("Changes", (Func<DailyMetricsSummary, int>)(s => s.TotalSettingChanges)) },
+            _              => new[] { ("Events", (Func<DailyMetricsSummary, int>)(s => s.SessionCount)) }
+        };
+
+        var displayLabel = CategoryDefs.FirstOrDefault(c => c.Id == categoryId).Label ?? categoryId;
+        AddCategoryHeader($"{displayLabel.ToUpper()} TOTALS");
+        foreach (var (label, sel) in metricMap)
+        {
+            var v = _filteredAdminSummaries.Sum(sel);
+            AddCategoryMetricRow(label, v, Palette[4]);
+        }
+
+        AddCategoryHeader("PER USER");
+        foreach (var (user, summaries) in byUser.OrderByDescending(kv => metricMap.Sum(m => kv.Value.Sum(m.Item2))))
+        {
+            var pills = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+            bool anyNonZero = false;
+            int ci = 0;
+            foreach (var (label, sel) in metricMap)
+            {
+                var v = summaries.Sum(sel);
+                if (v > 0) { AddMiniPill(pills, $"{label}: {v}", Palette[ci % Palette.Length]); anyNonZero = true; }
+                ci++;
+            }
+            if (!anyNonZero) continue;
+
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var lbl = new TextBlock { Text = user, FontSize = 9, Foreground = Helpers.ThemeHelper.TextPrimary, TextTrimming = TextTrimming.CharacterEllipsis };
+            Grid.SetColumn(lbl, 0);
+            row.Children.Add(lbl);
+            Grid.SetColumn(pills, 1);
+            row.Children.Add(pills);
+            CategoryDetailContent.Children.Add(row);
+        }
+    }
+
+    // ===== Category detail helpers =====
+
+    private void AddCategoryHeader(string text)
+    {
+        CategoryDetailContent.Children.Add(new TextBlock
+        {
+            Text = text, FontSize = 8, FontWeight = FontWeights.SemiBold,
+            Foreground = Helpers.ThemeHelper.TextTertiary,
+            Margin = new Thickness(0, 6, 0, 4)
+        });
+    }
+
+    private void AddCategoryMetricRow(string label, int value, string colorHex, string suffix = "")
+    {
+        var grid = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var lbl = new TextBlock { Text = label, FontSize = 9, Foreground = Helpers.ThemeHelper.TextSecondary, TextTrimming = TextTrimming.CharacterEllipsis };
+        Grid.SetColumn(lbl, 0);
+        grid.Children.Add(lbl);
+
+        var val = new TextBlock
+        {
+            Text = string.IsNullOrEmpty(suffix) ? value.ToString() : $"{value} {suffix}",
+            FontSize = 9, FontWeight = FontWeights.SemiBold,
+            Foreground = value > 0 ? Brush(colorHex) : Helpers.ThemeHelper.TextTertiary
+        };
+        Grid.SetColumn(val, 1);
+        grid.Children.Add(val);
+
+        CategoryDetailContent.Children.Add(grid);
+    }
+
+    private static void AddMiniPill(StackPanel panel, string text, string colorHex)
+    {
+        var color = (WpfColor)WpfColorConverter.ConvertFromString(colorHex);
+        var pill = new Border
+        {
+            Background = new WpfSolidColorBrush(WpfColor.FromArgb(0x22, color.R, color.G, color.B)),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(4, 1, 4, 1),
+            Margin = new Thickness(0, 0, 3, 0)
+        };
+        pill.Child = new TextBlock
+        {
+            Text = text, FontSize = 7,
+            Foreground = new WpfSolidColorBrush(color)
+        };
+        panel.Children.Add(pill);
     }
 }

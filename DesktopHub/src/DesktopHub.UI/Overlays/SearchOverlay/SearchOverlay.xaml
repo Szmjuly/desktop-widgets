@@ -71,6 +71,47 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="ThinHorizontalScrollBar" TargetType="ScrollBar">
+            <Setter Property="Height" Value="6"/>
+            <Setter Property="MinHeight" Value="6"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid>
+                            <Track x:Name="PART_Track" IsDirectionReversed="False">
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource ThinScrollBarThumb}"/>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="ThinHorizontalScrollViewer" TargetType="ScrollViewer">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollViewer">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <ScrollContentPresenter Grid.Row="0" CanContentScroll="{TemplateBinding ScrollViewer.CanContentScroll}"/>
+                            <ScrollBar x:Name="PART_HorizontalScrollBar"
+                                       Grid.Row="1"
+                                       Orientation="Horizontal"
+                                       Style="{StaticResource ThinHorizontalScrollBar}"
+                                       Maximum="{TemplateBinding ScrollableWidth}"
+                                       ViewportSize="{TemplateBinding ViewportWidth}"
+                                       Value="{TemplateBinding HorizontalOffset}"
+                                       Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <!-- Result item template -->
         <DataTemplate x:Key="ResultItemTemplate">
@@ -603,45 +644,140 @@
             </Grid>
             
             <!-- Tag carousel chips -->
-            <ScrollViewer x:Name="TagCarouselContainer"
-                          Grid.Row="1"
-                          Margin="0,6,0,0"
-                          HorizontalScrollBarVisibility="Auto"
-                          VerticalScrollBarVisibility="Disabled"
-                          Visibility="Collapsed">
-                <ItemsControl x:Name="TagCarouselList">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Background="{DynamicResource BlueBackgroundBrush}"
-                                    BorderBrush="{DynamicResource BlueBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="10"
-                                    Padding="10,4"
-                                    Margin="0,0,5,0"
-                                    Cursor="Hand"
-                                    MouseLeftButtonDown="TagCarouselChip_Click">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource BlueBorderBrush}"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                                <TextBlock FontSize="11" Foreground="{DynamicResource BlueTextBrush}">
-                                    <Run Text="{Binding Key, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=":" Foreground="{DynamicResource BlueTextBrush}"/><Run Text="{Binding Value, Mode=OneWay}"/>
-                                </TextBlock>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
+            <Grid x:Name="TagCarouselContainer" Grid.Row="1" Margin="0,6,0,0" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left scroll indicator -->
+                <Border x:Name="TagCarouselLeftBtn"
+                        Grid.Column="0"
+                        Width="22"
+                        Cursor="Hand"
+                        VerticalAlignment="Stretch"
+                        Visibility="Collapsed"
+                        MouseLeftButtonDown="TagCarouselScrollLeft_Click"
+                        CornerRadius="4"
+                        Background="Transparent">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="&#xE76B;"
+                               FontFamily="Segoe MDL2 Assets"
+                               FontSize="9"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                </Border>
+
+                <!-- Chip viewport + edge fades -->
+                <Grid Grid.Column="1">
+                    <ScrollViewer x:Name="TagCarouselScrollViewer"
+                                  HorizontalScrollBarVisibility="Hidden"
+                                  VerticalScrollBarVisibility="Disabled"
+                                  PreviewMouseWheel="TagCarouselScrollViewer_PreviewMouseWheel"
+                                  ScrollChanged="TagCarouselScrollViewer_ScrollChanged">
+                        <ItemsControl x:Name="TagCarouselList">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource AccentLightBrush}"
+                                            BorderBrush="{DynamicResource SelectedBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="10,4"
+                                            Margin="0,0,5,0"
+                                            Cursor="Hand"
+                                            MouseLeftButtonDown="TagCarouselChip_Click"
+                                            MouseRightButtonDown="TagCarouselChip_RightClick">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource SelectedAccentBrush}"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock FontSize="11" Foreground="{DynamicResource AccentBrush}">
+                                            <Run Text="{Binding Key, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=":" Foreground="{DynamicResource AccentBrush}"/><Run Text="{Binding Value, Mode=OneWay}"/>
+                                        </TextBlock>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!-- Left edge fade -->
+                    <Border x:Name="TagCarouselLeftFade"
+                            HorizontalAlignment="Left"
+                            Width="28"
+                            IsHitTestVisible="False"
+                            Visibility="Collapsed"
+                            Background="{DynamicResource WindowBackgroundDeepBrush}">
+                        <Border.OpacityMask>
+                            <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                <GradientStop Color="Black" Offset="0"/>
+                                <GradientStop Color="Transparent" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.OpacityMask>
+                    </Border>
+
+                    <!-- Right edge fade -->
+                    <Border x:Name="TagCarouselRightFade"
+                            HorizontalAlignment="Right"
+                            Width="28"
+                            IsHitTestVisible="False"
+                            Visibility="Collapsed"
+                            Background="{DynamicResource WindowBackgroundDeepBrush}">
+                        <Border.OpacityMask>
+                            <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                <GradientStop Color="Transparent" Offset="0"/>
+                                <GradientStop Color="Black" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.OpacityMask>
+                    </Border>
+                </Grid>
+
+                <!-- Right scroll indicator -->
+                <Border x:Name="TagCarouselRightBtn"
+                        Grid.Column="2"
+                        Width="22"
+                        Cursor="Hand"
+                        VerticalAlignment="Stretch"
+                        Visibility="Collapsed"
+                        MouseLeftButtonDown="TagCarouselScrollRight_Click"
+                        CornerRadius="4"
+                        Background="Transparent">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="&#xE76C;"
+                               FontFamily="Segoe MDL2 Assets"
+                               FontSize="9"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                </Border>
+            </Grid>
 
             <!-- Horizontal search history pills with collapse/expand button -->
             <Grid Grid.Row="2"
@@ -664,44 +800,142 @@
                               VerticalAlignment="Center"
                               Margin="4,0,0,0"
                               Visibility="Collapsed"/>
-                    
-                    <!-- History pills ScrollViewer -->
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                                 VerticalScrollBarVisibility="Disabled"
-                                 x:Name="HistoryScrollViewer">
-                        <ItemsControl x:Name="HorizontalHistoryList">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Background="{DynamicResource HoverMediumBrush}"
-                                            BorderBrush="{DynamicResource SelectedBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="12"
-                                            Padding="12,6"
-                                            Margin="0,0,6,0"
-                                            Cursor="Hand"
-                                            MouseLeftButtonDown="HistoryItem_Click">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="{DynamicResource SelectedBrush}"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
-                                        <TextBlock Text="{Binding}"
-                                                  FontSize="12"
-                                                  Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+
+                    <!-- History navigation container (shown when history exists) -->
+                    <Grid x:Name="HistoryNavContainer" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Left scroll indicator -->
+                        <Border x:Name="HistoryLeftBtn"
+                                Grid.Column="0"
+                                Width="22"
+                                Cursor="Hand"
+                                VerticalAlignment="Stretch"
+                                Visibility="Collapsed"
+                                MouseLeftButtonDown="HistoryScrollLeft_Click"
+                                CornerRadius="4"
+                                Background="Transparent">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="&#xE76B;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="9"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+
+                        <!-- Chip viewport + edge fades -->
+                        <Grid Grid.Column="1">
+                            <ScrollViewer x:Name="HistoryScrollViewer"
+                                         HorizontalScrollBarVisibility="Hidden"
+                                         VerticalScrollBarVisibility="Disabled"
+                                         PreviewMouseWheel="HistoryScrollViewer_PreviewMouseWheel"
+                                         ScrollChanged="HistoryScrollViewer_ScrollChanged">
+                                <ItemsControl x:Name="HorizontalHistoryList">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{DynamicResource HoverMediumBrush}"
+                                                    BorderBrush="{DynamicResource SelectedBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="12"
+                                                    Padding="12,6"
+                                                    Margin="0,0,6,0"
+                                                    Cursor="Hand"
+                                                    MouseLeftButtonDown="HistoryItem_Click"
+                                                    MouseRightButtonDown="HistoryItem_RightClick">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Style.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource SelectedBrush}"/>
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding}"
+                                                          FontSize="12"
+                                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+
+                            <!-- Left edge fade -->
+                            <Border x:Name="HistoryLeftFade"
+                                    HorizontalAlignment="Left"
+                                    Width="28"
+                                    IsHitTestVisible="False"
+                                    Visibility="Collapsed"
+                                    Background="{DynamicResource WindowBackgroundDeepBrush}">
+                                <Border.OpacityMask>
+                                    <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                        <GradientStop Color="Black" Offset="0"/>
+                                        <GradientStop Color="Transparent" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.OpacityMask>
+                            </Border>
+
+                            <!-- Right edge fade -->
+                            <Border x:Name="HistoryRightFade"
+                                    HorizontalAlignment="Right"
+                                    Width="28"
+                                    IsHitTestVisible="False"
+                                    Visibility="Collapsed"
+                                    Background="{DynamicResource WindowBackgroundDeepBrush}">
+                                <Border.OpacityMask>
+                                    <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                        <GradientStop Color="Transparent" Offset="0"/>
+                                        <GradientStop Color="Black" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.OpacityMask>
+                            </Border>
+                        </Grid>
+
+                        <!-- Right scroll indicator -->
+                        <Border x:Name="HistoryRightBtn"
+                                Grid.Column="2"
+                                Width="22"
+                                Cursor="Hand"
+                                VerticalAlignment="Stretch"
+                                Visibility="Collapsed"
+                                MouseLeftButtonDown="HistoryScrollRight_Click"
+                                CornerRadius="4"
+                                Background="Transparent">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="&#xE76C;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="9"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
                 </Grid>
                 
                 <!-- Collapse/Expand button on the right -->

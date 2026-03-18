@@ -463,6 +463,14 @@ public class SettingsService : ISettingsService
     public bool GetTagCarouselAutoRefresh() => _settings.TagCarouselAutoRefresh;
     public void SetTagCarouselAutoRefresh(bool enabled) => _settings.TagCarouselAutoRefresh = enabled;
 
+    // --- Search History ---
+    public int GetSearchHistoryMaxShown() => Math.Clamp(_settings.SearchHistoryMaxShown, 1, 25);
+    public void SetSearchHistoryMaxShown(int count) => _settings.SearchHistoryMaxShown = Math.Clamp(count, 1, 25);
+    public int GetSearchHistoryRetentionDays() => Math.Clamp(_settings.SearchHistoryRetentionDays, 1, 365);
+    public void SetSearchHistoryRetentionDays(int days) => _settings.SearchHistoryRetentionDays = Math.Clamp(days, 1, 365);
+    public string GetSearchHistoryBackupPath() => _settings.SearchHistoryBackupPath;
+    public void SetSearchHistoryBackupPath(string path) => _settings.SearchHistoryBackupPath = path;
+
     // --- Hotkey Groups ---
     public List<HotkeyGroup> GetHotkeyGroups()
     {
@@ -707,6 +715,11 @@ public class SettingsService : ISettingsService
         public bool MetricsSnapGridEnabled { get; set; } = true;
         public int MetricsWeekStartDay { get; set; } = 1; // 0=Sunday, 1=Monday (default), ..., 6=Saturday
         public int MetricsRangeWeeks { get; set; } = 1; // Number of weeks to show in admin view (1-4)
+
+        // Search History
+        public int SearchHistoryMaxShown { get; set; } = 5;
+        public int SearchHistoryRetentionDays { get; set; } = 30;
+        public string SearchHistoryBackupPath { get; set; } = "";
 
         // Project Tags
         public bool TagSearchEnabled { get; set; } = true;

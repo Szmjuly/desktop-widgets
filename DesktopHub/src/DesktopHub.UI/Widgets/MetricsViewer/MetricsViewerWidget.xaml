@@ -51,6 +51,7 @@
                             <ScrollContentPresenter Grid.Column="0"/>
                             <ScrollBar Grid.Column="1" x:Name="PART_VerticalScrollBar"
                                        Style="{StaticResource ThinScrollBar}"
+                                       Margin="4,0,0,0"
                                        Value="{TemplateBinding VerticalOffset}"
                                        Maximum="{TemplateBinding ScrollableHeight}"
                                        ViewportSize="{TemplateBinding ViewportHeight}"
@@ -340,11 +341,93 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Cheat sheet metrics -->
+                        <Border Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
+                                ToolTip="Cheat Sheets widget: views, lookups, copies, and searches for this day.">
+                            <StackPanel>
+                                <TextBlock Text="CHEAT SHEET METRICS" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                        <TextBlock x:Name="CheatSheetViewsCount" Text="0" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="views" FontSize="9" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                        <TextBlock x:Name="CheatSheetLookupsCount" Text="0" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="lookups" FontSize="9" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                        <TextBlock x:Name="CheatSheetCopiesCount" Text="0" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="copies" FontSize="9" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                                        <TextBlock x:Name="CheatSheetSearchesCount" Text="0" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="searches" FontSize="9" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+                                <StackPanel x:Name="CheatSheetTopSheetsPanel" Margin="0,4,0,0" Visibility="Collapsed"/>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Activity metrics -->
                         <Border Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
                             <StackPanel>
                                 <TextBlock Text="ACTIVITY" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
                                 <StackPanel x:Name="ActivityRows"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Performance metrics -->
+                        <Border x:Name="PerformanceCard" Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
+                                Visibility="Collapsed"
+                                ToolTip="App performance timing averages for this day.">
+                            <StackPanel>
+                                <TextBlock Text="PERFORMANCE" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
+                                <StackPanel x:Name="PerformanceRows"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Disciplines breakdown -->
+                        <Border x:Name="DisciplinesCard" Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
+                                Visibility="Collapsed"
+                                ToolTip="Building disciplines you worked with today.">
+                            <StackPanel>
+                                <TextBlock Text="DISCIPLINES" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
+                                <WrapPanel x:Name="DisciplinePills" Orientation="Horizontal"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Project types breakdown -->
+                        <Border x:Name="ProjectTypesCard" Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
+                                Visibility="Collapsed"
+                                ToolTip="Types of projects accessed today.">
+                            <StackPanel>
+                                <TextBlock Text="PROJECT TYPES" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
+                                <WrapPanel x:Name="ProjectTypePills" Orientation="Horizontal"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- File types breakdown -->
+                        <Border x:Name="FileTypesCard" Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
+                                Visibility="Collapsed"
+                                ToolTip="Document file types opened today.">
+                            <StackPanel>
+                                <TextBlock Text="FILE TYPES" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
+                                <WrapPanel x:Name="FileTypePills" Orientation="Horizontal"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- All metrics flat list -->
+                        <Border x:Name="AllMetricsCard" Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
+                                ToolTip="Complete list of every tracked metric for this day.">
+                            <StackPanel>
+                                <TextBlock Text="ALL METRICS" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
+                                <StackPanel x:Name="AllMetricsRows"/>
                             </StackPanel>
                         </Border>
 
@@ -358,47 +441,64 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- Middle column: hourly heatmap, 7-day trends, feature breakdown, session timeline -->
-                <ScrollViewer Grid.Column="1" Style="{StaticResource ThinScrollViewer}" Margin="4,0,4,0">
-                    <StackPanel>
+                <!-- Middle column: chart areas use star rows so they fill space and redraw to size -->
+                <ScrollViewer Grid.Column="1" x:Name="MiddleColumnScroll" Style="{StaticResource ThinScrollViewer}" Margin="4,0,4,0">
+                    <Grid Height="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
                         <!-- Hourly activity heatmap -->
-                        <Border Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
+                        <Border Grid.Row="0" Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
                                 ToolTip="Event count per hour for this day. Brighter = more activity.">
-                            <StackPanel>
-                                <TextBlock Text="HOURLY ACTIVITY" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
-                                <Canvas x:Name="HourlyHeatmapCanvas" Height="50" ClipToBounds="True"/>
-                                <TextBlock x:Name="HourlyPeakLabel" Text="" FontSize="9" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,0"/>
-                            </StackPanel>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="HOURLY ACTIVITY" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
+                                <Canvas Grid.Row="1" x:Name="HourlyHeatmapCanvas" MinHeight="50" ClipToBounds="True"/>
+                                <TextBlock Grid.Row="2" x:Name="HourlyPeakLabel" Text="" FontSize="9" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,0"/>
+                            </Grid>
                         </Border>
-
-                        <!-- 7-Day Trend sparklines -->
-                        <Border Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
+                        <!-- 7-Day Trend sparklines (fixed height content) -->
+                        <Border Grid.Row="1" Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
                                 ToolTip="Mini trend lines for the past 7 days.">
                             <StackPanel>
                                 <TextBlock Text="7-DAY TRENDS" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
                                 <StackPanel x:Name="TrendSparklines"/>
                             </StackPanel>
                         </Border>
-
                         <!-- Feature breakdown donut -->
-                        <Border Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
+                        <Border Grid.Row="2" Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
                                 ToolTip="Breakdown of how you spent your time across features.">
-                            <StackPanel>
-                                <TextBlock Text="FEATURE BREAKDOWN" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
-                                <Canvas x:Name="FeatureDonutCanvas" Height="130" ClipToBounds="True"/>
-                                <StackPanel x:Name="FeatureDonutLegend" Margin="0,4,0,0"/>
-                            </StackPanel>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="FEATURE BREAKDOWN" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
+                                <Canvas Grid.Row="1" x:Name="FeatureDonutCanvas" MinHeight="130" ClipToBounds="True"/>
+                                <StackPanel Grid.Row="2" x:Name="FeatureDonutLegend" Margin="0,4,0,0"/>
+                            </Grid>
                         </Border>
-
                         <!-- Activity Flow (feature transitions) -->
-                        <Border Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
+                        <Border Grid.Row="3" Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
                                 ToolTip="How you move between features during sessions.">
-                            <StackPanel>
-                                <TextBlock Text="ACTIVITY FLOW" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
-                                <Canvas x:Name="ActivityFlowCanvas" Height="120" ClipToBounds="True"/>
-                            </StackPanel>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="ACTIVITY FLOW" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
+                                <Canvas Grid.Row="1" x:Name="ActivityFlowCanvas" MinHeight="120" ClipToBounds="True"/>
+                            </Grid>
                         </Border>
-                    </StackPanel>
+                    </Grid>
                 </ScrollViewer>
 
                 <!-- Right column: top queries, top projects, widget usage, session timeline -->
@@ -439,6 +539,15 @@
                                 <StackPanel x:Name="SessionTimelinePanel"/>
                             </StackPanel>
                         </Border>
+
+                        <!-- Weekly comparison -->
+                        <Border Background="{DynamicResource AccentLightBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
+                                ToolTip="This week vs last week comparison.">
+                            <StackPanel>
+                                <TextBlock Text="WEEKLY COMPARISON" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
+                                <StackPanel x:Name="WeeklyComparisonPanel"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </Grid>
@@ -446,6 +555,8 @@
             <!-- Admin multi-user view (hidden by default, shown in admin builds) -->
             <Grid x:Name="AdminViewPanel" Visibility="Collapsed">
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -478,42 +589,51 @@
                     </Border>
                 </Grid>
 
-                <!-- Row 1: User toggle pills (show/hide individual users) -->
-                <Border Grid.Row="1" Background="{DynamicResource FaintOverlayBrush}" CornerRadius="6" Padding="10,6" Margin="0,0,0,6">
+                <!-- Row 1: Section label — Filters & chart -->
+                <TextBlock Grid.Row="1" Text="FILTERS &amp; CHART" FontSize="8" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,2"/>
+
+                <!-- Row 2: User toggle pills (show/hide individual users) -->
+                <Border Grid.Row="2" Background="{DynamicResource FaintOverlayBrush}" CornerRadius="6" Padding="10,6" Margin="0,0,0,6">
                     <StackPanel>
                         <TextBlock Text="USERS (click to toggle)" FontSize="8" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,4"/>
                         <WrapPanel x:Name="UserTogglePanel" Orientation="Horizontal"/>
                     </StackPanel>
                 </Border>
 
-                <!-- Row 2: Metric selectors (dynamic based on chart type) -->
-                <Border x:Name="MetricSelectorBorder" Grid.Row="2" Background="{DynamicResource FaintOverlayBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,6">
+                <!-- Row 3: Metric selectors (dynamic based on chart type) -->
+                <Border x:Name="MetricSelectorBorder" Grid.Row="3" Background="{DynamicResource FaintOverlayBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,6">
                     <StackPanel x:Name="MetricSelectorPanel"/>
                 </Border>
 
-                <!-- Row 3: Chart type selector -->
-                <Border Grid.Row="3" Background="{DynamicResource FaintOverlayBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,6">
+                <!-- Row 4: Chart type selector -->
+                <Border Grid.Row="4" Background="{DynamicResource FaintOverlayBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,6">
                     <WrapPanel x:Name="ChartTypeButtons" Orientation="Horizontal"/>
                 </Border>
 
-                <!-- Row 4: Main content — three columns: chart, user summary, activity flow/projects -->
-                <Grid Grid.Row="4" Margin="0,0,0,6">
+                <!-- Row 5: Section label — Analysis -->
+                <TextBlock Grid.Row="5" Text="ANALYSIS" FontSize="8" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,2"/>
+
+                <!-- Row 6: Main content — three columns: chart, user summary, insights -->
+                <Grid Grid.Row="6" Margin="0,0,0,6">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1.5*"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Chart canvas -->
+                    <!-- Column 0: Chart -->
                     <Border Grid.Column="0" Background="{DynamicResource FaintOverlayBrush}" CornerRadius="6" Padding="8" Margin="0,0,4,0">
                         <Grid>
-                            <Canvas x:Name="ChartCanvas" ClipToBounds="True"/>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Canvas Grid.Row="0" x:Name="ChartCanvas" MinHeight="180" ClipToBounds="True"/>
                             <TextBlock x:Name="ChartEmptyLabel" Text="Select a chart type above" FontSize="11" FontStyle="Italic"
                                        Foreground="{DynamicResource TextTertiaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
 
-                    <!-- User summary (middle) -->
+                    <!-- Column 1: User summary -->
                     <Border Grid.Column="1" Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="4,0,4,0">
                         <ScrollViewer Style="{StaticResource ThinScrollViewer}">
                             <StackPanel>
@@ -523,38 +643,84 @@
                         </ScrollViewer>
                     </Border>
 
-                    <!-- Admin insights (right) -->
-                    <ScrollViewer Grid.Column="2" Style="{StaticResource ThinScrollViewer}" Margin="4,0,0,0">
-                        <StackPanel>
-                            <!-- Admin activity flow -->
-                            <Border Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
-                                <StackPanel>
-                                    <TextBlock Text="ACTIVITY FLOW" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
-                                    <Canvas x:Name="AdminFlowCanvas" Height="120" ClipToBounds="True"/>
-                                </StackPanel>
-                            </Border>
+                    <!-- Column 2: Tabbed right panel -->
+                    <Grid Grid.Column="2" Margin="4,0,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
 
-                            <!-- Admin top projects -->
-                            <Border Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
-                                <StackPanel>
-                                    <TextBlock Text="TOP PROJECTS" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
-                                    <StackPanel x:Name="AdminTopProjectsPanel"/>
-                                </StackPanel>
-                            </Border>
+                        <!-- Tab bar -->
+                        <StackPanel x:Name="AdminRightTabBar" Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6"/>
 
-                            <!-- Admin feature breakdown -->
-                            <Border Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
-                                <StackPanel>
-                                    <TextBlock Text="FEATURE USAGE" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
-                                    <StackPanel x:Name="AdminFeatureRows"/>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-                    </ScrollViewer>
+                        <!-- Tab: Overview (existing content) -->
+                        <ScrollViewer x:Name="AdminOverviewTab" Grid.Row="1" Style="{StaticResource ThinScrollViewer}">
+                            <StackPanel>
+                                <Border Background="{DynamicResource AccentLightBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
+                                        ToolTip="Auto-generated insights from the selected data.">
+                                    <StackPanel>
+                                        <TextBlock Text="INSIGHTS" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
+                                        <StackPanel x:Name="AdminInsightCalloutsPanel"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="{DynamicResource FaintOverlayBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                                    <StackPanel>
+                                        <TextBlock Text="COMPARISONS" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
+                                        <TextBlock Text="User A" FontSize="8" Foreground="{DynamicResource TextTertiaryBrush}"/>
+                                        <ComboBox x:Name="AdminCompareUserA" Margin="0,0,0,6" FontSize="10" MinWidth="90"
+                                                 Style="{StaticResource ThemedComboBox}" ItemContainerStyle="{StaticResource ThemedComboBoxItem}"/>
+                                        <TextBlock Text="vs User B" FontSize="8" Foreground="{DynamicResource TextTertiaryBrush}"/>
+                                        <ComboBox x:Name="AdminCompareUserB" Margin="0,0,0,6" FontSize="10" MinWidth="90"
+                                                 Style="{StaticResource ThemedComboBox}" ItemContainerStyle="{StaticResource ThemedComboBoxItem}"/>
+                                        <StackPanel x:Name="AdminUserComparisonResultPanel" Margin="0,2,0,0"/>
+                                        <TextBlock Text="Period vs previous" FontSize="8" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,8,0,2"/>
+                                        <StackPanel x:Name="AdminPeriodComparisonPanel" Margin="0,0,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8" MinHeight="140">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Text="ACTIVITY FLOW" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
+                                        <Canvas Grid.Row="1" x:Name="AdminFlowCanvas" MinHeight="120" ClipToBounds="True"/>
+                                    </Grid>
+                                </Border>
+                                <Border Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                                    <StackPanel>
+                                        <TextBlock Text="TOP PROJECTS" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
+                                        <StackPanel x:Name="AdminTopProjectsPanel"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                                    <StackPanel>
+                                        <TextBlock Text="FEATURE USAGE" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
+                                        <StackPanel x:Name="AdminFeatureRows"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
+                                        ToolTip="Cheat Sheets widget usage across selected users and period.">
+                                    <StackPanel>
+                                        <TextBlock Text="CHEAT SHEET METRICS" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,6"/>
+                                        <StackPanel x:Name="AdminCheatSheetPanel"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- Tab: Category Detail -->
+                        <ScrollViewer x:Name="AdminCategoryDetailTab" Grid.Row="1" Style="{StaticResource ThinScrollViewer}" Visibility="Collapsed">
+                            <StackPanel>
+                                <WrapPanel x:Name="CategorySelectorPills" Orientation="Horizontal" Margin="0,0,0,8"/>
+                                <StackPanel x:Name="CategoryDetailContent"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
                 </Grid>
 
-                <!-- Row 5: Admin status -->
-                <TextBlock Grid.Row="5" x:Name="AdminStatusText"
+                <!-- Row 7: Admin status -->
+                <TextBlock Grid.Row="7" x:Name="AdminStatusText"
                            Text=""
                            FontSize="10"
                            Foreground="{DynamicResource TextTertiaryBrush}"

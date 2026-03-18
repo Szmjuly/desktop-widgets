@@ -50,6 +50,7 @@ public partial class MetricsViewerWidget
 
             RenderSessionCard(_currentSummary);
             RenderSearchCard(_currentSummary);
+            RenderCheatSheetCard(_currentSummary);
             RenderActivityCard(_currentSummary);
             RenderTopQueries(_currentSummary);
             RenderWidgetUsage(_currentSummary);
@@ -63,13 +64,30 @@ public partial class MetricsViewerWidget
 
             await System.Threading.Tasks.Task.WhenAll(hourlyTask, sessionsTask, trendTask, projectsTask, transitionsTask);
 
-            RenderHourlyHeatmap(await hourlyTask);
-            RenderSessionTimeline(await sessionsTask);
-            RenderTrendSparklines(await trendTask);
-            RenderTopProjects(await projectsTask);
+            var hourly = await hourlyTask;
+            var sessions = await sessionsTask;
+            var trend = await trendTask;
+            var projects = await projectsTask;
+            var transitions = await transitionsTask;
+
+            // Cache for canvas redraws on window resize
+            _lastHourlyBreakdown = hourly;
+            _lastTransitions = transitions;
+            _lastTrendData = trend;
+
+            RenderHourlyHeatmap(hourly);
+            RenderSessionTimeline(sessions);
+            RenderTrendSparklines(trend);
+            RenderTopProjects(projects);
             RenderFeatureDonut(_currentSummary);
-            RenderActivityFlow(await transitionsTask);
-            RenderUsageInsights(_currentSummary, await trendTask, await hourlyTask);
+            RenderActivityFlow(transitions);
+            RenderUsageInsights(_currentSummary, trend, hourly);
+            RenderPerformanceCard(_currentSummary);
+            RenderDisciplinesCard(_currentSummary);
+            RenderProjectTypesCard(_currentSummary);
+            RenderFileTypesCard(_currentSummary);
+            RenderWeeklyComparison(trend);
+            RenderAllMetricsCard(_currentSummary);
 
             StatusText.Text = $"Updated {DateTime.Now:HH:mm:ss}";
         }
@@ -114,6 +132,27 @@ public partial class MetricsViewerWidget
         InsightAvgDurLabel.Text = "--";
         InsightActiveDaysLabel.Text = "--";
         InsightTopFeatureLabel.Text = "--";
+        CheatSheetViewsCount.Text = "0";
+        CheatSheetLookupsCount.Text = "0";
+        CheatSheetCopiesCount.Text = "0";
+        CheatSheetSearchesCount.Text = "0";
+        CheatSheetTopSheetsPanel.Children.Clear();
+        CheatSheetTopSheetsPanel.Visibility = Visibility.Collapsed;
+
+        PerformanceRows.Children.Clear();
+        PerformanceCard.Visibility = Visibility.Collapsed;
+
+        DisciplinePills.Children.Clear();
+        DisciplinesCard.Visibility = Visibility.Collapsed;
+
+        ProjectTypePills.Children.Clear();
+        ProjectTypesCard.Visibility = Visibility.Collapsed;
+
+        FileTypePills.Children.Clear();
+        FileTypesCard.Visibility = Visibility.Collapsed;
+
+        WeeklyComparisonPanel.Children.Clear();
+        AllMetricsRows.Children.Clear();
     }
 
     private void RenderSessionCard(DailyMetricsSummary summary)
@@ -132,6 +171,161 @@ public partial class MetricsViewerWidget
         SmartSearchCount.Text = summary.TotalSmartSearches.ToString();
         DocSearchCount.Text = summary.TotalDocSearches.ToString();
         PathSearchCount.Text = summary.TotalPathSearches.ToString();
+    }
+
+    private void RenderCheatSheetCard(DailyMetricsSummary summary)
+    {
+        CheatSheetViewsCount.Text = summary.TotalCheatSheetViews.ToString();
+        CheatSheetLookupsCount.Text = summary.TotalCheatSheetLookups.ToString();
+        CheatSheetCopiesCount.Text = summary.TotalCheatSheetCopies.ToString();
+        CheatSheetSearchesCount.Text = summary.TotalCheatSheetSearches.ToString();
+
+        CheatSheetTopSheetsPanel.Children.Clear();
+
+        // Build a unified per-sheet breakdown from all frequency dictionaries
+        var allSheets = new HashSet<string>();
+        if (summary.CheatSheetUsageFrequency != null)
+            foreach (var k in summary.CheatSheetUsageFrequency.Keys) allSheets.Add(k);
+        if (summary.CheatSheetLookupFrequency != null)
+            foreach (var k in summary.CheatSheetLookupFrequency.Keys) allSheets.Add(k);
+        if (summary.CheatSheetCopyFrequency != null)
+            foreach (var k in summary.CheatSheetCopyFrequency.Keys) allSheets.Add(k);
+        if (summary.CheatSheetInteractions != null)
+            foreach (var k in summary.CheatSheetInteractions.Keys) allSheets.Add(k);
+
+        if (allSheets.Count == 0)
+        {
+            CheatSheetTopSheetsPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        CheatSheetTopSheetsPanel.Visibility = Visibility.Visible;
+
+        // Sort by views descending
+        var sorted = allSheets
+            .Select(id => new
+            {
+                Id = id,
+                Views = summary.CheatSheetUsageFrequency?.GetValueOrDefault(id, 0) ?? 0,
+                Lookups = summary.CheatSheetLookupFrequency?.GetValueOrDefault(id, 0) ?? 0,
+                Copies = summary.CheatSheetCopyFrequency?.GetValueOrDefault(id, 0) ?? 0,
+                Interactions = summary.CheatSheetInteractions?.GetValueOrDefault(id)
+            })
+            .OrderByDescending(x => x.Views + x.Lookups + x.Copies)
+            .ToList();
+
+        var maxTotal = Math.Max(sorted.Max(s => s.Views + s.Lookups + s.Copies), 1);
+
+        // Section header
+        CheatSheetTopSheetsPanel.Children.Add(new TextBlock
+        {
+            Text = $"PER-SHEET BREAKDOWN ({sorted.Count} sheets)",
+            FontSize = 8, FontWeight = FontWeights.SemiBold,
+            Foreground = Helpers.ThemeHelper.TextTertiary,
+            Margin = new Thickness(0, 2, 0, 4)
+        });
+
+        int ci = 0;
+        foreach (var sheet in sorted)
+        {
+            var sheetTotal = sheet.Views + sheet.Lookups + sheet.Copies;
+            var shortId = sheet.Id.Length > 22 ? sheet.Id[..19] + "..." : sheet.Id;
+            var colorIdx = ci % Palette.Length;
+
+            // Sheet header row: name + bar + total
+            var headerGrid = new Grid { Margin = new Thickness(0, 0, 0, 1) };
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var nameTb = new TextBlock
+            {
+                Text = shortId, FontSize = 9, FontWeight = FontWeights.SemiBold,
+                Foreground = PaletteBrush(colorIdx),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = sheet.Id
+            };
+            Grid.SetColumn(nameTb, 0);
+            headerGrid.Children.Add(nameTb);
+
+            // Mini usage bar
+            var barBg = new Border
+            {
+                Background = Helpers.ThemeHelper.FaintOverlay,
+                CornerRadius = new CornerRadius(2), Height = 5,
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0)
+            };
+            var barFill = new Border
+            {
+                Background = PaletteBrush(colorIdx),
+                CornerRadius = new CornerRadius(2), Height = 5,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                Width = Math.Max(3, sheetTotal / (double)maxTotal * 46)
+            };
+            barBg.Child = barFill;
+            Grid.SetColumn(barBg, 1);
+            headerGrid.Children.Add(barBg);
+
+            var totalTb = new TextBlock
+            {
+                Text = sheetTotal.ToString(), FontSize = 9, FontWeight = FontWeights.SemiBold,
+                Foreground = Helpers.ThemeHelper.TextPrimary, VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(totalTb, 2);
+            headerGrid.Children.Add(totalTb);
+
+            CheatSheetTopSheetsPanel.Children.Add(headerGrid);
+
+            // Sub-metrics row: views / lookups / copies + interactions
+            var detailPanel = new WrapPanel { Margin = new Thickness(8, 0, 0, 4), Orientation = System.Windows.Controls.Orientation.Horizontal };
+
+            if (sheet.Views > 0) AddCsDetailPill(detailPanel, "views", sheet.Views, Palette[9]);
+            if (sheet.Lookups > 0) AddCsDetailPill(detailPanel, "lookups", sheet.Lookups, Palette[6]);
+            if (sheet.Copies > 0) AddCsDetailPill(detailPanel, "copies", sheet.Copies, Palette[4]);
+
+            // Interaction sub-items (MCA lookup, CES copy, view mode changed)
+            if (sheet.Interactions != null && sheet.Interactions.Count > 0)
+            {
+                foreach (var kv in sheet.Interactions.OrderByDescending(x => x.Value))
+                {
+                    var displayName = kv.Key switch
+                    {
+                        "mca_lookup" => "MCA",
+                        "ces_copy" => "CES",
+                        "view_mode_changed" => "mode\u0394",
+                        _ => kv.Key
+                    };
+                    AddCsDetailPill(detailPanel, displayName, kv.Value, Palette[2]);
+                }
+            }
+
+            if (detailPanel.Children.Count > 0)
+                CheatSheetTopSheetsPanel.Children.Add(detailPanel);
+
+            ci++;
+        }
+    }
+
+    private static void AddCsDetailPill(WrapPanel panel, string label, int value, string colorHex)
+    {
+        var pill = new Border
+        {
+            Background = new WpfSolidColorBrush(WpfColor.FromArgb(0x20,
+                ((WpfColor)WpfColorConverter.ConvertFromString(colorHex)).R,
+                ((WpfColor)WpfColorConverter.ConvertFromString(colorHex)).G,
+                ((WpfColor)WpfColorConverter.ConvertFromString(colorHex)).B)),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(4, 1, 4, 1),
+            Margin = new Thickness(0, 0, 3, 2)
+        };
+        pill.Child = new TextBlock
+        {
+            Text = $"{label} {value}",
+            FontSize = 7,
+            Foreground = new WpfSolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString(colorHex))
+        };
+        panel.Children.Add(pill);
     }
 
     private void RenderActivityCard(DailyMetricsSummary summary)
@@ -863,6 +1057,301 @@ public partial class MetricsViewerWidget
             Canvas.SetTop(labelTb, pos.Y + nodeSize / 2 + 1);
             ActivityFlowCanvas.Children.Add(labelTb);
         }
+    }
+
+    private void RenderPerformanceCard(DailyMetricsSummary summary)
+    {
+        PerformanceRows.Children.Clear();
+
+        var hasData = summary.AvgStartupTimingMs > 0
+            || summary.AvgSearchTimingMs > 0
+            || summary.AvgSearchResultClickPosition > 0;
+
+        PerformanceCard.Visibility = hasData ? Visibility.Visible : Visibility.Collapsed;
+        if (!hasData) return;
+
+        if (summary.AvgStartupTimingMs > 0)
+            AddPerfRow("Avg startup", $"{summary.AvgStartupTimingMs:F0} ms", Palette[2]);
+        if (summary.AvgSearchTimingMs > 0)
+            AddPerfRow("Avg search", $"{summary.AvgSearchTimingMs:F0} ms", Palette[4]);
+        if (summary.AvgSearchResultClickPosition > 0)
+            AddPerfRow("Avg click pos", $"#{summary.AvgSearchResultClickPosition:F1}", Palette[1],
+                "Average position (0-based) in results list where user clicked");
+        if (summary.TotalSearchResultClicks > 0)
+            AddPerfRow("Search clicks", $"{summary.TotalSearchResultClicks}", Palette[6]);
+    }
+
+    private void AddPerfRow(string label, string value, string colorHex, string? tooltip = null)
+    {
+        var grid = new Grid { Margin = new Thickness(0, 0, 0, 3) };
+        if (tooltip != null) grid.ToolTip = tooltip;
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var lbl = new TextBlock { Text = label, FontSize = 11, Foreground = Helpers.ThemeHelper.TextSecondary };
+        Grid.SetColumn(lbl, 0);
+        grid.Children.Add(lbl);
+
+        var val = new TextBlock
+        {
+            Text = value, FontSize = 11, FontWeight = FontWeights.SemiBold,
+            Foreground = new WpfSolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString(colorHex))
+        };
+        Grid.SetColumn(val, 1);
+        grid.Children.Add(val);
+
+        PerformanceRows.Children.Add(grid);
+    }
+
+    private void RenderDisciplinesCard(DailyMetricsSummary summary)
+    {
+        DisciplinePills.Children.Clear();
+        if (summary.DisciplineFrequency == null || summary.DisciplineFrequency.Count == 0)
+        {
+            DisciplinesCard.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        DisciplinesCard.Visibility = Visibility.Visible;
+        int ci = 0;
+        foreach (var kv in summary.DisciplineFrequency.OrderByDescending(x => x.Value))
+        {
+            DisciplinePills.Children.Add(MakeFrequencyPill(kv.Key, kv.Value, ci++));
+        }
+    }
+
+    private void RenderProjectTypesCard(DailyMetricsSummary summary)
+    {
+        ProjectTypePills.Children.Clear();
+        if (summary.ProjectTypeFrequency == null || summary.ProjectTypeFrequency.Count == 0)
+        {
+            ProjectTypesCard.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        ProjectTypesCard.Visibility = Visibility.Visible;
+        int ci = 0;
+        foreach (var kv in summary.ProjectTypeFrequency.OrderByDescending(x => x.Value).Take(12))
+        {
+            ProjectTypePills.Children.Add(MakeFrequencyPill(kv.Key, kv.Value, ci++));
+        }
+    }
+
+    private void RenderFileTypesCard(DailyMetricsSummary summary)
+    {
+        FileTypePills.Children.Clear();
+        if (summary.FileExtensionFrequency == null || summary.FileExtensionFrequency.Count == 0)
+        {
+            FileTypesCard.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        FileTypesCard.Visibility = Visibility.Visible;
+        int ci = 0;
+        foreach (var kv in summary.FileExtensionFrequency.OrderByDescending(x => x.Value).Take(12))
+        {
+            var ext = kv.Key.StartsWith('.') ? kv.Key : $".{kv.Key}";
+            FileTypePills.Children.Add(MakeFrequencyPill(ext, kv.Value, ci++));
+        }
+    }
+
+    private static Border MakeFrequencyPill(string label, int count, int colorIndex)
+    {
+        var pill = new Border
+        {
+            Background = PaletteBrushAlpha(colorIndex, 0x22),
+            BorderBrush = PaletteBrush(colorIndex),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(6, 2, 6, 2),
+            Margin = new Thickness(0, 0, 4, 4),
+            ToolTip = $"{label}: {count}"
+        };
+        var sp = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+        sp.Children.Add(new TextBlock
+        {
+            Text = label,
+            FontSize = 9,
+            Foreground = PaletteBrush(colorIndex),
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        sp.Children.Add(new TextBlock
+        {
+            Text = $" {count}",
+            FontSize = 8,
+            Foreground = Helpers.ThemeHelper.TextTertiary,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        pill.Child = sp;
+        return pill;
+    }
+
+    private void RenderWeeklyComparison(List<DailyMetricsSummary> trendData)
+    {
+        WeeklyComparisonPanel.Children.Clear();
+
+        if (trendData.Count < 2)
+        {
+            WeeklyComparisonPanel.Children.Add(new TextBlock
+            {
+                Text = "Need at least 2 days of data",
+                FontSize = 9, FontStyle = FontStyles.Italic,
+                Foreground = Helpers.ThemeHelper.TextTertiary
+            });
+            return;
+        }
+
+        // Split: today / selected day = last entry, rest = prior window
+        var current = trendData.Last();
+        var prior = trendData.Take(trendData.Count - 1).ToList();
+        if (prior.Count == 0) return;
+
+        var compareMetrics = new (string Label, Func<DailyMetricsSummary, int> Sel)[]
+        {
+            ("Searches",   s => s.TotalSearches + s.TotalSmartSearches + s.TotalDocSearches + s.TotalPathSearches),
+            ("Launches",   s => s.TotalProjectLaunches),
+            ("Doc opens",  s => s.TotalDocOpens),
+            ("Tasks +/-",  s => s.TotalTasksCreated - s.TotalTasksDeleted),
+            ("Timer",      s => s.TotalTimerUses),
+            ("Cheat Sheet",s => s.TotalCheatSheetViews + s.TotalCheatSheetLookups),
+            ("Hotkeys",    s => s.TotalHotkeyPresses),
+            ("Clipboard",  s => s.TotalClipboardCopies),
+        };
+
+        // Average the prior days so comparison is fair regardless of window size
+        var priorDays = Math.Max(prior.Count, 1);
+
+        foreach (var (label, sel) in compareMetrics)
+        {
+            var cur = sel(current);
+            var prevAvg = prior.Sum(sel) / (double)priorDays;
+            if (cur == 0 && prevAvg < 0.5) continue;
+
+            var delta = prevAvg > 0 ? ((cur - prevAvg) / prevAvg * 100) : (cur > 0 ? 100.0 : 0.0);
+            var isUp = delta >= 0;
+            var deltaStr = $"{(isUp ? "▲" : "▼")} {Math.Abs(delta):F0}%";
+
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 3) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
+            row.ToolTip = $"{label}: today {cur} vs {prevAvg:F1} avg ({priorDays}d)";
+
+            var lbl = new TextBlock { Text = label, FontSize = 9, Foreground = Helpers.ThemeHelper.TextSecondary };
+            Grid.SetColumn(lbl, 0);
+            row.Children.Add(lbl);
+
+            var curTb = new TextBlock
+            {
+                Text = cur.ToString(), FontSize = 9, FontWeight = FontWeights.SemiBold,
+                Foreground = Helpers.ThemeHelper.TextPrimary,
+                Margin = new Thickness(0, 0, 6, 0),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+            };
+            Grid.SetColumn(curTb, 1);
+            row.Children.Add(curTb);
+
+            var deltaTb = new TextBlock
+            {
+                Text = deltaStr, FontSize = 9,
+                Foreground = isUp ? Helpers.ThemeHelper.Green : Helpers.ThemeHelper.Red,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+            };
+            Grid.SetColumn(deltaTb, 2);
+            row.Children.Add(deltaTb);
+
+            WeeklyComparisonPanel.Children.Add(row);
+        }
+
+        if (WeeklyComparisonPanel.Children.Count == 0)
+        {
+            WeeklyComparisonPanel.Children.Add(new TextBlock
+            {
+                Text = "No activity to compare",
+                FontSize = 9, FontStyle = FontStyles.Italic,
+                Foreground = Helpers.ThemeHelper.TextTertiary
+            });
+        }
+    }
+
+    private void RenderAllMetricsCard(DailyMetricsSummary summary)
+    {
+        AllMetricsRows.Children.Clear();
+
+        var allMetrics = new (string Label, int Value, string Color)[]
+        {
+            ("Sessions",           summary.SessionCount,                                    Palette[0]),
+            ("Duration (min)",     (int)(summary.TotalSessionDurationMs / 60_000),          Palette[3]),
+            ("Project Search",     summary.TotalSearches,                                   Palette[4]),
+            ("Smart Search",       summary.TotalSmartSearches,                              Palette[6]),
+            ("Doc Search",         summary.TotalDocSearches,                                Palette[10]),
+            ("Path Search",        summary.TotalPathSearches,                               Palette[9]),
+            ("Project Launches",   summary.TotalProjectLaunches,                            Palette[1]),
+            ("Doc Opens",          summary.TotalDocOpens,                                   Palette[4]),
+            ("Quick Launch",       summary.TotalQuickLaunchUses,                            Palette[7]),
+            ("QL Adds",            summary.TotalQuickLaunchAdds,                            Palette[7]),
+            ("QL Removes",         summary.TotalQuickLaunchRemoves,                         Palette[7]),
+            ("Tasks Created",      summary.TotalTasksCreated,                               Palette[3]),
+            ("Tasks Completed",    summary.TotalTasksCompleted,                             Palette[1]),
+            ("Tasks Deleted",      summary.TotalTasksDeleted,                               Palette[5]),
+            ("Timer Uses",         summary.TotalTimerUses,                                  Palette[2]),
+            ("CS Views",           summary.TotalCheatSheetViews,                            Palette[9]),
+            ("CS Lookups",         summary.TotalCheatSheetLookups,                          Palette[9]),
+            ("CS Copies",          summary.TotalCheatSheetCopies,                           Palette[6]),
+            ("CS Searches",        summary.TotalCheatSheetSearches,                         Palette[6]),
+            ("Hotkey Presses",     summary.TotalHotkeyPresses,                              Palette[10]),
+            ("Clipboard Copies",   summary.TotalClipboardCopies,                            Palette[6]),
+            ("Filter Changes",     summary.TotalFilterChanges,                              Palette[7]),
+            ("Setting Changes",    summary.TotalSettingChanges,                              Palette[8]),
+            ("Tags Created",       summary.TotalTagsCreated,                                Palette[14]),
+            ("Tags Updated",       summary.TotalTagsUpdated,                                Palette[14]),
+            ("Tag Searches",       summary.TotalTagSearches,                                Palette[10]),
+            ("Tag Carousel",       summary.TotalTagCarouselClicks,                          Palette[10]),
+            ("Smart Filters",      summary.TotalSmartSearchFilterUses,                      Palette[6]),
+            ("Search Clicks",      summary.TotalSearchResultClicks,                         Palette[4]),
+            ("Errors",             summary.TotalErrors,                                     Palette[5]),
+        };
+
+        // Two-column layout
+        for (int i = 0; i < allMetrics.Length; i += 2)
+        {
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 2) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(8) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            AddAllMetricCell(row, 0, 1, allMetrics[i].Label, allMetrics[i].Value, allMetrics[i].Color);
+            if (i + 1 < allMetrics.Length)
+                AddAllMetricCell(row, 3, 4, allMetrics[i + 1].Label, allMetrics[i + 1].Value, allMetrics[i + 1].Color);
+
+            AllMetricsRows.Children.Add(row);
+        }
+    }
+
+    private static void AddAllMetricCell(Grid row, int labelCol, int valueCol, string label, int value, string colorHex)
+    {
+        var lbl = new TextBlock
+        {
+            Text = label, FontSize = 9,
+            Foreground = Helpers.ThemeHelper.TextTertiary,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
+        Grid.SetColumn(lbl, labelCol);
+        row.Children.Add(lbl);
+
+        var val = new TextBlock
+        {
+            Text = value.ToString(), FontSize = 9, FontWeight = FontWeights.SemiBold,
+            Foreground = value > 0
+                ? new WpfSolidColorBrush((WpfColor)WpfColorConverter.ConvertFromString(colorHex))
+                : Helpers.ThemeHelper.TextTertiary,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(val, valueCol);
+        row.Children.Add(val);
     }
 
     private void RenderUsageInsights(DailyMetricsSummary summary, List<DailyMetricsSummary> trendData, HourlyBreakdown hourly)

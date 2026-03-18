@@ -56,6 +56,7 @@ public partial class SearchOverlay : Window
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _selectionCts;
     private List<string> _searchHistory = new();
+    private Infrastructure.Data.SearchHistoryStore? _searchHistoryStore;
     private bool _isPathSearchResults = false;
     private string? _activePathSearchRootDisplay;
     private bool _isResultsCollapsed = false;

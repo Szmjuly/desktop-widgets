@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
@@ -22,6 +22,18 @@ public partial class MetricsViewerWidget : System.Windows.Controls.UserControl
     private ISettingsService? _settings;
     private bool _isPolling;
 
+    // Cached async data — kept so canvases can be redrawn on resize without re-fetching
+    private HourlyBreakdown? _lastHourlyBreakdown;
+    private List<FeatureTransition>? _lastTransitions;
+    private List<DailyMetricsSummary>? _lastTrendData;
+
+    // Debounce timer for resize-triggered redraws
+    private DispatcherTimer? _resizeRedrawTimer;
+    private const int ResizeRedrawDebounceMs = 50;
+    private const double ResizeRedrawThresholdPx = 10;
+    private double _lastRedrawWidth;
+    private double _lastRedrawHeight;
+
     // Admin view state
     private bool _isAdminView;
     private int _adminRangeDays = 7;
@@ -29,11 +41,16 @@ public partial class MetricsViewerWidget : System.Windows.Controls.UserControl
     private DateTime _adminRangeEnd = DateTime.Today;
     private List<DailyMetricsSummary> _adminSummaries = new();
     private List<DailyMetricsSummary> _filteredAdminSummaries = new();
+    private List<DailyMetricsSummary> _previousPeriodSummaries = new();
     private HashSet<string> _enabledUsers = new();
     private string _selectedChartType = string.Empty;
     private string _selectedXMetric = "searches";
     private string _selectedYMetric = "launches";
     private HashSet<string> _selectedCategoryMetrics = new() { "searches", "smart_searches", "doc_searches", "launches", "tasks_created", "timer" };
+
+    // Admin right-panel tab state
+    private string _adminRightTab = "overview"; // "overview" or "category"
+    private string _selectedCategoryDetailId = "cheat_sheet";
 
     // Dynamic axis panels (built in code, not XAML)
     private WrapPanel? _xAxisButtons;
@@ -64,10 +81,19 @@ public partial class MetricsViewerWidget : System.Windows.Controls.UserControl
         ("quick_launch",    "Quick Launch",     s => s.TotalQuickLaunchUses),
         ("tasks_created",   "Tasks Created",    s => s.TotalTasksCreated),
         ("tasks_done",      "Tasks Done",       s => s.TotalTasksCompleted),
+        ("tasks_deleted",   "Tasks Deleted",    s => s.TotalTasksDeleted),
         ("timer",           "Timer",            s => s.TotalTimerUses),
         ("cheatsheet",      "Cheat Sheet",      s => s.TotalCheatSheetViews),
+        ("cs_lookups",      "CS Lookups",       s => s.TotalCheatSheetLookups),
+        ("cs_copies",       "CS Copies",        s => s.TotalCheatSheetCopies),
+        ("cs_searches",     "CS Searches",      s => s.TotalCheatSheetSearches),
         ("hotkeys",         "Hotkeys",          s => s.TotalHotkeyPresses),
         ("clipboard",       "Clipboard",        s => s.TotalClipboardCopies),
+        ("filter_changes",  "Filters",          s => s.TotalFilterChanges),
+        ("tags_created",    "Tags Created",     s => s.TotalTagsCreated),
+        ("tags_updated",    "Tags Updated",     s => s.TotalTagsUpdated),
+        ("tag_searches",    "Tag Searches",     s => s.TotalTagSearches),
+        ("settings",        "Settings",         s => s.TotalSettingChanges),
         ("errors",          "Errors",           s => s.TotalErrors),
     };
 
@@ -119,6 +145,7 @@ public partial class MetricsViewerWidget : System.Windows.Controls.UserControl
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
         IsVisibleChanged += OnVisibleChanged;
+        SizeChanged += OnSizeChanged;
     }
 
     public void SetSettingsService(ISettingsService settings)
@@ -136,6 +163,8 @@ public partial class MetricsViewerWidget : System.Windows.Controls.UserControl
 
         BuildChartTypeButtons();
         BuildAxisButtons();
+        BuildAdminRightTabs();
+        BuildCategorySelectorPills();
         await LoadMetricsAsync();
         StartPolling();
     }
@@ -328,6 +357,53 @@ public partial class MetricsViewerWidget : System.Windows.Controls.UserControl
             _adminRangeEnd = _adminRangeStart.AddDays(_adminRangeDays - 1);
             if (_adminRangeEnd > today) _adminRangeEnd = today;
             _ = LoadAdminMetricsAsync();
+        }
+    }
+
+    // ===== Resize-triggered canvas redraws =====
+
+    private void OnSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var newW = e.NewSize.Width;
+        var newH = e.NewSize.Height;
+        var deltaW = Math.Abs(newW - _lastRedrawWidth);
+        var deltaH = Math.Abs(newH - _lastRedrawHeight);
+        if (deltaW < ResizeRedrawThresholdPx && deltaH < ResizeRedrawThresholdPx)
+            return;
+
+        if (_resizeRedrawTimer == null)
+        {
+            _resizeRedrawTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(ResizeRedrawDebounceMs) };
+            _resizeRedrawTimer.Tick += (_, _) =>
+            {
+                _resizeRedrawTimer.Stop();
+                _lastRedrawWidth = ActualWidth;
+                _lastRedrawHeight = ActualHeight;
+                RedrawCanvases();
+            };
+        }
+        _resizeRedrawTimer.Stop();
+        _resizeRedrawTimer.Start();
+    }
+
+    private void RedrawCanvases()
+    {
+        if (_isAdminView)
+        {
+            if (!string.IsNullOrEmpty(_selectedChartType))
+                RenderChart(_selectedChartType);
+            if (_filteredAdminSummaries.Count > 0)
+                RenderAdminInsights(_adminRangeStart);
+        }
+        else
+        {
+            if (_currentSummary != null)
+            {
+                if (_lastHourlyBreakdown != null) RenderHourlyHeatmap(_lastHourlyBreakdown);
+                RenderFeatureDonut(_currentSummary);
+                if (_lastTransitions != null) RenderActivityFlow(_lastTransitions);
+                if (_lastTrendData != null) RenderTrendSparklines(_lastTrendData);
+            }
         }
     }
 

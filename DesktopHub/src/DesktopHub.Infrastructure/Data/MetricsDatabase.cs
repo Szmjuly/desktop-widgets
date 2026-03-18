@@ -350,6 +350,32 @@ public class MetricsDatabase
             summary.TotalCheatSheetCopies = eventCounts.GetValueOrDefault(TelemetryEventType.CheatSheetCopied, 0);
             summary.TotalCheatSheetSearches = eventCounts.GetValueOrDefault(TelemetryEventType.CheatSheetSearched, 0);
 
+            // Counts that were in the model but never aggregated from local DB
+            summary.TotalHotkeyPresses = eventCounts.GetValueOrDefault(TelemetryEventType.HotkeyPressed, 0);
+            summary.TotalFilterChanges = eventCounts.GetValueOrDefault(TelemetryEventType.FilterChanged, 0)
+                + eventCounts.GetValueOrDefault(TelemetryEventType.DisciplineChanged, 0);
+            summary.TotalClipboardCopies = eventCounts.GetValueOrDefault(TelemetryEventType.ClipboardCopy, 0);
+            summary.TotalErrors = eventCounts.GetValueOrDefault(TelemetryEventType.AppError, 0)
+                + eventCounts.GetValueOrDefault(TelemetryEventType.WidgetError, 0);
+            summary.TotalTagsCreated = eventCounts.GetValueOrDefault(TelemetryEventType.TagCreated, 0);
+            summary.TotalTagsUpdated = eventCounts.GetValueOrDefault(TelemetryEventType.TagUpdated, 0);
+            summary.TotalTagSearches = eventCounts.GetValueOrDefault(TelemetryEventType.TagSearchExecuted, 0);
+            summary.TotalTagCarouselClicks = eventCounts.GetValueOrDefault(TelemetryEventType.TagCarouselClicked, 0);
+
+            // New aggregation fields
+            summary.TotalTasksDeleted = eventCounts.GetValueOrDefault(TelemetryEventType.TaskDeleted, 0);
+            summary.TotalSettingChanges = eventCounts.GetValueOrDefault(TelemetryEventType.SettingChanged, 0);
+            summary.TotalSmartSearchFilterUses = eventCounts.GetValueOrDefault(TelemetryEventType.SmartSearchFilterUsed, 0);
+
+            // Performance timing averages
+            await AggregatePerformanceTimingsAsync(connection, dayStart, dayEnd, summary);
+
+            // Search result click position average
+            await AggregateSearchResultClicksAsync(connection, dayStart, dayEnd, summary);
+
+            // File extension frequency from doc opens
+            summary.FileExtensionFrequency = await GetDimensionFrequencyAsync(connection, "file_extension", dayStart, dayEnd);
+
             // Per-sheet cheat sheet metrics from DataJson
             await AggregateCheatSheetMetricsAsync(connection, dayStart, dayEnd, summary);
 
@@ -532,6 +558,61 @@ public class MetricsDatabase
         }
 
         return freq;
+    }
+
+    private async Task AggregatePerformanceTimingsAsync(
+        SqliteConnection connection, string dayStart, string dayEnd, DailyMetricsSummary summary)
+    {
+        var sql = @"
+            SELECT event_type, AVG(duration_ms) as avg_ms
+            FROM telemetry_events
+            WHERE timestamp >= @from AND timestamp < @to
+              AND event_type IN (@startup, @search)
+              AND duration_ms IS NOT NULL AND duration_ms > 0
+            GROUP BY event_type
+        ";
+
+        using var cmd = new SqliteCommand(sql, connection);
+        cmd.Parameters.AddWithValue("@from", dayStart);
+        cmd.Parameters.AddWithValue("@to", dayEnd);
+        cmd.Parameters.AddWithValue("@startup", TelemetryEventType.StartupTiming);
+        cmd.Parameters.AddWithValue("@search", TelemetryEventType.SearchTiming);
+
+        using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var type = reader.GetString(0);
+            var avg = reader.GetDouble(1);
+            if (type == TelemetryEventType.StartupTiming)
+                summary.AvgStartupTimingMs = avg;
+            else if (type == TelemetryEventType.SearchTiming)
+                summary.AvgSearchTimingMs = avg;
+        }
+    }
+
+    private async Task AggregateSearchResultClicksAsync(
+        SqliteConnection connection, string dayStart, string dayEnd, DailyMetricsSummary summary)
+    {
+        var sql = @"
+            SELECT COUNT(*) as cnt, AVG(result_index) as avg_pos
+            FROM telemetry_events
+            WHERE timestamp >= @from AND timestamp < @to
+              AND event_type = @type
+              AND result_index IS NOT NULL
+        ";
+
+        using var cmd = new SqliteCommand(sql, connection);
+        cmd.Parameters.AddWithValue("@from", dayStart);
+        cmd.Parameters.AddWithValue("@to", dayEnd);
+        cmd.Parameters.AddWithValue("@type", TelemetryEventType.SearchResultClicked);
+
+        using var reader = await cmd.ExecuteReaderAsync();
+        if (await reader.ReadAsync())
+        {
+            summary.TotalSearchResultClicks = reader.GetInt32(0);
+            if (summary.TotalSearchResultClicks > 0 && !reader.IsDBNull(1))
+                summary.AvgSearchResultClickPosition = reader.GetDouble(1);
+        }
     }
 
     private async Task AggregateCheatSheetMetricsAsync(

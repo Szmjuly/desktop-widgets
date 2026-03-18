@@ -182,6 +182,26 @@ public class DailyMetricsSummary
     public Dictionary<string, int> CheatSheetCopyFrequency { get; set; } = new();
     public Dictionary<string, Dictionary<string, int>> CheatSheetInteractions { get; set; } = new();
 
+    // Task deletion count
+    public int TotalTasksDeleted { get; set; }
+
+    // Setting change count
+    public int TotalSettingChanges { get; set; }
+
+    // Smart search filter usage
+    public int TotalSmartSearchFilterUses { get; set; }
+
+    // Performance timing averages (ms)
+    public double AvgStartupTimingMs { get; set; }
+    public double AvgSearchTimingMs { get; set; }
+
+    // Average search result click position (0-based index)
+    public double AvgSearchResultClickPosition { get; set; }
+    public int TotalSearchResultClicks { get; set; }
+
+    // File extension frequency from doc opens
+    public Dictionary<string, int> FileExtensionFrequency { get; set; } = new();
+
     // Device/user identity for admin telemetry
     public string DeviceName { get; set; } = string.Empty;
     public string UserName { get; set; } = string.Empty;

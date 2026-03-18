@@ -584,14 +584,19 @@ public partial class SearchOverlay
             if (hasHistory)
             {
                 // Show history pills
-                HistoryScrollViewer.Visibility = Visibility.Visible;
+                HistoryNavContainer.Visibility = Visibility.Visible;
                 HistoryPlaceholder.Visibility = Visibility.Collapsed;
-                HorizontalHistoryList.ItemsSource = _searchHistory.Take(5).ToList();
+                var maxShown = _settings.GetSearchHistoryMaxShown();
+                HorizontalHistoryList.ItemsSource = _searchHistory.Take(maxShown).ToList();
+                // Refresh scroll indicators after layout reflects new items
+                Dispatcher.BeginInvoke(
+                    System.Windows.Threading.DispatcherPriority.Loaded,
+                    new Action(UpdateHistoryScrollIndicators));
             }
             else
             {
                 // Show single random placeholder as background text
-                HistoryScrollViewer.Visibility = Visibility.Collapsed;
+                HistoryNavContainer.Visibility = Visibility.Collapsed;
                 HistoryPlaceholder.Visibility = Visibility.Visible;
                 HistoryPlaceholder.Text = GetRandomHistoryPlaceholder();
             }

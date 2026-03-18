@@ -63,16 +63,30 @@ public partial class SearchOverlay
 
     private void AddToSearchHistory(string query)
     {
-        // Remove if already exists
         _searchHistory.Remove(query);
-
-        // Add to front
         _searchHistory.Insert(0, query);
 
-        // Keep only last 25 to prevent excessive memory usage
         if (_searchHistory.Count > 25)
-        {
             _searchHistory = _searchHistory.Take(25).ToList();
+
+        // Persist to disk and optionally export backup
+        if (_searchHistoryStore != null)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _searchHistoryStore.AddEntryAsync(query, 25);
+
+                    var backupPath = _settings.GetSearchHistoryBackupPath();
+                    if (!string.IsNullOrWhiteSpace(backupPath))
+                        await _searchHistoryStore.ExportToFileAsync(backupPath);
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"SearchHistory: Persist failed: {ex.Message}");
+                }
+            });
         }
     }
 
@@ -138,12 +152,29 @@ public partial class SearchOverlay
         }
     }
 
+    /// <summary>
+    /// Left-click on a history chip — append the query to the search bar.
+    /// </summary>
     private void HistoryItem_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is Border border && border.DataContext is string query)
         {
             _lastQuerySource = Core.Models.QuerySources.History;
+            AppendToSearchBox(query);
+        }
+    }
+
+    /// <summary>
+    /// Right-click on a history chip — replace the search bar text with this query.
+    /// </summary>
+    private void HistoryItem_RightClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is Border border && border.DataContext is string query)
+        {
+            _lastQuerySource = Core.Models.QuerySources.History;
             SearchBox.Text = query;
+            SearchBox.CaretIndex = SearchBox.Text.Length;
+            e.Handled = true;
         }
     }
 

@@ -16,25 +16,6 @@
         KeyDown="Window_KeyDown">
 
     <Grid>
-        <!-- Resize grip borders (invisible hit-test zones on edges and corners) -->
-        <Border x:Name="ResizeTop" Height="5" VerticalAlignment="Top" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeNS"
-                MouseLeftButtonDown="Resize_MouseDown" MouseLeftButtonUp="Resize_MouseUp" MouseMove="Resize_MouseMove" Tag="Top"/>
-        <Border x:Name="ResizeBottom" Height="5" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeNS"
-                MouseLeftButtonDown="Resize_MouseDown" MouseLeftButtonUp="Resize_MouseUp" MouseMove="Resize_MouseMove" Tag="Bottom"/>
-        <Border x:Name="ResizeLeft" Width="5" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="Transparent" Cursor="SizeWE"
-                MouseLeftButtonDown="Resize_MouseDown" MouseLeftButtonUp="Resize_MouseUp" MouseMove="Resize_MouseMove" Tag="Left"/>
-        <Border x:Name="ResizeRight" Width="5" HorizontalAlignment="Right" VerticalAlignment="Stretch" Background="Transparent" Cursor="SizeWE"
-                MouseLeftButtonDown="Resize_MouseDown" MouseLeftButtonUp="Resize_MouseUp" MouseMove="Resize_MouseMove" Tag="Right"/>
-
-        <Border x:Name="ResizeTopLeft" Width="8" Height="8" VerticalAlignment="Top" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeNWSE"
-                MouseLeftButtonDown="Resize_MouseDown" MouseLeftButtonUp="Resize_MouseUp" MouseMove="Resize_MouseMove" Tag="TopLeft"/>
-        <Border x:Name="ResizeTopRight" Width="8" Height="8" VerticalAlignment="Top" HorizontalAlignment="Right" Background="Transparent" Cursor="SizeNESW"
-                MouseLeftButtonDown="Resize_MouseDown" MouseLeftButtonUp="Resize_MouseUp" MouseMove="Resize_MouseMove" Tag="TopRight"/>
-        <Border x:Name="ResizeBottomLeft" Width="8" Height="8" VerticalAlignment="Bottom" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeNESW"
-                MouseLeftButtonDown="Resize_MouseDown" MouseLeftButtonUp="Resize_MouseUp" MouseMove="Resize_MouseMove" Tag="BottomLeft"/>
-        <Border x:Name="ResizeBottomRight" Width="8" Height="8" VerticalAlignment="Bottom" HorizontalAlignment="Right" Background="Transparent" Cursor="SizeNWSE"
-                MouseLeftButtonDown="Resize_MouseDown" MouseLeftButtonUp="Resize_MouseUp" MouseMove="Resize_MouseMove" Tag="BottomRight"/>
-
         <!-- Main content -->
         <Border x:Name="RootBorder"
                 Background="{DynamicResource WindowBackgroundAlphaBrush}"
@@ -67,5 +48,24 @@
                 </Canvas>
             </Grid>
         </Border>
+
+        <!-- Resize grip borders — must be AFTER RootBorder in Z-order so they sit on top and receive mouse events -->
+        <Border x:Name="ResizeTop" Height="5" VerticalAlignment="Top" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeNS"
+                MouseLeftButtonDown="Resize_MouseDown" MouseLeftButtonUp="Resize_MouseUp" MouseMove="Resize_MouseMove" Tag="Top"/>
+        <Border x:Name="ResizeBottom" Height="5" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeNS"
+                MouseLeftButtonDown="Resize_MouseDown" MouseLeftButtonUp="Resize_MouseUp" MouseMove="Resize_MouseMove" Tag="Bottom"/>
+        <Border x:Name="ResizeLeft" Width="5" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="Transparent" Cursor="SizeWE"
+                MouseLeftButtonDown="Resize_MouseDown" MouseLeftButtonUp="Resize_MouseUp" MouseMove="Resize_MouseMove" Tag="Left"/>
+        <Border x:Name="ResizeRight" Width="5" HorizontalAlignment="Right" VerticalAlignment="Stretch" Background="Transparent" Cursor="SizeWE"
+                MouseLeftButtonDown="Resize_MouseDown" MouseLeftButtonUp="Resize_MouseUp" MouseMove="Resize_MouseMove" Tag="Right"/>
+
+        <Border x:Name="ResizeTopLeft" Width="8" Height="8" VerticalAlignment="Top" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeNWSE"
+                MouseLeftButtonDown="Resize_MouseDown" MouseLeftButtonUp="Resize_MouseUp" MouseMove="Resize_MouseMove" Tag="TopLeft"/>
+        <Border x:Name="ResizeTopRight" Width="8" Height="8" VerticalAlignment="Top" HorizontalAlignment="Right" Background="Transparent" Cursor="SizeNESW"
+                MouseLeftButtonDown="Resize_MouseDown" MouseLeftButtonUp="Resize_MouseUp" MouseMove="Resize_MouseMove" Tag="TopRight"/>
+        <Border x:Name="ResizeBottomLeft" Width="8" Height="8" VerticalAlignment="Bottom" HorizontalAlignment="Left" Background="Transparent" Cursor="SizeNESW"
+                MouseLeftButtonDown="Resize_MouseDown" MouseLeftButtonUp="Resize_MouseUp" MouseMove="Resize_MouseMove" Tag="BottomLeft"/>
+        <Border x:Name="ResizeBottomRight" Width="8" Height="8" VerticalAlignment="Bottom" HorizontalAlignment="Right" Background="Transparent" Cursor="SizeNWSE"
+                MouseLeftButtonDown="Resize_MouseDown" MouseLeftButtonUp="Resize_MouseUp" MouseMove="Resize_MouseMove" Tag="BottomRight"/>
     </Grid>
 </Window>

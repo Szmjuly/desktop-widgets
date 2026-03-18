@@ -127,10 +127,12 @@ public class SearchService : ISearchService
         });
     }
 
+    private static readonly char[] QueryDelimiters = { ',', ';', '|' };
+
     public SearchFilter ParseQuery(string query)
     {
         var filter = new SearchFilter();
-        var segments = query.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var segments = query.Split(QueryDelimiters, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var remainingSegments = new List<string>();
 
         foreach (var segment in segments)

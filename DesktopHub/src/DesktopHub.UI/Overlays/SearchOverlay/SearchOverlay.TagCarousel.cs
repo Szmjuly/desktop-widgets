@@ -86,6 +86,10 @@ public partial class SearchOverlay
         {
             TagCarouselList.ItemsSource = chips;
             TagCarouselContainer.Visibility = Visibility.Visible;
+            // Refresh indicators after layout pass reflects new item extents
+            Dispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.Loaded,
+                new Action(UpdateTagCarouselScrollIndicators));
         }
         else
         {
@@ -133,46 +137,90 @@ public partial class SearchOverlay
             Add(key, value);
     }
 
+    private string BuildTagQuery(TagCarouselChipViewModel chip)
+    {
+        var queryKey = chip.DisplayKey;
+        if (string.IsNullOrEmpty(queryKey))
+            queryKey = chip.Key.ToLowerInvariant().Replace(" ", "_");
+        return $"{queryKey}:{chip.Value}";
+    }
+
     /// <summary>
-    /// Handle click on a tag carousel chip — inject the tag:value query into the search bar.
+    /// Left-click on a tag carousel chip — append the tag:value query to the search bar.
     /// </summary>
     private void TagCarouselChip_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is FrameworkElement fe && fe.DataContext is TagCarouselChipViewModel chip)
         {
-            var queryKey = chip.DisplayKey;
-            if (string.IsNullOrEmpty(queryKey))
-                queryKey = chip.Key.ToLowerInvariant().Replace(" ", "_");
-
-            var tagQuery = $"{queryKey}:{chip.Value}";
-
-            // If search box already has text, append with semicolon separator
-            var currentText = SearchBox.Text.Trim();
-            if (!string.IsNullOrEmpty(currentText) && !currentText.EndsWith(";"))
-            {
-                SearchBox.Text = $"{currentText}; {tagQuery}";
-            }
-            else
-            {
-                SearchBox.Text = tagQuery;
-            }
-
-            SearchBox.CaretIndex = SearchBox.Text.Length;
+            var tagQuery = BuildTagQuery(chip);
+            AppendToSearchBox(tagQuery);
 
             _lastQuerySource = QuerySources.TagCarousel;
 
-            // Track telemetry
             TelemetryAccessor.TrackTag(
                 TelemetryEventType.TagCarouselClicked,
                 tagKey: chip.DisplayKey,
                 tagValue: chip.Value,
                 source: "carousel");
 
-            // Tag carousel clicks are NOT added to search history — the carousel
-            // already serves as the tag "history" and adding them would cause
-            // duplicate chips (tag carousel + history pills) for the same queries.
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// Right-click on a tag carousel chip — replace the search bar text with this tag query.
+    /// </summary>
+    private void TagCarouselChip_RightClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.DataContext is TagCarouselChipViewModel chip)
+        {
+            var tagQuery = BuildTagQuery(chip);
+            SearchBox.Text = tagQuery;
+            SearchBox.CaretIndex = SearchBox.Text.Length;
+
+            _lastQuerySource = QuerySources.TagCarousel;
+
+            TelemetryAccessor.TrackTag(
+                TelemetryEventType.TagCarouselClicked,
+                tagKey: chip.DisplayKey,
+                tagValue: chip.Value,
+                source: "carousel_replace");
 
             e.Handled = true;
         }
+    }
+
+    /// <summary>
+    /// Append a query segment to the search box using comma delimiter.
+    /// Deduplicates: if the segment already exists in the current query it is not added again.
+    /// If the box is empty, sets the text directly.
+    /// </summary>
+    private void AppendToSearchBox(string segment)
+    {
+        var currentText = SearchBox.Text.TrimEnd();
+        if (!string.IsNullOrEmpty(currentText))
+        {
+            // Strip trailing delimiter if one already exists
+            if (currentText.EndsWith(",") || currentText.EndsWith(";") || currentText.EndsWith("|"))
+                currentText = currentText[..^1].TrimEnd();
+
+            // Deduplicate: do not add the segment if it already appears in the query
+            var existingSegments = currentText.Split(
+                new[] { ',', ';', '|' },
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            bool alreadyPresent = existingSegments.Any(s =>
+                string.Equals(s, segment, StringComparison.OrdinalIgnoreCase));
+
+            if (alreadyPresent)
+                return;
+
+            SearchBox.Text = $"{currentText}, {segment}";
+        }
+        else
+        {
+            SearchBox.Text = segment;
+        }
+        SearchBox.CaretIndex = SearchBox.Text.Length;
     }
 }

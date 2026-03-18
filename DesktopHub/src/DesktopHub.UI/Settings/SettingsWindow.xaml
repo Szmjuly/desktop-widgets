@@ -1862,13 +1862,81 @@
                                         <TextBlock Text="Search Syntax" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}" Margin="0,8,0,4"/>
                                         <Border Background="{DynamicResource FaintOverlayBrush}" CornerRadius="4" Padding="10" Margin="0,0,0,4">
                                             <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap">
-                                                <Run FontWeight="SemiBold" Foreground="{DynamicResource BlueTextBrush}">voltage:208</Run><Run Text=" — filter by voltage" /><LineBreak/>
-                                                <Run FontWeight="SemiBold" Foreground="{DynamicResource BlueTextBrush}">hvac:DX</Run><Run Text=" — filter by HVAC type" /><LineBreak/>
-                                                <Run FontWeight="SemiBold" Foreground="{DynamicResource BlueTextBrush}">gen:Generac</Run><Run Text=" — generator brand (shorthand)" /><LineBreak/>
-                                                <Run FontWeight="SemiBold" Foreground="{DynamicResource BlueTextBrush}">v:208; phase:3</Run><Run Text=" — combine with semicolons" /><LineBreak/>
-                                                <Run FontWeight="SemiBold" Foreground="{DynamicResource BlueTextBrush}">eng:Smith</Run><Run Text=" — stamping engineer" />
+                                                <Run FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}">voltage:208</Run><Run Text=" — filter by voltage" /><LineBreak/>
+                                                <Run FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}">hvac:DX</Run><Run Text=" — filter by HVAC type" /><LineBreak/>
+                                                <Run FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}">gen:Generac</Run><Run Text=" — generator brand (shorthand)" /><LineBreak/>
+                                                <Run FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}">v:208, phase:3</Run><Run Text=" — combine with  ,  ;  or  |" /><LineBreak/>
+                                                <Run FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}">eng:Smith</Run><Run Text=" — stamping engineer" />
                                             </TextBlock>
                                         </Border>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Search History Settings -->
+                                <Border Background="{DynamicResource HoverBrush}" CornerRadius="6" Padding="16" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Search History" FontSize="16" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextBrush}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Search history is persisted between sessions. Configure how many items to show, how long to keep them, and optionally export to a backup location."
+                                                   FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                                        <!-- History Items Shown -->
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="History items shown" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}"/>
+                                                <TextBlock Text="Number of recent searches displayed as chips (1–25)"
+                                                           FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                            <TextBox x:Name="SearchHistoryMaxShownBox" Grid.Column="1" Width="60"
+                                                     HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,0,0"
+                                                     TextAlignment="Center" LostFocus="SearchHistoryMaxShownBox_LostFocus"/>
+                                        </Grid>
+
+                                        <!-- History Retention Days -->
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Retain history for (days)" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextBrush}"/>
+                                                <TextBlock Text="Entries older than this are pruned on startup (1–365)"
+                                                           FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                            <TextBox x:Name="SearchHistoryRetentionDaysBox" Grid.Column="1" Width="60"
+                                                     HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,0,0"
+                                                     TextAlignment="Center" LostFocus="SearchHistoryRetentionDaysBox_LostFocus"/>
+                                        </Grid>
+
+                                        <!-- Backup Path -->
+                                        <TextBlock Text="Backup / log location" FontSize="13" FontWeight="Medium"
+                                                   Foreground="{DynamicResource TextBrush}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Optionally export a copy of search history to a custom path on each search."
+                                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="SearchHistoryBackupPathBox" Grid.Column="0"
+                                                     VerticalAlignment="Center" Padding="8,6"
+                                                     LostFocus="SearchHistoryBackupPathBox_LostFocus"/>
+                                            <Button x:Name="SearchHistoryBrowseButton" Grid.Column="1"
+                                                    Content="Browse" Margin="8,0,0,0" Padding="12,6"
+                                                    Cursor="Hand" Click="SearchHistoryBrowseButton_Click"
+                                                    Style="{StaticResource RoundedButton}"/>
+                                        </Grid>
+
+                                        <!-- Export Now Button -->
+                                        <Button x:Name="SearchHistoryExportButton"
+                                                Content="Export History Now" HorizontalAlignment="Left"
+                                                Padding="16,8" Cursor="Hand" Margin="0,4,0,0"
+                                                Click="SearchHistoryExportButton_Click"
+                                                Style="{StaticResource RoundedButton}"/>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>

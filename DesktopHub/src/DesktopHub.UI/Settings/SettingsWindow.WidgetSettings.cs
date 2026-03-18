@@ -757,4 +757,100 @@ public partial class SettingsWindow
         _ = _settings.SaveAsync();
         StatusText.Text = enabled ? "Tag carousel auto-refresh enabled" : "Tag carousel auto-refresh disabled";
     }
+
+    // ===== Search History Settings =====
+
+    private void LoadSearchHistorySettings()
+    {
+        if (_settings == null) return;
+
+        SearchHistoryMaxShownBox.Text = _settings.GetSearchHistoryMaxShown().ToString();
+        SearchHistoryRetentionDaysBox.Text = _settings.GetSearchHistoryRetentionDays().ToString();
+        SearchHistoryBackupPathBox.Text = _settings.GetSearchHistoryBackupPath();
+    }
+
+    private void SearchHistoryMaxShownBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        if (int.TryParse(SearchHistoryMaxShownBox.Text, out var count))
+        {
+            count = Math.Clamp(count, 1, 25);
+            _settings.SetSearchHistoryMaxShown(count);
+            SearchHistoryMaxShownBox.Text = count.ToString();
+            _ = _settings.SaveAsync();
+            StatusText.Text = $"History items shown: {count}";
+        }
+        else
+        {
+            SearchHistoryMaxShownBox.Text = _settings.GetSearchHistoryMaxShown().ToString();
+        }
+    }
+
+    private void SearchHistoryRetentionDaysBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        if (int.TryParse(SearchHistoryRetentionDaysBox.Text, out var days))
+        {
+            days = Math.Clamp(days, 1, 365);
+            _settings.SetSearchHistoryRetentionDays(days);
+            SearchHistoryRetentionDaysBox.Text = days.ToString();
+            _ = _settings.SaveAsync();
+            StatusText.Text = $"History retention: {days} days";
+        }
+        else
+        {
+            SearchHistoryRetentionDaysBox.Text = _settings.GetSearchHistoryRetentionDays().ToString();
+        }
+    }
+
+    private void SearchHistoryBackupPathBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        _settings.SetSearchHistoryBackupPath(SearchHistoryBackupPathBox.Text.Trim());
+        _ = _settings.SaveAsync();
+        StatusText.Text = string.IsNullOrWhiteSpace(SearchHistoryBackupPathBox.Text)
+            ? "Search history backup path cleared"
+            : $"Backup path: {SearchHistoryBackupPathBox.Text.Trim()}";
+    }
+
+    private void SearchHistoryBrowseButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Choose search history backup location",
+            FileName = "search-history-backup.json",
+            Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
+            DefaultExt = ".json"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            SearchHistoryBackupPathBox.Text = dialog.FileName;
+            _settings?.SetSearchHistoryBackupPath(dialog.FileName);
+            _ = _settings?.SaveAsync()!;
+            StatusText.Text = $"Backup path: {dialog.FileName}";
+        }
+    }
+
+    private async void SearchHistoryExportButton_Click(object sender, RoutedEventArgs e)
+    {
+        var backupPath = _settings?.GetSearchHistoryBackupPath();
+        if (string.IsNullOrWhiteSpace(backupPath))
+        {
+            StatusText.Text = "Set a backup path first, then click Export.";
+            return;
+        }
+
+        try
+        {
+            var store = new Infrastructure.Data.SearchHistoryStore();
+            await store.LoadAsync();
+            await store.ExportToFileAsync(backupPath);
+            StatusText.Text = $"History exported to {backupPath}";
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Export failed: {ex.Message}";
+        }
+    }
 }

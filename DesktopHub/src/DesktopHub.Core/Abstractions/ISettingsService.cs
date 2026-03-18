@@ -569,6 +569,14 @@ public interface ISettingsService
     bool GetTagCarouselAutoRefresh();
     void SetTagCarouselAutoRefresh(bool enabled);
 
+    // --- Search History ---
+    int GetSearchHistoryMaxShown();
+    void SetSearchHistoryMaxShown(int count);
+    int GetSearchHistoryRetentionDays();
+    void SetSearchHistoryRetentionDays(int days);
+    string GetSearchHistoryBackupPath();
+    void SetSearchHistoryBackupPath(string path);
+
     // --- Hotkey Groups ---
     List<HotkeyGroup> GetHotkeyGroups();
     void SetHotkeyGroups(List<HotkeyGroup> groups);

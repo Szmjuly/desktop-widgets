@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Win32;
@@ -1113,6 +1113,7 @@ public partial class SettingsWindow : Window
             {
                 TagsPanel.Visibility = Visibility.Visible;
                 LoadTagSettings();
+                LoadSearchHistorySettings();
             }
             else if (radioButton.Tag is string widgetId && _widgetPanels.TryGetValue(widgetId, out var panel))
             {
