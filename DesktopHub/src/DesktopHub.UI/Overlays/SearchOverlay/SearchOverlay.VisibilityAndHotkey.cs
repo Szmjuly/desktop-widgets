@@ -389,6 +389,7 @@ public partial class SearchOverlay
             _isResultsCollapsed = false;
             ResultsContainer.Visibility = Visibility.Visible;
             CollapseIconRotation.Angle = 0;
+            CollapseToggleBtn.ToolTip = "Collapse project list";
             // Re-apply current expanded height without animation
             SetSmartProjectSearchAttachedPanelExpanded(true, false);
         }
@@ -398,6 +399,7 @@ public partial class SearchOverlay
             _isResultsCollapsed = true;
             ResultsContainer.Visibility = Visibility.Collapsed;
             CollapseIconRotation.Angle = -90;
+            CollapseToggleBtn.ToolTip = "Expand project list";
             SetSmartProjectSearchAttachedPanelExpanded(false, false);
         }
         UpdateOverlayHeightForCurrentState(false);
@@ -576,6 +578,8 @@ public partial class SearchOverlay
         // Always show container if there's history OR results to collapse
         var shouldShowContainer = hasHistory || hasResults;
 
+        var previousVisibility = HistoryAndCollapseContainer.Visibility;
+
         if (shouldShowContainer)
         {
             HistoryAndCollapseContainer.Visibility = Visibility.Visible;
@@ -607,6 +611,14 @@ public partial class SearchOverlay
         }
 
         DebugLogger.Log($"UpdateHistoryVisibility: isSearchBlank={isSearchBlank}, hasHistory={hasHistory}, hasResults={hasResults}, containerVisible={HistoryAndCollapseContainer.Visibility}");
+
+        // If the history row visibility changed while results are collapsed, the window
+        // height was already set before this row appeared — recalculate it now.
+        if (_isResultsCollapsed && HistoryAndCollapseContainer.Visibility != previousVisibility)
+        {
+            DebugLogger.Log($"UpdateHistoryVisibility: history row visibility changed ({previousVisibility} → {HistoryAndCollapseContainer.Visibility}), recalculating collapsed height");
+            UpdateOverlayHeightForCurrentState(false);
+        }
     }
 
     private string GetRandomHistoryPlaceholder()
@@ -634,7 +646,8 @@ public partial class SearchOverlay
         {
             // Collapse results - shrink window
             ResultsContainer.Visibility = Visibility.Collapsed;
-            CollapseIconRotation.Angle = -90; // Rotate arrow to point right
+            CollapseIconRotation.Angle = -90;
+            CollapseToggleBtn.ToolTip = "Expand project list";
             SetSmartProjectSearchAttachedPanelExpanded(false, true);
             UpdateOverlayHeightForCurrentState(true);
         }
@@ -642,7 +655,8 @@ public partial class SearchOverlay
         {
             // Expand results - restore full window height
             ResultsContainer.Visibility = Visibility.Visible;
-            CollapseIconRotation.Angle = 0; // Arrow points down
+            CollapseIconRotation.Angle = 0;
+            CollapseToggleBtn.ToolTip = "Collapse project list";
             UpdateOverlayHeightForCurrentState(true);
         }
     }

@@ -6,9 +6,19 @@ namespace DesktopHub.UI.Services;
 /// <summary>
 /// Default cheat sheet data for the Electrical discipline.
 /// </summary>
-internal static class CheatSheetElectricalDefaults
+internal static partial class CheatSheetElectricalDefaults
 {
     internal static void AddTo(CheatSheetDataStore store)
+    {
+        AddCoreSheets(store);
+        AddAmpacitySheets(store);
+        AddMotorProtectionSheets(store);
+        AddDemandFactorSheets(store);
+        AddNoteSheets(store);
+        AddCalculatorSheets(store);
+    }
+
+    private static void AddCoreSheets(CheatSheetDataStore store)
     {
         // 1) Motor FLA (NEC Tables 430.248 1Ø + 430.250 3Ø)
         store.Sheets.Add(new CheatSheet

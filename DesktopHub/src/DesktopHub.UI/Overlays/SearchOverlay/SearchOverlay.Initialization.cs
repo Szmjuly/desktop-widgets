@@ -89,7 +89,10 @@ public partial class SearchOverlay
         {
             // DO NOT apply window region rounding - causes clipping
             // WindowBlur.ApplyRoundedCorners(this, 12);
-            UpdateRootClip(12);
+            if (!_suspendRootClipUpdates)
+            {
+                UpdateRootClip(12);
+            }
             PositionSmartSearchAttachedWindow();
         };
 
@@ -388,6 +391,9 @@ public partial class SearchOverlay
 
             // Load projects in the background
             _ = LoadProjectsAsync();
+
+            // Purge any DB records whose folder no longer exists on disk (handles renames)
+            _ = Task.Run(async () => await PurgeNonExistentProjectsAsync());
 
             // Start background scan if needed
             _ = Task.Run(async () => await BackgroundScanAsync());

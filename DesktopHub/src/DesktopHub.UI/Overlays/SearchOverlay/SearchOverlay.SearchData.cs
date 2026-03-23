@@ -91,6 +91,32 @@ public partial class SearchOverlay
         }
     }
 
+    private async Task PurgeNonExistentProjectsAsync()
+    {
+        try
+        {
+            var all = await _dataStore.GetAllProjectsAsync();
+            var staleIds = all
+                .Where(p => !Directory.Exists(p.Path))
+                .Select(p => p.Id)
+                .ToList();
+
+            if (staleIds.Count > 0)
+            {
+                await _dataStore.DeleteProjectsAsync(staleIds);
+                DebugLogger.Log($"PurgeNonExistentProjects: removed {staleIds.Count} record(s) with non-existent paths");
+            }
+            else
+            {
+                DebugLogger.Log("PurgeNonExistentProjects: no stale records found");
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"PurgeNonExistentProjects error (non-fatal): {ex.Message}");
+        }
+    }
+
     private async Task LoadProjectsAsync()
     {
         try
@@ -182,6 +208,8 @@ public partial class SearchOverlay
             if (lastScan == null || DateTime.UtcNow - lastScan.Value > scanInterval)
             {
                 var allScannedProjects = new List<Project>();
+                List<Project>? qScannedProjects = null;
+                List<Project>? pScannedProjects = null;
 
                 // Scan Q: drive (Florida) - only if enabled
                 if (_settings.GetQDriveEnabled())
@@ -192,9 +220,9 @@ public partial class SearchOverlay
                     {
                         try
                         {
-                            var qProjects = await _scanner.ScanProjectsAsync(qDrivePath, "Q", CancellationToken.None);
-                            allScannedProjects.AddRange(qProjects);
-                            DebugLogger.Log($"Q: drive scan completed: {qProjects.Count} projects found");
+                            qScannedProjects = await _scanner.ScanProjectsAsync(qDrivePath, "Q", CancellationToken.None);
+                            allScannedProjects.AddRange(qScannedProjects);
+                            DebugLogger.Log($"Q: drive scan completed: {qScannedProjects.Count} projects found");
                         }
                         catch (Exception ex)
                         {
@@ -216,9 +244,9 @@ public partial class SearchOverlay
                     {
                         try
                         {
-                            var pProjects = await _scanner.ScanProjectsAsync(pDrivePath, "P", CancellationToken.None);
-                            allScannedProjects.AddRange(pProjects);
-                            DebugLogger.Log($"P: drive scan completed: {pProjects.Count} projects found");
+                            pScannedProjects = await _scanner.ScanProjectsAsync(pDrivePath, "P", CancellationToken.None);
+                            allScannedProjects.AddRange(pScannedProjects);
+                            DebugLogger.Log($"P: drive scan completed: {pScannedProjects.Count} projects found");
                         }
                         catch (Exception ex)
                         {
@@ -233,6 +261,23 @@ public partial class SearchOverlay
 
                 // Update database with all scanned projects (Q and P drives are separate)
                 await _dataStore.BatchUpsertProjectsAsync(allScannedProjects);
+
+                // Remove stale records for each successfully-scanned drive.
+                // When a project folder is renamed, the old path-based ID is left in the DB.
+                // This cleanup deletes any DB record whose ID (path hash) was not found in the scan.
+                if (qScannedProjects != null)
+                {
+                    var qIds = qScannedProjects.Select(p => p.Id);
+                    await _dataStore.DeleteStaleProjectsForDriveAsync("Q", qIds);
+                    DebugLogger.Log($"Q: stale record cleanup complete");
+                }
+                if (pScannedProjects != null)
+                {
+                    var pIds = pScannedProjects.Select(p => p.Id);
+                    await _dataStore.DeleteStaleProjectsForDriveAsync("P", pIds);
+                    DebugLogger.Log($"P: stale record cleanup complete");
+                }
+
                 await _dataStore.UpdateLastScanTimeAsync(DateTime.UtcNow);
 
                 // Reload projects
@@ -285,6 +330,7 @@ public partial class SearchOverlay
                 _isResultsCollapsed = true;
                 ResultsContainer.Visibility = Visibility.Collapsed;
                 CollapseIconRotation.Angle = -90;
+                CollapseToggleBtn.ToolTip = "Expand project list";
                 SetSmartProjectSearchAttachedPanelExpanded(false, true);
                 UpdateOverlayHeightForCurrentState(true);
             }
@@ -376,12 +422,14 @@ public partial class SearchOverlay
                 ResultsList.SelectedIndex = 0;
                 StatusText.Text = $"{results.Count} result{(results.Count == 1 ? "" : "s")} found";
 
-                // Auto-expand when search has results (only if user hasn't manually toggled)
-                if (!_userManuallySizedResults && _isResultsCollapsed)
+                // Auto-expand when search has results — always expand regardless of manual toggle
+                // (user typed a query and got results; they always want to see them)
+                if (_isResultsCollapsed)
                 {
                     _isResultsCollapsed = false;
                     ResultsContainer.Visibility = Visibility.Visible;
                     CollapseIconRotation.Angle = 0;
+                    CollapseToggleBtn.ToolTip = "Collapse project list";
                 }
 
                 UpdateOverlayHeightForCurrentState(true);

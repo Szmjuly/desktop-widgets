@@ -77,7 +77,7 @@ public partial class SearchOverlay : Window
     private Helpers.DesktopFollower? _desktopFollower;
     private UpdateCheckService? _updateCheckService;
     private UpdateIndicatorManager? _updateIndicatorManager;
-    private const double OverlayCollapsedBaseHeight = 140;
+    private const double OverlayCollapsedBaseHeight = 156;
     private const double OverlayExpandedBaseHeight = 500;
     private const double SmartProjectSearchAttachedPanelExpandedHeight = 400;
     private static readonly HashSet<string> PathSearchStopWords = new(StringComparer.OrdinalIgnoreCase)

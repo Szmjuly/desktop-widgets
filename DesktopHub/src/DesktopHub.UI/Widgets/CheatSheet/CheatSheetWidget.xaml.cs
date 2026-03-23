@@ -1653,6 +1653,9 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
         };
+        // Apply the widget's thin scrollbar style
+        if (FindResource("ThinScrollBar") is System.Windows.Style thinStyle)
+            outerScroll.Resources[typeof(System.Windows.Controls.Primitives.ScrollBar)] = thinStyle;
 
         var stack = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
 
@@ -1721,6 +1724,45 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
         typeCombo.SelectedIndex = (int)editSheet.SheetType;
         stack.Children.Add(new TextBlock { Text = "Sheet Type", FontSize = 10, Foreground = Helpers.ThemeHelper.TextSecondary, Margin = new Thickness(0, 4, 0, 2) });
         stack.Children.Add(typeCombo);
+
+        // --- Note Content Section (for Note-type sheets or sheets with NoteContent) ---
+        var noteContentLabel = new TextBlock
+        {
+            Text = "NOTE CONTENT", FontSize = 10, FontWeight = FontWeights.SemiBold,
+            Foreground = Helpers.ThemeHelper.Accent, Margin = new Thickness(0, 12, 0, 4)
+        };
+        stack.Children.Add(noteContentLabel);
+
+        var noteContentBox = new System.Windows.Controls.TextBox
+        {
+            Text = editSheet.NoteContent ?? "",
+            FontSize = 11,
+            Padding = new Thickness(6, 4, 6, 4),
+            Background = Helpers.ThemeHelper.HoverMedium,
+            Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
+            CaretBrush = (System.Windows.Media.Brush)FindResource("TextBrush"),
+            BorderThickness = new Thickness(0),
+            Margin = new Thickness(0, 0, 0, 4),
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            MinHeight = 120,
+            MaxHeight = 300,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+        };
+        stack.Children.Add(noteContentBox);
+
+        // Show/hide note content section based on sheet type
+        var isNoteType = editSheet.SheetType == CheatSheetType.Note || !string.IsNullOrEmpty(editSheet.NoteContent);
+        noteContentLabel.Visibility = isNoteType ? Visibility.Visible : Visibility.Collapsed;
+        noteContentBox.Visibility = isNoteType ? Visibility.Visible : Visibility.Collapsed;
+
+        typeCombo.SelectionChanged += (_, _) =>
+        {
+            var selectedType = (CheatSheetType)typeCombo.SelectedIndex;
+            var showNote = selectedType == CheatSheetType.Note || !string.IsNullOrWhiteSpace(noteContentBox.Text);
+            noteContentLabel.Visibility = showNote ? Visibility.Visible : Visibility.Collapsed;
+            noteContentBox.Visibility = showNote ? Visibility.Visible : Visibility.Collapsed;
+        };
 
         // --- Columns Section ---
         stack.Children.Add(new TextBlock
@@ -1824,6 +1866,8 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
             MaxHeight = 200, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             Content = rowsPanel
         };
+        if (FindResource("ThinScrollBar") is System.Windows.Style thinRowStyle)
+            rowScrollViewer.Resources[typeof(System.Windows.Controls.Primitives.ScrollBar)] = thinRowStyle;
         stack.Children.Add(rowScrollViewer);
 
         // Add row button
@@ -1866,6 +1910,9 @@ public partial class CheatSheetWidget : System.Windows.Controls.UserControl
                 _ => Discipline.Electrical
             };
             editSheet.SheetType = (CheatSheetType)typeCombo.SelectedIndex;
+
+            // Collect note content
+            editSheet.NoteContent = string.IsNullOrWhiteSpace(noteContentBox.Text) ? null : noteContentBox.Text;
 
             // Collect columns
             editSheet.Columns.Clear();

@@ -398,6 +398,41 @@ public class SqliteDataStore : IDataStore
         await command.ExecuteNonQueryAsync();
     }
 
+    public async Task DeleteStaleProjectsForDriveAsync(string driveLocation, IEnumerable<string> currentProjectIds)
+    {
+        var currentIdSet = currentProjectIds.ToList();
+
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        // Fetch all IDs currently in the DB for this drive
+        var fetchSql = "SELECT id FROM projects WHERE drive_location = @drive";
+        using var fetchCmd = new SqliteCommand(fetchSql, connection);
+        fetchCmd.Parameters.AddWithValue("@drive", driveLocation);
+
+        var dbIds = new List<string>();
+        using (var reader = await fetchCmd.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+                dbIds.Add(reader.GetString(0));
+        }
+
+        // Identify IDs in the DB but not in the fresh scan
+        var staleIds = dbIds.Except(currentIdSet).ToList();
+        if (staleIds.Count == 0)
+            return;
+
+        // Delete the stale records (cascade deletes metadata)
+        var placeholders = string.Join(",", staleIds.Select((_, i) => $"@id{i}"));
+        var deleteSql = $"DELETE FROM projects WHERE id IN ({placeholders})";
+        using var deleteCmd = new SqliteCommand(deleteSql, connection);
+        for (int i = 0; i < staleIds.Count; i++)
+            deleteCmd.Parameters.AddWithValue($"@id{i}", staleIds[i]);
+
+        var deleted = await deleteCmd.ExecuteNonQueryAsync();
+        Debug.WriteLine($"SqliteDataStore: DeleteStaleProjectsForDriveAsync({driveLocation}): removed {deleted} stale record(s) (db had {dbIds.Count}, scan found {currentIdSet.Count})");
+    }
+
     public async Task DeleteProjectsAsync(List<string> projectIds)
     {
         if (!projectIds.Any())

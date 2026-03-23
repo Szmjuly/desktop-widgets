@@ -48,6 +48,12 @@ public interface IDataStore
     Task DeleteProjectsAsync(List<string> projectIds);
 
     /// <summary>
+    /// Delete stale project records for a given drive whose IDs are not in the provided set.
+    /// Called after a scan completes to remove orphaned entries from renamed/deleted folders.
+    /// </summary>
+    Task DeleteStaleProjectsForDriveAsync(string driveLocation, IEnumerable<string> currentProjectIds);
+
+    /// <summary>
     /// Get last scan timestamp
     /// </summary>
     Task<DateTime?> GetLastScanTimeAsync();

@@ -240,13 +240,13 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/><!-- Tag carousel -->
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/><!-- Projects header -->
+                <RowDefinition Height="*"/>   <!-- Results list -->
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             
             <!-- Search box, drive location filter, and year filter -->
-            <Grid Grid.Row="0">
+            <Grid Grid.Row="0" x:Name="SearchRowGrid">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -723,31 +723,29 @@
                     <!-- Left edge fade -->
                     <Border x:Name="TagCarouselLeftFade"
                             HorizontalAlignment="Left"
-                            Width="28"
+                            Width="44"
                             IsHitTestVisible="False"
-                            Visibility="Collapsed"
-                            Background="{DynamicResource WindowBackgroundDeepBrush}">
-                        <Border.OpacityMask>
+                            Visibility="Collapsed">
+                        <Border.Background>
                             <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
-                                <GradientStop Color="Black" Offset="0"/>
-                                <GradientStop Color="Transparent" Offset="1"/>
+                                <GradientStop Color="#55000000" Offset="0"/>
+                                <GradientStop Color="#00000000" Offset="1"/>
                             </LinearGradientBrush>
-                        </Border.OpacityMask>
+                        </Border.Background>
                     </Border>
 
                     <!-- Right edge fade -->
                     <Border x:Name="TagCarouselRightFade"
                             HorizontalAlignment="Right"
-                            Width="28"
+                            Width="44"
                             IsHitTestVisible="False"
-                            Visibility="Collapsed"
-                            Background="{DynamicResource WindowBackgroundDeepBrush}">
-                        <Border.OpacityMask>
+                            Visibility="Collapsed">
+                        <Border.Background>
                             <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
-                                <GradientStop Color="Transparent" Offset="0"/>
-                                <GradientStop Color="Black" Offset="1"/>
+                                <GradientStop Color="#00000000" Offset="0"/>
+                                <GradientStop Color="#55000000" Offset="1"/>
                             </LinearGradientBrush>
-                        </Border.OpacityMask>
+                        </Border.Background>
                     </Border>
                 </Grid>
 
@@ -779,18 +777,14 @@
                 </Border>
             </Grid>
 
-            <!-- Horizontal search history pills with collapse/expand button -->
+            <!-- Horizontal search history pills -->
             <Grid Grid.Row="2"
                   Margin="0,8,0,0"
                   x:Name="HistoryAndCollapseContainer"
                   Visibility="Collapsed">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
                 
                 <!-- Grid to overlay placeholder text and history pills -->
-                <Grid Grid.Column="0">
+                <Grid>
                     <!-- Background placeholder text (shown when no history) -->
                     <TextBlock x:Name="HistoryPlaceholder"
                               Text="No history yet..."
@@ -881,31 +875,29 @@
                             <!-- Left edge fade -->
                             <Border x:Name="HistoryLeftFade"
                                     HorizontalAlignment="Left"
-                                    Width="28"
+                                    Width="44"
                                     IsHitTestVisible="False"
-                                    Visibility="Collapsed"
-                                    Background="{DynamicResource WindowBackgroundDeepBrush}">
-                                <Border.OpacityMask>
+                                    Visibility="Collapsed">
+                                <Border.Background>
                                     <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
-                                        <GradientStop Color="Black" Offset="0"/>
-                                        <GradientStop Color="Transparent" Offset="1"/>
+                                        <GradientStop Color="#55000000" Offset="0"/>
+                                        <GradientStop Color="#00000000" Offset="1"/>
                                     </LinearGradientBrush>
-                                </Border.OpacityMask>
+                                </Border.Background>
                             </Border>
 
                             <!-- Right edge fade -->
                             <Border x:Name="HistoryRightFade"
                                     HorizontalAlignment="Right"
-                                    Width="28"
+                                    Width="44"
                                     IsHitTestVisible="False"
-                                    Visibility="Collapsed"
-                                    Background="{DynamicResource WindowBackgroundDeepBrush}">
-                                <Border.OpacityMask>
+                                    Visibility="Collapsed">
+                                <Border.Background>
                                     <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
-                                        <GradientStop Color="Transparent" Offset="0"/>
-                                        <GradientStop Color="Black" Offset="1"/>
+                                        <GradientStop Color="#00000000" Offset="0"/>
+                                        <GradientStop Color="#55000000" Offset="1"/>
                                     </LinearGradientBrush>
-                                </Border.OpacityMask>
+                                </Border.Background>
                             </Border>
                         </Grid>
 
@@ -937,18 +929,51 @@
                         </Border>
                     </Grid>
                 </Grid>
-                
-                <!-- Collapse/Expand button on the right -->
-                <Border Grid.Column="1"
-                        Background="Transparent"
+            </Grid>
+            
+            <!-- Projects header (always visible) -->
+            <Grid Grid.Row="3" x:Name="ProjectsHeaderGrid" Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock x:Name="ResultsHeaderText"
+                          Grid.Column="0"
+                          Text="Projects"
+                          FontSize="11"
+                          Foreground="{DynamicResource TextTertiaryBrush}"
+                          VerticalAlignment="Center"
+                          Padding="0,4"/>
+
+                <!-- Collapse/Expand button -->
+                <Border x:Name="CollapseToggleBtn"
+                        Grid.Column="1"
+                        Width="24"
+                        Height="24"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="6"
                         Cursor="Hand"
+                        VerticalAlignment="Center"
                         MouseLeftButtonDown="ToggleResults_Click"
-                        Padding="8,0,0,0"
-                        VerticalAlignment="Center">
+                        ToolTip="Collapse project list">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
                     <TextBlock x:Name="CollapseIcon"
-                              Text="▼"
-                              FontSize="14"
-                              Foreground="{DynamicResource TextTertiaryBrush}"
+                              Text="&#xE70D;"
+                              FontFamily="Segoe MDL2 Assets"
+                              FontSize="10"
+                              Foreground="{DynamicResource TextSecondaryBrush}"
+                              HorizontalAlignment="Center"
                               VerticalAlignment="Center"
                               RenderTransformOrigin="0.5,0.5">
                         <TextBlock.RenderTransform>
@@ -957,54 +982,44 @@
                     </TextBlock>
                 </Border>
             </Grid>
-            
+
             <!-- Results list -->
-            <Grid Grid.Row="3" Margin="0,8,0,0">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                
-                <!-- Projects header -->
-                <Border Grid.Row="0"
-                        Padding="0,4">
-                    <TextBlock x:Name="ResultsHeaderText"
-                              Text="Projects"
-                              FontSize="11"
-                              Foreground="{DynamicResource TextTertiaryBrush}"
-                              VerticalAlignment="Center"/>
-                </Border>
-                
-                <!-- Results list and history panel -->
-            <Border Grid.Row="1" x:Name="ResultsContainer" 
-                    Margin="0,12,0,0"
+            <Border Grid.Row="4" x:Name="ResultsContainer"
+                    Margin="0,4,0,0"
                     Background="{DynamicResource InputBackgroundBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8">
-                    <!-- Results list -->
-                    <ListBox x:Name="ResultsList"
-                             ItemTemplate="{StaticResource ResultItemTemplate}"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                             SelectionChanged="ResultsList_SelectionChanged"
-                             MouseDoubleClick="ResultsList_MouseDoubleClick"
-                             PreviewMouseRightButtonUp="ResultsList_PreviewMouseRightButtonUp">
-                        <ListBox.Template>
-                            <ControlTemplate TargetType="ListBox">
-                                <ScrollViewer Style="{StaticResource ThinScrollViewer}" Focusable="False">
-                                    <ItemsPresenter/>
-                                </ScrollViewer>
-                            </ControlTemplate>
-                        </ListBox.Template>
-                    </ListBox>
+                <!-- Results list -->
+                <ListBox x:Name="ResultsList"
+                         ItemTemplate="{StaticResource ResultItemTemplate}"
+                         ScrollViewer.CanContentScroll="True"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling"
+                         VirtualizingPanel.ScrollUnit="Pixel"
+                         SelectionChanged="ResultsList_SelectionChanged"
+                         MouseDoubleClick="ResultsList_MouseDoubleClick"
+                         PreviewMouseRightButtonUp="ResultsList_PreviewMouseRightButtonUp">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel/>
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.Template>
+                        <ControlTemplate TargetType="ListBox">
+                            <ScrollViewer Style="{StaticResource ThinScrollViewer}" Focusable="False">
+                                <ItemsPresenter/>
+                            </ScrollViewer>
+                        </ControlTemplate>
+                    </ListBox.Template>
+                </ListBox>
             </Border>
-            
-            </Grid>
 
             <!-- Smart Project Search is now a separate floating window below the overlay -->
             
             <!-- Status bar -->
-            <Grid Grid.Row="5" Margin="0,8,0,0">
+            <Grid Grid.Row="5" x:Name="StatusBarGrid" Margin="0,8,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>

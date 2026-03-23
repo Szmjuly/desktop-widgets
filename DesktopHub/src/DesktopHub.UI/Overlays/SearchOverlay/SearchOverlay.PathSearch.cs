@@ -493,6 +493,7 @@ public partial class SearchOverlay
                     _isResultsCollapsed = false;
                     ResultsContainer.Visibility = Visibility.Visible;
                     CollapseIconRotation.Angle = 0;
+                    CollapseToggleBtn.ToolTip = "Collapse project list";
                     UpdateOverlayHeightForCurrentState(true);
                 }
             }
