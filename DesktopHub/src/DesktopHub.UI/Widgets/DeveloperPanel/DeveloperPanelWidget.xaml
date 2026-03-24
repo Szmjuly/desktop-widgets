@@ -1,333 +1,471 @@
-<UserControl x:Class="DesktopHub.UI.Widgets.DeveloperPanelWidget"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             MinWidth="520"
-             MinHeight="360">
-    <UserControl.Resources>
-        <!-- Action button -->
-        <Style x:Key="ActionBtn" TargetType="Button">
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Padding" Value="10,5"/>
-            <Setter Property="Margin" Value="0,0,5,5"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" Background="{DynamicResource SurfaceBrush}"
-                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                CornerRadius="5" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PressedBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Danger button -->
-        <Style x:Key="DangerBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
-            <Setter Property="Foreground" Value="{DynamicResource RedBrush}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" Background="{DynamicResource RedBackgroundBrush}"
-                                BorderBrush="{DynamicResource RedBrush}" BorderThickness="1"
-                                CornerRadius="5" Padding="{TemplateBinding Padding}" Opacity="0.8">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Opacity" Value="1"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource RedBrush}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Themed TextBox -->
-        <Style x:Key="ThemedInput" TargetType="TextBox">
-            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimaryBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,5"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontFamily" Value="Consolas"/>
-        </Style>
-
-        <!-- Section card -->
-        <Style x:Key="SectionCard" TargetType="Border">
-            <Setter Property="Background" Value="{DynamicResource CardBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="12,10"/>
-            <Setter Property="Margin" Value="0,0,0,8"/>
-        </Style>
-
-        <!-- Section header with icon -->
-        <Style x:Key="CardTitle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-        </Style>
-
-        <Style x:Key="CardSubtitle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}"/>
-        </Style>
-    </UserControl.Resources>
-
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-
-        <!-- ═══ HEADER BAR ═══ -->
-        <Border Grid.Row="0" Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="12,8" Margin="0,0,0,8">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <!-- Logo + Title -->
-                <Border CornerRadius="4" Background="{DynamicResource AccentBrush}" Width="24" Height="24" Margin="0,0,8,0">
-                    <TextBlock Text="D" FontSize="13" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </Border>
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}">
-                        <Run Text="DesktopHub"/>
-                        <Run Text=" Admin Console" FontWeight="Normal" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                    </TextBlock>
-                </StackPanel>
-                <!-- LIVE indicator -->
-                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
-                    <Ellipse x:Name="LiveDot" Width="7" Height="7" Fill="{DynamicResource GreenBrush}" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="LiveStatusText" Text="LIVE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource GreenBrush}" VerticalAlignment="Center"/>
-                </StackPanel>
-                <!-- Timestamp -->
-                <TextBlock x:Name="ClockText" Grid.Column="4" Text="12:00:00" FontSize="11" FontFamily="Consolas"
-                           Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                <!-- User badge -->
-                <Border Grid.Column="5" CornerRadius="12" Padding="8,4" Background="{DynamicResource FaintOverlayBrush}">
-                    <StackPanel Orientation="Horizontal">
-                        <Border CornerRadius="10" Background="{DynamicResource AccentBrush}" Width="20" Height="20" Margin="0,0,6,0">
-                            <TextBlock x:Name="UserInitialText" Text="S" FontSize="10" FontWeight="Bold" Foreground="White"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <TextBlock x:Name="UsernameText" Text="" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"
-                                   VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <Border x:Name="RoleBadge" CornerRadius="4" Padding="6,2" Background="{DynamicResource BlueBackgroundBrush}">
-                            <TextBlock x:Name="DevBadgeText" Text="DEV" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BlueTextBrush}"/>
-                        </Border>
-                    </StackPanel>
-                </Border>
-            </Grid>
-        </Border>
-
-        <!-- Access denied overlay -->
-        <Border x:Name="AccessDeniedPanel" Grid.Row="1" Background="{DynamicResource RedBackgroundBrush}" CornerRadius="8" Padding="16"
-                Visibility="Collapsed" VerticalAlignment="Top" Panel.ZIndex="10">
-            <TextBlock Text="Current user is not a DEV user. This panel is restricted." Foreground="{DynamicResource RedBrush}" TextWrapping="Wrap" FontSize="12"/>
-        </Border>
-
-        <!-- ═══ MAIN DASHBOARD (scrollable) ═══ -->
-        <ScrollViewer x:Name="MainDashboard" Grid.Row="1" VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
-            <StackPanel>
-
-                <!-- ── Row 1: Script Runner + Active Heartbeats ── -->
-                <Grid Margin="0,0,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="8"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Script Runner card -->
-                    <Border Grid.Column="0" Style="{StaticResource SectionCard}">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="Script Runner" Style="{StaticResource CardTitle}" Margin="0,0,8,0"/>
-                            </StackPanel>
-                            <TextBlock Text="Execute pre-configured automation" Style="{StaticResource CardSubtitle}" Margin="0,0,0,8"/>
-                            <UniformGrid x:Name="ScriptTileGrid" Columns="3"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Active Heartbeats card -->
-                    <Border Grid.Column="2" Style="{StaticResource SectionCard}">
-                        <StackPanel>
-                            <Grid Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Active Heartbeats" Style="{StaticResource CardTitle}"/>
-                                <TextBlock x:Name="HeartbeatCountText" Grid.Column="1" Text="0 online" Style="{StaticResource CardSubtitle}" VerticalAlignment="Center"/>
-                            </Grid>
-                            <StackPanel x:Name="HeartbeatList"/>
-                        </StackPanel>
-                    </Border>
-                </Grid>
-
-                <!-- ── Row 2: Database Explorer ── -->
-                <Border Style="{StaticResource SectionCard}">
-                    <StackPanel>
-                        <Grid Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Database Explorer" Style="{StaticResource CardTitle}" Margin="0,0,8,0"/>
-                            <TextBlock x:Name="NodeCountText" Grid.Column="1" Style="{StaticResource CardSubtitle}" VerticalAlignment="Center"/>
-                            <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                <Button Content="Get" Style="{StaticResource ActionBtn}" Margin="0,0,4,0" Click="GetNode_Click"/>
-                                <Button Content="Set" Style="{StaticResource ActionBtn}" Margin="0,0,4,0" Click="SetNode_Click"/>
-                                <Button Content="Delete" Style="{StaticResource DangerBtn}" Margin="0" Click="DeleteNode_Click"/>
-                            </StackPanel>
-                        </Grid>
-                        <!-- Node pills -->
-                        <WrapPanel x:Name="NodePillsPanel" Margin="0,0,0,8"/>
-                        <!-- Path + JSON viewer -->
-                        <Grid Margin="0,0,0,6">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Path" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0"/>
-                            <TextBox x:Name="NodePathBox" Grid.Column="1" Style="{StaticResource ThemedInput}" Text="app_versions/desktophub" FontSize="11"/>
-                        </Grid>
-                        <TextBox x:Name="NodeJsonBox" Style="{StaticResource ThemedInput}" Height="120"
-                                 AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="10"/>
-                    </StackPanel>
-                </Border>
-
-                <!-- ── Row 3: Permissions ── -->
-                <Border Style="{StaticResource SectionCard}">
-                    <StackPanel>
-                        <TextBlock Text="Permissions" Style="{StaticResource CardTitle}" Margin="0,0,0,8"/>
-                        <!-- Username input row -->
-                        <Grid Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Username" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0"/>
-                            <TextBox x:Name="RoleUsernameBox" Grid.Column="1" Style="{StaticResource ThemedInput}" Margin="0,0,8,0" FontSize="11"/>
-                            <Button Grid.Column="2" Content="Normalize" Style="{StaticResource ActionBtn}" Margin="0" Click="NormalizeUsername_Click"/>
-                        </Grid>
-                        <!-- Role actions in a compact 3-column grid -->
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <!-- Admin -->
-                            <StackPanel Margin="0,0,4,0">
-                                <TextBlock Text="ADMIN" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource OrangeBrush}" Margin="0,0,0,4"/>
-                                <WrapPanel>
-                                    <Button Content="List" Style="{StaticResource ActionBtn}" Click="ListAdmins_Click"/>
-                                    <Button Content="Add" Style="{StaticResource ActionBtn}" Click="AddAdmin_Click"/>
-                                    <Button Content="Remove" Style="{StaticResource DangerBtn}" Click="RemoveAdmin_Click"/>
-                                </WrapPanel>
-                            </StackPanel>
-                            <!-- Editor -->
-                            <StackPanel Grid.Column="1" Margin="4,0,4,0">
-                                <TextBlock Text="EDITOR" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource GreenBrush}" Margin="0,0,0,4"/>
-                                <WrapPanel>
-                                    <Button Content="List" Style="{StaticResource ActionBtn}" Click="ListEditors_Click"/>
-                                    <Button Content="Add" Style="{StaticResource ActionBtn}" Click="AddEditor_Click"/>
-                                    <Button Content="Remove" Style="{StaticResource DangerBtn}" Click="RemoveEditor_Click"/>
-                                </WrapPanel>
-                            </StackPanel>
-                            <!-- DEV -->
-                            <StackPanel Grid.Column="2" Margin="4,0,0,0">
-                                <TextBlock Text="DEV" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource BlueBrush}" Margin="0,0,0,4"/>
-                                <WrapPanel>
-                                    <Button Content="List" Style="{StaticResource ActionBtn}" Click="ListDevs_Click"/>
-                                    <Button Content="Add" Style="{StaticResource ActionBtn}" Click="AddDev_Click"/>
-                                    <Button Content="Remove" Style="{StaticResource DangerBtn}" Click="RemoveDev_Click"/>
-                                </WrapPanel>
-                            </StackPanel>
-                        </Grid>
-                    </StackPanel>
-                </Border>
-
-                <!-- ── Row 4: Version Info ── -->
-                <Border Style="{StaticResource SectionCard}" Margin="0">
-                    <StackPanel>
-                        <Grid Margin="0,0,0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Version Info" Style="{StaticResource CardTitle}"/>
-                            <Button Grid.Column="1" Content="Refresh" Style="{StaticResource ActionBtn}" Margin="0" Click="RefreshVersionInfo_Click"/>
-                        </Grid>
-                        <TextBlock x:Name="VersionInfoText" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
-                    </StackPanel>
-                </Border>
-
-            </StackPanel>
-        </ScrollViewer>
-
-        <!-- ═══ OUTPUT CONSOLE ═══ -->
-        <Border Grid.Row="2" Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}"
-                BorderThickness="1" CornerRadius="6" Margin="0,6,0,0" Padding="2">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                <Grid Margin="6,3,6,1">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="OUTPUT" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Center"/>
-                    <Button Grid.Column="1" Content="Clear" Style="{StaticResource ActionBtn}" Padding="8,2" Margin="0" FontSize="9" Click="ClearOutput_Click"/>
-                </Grid>
-                <TextBox x:Name="OutputBox"
-                         Grid.Row="1"
-                         Height="80"
-                         Background="Transparent"
-                         Foreground="{DynamicResource TextSecondaryBrush}"
-                         CaretBrush="{DynamicResource TextPrimaryBrush}"
-                         BorderThickness="0"
-                         AcceptsReturn="True"
-                         IsReadOnly="True"
-                         TextWrapping="Wrap"
-                         VerticalScrollBarVisibility="Auto"
-                         FontFamily="Consolas"
-                         FontSize="10"
-                         Padding="6,2"/>
-            </Grid>
-        </Border>
-    </Grid>
-</UserControl>
+<UserControl x:Class="DesktopHub.UI.Widgets.DeveloperPanelWidget"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             MinWidth="520"
+             MinHeight="360">
+    <UserControl.Resources>
+        <!-- Action button -->
+        <Style x:Key="ActionBtn" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="0,0,5,5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{DynamicResource SurfaceBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                CornerRadius="5" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PressedBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Danger button -->
+        <Style x:Key="DangerBtn" TargetType="Button" BasedOn="{StaticResource ActionBtn}">
+            <Setter Property="Foreground" Value="{DynamicResource RedBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{DynamicResource RedBackgroundBrush}"
+                                BorderBrush="{DynamicResource RedBrush}" BorderThickness="1"
+                                CornerRadius="5" Padding="{TemplateBinding Padding}" Opacity="0.8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="1"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource RedBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Themed TextBox -->
+        <Style x:Key="ThemedInput" TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+        </Style>
+
+        <!-- Section card -->
+        <Style x:Key="SectionCard" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource CardBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <!-- Section header with icon -->
+        <Style x:Key="CardTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+
+        <Style x:Key="CardSubtitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ROW 0: HEADER BAR -->
+        <Border Grid.Row="0" Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="12,8" Margin="0,0,0,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Border CornerRadius="4" Background="{DynamicResource AccentBrush}" Width="24" Height="24" Margin="0,0,8,0">
+                    <TextBlock Text="D" FontSize="13" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}">
+                        <Run Text="DesktopHub"/>
+                        <Run Text=" Admin Console" FontWeight="Normal" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </TextBlock>
+                </StackPanel>
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                    <Ellipse x:Name="LiveDot" Width="7" Height="7" Fill="{DynamicResource GreenBrush}" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="LiveStatusText" Text="LIVE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource GreenBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock x:Name="ClockText" Grid.Column="4" Text="12:00:00" FontSize="11" FontFamily="Consolas"
+                           Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                <Border Grid.Column="5" CornerRadius="12" Padding="8,4" Background="{DynamicResource FaintOverlayBrush}">
+                    <StackPanel Orientation="Horizontal">
+                        <Border CornerRadius="10" Background="{DynamicResource AccentBrush}" Width="20" Height="20" Margin="0,0,6,0">
+                            <TextBlock x:Name="UserInitialText" Text="S" FontSize="10" FontWeight="Bold" Foreground="White"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock x:Name="UsernameText" Text="" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <Border x:Name="RoleBadge" CornerRadius="4" Padding="6,2" Background="{DynamicResource BlueBackgroundBrush}">
+                            <TextBlock x:Name="DevBadgeText" Text="DEV" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BlueTextBrush}"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Access denied overlay -->
+        <Border x:Name="AccessDeniedPanel" Grid.Row="2" Background="{DynamicResource RedBackgroundBrush}" CornerRadius="8" Padding="16"
+                Visibility="Collapsed" VerticalAlignment="Top" Panel.ZIndex="10">
+            <TextBlock Text="Current user is not a DEV user. This panel is restricted." Foreground="{DynamicResource RedBrush}" TextWrapping="Wrap" FontSize="12"/>
+        </Border>
+
+        <!-- ROW 1: TAB BAR -->
+        <WrapPanel x:Name="TabBar" Grid.Row="1" Margin="0,0,0,6"/>
+
+        <!-- ROW 2: TAB CONTENT (only one visible at a time) -->
+        <Grid x:Name="MainContent" Grid.Row="2">
+            <!-- Dashboard Tab -->
+            <Grid x:Name="DashboardTab" Visibility="Visible">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <!-- Script Runner card -->
+                <Border Style="{StaticResource SectionCard}">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Script Runner" Style="{StaticResource CardTitle}" Margin="0,0,8,0"/>
+                        </StackPanel>
+                        <TextBlock Text="Execute pre-configured automation" Style="{StaticResource CardSubtitle}" Margin="0,0,0,8"/>
+                        <UniformGrid x:Name="ScriptTileGrid" Columns="3"/>
+                    </StackPanel>
+                </Border>
+                <!-- Version Info card -->
+                <Border Grid.Row="1" Style="{StaticResource SectionCard}" Margin="0">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Version Info" Style="{StaticResource CardTitle}"/>
+                            <Button Grid.Column="1" Content="Refresh" Style="{StaticResource ActionBtn}" Margin="0" Click="RefreshVersionInfo_Click"/>
+                        </Grid>
+                        <TextBlock x:Name="VersionInfoText" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Database Tab -->
+            <Grid x:Name="DatabaseTab" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <!-- Header row: title + actions -->
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Database Explorer" Style="{StaticResource CardTitle}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="NodeCountText" Style="{StaticResource CardSubtitle}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <Button Content="Refresh" Style="{StaticResource ActionBtn}" Click="RefreshNodes_Click"/>
+                        <Button x:Name="DbViewToggleBtn" Content="JSON" Style="{StaticResource ActionBtn}" Click="ToggleDbView_Click"/>
+                        <Button Content="Get" Style="{StaticResource ActionBtn}" Click="GetNode_Click"/>
+                        <Button Content="Set" Style="{StaticResource ActionBtn}" Click="SetNode_Click"/>
+                        <Button Content="Delete" Style="{StaticResource DangerBtn}" Margin="0" Click="DeleteNode_Click"/>
+                    </StackPanel>
+                </Grid>
+                <!-- Node pills + path -->
+                <StackPanel Grid.Row="1">
+                    <WrapPanel x:Name="NodePillsPanel" Margin="0,0,0,6"/>
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Path" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0"/>
+                        <TextBox x:Name="NodePathBox" Grid.Column="1" Style="{StaticResource ThemedInput}" Text="app_versions/desktophub" FontSize="11"/>
+                    </Grid>
+                </StackPanel>
+                <!-- Tree view / JSON view -->
+                <Border Grid.Row="2" Style="{StaticResource SectionCard}" Padding="0" Margin="0">
+                    <Grid>
+                        <TreeView x:Name="DbTreeView" Background="Transparent" BorderThickness="0"
+                                  Foreground="{DynamicResource TextPrimaryBrush}" FontFamily="Consolas" FontSize="11"
+                                  Padding="8,6"/>
+                        <TextBox x:Name="NodeJsonBox" Style="{StaticResource ThemedInput}"
+                                 AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="10"
+                                 Visibility="Collapsed"/>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Heartbeats Tab -->
+            <Grid x:Name="HeartbeatsTab" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <!-- Header with count + controls -->
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Active Heartbeats" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="HeartbeatCountText" Grid.Column="1" Text="0 online" Style="{StaticResource CardSubtitle}"
+                               VerticalAlignment="Center" Margin="10,0,0,0"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+                        <TextBlock Text="Show" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <ComboBox x:Name="HeartbeatRowCountBox" Width="50" FontSize="10" SelectedIndex="1" SelectionChanged="HeartbeatRowCount_Changed">
+                            <ComboBoxItem Content="5"/>
+                            <ComboBoxItem Content="10"/>
+                            <ComboBoxItem Content="15"/>
+                            <ComboBoxItem Content="20"/>
+                        </ComboBox>
+                    </StackPanel>
+                    <Button Grid.Column="3" Content="Refresh" Style="{StaticResource ActionBtn}" Margin="0" Click="RefreshHeartbeats_Click"/>
+                </Grid>
+                <!-- Heartbeat list in scrollable fixed container -->
+                <Border Grid.Row="1" Style="{StaticResource SectionCard}" Padding="6" Margin="0">
+                    <ScrollViewer x:Name="HeartbeatScroller" VerticalScrollBarVisibility="Auto" MaxHeight="380">
+                        <StackPanel x:Name="HeartbeatList"/>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+
+            <!-- Permissions Tab -->
+            <Grid x:Name="PermissionsTab" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <!-- Username input with autocomplete -->
+                <Border Style="{StaticResource SectionCard}" Margin="0,0,0,6">
+                    <StackPanel>
+                        <TextBlock Text="Permissions" Style="{StaticResource CardTitle}" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Username" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0"/>
+                            <Grid Grid.Column="1" Margin="0,0,8,0">
+                                <TextBox x:Name="RoleUsernameBox" Style="{StaticResource ThemedInput}" FontSize="11"
+                                         TextChanged="RoleUsernameBox_TextChanged" LostFocus="RoleUsernameBox_LostFocus"/>
+                                <Popup x:Name="UserSuggestionPopup" PlacementTarget="{Binding ElementName=RoleUsernameBox}"
+                                       Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
+                                    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderThickness="1" CornerRadius="4" MaxHeight="150">
+                                        <ListBox x:Name="UserSuggestionList" Background="Transparent" BorderThickness="0"
+                                                 FontSize="11" FontFamily="Consolas"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 SelectionChanged="UserSuggestion_Selected"/>
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                            <Button Grid.Column="2" Content="Normalize" Style="{StaticResource ActionBtn}" Margin="0" Click="NormalizeUsername_Click"/>
+                        </Grid>
+                        <!-- Role actions -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,4,0">
+                                <TextBlock Text="ADMIN" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource OrangeBrush}" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Content="List" Style="{StaticResource ActionBtn}" Click="ListAdmins_Click"/>
+                                    <Button Content="Add" Style="{StaticResource ActionBtn}" Click="AddAdmin_Click"/>
+                                    <Button Content="Remove" Style="{StaticResource DangerBtn}" Click="RemoveAdmin_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="4,0,4,0">
+                                <TextBlock Text="EDITOR" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource GreenBrush}" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Content="List" Style="{StaticResource ActionBtn}" Click="ListEditors_Click"/>
+                                    <Button Content="Add" Style="{StaticResource ActionBtn}" Click="AddEditor_Click"/>
+                                    <Button Content="Remove" Style="{StaticResource DangerBtn}" Click="RemoveEditor_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Margin="4,0,0,0">
+                                <TextBlock Text="DEV" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource BlueBrush}" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Content="List" Style="{StaticResource ActionBtn}" Click="ListDevs_Click"/>
+                                    <Button Content="Add" Style="{StaticResource ActionBtn}" Click="AddDev_Click"/>
+                                    <Button Content="Remove" Style="{StaticResource DangerBtn}" Click="RemoveDev_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                <!-- Inline results display -->
+                <Border Grid.Row="1" Style="{StaticResource SectionCard}" Padding="8,6" Margin="0,0,0,6" Visibility="Collapsed" x:Name="PermResultsBorder">
+                    <StackPanel>
+                        <TextBlock Text="RESULTS" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,4"/>
+                        <WrapPanel x:Name="PermResultsPanel"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Updates Tab -->
+            <Grid x:Name="UpdatesTab" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <!-- Version management -->
+                <Border Style="{StaticResource SectionCard}" Margin="0,0,0,6">
+                    <StackPanel>
+                        <TextBlock Text="Version Management" Style="{StaticResource CardTitle}" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Version" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0"/>
+                            <TextBox x:Name="UpdateVersionBox" Grid.Column="1" Style="{StaticResource ThemedInput}" FontSize="11" Margin="0,0,8,0"/>
+                            <Button Grid.Column="2" Content="Publish" Style="{StaticResource ActionBtn}" Margin="0" Click="PublishVersion_Click"/>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Notes" VerticalAlignment="Top" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0"/>
+                            <TextBox x:Name="UpdateNotesBox" Grid.Column="1" Style="{StaticResource ThemedInput}" FontSize="11" Height="40" AcceptsReturn="True" TextWrapping="Wrap"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                <!-- Device push + build actions -->
+                <Border Grid.Row="1" Style="{StaticResource SectionCard}" Margin="0,0,0,6">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Push Updates" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button Content="List Devices" Style="{StaticResource ActionBtn}" Click="ListDevices_Click"/>
+                                <Button Content="Push All" Style="{StaticResource DangerBtn}" Margin="0,0,5,5" Click="PushUpdateAll_Click"/>
+                                <Button Content="Check Status" Style="{StaticResource ActionBtn}" Click="CheckUpdateStatus_Click"/>
+                                <Button Content="Clear Done" Style="{StaticResource ActionBtn}" Margin="0" Click="ClearUpdates_Click"/>
+                            </StackPanel>
+                        </Grid>
+                        <Grid Margin="0,0,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Device ID" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0"/>
+                            <TextBox x:Name="PushDeviceIdBox" Grid.Column="1" Style="{StaticResource ThemedInput}" FontSize="11" Margin="0,0,8,0"/>
+                            <Button Grid.Column="2" Content="Push" Style="{StaticResource ActionBtn}" Margin="0" Click="PushUpdateDevice_Click"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                <!-- Build tools + device list results -->
+                <Grid Grid.Row="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Style="{StaticResource SectionCard}" Margin="0,0,0,6">
+                        <StackPanel>
+                            <TextBlock Text="Build Tools" Style="{StaticResource CardTitle}" Margin="0,0,0,6"/>
+                            <WrapPanel>
+                                <Button Content="Build" Style="{StaticResource ActionBtn}" Click="Build_Click"/>
+                                <Button Content="Build Installer" Style="{StaticResource ActionBtn}" Click="BuildInstaller_Click"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Row="1" Style="{StaticResource SectionCard}" Padding="6" Margin="0" Visibility="Collapsed" x:Name="UpdateResultsBorder">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel x:Name="UpdateResultsPanel"/>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Grid>
+
+        <!-- ROW 3: OUTPUT CONSOLE -->
+        <Border Grid.Row="3" Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1" CornerRadius="6" Margin="0,6,0,0" Padding="2">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Grid Margin="6,3,6,1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="OUTPUT" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Content="Clear" Style="{StaticResource ActionBtn}" Padding="8,2" Margin="0" FontSize="9" Click="ClearOutput_Click"/>
+                </Grid>
+                <TextBox x:Name="OutputBox"
+                         Grid.Row="1"
+                         Height="80"
+                         Background="Transparent"
+                         Foreground="{DynamicResource TextSecondaryBrush}"
+                         CaretBrush="{DynamicResource TextPrimaryBrush}"
+                         BorderThickness="0"
+                         AcceptsReturn="True"
+                         IsReadOnly="True"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"
+                         FontFamily="Consolas"
+                         FontSize="10"
+                         Padding="6,2"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

@@ -1,20 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Threading;
 using DesktopHub.Infrastructure.Firebase;
 
 namespace DesktopHub.UI.Widgets;
 
-public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
+public partial class DeveloperPanelWidget : UserControl
 {
     private static readonly HashSet<string> AllowedScripts = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -35,7 +33,7 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
         "wipe-devices.ps1"
     };
 
-    private static readonly string[] KnownNodes =
+    internal static readonly string[] KnownNodes =
     {
         "devices", "users", "licenses", "app_versions", "admin_users",
         "project_tags", "cheat_sheet_data", "events", "errors",
@@ -43,14 +41,35 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
         "tag_registry", "pending_updates"
     };
 
-    private record ScriptTile(string Label, string Abbrev, string Color, Func<Task> Action, bool IsDanger = false);
+    private static readonly (string Id, string Label)[] TabDefs =
+    {
+        ("dashboard",   "Dashboard"),
+        ("database",    "Database"),
+        ("heartbeats",  "Heartbeats"),
+        ("permissions", "Permissions"),
+        ("updates",     "Updates"),
+    };
 
-    private readonly IFirebaseService? _firebaseService;
+    internal record ScriptTile(string Label, string Abbrev, string Color, Func<Task> Action, bool IsDanger = false);
+
+    internal readonly IFirebaseService? _firebaseService;
     private bool _isDev;
-    private readonly string _scriptsDir;
-    private readonly string? _serviceAccountPath;
+    internal readonly string _scriptsDir;
+    internal readonly string? _serviceAccountPath;
     private readonly DispatcherTimer _clockTimer;
-    private string? _selectedNodePill;
+
+    // Tab state
+    private string _activeTab = "dashboard";
+    private readonly HashSet<string> _loadedTabs = new();
+
+    // Shared state across tabs
+    internal string? _selectedNodePill;
+    internal Dictionary<string, Dictionary<string, object>?>? _nodeCache;
+    internal Dictionary<string, object>? _lastNodeData;
+    internal bool _dbShowJson;
+    internal List<string> _knownUsernames = new();
+    internal DispatcherTimer? _heartbeatTimer;
+    internal bool _suppressSuggestion;
 
     public DeveloperPanelWidget(IFirebaseService? firebaseService)
     {
@@ -63,7 +82,7 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
         _clockTimer.Tick += (_, _) => ClockText.Text = DateTime.Now.ToString("h:mm:ss tt");
 
         Loaded += OnLoaded;
-        Unloaded += (_, _) => _clockTimer.Stop();
+        Unloaded += OnUnloaded;
     }
 
     // ════════════════════════════════════════════════════════════
@@ -74,16 +93,19 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
     {
         _clockTimer.Start();
         ClockText.Text = DateTime.Now.ToString("h:mm:ss tt");
-
         SetCurrentUsername();
         await EnsureDevAccessAsync();
         if (_isDev)
         {
-            BuildScriptTiles();
-            await RefreshHeartbeatsAsync();
-            await RefreshVersionInfoAsync();
-            await DiscoverNodePillsAsync();
+            BuildTabBar();
+            SwitchTab("dashboard");
         }
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        _clockTimer.Stop();
+        _heartbeatTimer?.Stop();
     }
 
     private void SetCurrentUsername()
@@ -105,7 +127,7 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
         }
 
         AccessDeniedPanel.Visibility = _isDev ? Visibility.Collapsed : Visibility.Visible;
-        MainDashboard.IsEnabled = _isDev;
+        MainContent.IsEnabled = _isDev;
         DevBadgeText.Text = _isDev ? "DEV" : "DENIED";
 
         if (_isDev)
@@ -122,325 +144,102 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
         }
     }
 
-    private bool EnsureDevForAction(string action)
+    internal bool EnsureDevForAction(string action)
     {
         if (_isDev) return true;
         AppendOutput($"DENIED: {action} requires DEV role.");
         return false;
     }
 
-    private SolidColorBrush FindBrush(string key) =>
-        TryFindResource(key) as SolidColorBrush ?? System.Windows.Media.Brushes.Gray;
+    internal SolidColorBrush FindBrush(string key) =>
+        TryFindResource(key) as SolidColorBrush ?? Brushes.Gray;
 
     // ════════════════════════════════════════════════════════════
-    // SCRIPT TILES
+    // TAB SWITCHING
     // ════════════════════════════════════════════════════════════
 
-    private void BuildScriptTiles()
+    private void BuildTabBar()
     {
-        var tiles = new List<ScriptTile>
+        TabBar.Children.Clear();
+        foreach (var (id, label) in TabDefs)
         {
-            new("Dump DB",       "db",  "#42A5F5", () => RunScriptAsync("admin.ps1", "-Action", "db-dump")),
-            new("Backup",        "bk",  "#66BB6A", () => RunScriptAsync("admin.ps1", "-Action", "db-backup")),
-            new("List Devices",  "ls",  "#42A5F5", () => RunScriptAsync("admin.ps1", "-Action", "update-list")),
-            new("Push Update",   "pu",  "#FFA726", () => RunPushUpdateAll()),
-            new("Build",         "bl",  "#AB47BC", () => RunScriptAsync("admin.ps1", "-Action", "build")),
-            new("Version",       "vr",  "#26C6DA", () => RunVersionUpdate()),
-            new("List Tags",     "tg",  "#66BB6A", () => RunScriptAsync("admin.ps1", "-Action", "tags-list")),
-            new("Auth Users",    "au",  "#FFA726", () => RunScriptAsync("cleanup-auth-users.ps1")),
-            new("Console",       "ac",  "#42A5F5", () => RunScriptAsync("admin.ps1")),
-            new("Decrypt Tags",  "dt",  "#66BB6A", () => RunScriptAsync("admin.ps1", "-Action", "tags-decrypt")),
-            new("Metrics Reset", "mr",  "#EF5350", () => RunScriptAsync("admin.ps1", "-Action", "metrics-reset")),
-            new("HMAC Secret",   "hm",  "#78909C", () => RunScriptAsync("admin.ps1", "-Action", "show-secret")),
-        };
+            var isActive = _activeTab == id;
+            var bgBrush = isActive ? FindBrush("AccentBrush") : FindBrush("SurfaceBrush");
+            var fgBrush = isActive ? Brushes.White : FindBrush("TextPrimaryBrush");
+            var borderBrush = isActive ? FindBrush("AccentBrush") : FindBrush("BorderBrush");
 
-        ScriptTileGrid.Children.Clear();
-        foreach (var tile in tiles)
-            ScriptTileGrid.Children.Add(CreateScriptTile(tile));
-    }
-
-    private UIElement CreateScriptTile(ScriptTile tile)
-    {
-        var accentColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(tile.Color);
-        var accentBrush = new SolidColorBrush(accentColor);
-        var bgBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(30, accentColor.R, accentColor.G, accentColor.B));
-        var borderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(60, accentColor.R, accentColor.G, accentColor.B));
-
-        var abbrevBlock = new TextBlock
-        {
-            Text = tile.Abbrev,
-            FontSize = 16,
-            FontWeight = FontWeights.Bold,
-            Foreground = accentBrush,
-            HorizontalAlignment = System.Windows.HorizontalAlignment.Left
-        };
-
-        var labelBlock = new TextBlock
-        {
-            Text = tile.Label,
-            FontSize = 9,
-            Foreground = FindBrush("TextSecondaryBrush"),
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            Margin = new Thickness(0, 2, 0, 0)
-        };
-
-        var statusDot = new System.Windows.Shapes.Ellipse
-        {
-            Width = 6, Height = 6,
-            Fill = FindBrush("TextTertiaryBrush"),
-            HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Top
-        };
-
-        var innerGrid = new Grid();
-        innerGrid.Children.Add(statusDot);
-        var stack = new StackPanel();
-        stack.Children.Add(abbrevBlock);
-        stack.Children.Add(labelBlock);
-        innerGrid.Children.Add(stack);
-
-        var border = new Border
-        {
-            Background = bgBrush,
-            BorderBrush = borderBrush,
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(8, 6, 8, 6),
-            Margin = new Thickness(0, 0, 4, 4),
-            Cursor = System.Windows.Input.Cursors.Hand,
-            Child = innerGrid,
-            ToolTip = tile.Label
-        };
-
-        var hoverBg = new SolidColorBrush(System.Windows.Media.Color.FromArgb(50, accentColor.R, accentColor.G, accentColor.B));
-        border.MouseEnter += (_, _) => border.Background = hoverBg;
-        border.MouseLeave += (_, _) => border.Background = bgBrush;
-        border.MouseLeftButtonDown += async (_, _) =>
-        {
-            statusDot.Fill = FindBrush("GreenBrush");
-            try { await tile.Action(); }
-            catch (Exception ex) { AppendOutput($"ERROR: {ex.Message}"); }
-        };
-
-        return border;
-    }
-
-    // ════════════════════════════════════════════════════════════
-    // HEARTBEATS
-    // ════════════════════════════════════════════════════════════
-
-    private async Task RefreshHeartbeatsAsync()
-    {
-        if (_firebaseService == null || !_firebaseService.IsInitialized) return;
-
-        try
-        {
-            HeartbeatList.Children.Clear();
-            var devices = await _firebaseService.GetDevicesAsync();
-            if (devices == null || devices.Count == 0)
+            var text = new TextBlock
             {
-                HeartbeatCountText.Text = "0 online";
-                return;
-            }
+                Text = label,
+                FontSize = 11,
+                FontWeight = isActive ? FontWeights.SemiBold : FontWeights.Normal,
+                Foreground = fgBrush
+            };
 
-            var grouped = devices
-                .Select(kvp =>
-                {
-                    var d = kvp.Value;
-                    return new
-                    {
-                        Username = d.TryGetValue("username", out var u) ? u?.ToString() ?? "unknown" : "unknown",
-                        Device = d.TryGetValue("device_name", out var dn) ? dn?.ToString() ?? "" : "",
-                        Status = d.TryGetValue("status", out var st) ? st?.ToString() ?? "unknown" : "unknown",
-                        LastSeen = d.TryGetValue("last_seen", out var ls) ? ls?.ToString() ?? "" : "",
-                    };
-                })
-                .GroupBy(x => x.Username)
-                .OrderBy(g => g.Key)
-                .ToList();
-
-            int onlineCount = grouped.SelectMany(g => g).Count(d => d.Status == "active");
-            HeartbeatCountText.Text = $"{onlineCount} online · {devices.Count} tracked";
-
-            foreach (var group in grouped)
+            var pill = new Border
             {
-                var first = group.First();
-                var row = CreateHeartbeatRow(first.Username, first.Status, first.LastSeen);
-                HeartbeatList.Children.Add(row);
-            }
-        }
-        catch (Exception ex)
-        {
-            AppendOutput($"ERROR refreshing heartbeats: {ex.Message}");
+                Background = bgBrush,
+                BorderBrush = borderBrush,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(14),
+                Padding = new Thickness(12, 5, 12, 5),
+                Margin = new Thickness(0, 0, 6, 0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Child = text
+            };
+
+            var tabId = id;
+            var hoverBrush = isActive ? bgBrush : FindBrush("HoverMediumBrush");
+            pill.MouseEnter += (_, _) => { if (_activeTab != tabId) pill.Background = hoverBrush; };
+            pill.MouseLeave += (_, _) => { if (_activeTab != tabId) pill.Background = FindBrush("SurfaceBrush"); };
+            pill.MouseLeftButtonDown += (_, _) => SwitchTab(tabId);
+
+            TabBar.Children.Add(pill);
         }
     }
 
-    private UIElement CreateHeartbeatRow(string username, string status, string lastSeen)
+    internal void SwitchTab(string tabId)
     {
-        var grid = new Grid { Margin = new Thickness(0, 0, 0, 4) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        _activeTab = tabId;
+        BuildTabBar();
 
-        var leftStack = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+        DashboardTab.Visibility = tabId == "dashboard" ? Visibility.Visible : Visibility.Collapsed;
+        DatabaseTab.Visibility = tabId == "database" ? Visibility.Visible : Visibility.Collapsed;
+        HeartbeatsTab.Visibility = tabId == "heartbeats" ? Visibility.Visible : Visibility.Collapsed;
+        PermissionsTab.Visibility = tabId == "permissions" ? Visibility.Visible : Visibility.Collapsed;
+        UpdatesTab.Visibility = tabId == "updates" ? Visibility.Visible : Visibility.Collapsed;
 
-        var nameBlock = new TextBlock
-        {
-            Text = username,
-            FontSize = 12,
-            Foreground = FindBrush("TextPrimaryBrush"),
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 8, 0)
-        };
-        leftStack.Children.Add(nameBlock);
+        // Lazy-load tab data on first visit
+        if (_loadedTabs.Add(tabId))
+            _ = LoadTabAsync(tabId);
 
-        var roleBadge = CreateRoleBadge(status);
-        leftStack.Children.Add(roleBadge);
-
-        Grid.SetColumn(leftStack, 0);
-        grid.Children.Add(leftStack);
-
-        var timeAgo = FormatTimeAgo(lastSeen);
-        var timeBlock = new TextBlock
-        {
-            Text = timeAgo,
-            FontSize = 10,
-            Foreground = FindBrush("TextTertiaryBrush"),
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        Grid.SetColumn(timeBlock, 1);
-        grid.Children.Add(timeBlock);
-
-        var border = new Border
-        {
-            Background = FindBrush("FaintOverlayBrush"),
-            CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(10, 6, 10, 6),
-            Margin = new Thickness(0, 0, 0, 2),
-            Child = grid
-        };
-
-        return border;
+        // Start/stop heartbeat timer based on active tab
+        if (tabId == "heartbeats")
+            StartHeartbeatTimer();
+        else
+            _heartbeatTimer?.Stop();
     }
 
-    private Border CreateRoleBadge(string status)
+    private async Task LoadTabAsync(string tabId)
     {
-        var isActive = status == "active";
-        var bgKey = isActive ? "GreenBackgroundBrush" : "OrangeBackgroundBrush";
-        var fgKey = isActive ? "GreenBrush" : "OrangeBrush";
-        var text = isActive ? "active" : status;
-
-        return new Border
+        switch (tabId)
         {
-            CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(6, 2, 6, 2),
-            Background = FindBrush(bgKey),
-            VerticalAlignment = VerticalAlignment.Center,
-            Child = new TextBlock
-            {
-                Text = text,
-                FontSize = 9,
-                FontWeight = FontWeights.Bold,
-                Foreground = FindBrush(fgKey)
-            }
-        };
-    }
-
-    private static string FormatTimeAgo(string? isoTimestamp)
-    {
-        if (string.IsNullOrWhiteSpace(isoTimestamp)) return "";
-        if (!DateTime.TryParse(isoTimestamp, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dt))
-            return isoTimestamp;
-        var span = DateTime.UtcNow - dt.ToUniversalTime();
-        if (span.TotalMinutes < 1) return "now";
-        if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes}m ago";
-        if (span.TotalHours < 24) return $"{(int)span.TotalHours}h ago";
-        return $"{(int)span.TotalDays}d ago";
-    }
-
-    // ════════════════════════════════════════════════════════════
-    // DATABASE EXPLORER — NODE PILLS
-    // ════════════════════════════════════════════════════════════
-
-    private async Task DiscoverNodePillsAsync()
-    {
-        NodePillsPanel.Children.Clear();
-
-        if (_firebaseService == null || !_firebaseService.IsInitialized)
-        {
-            NodeCountText.Text = "Firebase unavailable";
-            return;
+            case "dashboard":
+                BuildScriptTiles();
+                await RefreshVersionInfoAsync();
+                break;
+            case "database":
+                await DiscoverNodePillsAsync();
+                break;
+            case "heartbeats":
+                await RefreshHeartbeatsAsync();
+                break;
+            case "permissions":
+                break;
+            case "updates":
+                InitUpdatesTab();
+                break;
         }
-
-        int found = 0;
-        foreach (var nodeName in KnownNodes)
-        {
-            try
-            {
-                var data = await _firebaseService.GetNodeAsync(nodeName);
-                if (data == null) continue;
-
-                int count = data.Count;
-                found++;
-                var pill = CreateNodePill(nodeName, count);
-                NodePillsPanel.Children.Add(pill);
-            }
-            catch { }
-        }
-
-        NodeCountText.Text = $"{found} nodes";
-    }
-
-    private UIElement CreateNodePill(string nodeName, int childCount)
-    {
-        var nameBlock = new TextBlock
-        {
-            Text = nodeName,
-            FontSize = 11,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = FindBrush("TextPrimaryBrush"),
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 6, 0)
-        };
-
-        var countBlock = new TextBlock
-        {
-            Text = childCount.ToString("N0"),
-            FontSize = 10,
-            Foreground = FindBrush("TextTertiaryBrush"),
-            VerticalAlignment = VerticalAlignment.Center
-        };
-
-        var stack = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
-        stack.Children.Add(nameBlock);
-        stack.Children.Add(countBlock);
-
-        var isSelected = _selectedNodePill == nodeName;
-        var bgBrush = isSelected ? FindBrush("SelectedAccentBrush") : FindBrush("SurfaceBrush");
-        var borderBrush = isSelected ? FindBrush("AccentBrush") : FindBrush("BorderBrush");
-
-        var border = new Border
-        {
-            Background = bgBrush,
-            BorderBrush = borderBrush,
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(14),
-            Padding = new Thickness(10, 4, 10, 4),
-            Margin = new Thickness(0, 0, 6, 6),
-            Cursor = System.Windows.Input.Cursors.Hand,
-            Child = stack
-        };
-
-        border.MouseEnter += (_, _) => border.Background = FindBrush("HoverMediumBrush");
-        border.MouseLeave += (_, _) => border.Background = isSelected ? FindBrush("SelectedAccentBrush") : FindBrush("SurfaceBrush");
-        border.MouseLeftButtonDown += async (_, _) =>
-        {
-            _selectedNodePill = nodeName;
-            NodePathBox.Text = nodeName;
-            await GetNodeAsync();
-            await DiscoverNodePillsAsync();
-        };
-
-        return border;
     }
 
     // ════════════════════════════════════════════════════════════
@@ -495,36 +294,46 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
     // SCRIPT EXECUTION
     // ════════════════════════════════════════════════════════════
 
-    private static string NormalizeUsername(string? raw) =>
+    internal static string NormalizeUsername(string? raw) =>
         (raw ?? string.Empty).Trim().ToLowerInvariant();
 
-    private string ResolveUsername()
+    internal string ResolveUsername()
     {
         var normalized = NormalizeUsername(RoleUsernameBox.Text);
+        _suppressSuggestion = true;
         RoleUsernameBox.Text = normalized;
+        _suppressSuggestion = false;
         return normalized;
     }
 
     private static string Quote(string value) => $"\"{value.Replace("\"", "\\\"")}\"";
 
-    private async Task RunScriptAsync(string fileName, params string[] args)
+    internal async Task RunScriptAsync(string fileName, params string[] args)
     {
-        if (!EnsureDevForAction($"run {fileName}")) return;
+        await RunScriptWithOutputAsync(fileName, skipServiceAccount: false, args);
+    }
+
+    internal async Task<(string Stdout, string Stderr, int ExitCode)> RunScriptWithOutputAsync(
+        string fileName, bool skipServiceAccount = false, params string[] args)
+    {
+        if (!EnsureDevForAction($"run {fileName}"))
+            return ("", "DENIED", -1);
+
         if (!AllowedScripts.Contains(fileName))
         {
             AppendOutput($"DENIED: Script '{fileName}' is not in the allowlist.");
-            return;
+            return ("", "DENIED", -1);
         }
 
         var scriptPath = System.IO.Path.Combine(_scriptsDir, fileName);
         if (!System.IO.File.Exists(scriptPath))
         {
             AppendOutput($"ERROR: Script not found: {scriptPath}");
-            return;
+            return ("", "NOT_FOUND", -1);
         }
 
         var allArgs = new List<string>(args);
-        if (_serviceAccountPath != null)
+        if (!skipServiceAccount && _serviceAccountPath != null)
         {
             allArgs.Add("-ServiceAccountPath");
             allArgs.Add(Quote(_serviceAccountPath));
@@ -549,7 +358,7 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
             if (proc == null)
             {
                 AppendOutput("ERROR: Failed to start script process.");
-                return;
+                return ("", "FAILED_TO_START", -1);
             }
 
             var stdout = await proc.StandardOutput.ReadToEndAsync();
@@ -562,20 +371,22 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
                 AppendOutput("STDERR: " + stderr.TrimEnd());
 
             AppendOutput($"Exit code: {proc.ExitCode}");
+            return (stdout, stderr, proc.ExitCode);
         }
         catch (Exception ex)
         {
             AppendOutput($"ERROR running script: {ex.Message}");
+            return ("", ex.Message, -1);
         }
     }
 
-    private void AppendOutput(string text)
+    internal void AppendOutput(string text)
     {
         OutputBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {text}{Environment.NewLine}");
         OutputBox.ScrollToEnd();
     }
 
-    private async Task ExecuteRoleActionAsync(string script, string action, bool confirmDangerous = false)
+    internal async Task ExecuteRoleActionAsync(string script, string action, bool confirmDangerous = false)
     {
         var username = ResolveUsername();
         if (string.IsNullOrWhiteSpace(username))
@@ -586,12 +397,12 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
 
         if (confirmDangerous)
         {
-            var result = System.Windows.MessageBox.Show(
+            var result = MessageBox.Show(
                 $"Confirm role action '{action}' for '{username}'?",
                 "Confirm Role Action",
-                System.Windows.MessageBoxButton.YesNo,
-                System.Windows.MessageBoxImage.Warning);
-            if (result != System.Windows.MessageBoxResult.Yes)
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+            if (result != MessageBoxResult.Yes)
             {
                 AppendOutput("Cancelled.");
                 return;
@@ -601,139 +412,13 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
         await RunScriptAsync(script, "-Action", action, "-Username", username);
     }
 
-    private bool ConfirmDangerous(string message)
+    internal bool ConfirmDangerous(string message)
     {
-        return System.Windows.MessageBox.Show(message, "Confirm", System.Windows.MessageBoxButton.YesNo,
-            System.Windows.MessageBoxImage.Warning) == System.Windows.MessageBoxResult.Yes;
+        return MessageBox.Show(message, "Confirm", MessageBoxButton.YesNo,
+            MessageBoxImage.Warning) == MessageBoxResult.Yes;
     }
 
-    // ════════════════════════════════════════════════════════════
-    // VERSION INFO
-    // ════════════════════════════════════════════════════════════
-
-    private async Task RefreshVersionInfoAsync()
-    {
-        if (!EnsureDevForAction("refresh version info")) return;
-        if (_firebaseService == null || !_firebaseService.IsInitialized)
-        {
-            VersionInfoText.Text = "Firebase service unavailable.";
-            return;
-        }
-
-        try
-        {
-            var node = await _firebaseService.GetNodeAsync("app_versions/desktophub");
-            if (node == null)
-            {
-                VersionInfoText.Text = "No version data found at app_versions/desktophub.";
-                return;
-            }
-
-            var latest = node.TryGetValue("latest_version", out var lv) ? lv?.ToString() : "n/a";
-            var notes = node.TryGetValue("release_notes", out var rn) ? rn?.ToString() : "";
-            var updatedAt = node.TryGetValue("updated_at", out var ua) ? ua?.ToString() : "n/a";
-            var required = node.TryGetValue("required_update", out var ru) ? ru?.ToString() : "false";
-
-            VersionInfoText.Text = $"Latest: {latest} | Required: {required} | Updated: {updatedAt}{Environment.NewLine}{notes}";
-        }
-        catch (Exception ex)
-        {
-            VersionInfoText.Text = $"Failed to load version info: {ex.Message}";
-        }
-    }
-
-    // ════════════════════════════════════════════════════════════
-    // NODE BROWSER
-    // ════════════════════════════════════════════════════════════
-
-    private async Task GetNodeAsync()
-    {
-        if (!EnsureDevForAction("get firebase node")) return;
-        if (_firebaseService == null || !_firebaseService.IsInitialized)
-        {
-            AppendOutput("Firebase service unavailable.");
-            return;
-        }
-
-        var path = (NodePathBox.Text ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            AppendOutput("Node path is required.");
-            return;
-        }
-
-        var node = await _firebaseService.GetNodeAsync(path);
-        if (node == null)
-        {
-            NodeJsonBox.Text = "{}";
-            AppendOutput($"No data found for '{path}'.");
-            return;
-        }
-
-        NodeJsonBox.Text = JsonSerializer.Serialize(node, new JsonSerializerOptions { WriteIndented = true });
-        AppendOutput($"Fetched node '{path}'.");
-    }
-
-    private async Task SetNodeAsync()
-    {
-        if (!EnsureDevForAction("set firebase node")) return;
-        if (_firebaseService == null || !_firebaseService.IsInitialized)
-        {
-            AppendOutput("Firebase service unavailable.");
-            return;
-        }
-
-        var path = (NodePathBox.Text ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            AppendOutput("Node path is required.");
-            return;
-        }
-
-        object? payload;
-        var raw = (NodeJsonBox.Text ?? string.Empty).Trim();
-        try
-        {
-            using var doc = JsonDocument.Parse(raw);
-            payload = JsonElementToObject(doc.RootElement);
-        }
-        catch (Exception ex)
-        {
-            AppendOutput($"Invalid JSON payload: {ex.Message}");
-            return;
-        }
-
-        var result = await _firebaseService.SetNodeAsync(path, payload ?? new Dictionary<string, object>());
-        AppendOutput(result ? $"Updated node '{path}'." : $"Failed to update node '{path}'.");
-    }
-
-    private async Task DeleteNodeAsync()
-    {
-        if (!EnsureDevForAction("delete firebase node")) return;
-        if (_firebaseService == null || !_firebaseService.IsInitialized)
-        {
-            AppendOutput("Firebase service unavailable.");
-            return;
-        }
-
-        var path = (NodePathBox.Text ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            AppendOutput("Node path is required.");
-            return;
-        }
-
-        if (!ConfirmDangerous($"Delete Firebase node '{path}'?"))
-        {
-            AppendOutput("Delete cancelled.");
-            return;
-        }
-
-        var result = await _firebaseService.DeleteNodeAsync(path);
-        AppendOutput(result ? $"Deleted node '{path}'." : $"Failed to delete node '{path}'.");
-    }
-
-    private static object? JsonElementToObject(JsonElement element) => element.ValueKind switch
+    internal static object? JsonElementToObject(JsonElement element) => element.ValueKind switch
     {
         JsonValueKind.Object => element.EnumerateObject().ToDictionary(p => p.Name, p => JsonElementToObject(p.Value)),
         JsonValueKind.Array => element.EnumerateArray().Select(JsonElementToObject).ToList(),
@@ -747,43 +432,17 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
     };
 
     // ════════════════════════════════════════════════════════════
-    // SCRIPT TILE HELPERS (with confirmation)
-    // ════════════════════════════════════════════════════════════
-
-    private async Task RunPushUpdateAll()
-    {
-        if (!ConfirmDangerous("Push update to all outdated devices?")) return;
-        await RunScriptAsync("admin.ps1", "-Action", "update-push-all");
-    }
-
-    private async Task RunVersionUpdate()
-    {
-        var version = DateTime.Now.ToString("yyyy.M.d", CultureInfo.InvariantCulture);
-        await RunScriptAsync("admin.ps1", "-Action", "version-update", "-Version", version, "-ReleaseNotes", "Updated_from_Developer_Panel");
-    }
-
-    // ════════════════════════════════════════════════════════════
-    // EVENT HANDLERS
+    // SHARED EVENT HANDLERS
     // ════════════════════════════════════════════════════════════
 
     private void ClearOutput_Click(object sender, RoutedEventArgs e) => OutputBox.Clear();
-
     private void NormalizeUsername_Click(object sender, RoutedEventArgs e) => _ = ResolveUsername();
 
-    private async void AddAdmin_Click(object sender, RoutedEventArgs e) => await ExecuteRoleActionAsync("manage-admin.ps1", "add");
-    private async void RemoveAdmin_Click(object sender, RoutedEventArgs e) => await ExecuteRoleActionAsync("manage-admin.ps1", "remove", confirmDangerous: true);
-    private async void AddEditor_Click(object sender, RoutedEventArgs e) => await ExecuteRoleActionAsync("manage-cheatsheet-editors.ps1", "add");
-    private async void RemoveEditor_Click(object sender, RoutedEventArgs e) => await ExecuteRoleActionAsync("manage-cheatsheet-editors.ps1", "remove", confirmDangerous: true);
-    private async void AddDev_Click(object sender, RoutedEventArgs e) => await ExecuteRoleActionAsync("manage-dev.ps1", "add");
-    private async void RemoveDev_Click(object sender, RoutedEventArgs e) => await ExecuteRoleActionAsync("manage-dev.ps1", "remove", confirmDangerous: true);
-
-    private async void ListAdmins_Click(object sender, RoutedEventArgs e) => await RunScriptAsync("manage-admin.ps1", "-Action", "list");
-    private async void ListEditors_Click(object sender, RoutedEventArgs e) => await RunScriptAsync("manage-cheatsheet-editors.ps1", "-Action", "list");
-    private async void ListDevs_Click(object sender, RoutedEventArgs e) => await RunScriptAsync("manage-dev.ps1", "-Action", "list");
-
-    private async void GetNode_Click(object sender, RoutedEventArgs e) => await GetNodeAsync();
-    private async void SetNode_Click(object sender, RoutedEventArgs e) => await SetNodeAsync();
-    private async void DeleteNode_Click(object sender, RoutedEventArgs e) => await DeleteNodeAsync();
-
-    private async void RefreshVersionInfo_Click(object sender, RoutedEventArgs e) => await RefreshVersionInfoAsync();
+    internal void NavigateToPermissions(string username)
+    {
+        _suppressSuggestion = true;
+        RoleUsernameBox.Text = username;
+        _suppressSuggestion = false;
+        SwitchTab("permissions");
+    }
 }
