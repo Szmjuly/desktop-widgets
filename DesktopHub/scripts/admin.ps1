@@ -15,6 +15,7 @@
     db-dump, db-wipe-all, db-wipe-devices, db-wipe-tags,
     tags-get, tags-list, tags-decrypt, tags-set, tags-delete, tags-export, tags-import,
     admin-list, admin-add, admin-remove,
+    dev-list, dev-add, dev-remove,
     auth-cleanup, auth-cleanup-anon,
     metrics-reset,
     version-update,
@@ -145,6 +146,9 @@ function Show-Menu {
     Write-Host "    [20] List admin users"
     Write-Host "    [21] Add admin user"
     Write-Host "    [22] Remove admin user"
+    Write-Host "    [23] List DEV users"
+    Write-Host "    [24] Add DEV user"
+    Write-Host "    [25] Remove DEV user"
     Write-Host ""
     Write-Host "  AUTH / USERS" -ForegroundColor Yellow
     Write-Host "    [30] Preview Firebase Auth users"
@@ -245,6 +249,9 @@ if ($Action) {
         "admin-list"       { & "$scriptDir\manage-admin.ps1" -Action list @sa }
         "admin-add"        { & "$scriptDir\manage-admin.ps1" -Action add -Username $Username @sa }
         "admin-remove"     { & "$scriptDir\manage-admin.ps1" -Action remove -Username $Username @sa }
+        "dev-list"         { & "$scriptDir\manage-dev.ps1" -Action list @sa }
+        "dev-add"          { & "$scriptDir\manage-dev.ps1" -Action add -Username $Username @sa }
+        "dev-remove"       { & "$scriptDir\manage-dev.ps1" -Action remove -Username $Username @sa }
         "auth-cleanup"     { & "$scriptDir\cleanup-auth-users.ps1" -DeleteAll @sa }
         "auth-cleanup-anon"{ & "$scriptDir\cleanup-auth-users.ps1" -DeleteAll -AnonymousOnly @sa }
         "metrics-reset"    { & "$scriptDir\Reset-Metrics.ps1" -All }
@@ -332,6 +339,15 @@ while ($true) {
             $un = if ($Username) { $Username } else { Prompt-Input "Username to remove" }
             Invoke-Script "manage-admin.ps1" @{Action="remove"; Username=$un}
         }
+        "23" { Invoke-Script "manage-dev.ps1" @{Action="list"} }
+        "24" {
+            $un = if ($Username) { $Username } else { Prompt-Input "Username to add" }
+            Invoke-Script "manage-dev.ps1" @{Action="add"; Username=$un}
+        }
+        "25" {
+            $un = if ($Username) { $Username } else { Prompt-Input "Username to remove" }
+            Invoke-Script "manage-dev.ps1" @{Action="remove"; Username=$un}
+        }
 
         # --- AUTH / USERS ---
         "30" { Invoke-Script "cleanup-auth-users.ps1" }
@@ -411,6 +427,8 @@ while ($true) {
             Write-Host "    .\admin.ps1 -Action tags-set -ProjectNumber '2024278.01' -TagKey voltage -TagValue 208"
             Write-Host "    .\admin.ps1 -Action admin-list"
             Write-Host "    .\admin.ps1 -Action admin-add -Username jdoe"
+            Write-Host "    .\admin.ps1 -Action dev-list"
+            Write-Host "    .\admin.ps1 -Action dev-add -Username jdoe"
             Write-Host "    .\admin.ps1 -Action auth-cleanup-anon"
             Write-Host "    .\admin.ps1 -Action metrics-reset"
             Write-Host "    .\admin.ps1 -Action version-update -Version 1.2.0 -ReleaseNotes 'Bug fixes'"
@@ -426,6 +444,7 @@ while ($true) {
             Write-Host "    scripts/dump-database.ps1        # Firebase DB viewer & wiper"
             Write-Host "    scripts/tag-manager.ps1          # Project tag CRUD + encryption"
             Write-Host "    scripts/manage-admin.ps1         # Admin user management"
+            Write-Host "    scripts/manage-dev.ps1           # DEV user management"
             Write-Host "    scripts/cleanup-auth-users.ps1   # Firebase Auth cleanup"
             Write-Host "    scripts/wipe-devices.ps1         # Device node wiper"
             Write-Host "    scripts/Reset-Metrics.ps1        # Local metrics reset"

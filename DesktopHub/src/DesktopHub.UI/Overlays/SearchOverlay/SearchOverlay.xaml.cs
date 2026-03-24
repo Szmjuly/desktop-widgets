@@ -39,6 +39,7 @@ public partial class SearchOverlay : Window
     private SmartProjectSearchOverlay? _smartProjectSearchOverlay;
     private CheatSheetOverlay? _cheatSheetOverlay;
     private MetricsViewerOverlay? _metricsViewerOverlay;
+    private DeveloperPanelOverlay? _developerPanelOverlay;
     private WidgetLauncher? _widgetLauncher;
     private TaskService? _taskService;
     private DocOpenService? _docService;
@@ -68,6 +69,8 @@ public partial class SearchOverlay : Window
     private CancellationTokenSource? _ipcCts;
     private string _lastQuerySource = DesktopHub.Core.Models.QuerySources.Typed;
     private bool _isClosing = false;
+    private bool _isDeveloperUser = false;
+    private bool _developerPanelRestoreApplied;
     private bool _isDragging = false;
     private System.Windows.Point _dragStartPoint;
     private bool _isAutoArrangingWidgets = false;

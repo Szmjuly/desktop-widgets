@@ -776,6 +776,32 @@ public class FirebaseService : IFirebaseService
         }
     }
 
+    public async Task<bool> IsUserDevAsync(string? windowsUsername = null)
+    {
+        if (!_isInitialized || _httpClient == null)
+            return false;
+
+        try
+        {
+            var username = (windowsUsername ?? Environment.UserName).ToLowerInvariant();
+            var devFlag = await GetDataAsync<object>($"dev_users/{username}");
+            if (devFlag != null)
+            {
+                var isDev = ParseBool(devFlag.ToString()) ?? false;
+                InfraLogger.Log($"Firebase: DEV check for '{username}' = {isDev}");
+                return isDev;
+            }
+
+            InfraLogger.Log($"Firebase: DEV check for '{username}' = false (not found)");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            InfraLogger.Log($"Firebase: DEV check failed: {ex.Message}");
+            return false;
+        }
+    }
+
     public async Task<bool> IsCheatSheetEditorAsync(string? windowsUsername = null)
     {
         if (!_isInitialized || _httpClient == null)
@@ -815,6 +841,56 @@ public class FirebaseService : IFirebaseService
         catch (Exception ex)
         {
             InfraLogger.Log($"Firebase: CheatSheet editor check failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    public async Task<Dictionary<string, object>?> GetNodeAsync(string path)
+    {
+        if (!_isInitialized || _httpClient == null || string.IsNullOrWhiteSpace(path))
+            return null;
+
+        try
+        {
+            return await GetDataAsync<Dictionary<string, object>>(path);
+        }
+        catch (Exception ex)
+        {
+            InfraLogger.Log($"Firebase: GetNodeAsync failed for '{path}': {ex.Message}");
+            return null;
+        }
+    }
+
+    public async Task<bool> SetNodeAsync(string path, object data)
+    {
+        if (!_isInitialized || _httpClient == null || string.IsNullOrWhiteSpace(path))
+            return false;
+
+        try
+        {
+            await PutDataAsync(path, data);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            InfraLogger.Log($"Firebase: SetNodeAsync failed for '{path}': {ex.Message}");
+            return false;
+        }
+    }
+
+    public async Task<bool> DeleteNodeAsync(string path)
+    {
+        if (!_isInitialized || _httpClient == null || string.IsNullOrWhiteSpace(path))
+            return false;
+
+        try
+        {
+            await DeleteDataAsync(path);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            InfraLogger.Log($"Firebase: DeleteNodeAsync failed for '{path}': {ex.Message}");
             return false;
         }
     }

@@ -171,6 +171,17 @@ public static class WidgetRegistry
         },
         new WidgetRegistryEntry
         {
+            Id = WidgetIds.DeveloperPanel,
+            DisplayName = "Developer Panel",
+            Icon = "🛠️",
+            Description = "DEV-only panel for scripts, users, permissions, and Firebase operations",
+            HasTransparencySlider = true,
+            HasLauncherToggle = true,
+            HasSettingsTab = false,
+            SortOrder = 105,
+        },
+        new WidgetRegistryEntry
+        {
             Id = WidgetIds.ProjectInfo,
             DisplayName = "Project Info",
             Icon = "🏷️",

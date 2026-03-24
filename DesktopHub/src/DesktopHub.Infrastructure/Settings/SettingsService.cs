@@ -313,6 +313,16 @@ public class SettingsService : ISettingsService
     public void SetCheatSheetWidgetVisible(bool visible) => _settings.CheatSheetWidgetVisible = visible;
     public bool GetCheatSheetWidgetEnabled() => _settings.CheatSheetWidgetEnabled;
     public void SetCheatSheetWidgetEnabled(bool enabled) => _settings.CheatSheetWidgetEnabled = enabled;
+    public (double? left, double? top) GetDeveloperPanelWidgetPosition() => (_settings.DeveloperPanelWidgetLeft, _settings.DeveloperPanelWidgetTop);
+    public void SetDeveloperPanelWidgetPosition(double left, double top)
+    {
+        _settings.DeveloperPanelWidgetLeft = left;
+        _settings.DeveloperPanelWidgetTop = top;
+    }
+    public bool GetDeveloperPanelWidgetVisible() => _settings.DeveloperPanelWidgetVisible;
+    public void SetDeveloperPanelWidgetVisible(bool visible) => _settings.DeveloperPanelWidgetVisible = visible;
+    public bool GetDeveloperPanelWidgetEnabled() => _settings.DeveloperPanelWidgetEnabled;
+    public void SetDeveloperPanelWidgetEnabled(bool enabled) => _settings.DeveloperPanelWidgetEnabled = enabled;
     public bool GetCheatSheetSnapGridEnabled() => _settings.CheatSheetSnapGridEnabled;
     public void SetCheatSheetSnapGridEnabled(bool enabled) => _settings.CheatSheetSnapGridEnabled = enabled;
     public bool GetCheatSheetCrossDisciplineSearch() => _settings.CheatSheetCrossDisciplineSearch;
@@ -357,6 +367,7 @@ public class SettingsService : ISettingsService
         WidgetIds.DocQuickOpen       => GetDocWidgetTransparency(),
         WidgetIds.SmartProjectSearch => GetSmartProjectSearchWidgetTransparency(),
         WidgetIds.CheatSheet         => GetCheatSheetWidgetTransparency(),
+        WidgetIds.DeveloperPanel     => _settings.DeveloperPanelWidgetTransparency,
         WidgetIds.ProjectInfo        => _settings.ProjectInfoWidgetTransparency,
         WidgetIds.TrayMenu           => _settings.TrayMenuTransparency,
         WidgetIds.Dialogs            => _settings.DialogsTransparency,
@@ -374,6 +385,7 @@ public class SettingsService : ISettingsService
             case WidgetIds.DocQuickOpen:       SetDocWidgetTransparency(transparency); break;
             case WidgetIds.SmartProjectSearch: SetSmartProjectSearchWidgetTransparency(transparency); break;
             case WidgetIds.CheatSheet:         SetCheatSheetWidgetTransparency(transparency); break;
+            case WidgetIds.DeveloperPanel:     _settings.DeveloperPanelWidgetTransparency = transparency; break;
             case WidgetIds.ProjectInfo:        _settings.ProjectInfoWidgetTransparency = transparency; break;
             case WidgetIds.TrayMenu:           _settings.TrayMenuTransparency = transparency; break;
             case WidgetIds.Dialogs:            _settings.DialogsTransparency = transparency; break;
@@ -389,6 +401,7 @@ public class SettingsService : ISettingsService
         WidgetIds.DocQuickOpen       => GetDocTransparencyLinked(),
         WidgetIds.SmartProjectSearch => GetSmartProjectSearchTransparencyLinked(),
         WidgetIds.CheatSheet         => GetCheatSheetTransparencyLinked(),
+        WidgetIds.DeveloperPanel     => _settings.DeveloperPanelTransparencyLinked,
         WidgetIds.ProjectInfo        => _settings.ProjectInfoTransparencyLinked,
         _ => false
     };
@@ -404,6 +417,7 @@ public class SettingsService : ISettingsService
             case WidgetIds.DocQuickOpen:       SetDocTransparencyLinked(linked); break;
             case WidgetIds.SmartProjectSearch: SetSmartProjectSearchTransparencyLinked(linked); break;
             case WidgetIds.CheatSheet:         SetCheatSheetTransparencyLinked(linked); break;
+            case WidgetIds.DeveloperPanel:     _settings.DeveloperPanelTransparencyLinked = linked; break;
             case WidgetIds.ProjectInfo:        _settings.ProjectInfoTransparencyLinked = linked; break;
         }
     }
@@ -432,6 +446,7 @@ public class SettingsService : ISettingsService
         WidgetIds.QuickLaunch        => GetQuickLaunchWidgetEnabled(),
         WidgetIds.SmartProjectSearch => GetSmartProjectSearchWidgetEnabled(),
         WidgetIds.CheatSheet         => GetCheatSheetWidgetEnabled(),
+        WidgetIds.DeveloperPanel     => GetDeveloperPanelWidgetEnabled(),
         WidgetIds.ProjectInfo        => _settings.ProjectInfoWidgetEnabled,
         _ => true
     };
@@ -447,6 +462,7 @@ public class SettingsService : ISettingsService
             case WidgetIds.QuickLaunch:        SetQuickLaunchWidgetEnabled(enabled); break;
             case WidgetIds.SmartProjectSearch: SetSmartProjectSearchWidgetEnabled(enabled); break;
             case WidgetIds.CheatSheet:         SetCheatSheetWidgetEnabled(enabled); break;
+            case WidgetIds.DeveloperPanel:     SetDeveloperPanelWidgetEnabled(enabled); break;
             case WidgetIds.ProjectInfo:        _settings.ProjectInfoWidgetEnabled = enabled; break;
         }
     }
@@ -494,6 +510,7 @@ public class SettingsService : ISettingsService
                         WidgetIds.QuickLaunch,
                         WidgetIds.SmartProjectSearch,
                         WidgetIds.CheatSheet,
+                        WidgetIds.DeveloperPanel,
                     }
                 }
             };
@@ -709,6 +726,14 @@ public class SettingsService : ISettingsService
         public bool CheatSheetWidgetEnabled { get; set; } = true;
         public bool CheatSheetSnapGridEnabled { get; set; } = true;
         public bool CheatSheetCrossDisciplineSearch { get; set; } = true;
+
+        // Developer Panel widget
+        public double DeveloperPanelWidgetTransparency { get; set; } = 0.78;
+        public bool DeveloperPanelTransparencyLinked { get; set; } = false;
+        public bool DeveloperPanelWidgetEnabled { get; set; } = true;
+        public double? DeveloperPanelWidgetLeft { get; set; } = null;
+        public double? DeveloperPanelWidgetTop { get; set; } = null;
+        public bool DeveloperPanelWidgetVisible { get; set; } = false;
 
         // Metrics Viewer
         public int MetricsRefreshIntervalSeconds { get; set; } = 30; // Auto-refresh every 30s by default

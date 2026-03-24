@@ -255,7 +255,8 @@ public partial class SearchOverlay
             _quickLaunchOverlay,
             _smartProjectSearchOverlay,
             _cheatSheetOverlay,
-            _metricsViewerOverlay
+            _metricsViewerOverlay,
+            _developerPanelOverlay
         };
 
         var seen = new HashSet<Window>();

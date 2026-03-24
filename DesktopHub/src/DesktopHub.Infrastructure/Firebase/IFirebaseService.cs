@@ -28,6 +28,9 @@ public interface IFirebaseService
     // Admin management — checks Firebase for Windows username-based admin privileges
     Task<bool> IsUserAdminAsync(string? windowsUsername = null);
 
+    // DEV role — highest internal privilege for developer tooling
+    Task<bool> IsUserDevAsync(string? windowsUsername = null);
+
     // Cheat sheet editor role — independent from admin, edit access = admin OR editor
     Task<bool> IsCheatSheetEditorAsync(string? windowsUsername = null);
 
@@ -43,4 +46,9 @@ public interface IFirebaseService
 
     // Forced update event — raised when heartbeat detects a pending forced update
     event EventHandler<ForcedUpdateInfo>? ForcedUpdateDetected;
+
+    // Developer panel helpers — direct node operations for DEV tooling only.
+    Task<Dictionary<string, object>?> GetNodeAsync(string path);
+    Task<bool> SetNodeAsync(string path, object data);
+    Task<bool> DeleteNodeAsync(string path);
 }

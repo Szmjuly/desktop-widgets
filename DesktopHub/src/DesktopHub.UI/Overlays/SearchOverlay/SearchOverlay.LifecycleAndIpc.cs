@@ -203,6 +203,17 @@ public partial class SearchOverlay
             _settings.SetCheatSheetWidgetVisible(false);
         }
 
+        if (_developerPanelOverlay != null)
+        {
+            _settings.SetDeveloperPanelWidgetPosition(_developerPanelOverlay.Left, _developerPanelOverlay.Top);
+            _settings.SetDeveloperPanelWidgetVisible(_developerPanelOverlay.Visibility == Visibility.Visible);
+            DebugLogger.Log($"Window_Closing: Saved developer panel position: ({_developerPanelOverlay.Left}, {_developerPanelOverlay.Top})");
+        }
+        else
+        {
+            _settings.SetDeveloperPanelWidgetVisible(false);
+        }
+
         // Save async but don't await (app is closing)
         _ = _settings.SaveAsync();
         DebugLogger.Log("Window_Closing: Saved widget positions and visibility state");

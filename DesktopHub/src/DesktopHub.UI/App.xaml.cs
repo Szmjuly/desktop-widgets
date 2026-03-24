@@ -219,6 +219,27 @@ public partial class App : System.Windows.Application
                             DebugLogger.Log($"Firebase: Feature flag check failed: {flagEx.Message}");
                         }
                     }
+
+                    // Check DEV role and update Developer Panel visibility
+                    if (_firebaseService.IsInitialized)
+                    {
+                        try
+                        {
+                            var isDev = await _firebaseService.IsUserDevAsync();
+                            DebugLogger.Log($"Firebase: DEV role for current user = {isDev}");
+                            _ = Current.Dispatcher.BeginInvoke(() =>
+                            {
+                                if (MainWindow is SearchOverlay overlay)
+                                {
+                                    overlay.SetDeveloperPanelEnabled(isDev);
+                                }
+                            });
+                        }
+                        catch (Exception devEx)
+                        {
+                            DebugLogger.Log($"Firebase: DEV role check failed: {devEx.Message}");
+                        }
+                    }
                 }
             }
             catch (Exception ex)

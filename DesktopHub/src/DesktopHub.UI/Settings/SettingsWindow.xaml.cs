@@ -57,7 +57,7 @@ public partial class SettingsWindow : Window
     private TextBlock? _activeGroupRecordingText;
     private int _activeGroupIndex = -1;
 
-    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null, Action? onFrequentProjectsWidgetEnabledChanged = null, Action? onFrequentProjectsLayoutChanged = null, Action? onQuickLaunchWidgetEnabledChanged = null, IProjectLaunchDataStore? launchDataStore = null, Action? onQuickLaunchLayoutChanged = null, Action? onWidgetSnapGapChanged = null, Action? onSmartProjectSearchWidgetEnabledChanged = null, Action? onWidgetLauncherLayoutChanged = null, Action? onCheatSheetWidgetEnabledChanged = null, Action? onMetricsViewerWidgetEnabledChanged = null)
+    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null, Action? onFrequentProjectsWidgetEnabledChanged = null, Action? onFrequentProjectsLayoutChanged = null, Action? onQuickLaunchWidgetEnabledChanged = null, IProjectLaunchDataStore? launchDataStore = null, Action? onQuickLaunchLayoutChanged = null, Action? onWidgetSnapGapChanged = null, Action? onSmartProjectSearchWidgetEnabledChanged = null, Action? onWidgetLauncherLayoutChanged = null, Action? onCheatSheetWidgetEnabledChanged = null, Action? onMetricsViewerWidgetEnabledChanged = null, Action? onDeveloperPanelWidgetEnabledChanged = null)
     {
         _settings = settings;
         _taskService = taskService;
@@ -90,6 +90,7 @@ public partial class SettingsWindow : Window
         _widgetEnabledCallbacks[WidgetIds.SmartProjectSearch] = onSmartProjectSearchWidgetEnabledChanged;
         _widgetEnabledCallbacks[WidgetIds.CheatSheet] = onCheatSheetWidgetEnabledChanged;
         _widgetEnabledCallbacks[WidgetIds.MetricsViewer] = onMetricsViewerWidgetEnabledChanged;
+        _widgetEnabledCallbacks[WidgetIds.DeveloperPanel] = onDeveloperPanelWidgetEnabledChanged;
         _widgetEnabledCallbacks[WidgetIds.SearchOverlay] = onSearchWidgetEnabledChanged;
 
         // Suppress all slider/control events during XAML initialization
