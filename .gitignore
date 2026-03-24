@@ -36,3 +36,7 @@ Thumbs.db
 
 # Dot net
 .dotnet
+
+# Claude Code — local machine paths and extra checkouts (never commit)
+**/.claude/settings.local.json
+DesktopHub/.claude/worktrees/
