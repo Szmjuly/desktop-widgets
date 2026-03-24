@@ -69,6 +69,12 @@
         ".write": true,
         ".indexOn": ["latest_version", "updated_at"]
       }
+    },
+    "dev_users": {
+      "$username": {
+        ".read": true,
+        ".write": true
+      }
     }
   }
 }

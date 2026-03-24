@@ -15,6 +15,7 @@ public static class WidgetIds
     public const string SmartProjectSearch = "SmartProjectSearch";
     public const string CheatSheet          = "CheatSheet";
     public const string MetricsViewer       = "MetricsViewer";
+    public const string DeveloperPanel      = "DeveloperPanel";
     public const string ProjectInfo          = "ProjectInfo";
     public const string TrayMenu             = "TrayMenu";
     public const string Dialogs              = "Dialogs";
@@ -23,7 +24,7 @@ public static class WidgetIds
     {
         SearchOverlay, WidgetLauncher, Timer, QuickTasks,
         DocQuickOpen, FrequentProjects, QuickLaunch, SmartProjectSearch,
-        CheatSheet, MetricsViewer, ProjectInfo, TrayMenu, Dialogs
+        CheatSheet, MetricsViewer, DeveloperPanel, ProjectInfo, TrayMenu, Dialogs
     };
 
     public static string DisplayName(string id) => id switch
@@ -38,6 +39,7 @@ public static class WidgetIds
         SmartProjectSearch => "Smart Project Search",
         CheatSheet         => "Cheat Sheets",
         MetricsViewer      => "Metrics Viewer",
+        DeveloperPanel     => "Developer Panel",
         ProjectInfo        => "Project Info",
         TrayMenu           => "Tray Menu",
         Dialogs            => "Dialogs",

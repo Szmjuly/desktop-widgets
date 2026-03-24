@@ -247,6 +247,11 @@ public class SearchService : ISearchService
                 return 0.65; // Good score for word contains match
         }
 
+        // Numeric tokens should not use edit-distance fallback because that creates
+        // broad false positives (e.g., "203" weak-matching "2.00").
+        if (source.All(char.IsDigit))
+            return 0.0;
+
         // Skip expensive Levenshtein for very different length strings
         var lengthDiff = Math.Abs(source.Length - target.Length);
         if (lengthDiff > source.Length)
@@ -417,14 +422,20 @@ public class SearchService : ISearchService
         foreach (var token in tokens)
         {
             double bestTokenScore = 0;
+            string bestField = "";
             foreach (var (fieldValue, boost) in fields)
             {
                 var s = CalculateFuzzyScore(token, fieldValue) * boost;
-                bestTokenScore = Math.Max(bestTokenScore, s);
+                if (s > bestTokenScore)
+                {
+                    bestTokenScore = s;
+                    bestField = fieldValue;
+                }
             }
 
             if (bestTokenScore <= 0.0)
                 return 0.0; // AND semantics: if any token fails, whole query fails
+            
 
             totalScore += bestTokenScore;
         }
@@ -445,6 +456,12 @@ public class SearchService : ISearchService
 
         if (!inOrderInAnyField)
         {
+            var hasShortAlphabeticToken = tokens.Any(t => t.Length <= 2 && t.All(char.IsLetter));
+            if (hasShortAlphabeticToken)
+            {
+                return 0.0;
+            }
+
             isLooseTokenMatch = true;
             avgScore *= 0.55; // Significant penalty for reversed/scrambled token order
         }

@@ -308,6 +308,7 @@ public partial class SearchOverlay
             _isPathSearchResults = false;
             _activePathSearchRootDisplay = null;
             LoadAllProjects();
+            StatusText.Text = $"{ResultsList.Items.Count} project{(ResultsList.Items.Count == 1 ? "" : "s")} loaded";
             UpdateHistoryVisibility();
 
             // Clear Doc Quick Open widget when search is cleared

@@ -246,6 +246,16 @@ Replace everything with `firebase-rules-production.json` for complete, secure ru
 - ✅ Never allow public writes
 - ✅ Audit rules regularly
 
+## Role Access Nodes
+
+For role-gated DesktopHub features, keep these nodes in rules:
+
+- `admin_users/{username}`
+- `cheat_sheet_editors/{username}`
+- `dev_users/{username}`
+
+Production guidance: keep writes disabled for these nodes in client rules and manage them via service-account scripts (`manage-admin.ps1`, `manage-cheatsheet-editors.ps1`, `manage-dev.ps1`).
+
 ---
 
 ## ⚙️ Rule Updates Required

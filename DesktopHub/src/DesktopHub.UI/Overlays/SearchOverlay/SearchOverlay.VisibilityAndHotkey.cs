@@ -135,6 +135,7 @@ public partial class SearchOverlay
             WidgetIds.SmartProjectSearch => _smartProjectSearchOverlay,
             WidgetIds.CheatSheet         => _cheatSheetOverlay,
             WidgetIds.MetricsViewer      => _metricsViewerOverlay,
+            WidgetIds.DeveloperPanel     => _developerPanelOverlay,
             WidgetIds.ProjectInfo        => _projectInfoOverlay,
             _ => null
         };
@@ -176,6 +177,7 @@ public partial class SearchOverlay
             case WidgetIds.SmartProjectSearch: CreateSmartProjectSearchOverlay(); break;
             case WidgetIds.CheatSheet:         CreateCheatSheetOverlay(); break;
             case WidgetIds.MetricsViewer:      CreateMetricsViewerOverlay(); break;
+            case WidgetIds.DeveloperPanel:     OnDeveloperPanelRequested(this, EventArgs.Empty); break;
             case WidgetIds.ProjectInfo:        CreateProjectInfoOverlay(); break;
             case WidgetIds.WidgetLauncher:
                 if (_widgetLauncher != null)
@@ -362,6 +364,7 @@ public partial class SearchOverlay
             BringWidgetToForegroundIfEnabled(_smartProjectSearchOverlay, tw == null || tw.Contains(WidgetIds.SmartProjectSearch));
             BringWidgetToForegroundIfEnabled(_cheatSheetOverlay, tw == null || tw.Contains(WidgetIds.CheatSheet));
             BringWidgetToForegroundIfEnabled(_metricsViewerOverlay, tw == null || tw.Contains(WidgetIds.MetricsViewer));
+            BringWidgetToForegroundIfEnabled(_developerPanelOverlay, tw == null || tw.Contains(WidgetIds.DeveloperPanel));
 
             this.Activate();
             Dispatcher.BeginInvoke(new Action(() =>
@@ -453,6 +456,7 @@ public partial class SearchOverlay
         BringWidgetToForegroundIfEnabled(_smartProjectSearchOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.SmartProjectSearch));
         BringWidgetToForegroundIfEnabled(_cheatSheetOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.CheatSheet));
         BringWidgetToForegroundIfEnabled(_metricsViewerOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.MetricsViewer));
+        BringWidgetToForegroundIfEnabled(_developerPanelOverlay, targetWidgets == null || targetWidgets.Contains(WidgetIds.DeveloperPanel));
 
         DebugLogger.LogHeader("Calling Window.Activate()");
         var activateResult = this.Activate();

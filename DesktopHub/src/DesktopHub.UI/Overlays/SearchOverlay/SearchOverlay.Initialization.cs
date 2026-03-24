@@ -246,6 +246,7 @@ public partial class SearchOverlay
             _widgetLauncher.SmartProjectSearchRequested += OnSmartProjectSearchRequested;
             _widgetLauncher.CheatSheetRequested += OnCheatSheetRequested;
             _widgetLauncher.MetricsViewerRequested += OnMetricsViewerRequested;
+            _widgetLauncher.DeveloperPanelRequested += OnDeveloperPanelRequested;
             _widgetLauncher.ProjectInfoRequested += OnProjectInfoRequested;
 
             RegisterWidgetWindow(this);
@@ -433,6 +434,8 @@ public partial class SearchOverlay
             // Re-apply in case settings changed while startup widgets were restoring.
             UpdateSmartProjectSearchWidgetButton();
             UpdateCheatSheetWidgetButton();
+            UpdateDeveloperPanelWidgetButton();
+            SetDeveloperPanelEnabled(false);
 
             // Initialize periodic update checking
             InitializeUpdateCheckService();

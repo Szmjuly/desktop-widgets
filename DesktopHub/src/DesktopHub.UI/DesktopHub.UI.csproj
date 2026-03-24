@@ -34,6 +34,11 @@
     <Version>1.8.1</Version>
   </PropertyGroup>
 
+  <!-- Include admin scripts in build output -->
+  <ItemGroup>
+    <None Include="..\..\scripts\*.ps1" CopyToOutputDirectory="PreserveNewest" LinkBase="scripts" />
+  </ItemGroup>
+
   <!-- Publishing configuration for single-file executable -->
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <PublishSingleFile>true</PublishSingleFile>

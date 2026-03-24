@@ -26,6 +26,13 @@
       }
     },
 
+    "dev_users": {
+      "$username": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
+
     "users": {
       "$username": {
         ".read": false,

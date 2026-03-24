@@ -502,3 +502,15 @@ Store `firebase-admin-key.json` in:
 3. Deploy and verify telemetry
 4. Monitor database growth
 5. Implement cleanup/archival strategy
+
+---
+
+## Role Nodes (Current)
+
+DesktopHub now uses username-based role nodes in RTDB for privileged UI features:
+
+- `admin_users/{username}`: enables admin capabilities (for example Metrics admin view).
+- `cheat_sheet_editors/{username}`: grants cheat sheet editing, with admin as implicit editor.
+- `dev_users/{username}`: enables the DEV-only Developer Panel widget and privileged tooling.
+
+All usernames are normalized to lowercase in both scripts and app-side checks.

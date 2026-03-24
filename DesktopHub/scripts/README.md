@@ -32,6 +32,9 @@ The single entry point for all admin operations. Run without arguments for an in
 | `admin-list` | List admin users |
 | `admin-add` | Add an admin user |
 | `admin-remove` | Remove an admin user |
+| `dev-list` | List DEV users |
+| `dev-add` | Add a DEV user |
+| `dev-remove` | Remove a DEV user |
 | `auth-cleanup` | Delete all Firebase Auth users |
 | `auth-cleanup-anon` | Delete anonymous Auth users only |
 | `metrics-reset` | Reset ALL local metrics |
@@ -48,6 +51,7 @@ The single entry point for all admin operations. Run without arguments for an in
 | `dump-database.ps1` | Firebase DB viewer with wipe options (-WipeDevices, -WipeTags, -WipeAll) |
 | `tag-manager.ps1` | Project tag CRUD with AES encryption/decryption |
 | `manage-admin.ps1` | Admin user management (add/remove/list) |
+| `manage-dev.ps1` | DEV user management (add/remove/list) |
 | `cleanup-auth-users.ps1` | Firebase Authentication user cleanup |
 | `wipe-devices.ps1` | Device node wiper |
 | `Reset-Metrics.ps1` | Local SQLite metrics database reset |

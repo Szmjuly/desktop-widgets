@@ -20,6 +20,7 @@ public partial class WidgetLauncher : Window
     public event EventHandler? SmartProjectSearchRequested;
     public event EventHandler? CheatSheetRequested;
     public event EventHandler? MetricsViewerRequested;
+    public event EventHandler? DeveloperPanelRequested;
     public event EventHandler? ProjectInfoRequested;
     private readonly ISettingsService _settings;
     
@@ -39,6 +40,8 @@ public partial class WidgetLauncher : Window
                                  !_settings.GetSmartProjectSearchAttachToSearchOverlayMode();
         UpdateSmartProjectSearchButtonVisibility(smartSearchVisible);
         UpdateCheatSheetButtonVisibility(_settings.GetCheatSheetWidgetEnabled());
+        // Always start hidden; SearchOverlay enables this based on DEV role.
+        UpdateDeveloperPanelButtonVisibility(false);
         UpdateProjectInfoButtonVisibility(_settings.GetWidgetEnabled(Core.Models.WidgetIds.ProjectInfo));
         Loaded += (_, _) => RefreshLayoutFromSettings();
         RefreshLayoutFromSettings();
@@ -62,6 +65,7 @@ public partial class WidgetLauncher : Window
             DocQuickOpenButton,
             SmartProjectSearchButton,
             MetricsViewerButton,
+            DeveloperPanelButton,
             ProjectInfoButton,
             CheatSheetButton
         };
@@ -158,6 +162,11 @@ public partial class WidgetLauncher : Window
     {
         ProjectInfoRequested?.Invoke(this, EventArgs.Empty);
     }
+
+    private void DeveloperPanelButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        DeveloperPanelRequested?.Invoke(this, EventArgs.Empty);
+    }
     
     public void UpdateSearchButtonVisibility(bool visible)
     {
@@ -226,6 +235,13 @@ public partial class WidgetLauncher : Window
     {
         if (ProjectInfoButton != null)
             ProjectInfoButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        RefreshLayoutFromSettings();
+    }
+
+    public void UpdateDeveloperPanelButtonVisibility(bool visible)
+    {
+        if (DeveloperPanelButton != null)
+            DeveloperPanelButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         RefreshLayoutFromSettings();
     }
 

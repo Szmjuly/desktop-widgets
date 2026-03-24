@@ -778,6 +778,106 @@ public partial class SearchOverlay
         }
     }
 
+    private void CreateDeveloperPanelOverlay(double? left = null, double? top = null)
+    {
+        var fbSvc = ((App)System.Windows.Application.Current).FirebaseManager?.FirebaseService;
+        _developerPanelOverlay = new DeveloperPanelOverlay(_settings, fbSvc);
+        RegisterWidgetWindow(_developerPanelOverlay);
+        var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
+        _developerPanelOverlay.Topmost = !isLivingWidgetsMode;
+
+        if (left.HasValue && top.HasValue)
+        {
+            _developerPanelOverlay.Left = left.Value;
+            _developerPanelOverlay.Top = top.Value;
+        }
+        else if (isLivingWidgetsMode)
+        {
+            var (savedLeft, savedTop) = _settings.GetDeveloperPanelWidgetPosition();
+            _developerPanelOverlay.Left = savedLeft ?? (this.Left + this.Width + GetConfiguredWidgetGap());
+            _developerPanelOverlay.Top = savedTop ?? (this.Top + 260);
+        }
+        else
+        {
+            var estimatedSize = new System.Windows.Size(_developerPanelOverlay.Width > 0 ? _developerPanelOverlay.Width : 700, _developerPanelOverlay.Height > 0 ? _developerPanelOverlay.Height : 550);
+            var pos = ComputeNonLivePosition(_developerPanelOverlay, WidgetIds.DeveloperPanel, estimatedSize);
+            if (pos == null) { UnregisterWidgetWindow(_developerPanelOverlay); _developerPanelOverlay = null; return; }
+            _developerPanelOverlay.Left = pos.Value.left;
+            _developerPanelOverlay.Top = pos.Value.top;
+        }
+
+        if (isLivingWidgetsMode)
+            _developerPanelOverlay.EnableDragging();
+
+        _developerPanelOverlay.Show();
+        _developerPanelOverlay.UpdateTransparency();
+        _developerPanelOverlay.Tag = "WasVisible";
+        TelemetryAccessor.TrackWidgetVisibility(WidgetIds.DeveloperPanel, true);
+
+        if (isLivingWidgetsMode)
+        {
+            ApplyLiveLayoutForWindow(_developerPanelOverlay);
+            RefreshAttachmentMappings();
+            TrackVisibleWindowBounds();
+        }
+
+        if (isLivingWidgetsMode && _desktopFollower != null)
+        {
+            _desktopFollower.TrackWindow(_developerPanelOverlay);
+        }
+
+        var dpRef = _developerPanelOverlay;
+        _updateIndicatorManager?.RegisterWidget("DeveloperPanelOverlay", 11, _developerPanelOverlay,
+            visible => Dispatcher.Invoke(() => dpRef.SetUpdateIndicatorVisible(visible)));
+
+        DebugLogger.Log($"CreateDeveloperPanelOverlay: Created at ({_developerPanelOverlay.Left}, {_developerPanelOverlay.Top})");
+    }
+
+    private void OnDeveloperPanelRequested(object? sender, EventArgs e)
+    {
+        if (!_isDeveloperUser)
+        {
+            DebugLogger.Log("OnDeveloperPanelRequested: blocked (user is not DEV)");
+            return;
+        }
+
+        if (!_settings.GetDeveloperPanelWidgetEnabled())
+        {
+            DebugLogger.Log("OnDeveloperPanelRequested: blocked (widget disabled in settings)");
+            return;
+        }
+
+        try
+        {
+            if (_developerPanelOverlay == null)
+            {
+                CreateDeveloperPanelOverlay();
+            }
+            else
+            {
+                if (_developerPanelOverlay.Visibility == Visibility.Visible)
+                {
+                    _developerPanelOverlay.Visibility = Visibility.Hidden;
+                    _developerPanelOverlay.Tag = null;
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.DeveloperPanel, false);
+                    DebugLogger.Log("OnDeveloperPanelRequested: Developer panel hidden");
+                }
+                else
+                {
+                    _developerPanelOverlay.Visibility = Visibility.Visible;
+                    _developerPanelOverlay.Tag = "WasVisible";
+                    TelemetryAccessor.TrackWidgetVisibility(WidgetIds.DeveloperPanel, true);
+                    DebugLogger.Log("OnDeveloperPanelRequested: Developer panel shown");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"OnDeveloperPanelRequested: Error: {ex}");
+            System.Windows.MessageBox.Show($"Error with developer panel: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     // ===== Project Info Overlay =====
 
     private void CreateProjectInfoOverlay(double? left = null, double? top = null)
@@ -1145,6 +1245,10 @@ public partial class SearchOverlay
         {
             _desktopFollower.TrackWindow(_metricsViewerOverlay);
         }
+        if (_developerPanelOverlay != null)
+        {
+            _desktopFollower.TrackWindow(_developerPanelOverlay);
+        }
 
         _desktopFollower.Start();
     }
@@ -1168,7 +1272,7 @@ public partial class SearchOverlay
         foreach (var w in new Window?[] {
             _widgetLauncher, _timerOverlay, _quickTasksOverlay, _docOverlay,
             _frequentProjectsOverlay, _quickLaunchOverlay, _smartProjectSearchOverlay,
-            _cheatSheetOverlay, _metricsViewerOverlay, _projectInfoOverlay })
+            _cheatSheetOverlay, _metricsViewerOverlay, _developerPanelOverlay, _projectInfoOverlay })
         {
             if (w != null && w.IsActive)
                 return true;
@@ -1191,6 +1295,7 @@ public partial class SearchOverlay
             SmartProjectSearchOverlay => WidgetIds.SmartProjectSearch,
             CheatSheetOverlay => WidgetIds.CheatSheet,
             MetricsViewerOverlay => WidgetIds.MetricsViewer,
+            DeveloperPanelOverlay => WidgetIds.DeveloperPanel,
             ProjectInfoOverlay => WidgetIds.ProjectInfo,
             _ => null
         };
@@ -1225,7 +1330,7 @@ public partial class SearchOverlay
         foreach (var w in new Window?[] {
             _timerOverlay, _quickTasksOverlay, _docOverlay, _frequentProjectsOverlay,
             _quickLaunchOverlay, _smartProjectSearchOverlay, _cheatSheetOverlay,
-            _metricsViewerOverlay, _projectInfoOverlay })
+            _metricsViewerOverlay, _developerPanelOverlay, _projectInfoOverlay })
         {
             if (w != null && w != widget && w.Visibility == Visibility.Visible && w.IsLoaded)
             {
@@ -1290,6 +1395,7 @@ public partial class SearchOverlay
             (_smartProjectSearchOverlay, WidgetIds.SmartProjectSearch),
             (_cheatSheetOverlay, WidgetIds.CheatSheet),
             (_metricsViewerOverlay, WidgetIds.MetricsViewer),
+            (_developerPanelOverlay, WidgetIds.DeveloperPanel),
             (_projectInfoOverlay, WidgetIds.ProjectInfo),
         };
 
@@ -1342,7 +1448,7 @@ public partial class SearchOverlay
         foreach (var w in new Window?[] {
             _timerOverlay, _quickTasksOverlay, _docOverlay, _frequentProjectsOverlay,
             _quickLaunchOverlay, _smartProjectSearchOverlay, _cheatSheetOverlay,
-            _metricsViewerOverlay, _projectInfoOverlay })
+            _metricsViewerOverlay, _developerPanelOverlay, _projectInfoOverlay })
         {
             if (w != null && w.Visibility == Visibility.Visible)
             {
@@ -1363,7 +1469,7 @@ public partial class SearchOverlay
         foreach (var w in new Window?[] {
             _timerOverlay, _quickTasksOverlay, _docOverlay, _frequentProjectsOverlay,
             _quickLaunchOverlay, _smartProjectSearchOverlay, _cheatSheetOverlay,
-            _metricsViewerOverlay, _projectInfoOverlay })
+            _metricsViewerOverlay, _developerPanelOverlay, _projectInfoOverlay })
         {
             if (w != null && w.Tag is "WasVisible" && w.Visibility != Visibility.Visible)
             {
@@ -1453,6 +1559,11 @@ public partial class SearchOverlay
                 _metricsViewerOverlay.EnableDragging();
                 _metricsViewerOverlay.Topmost = false;
             }
+            if (_developerPanelOverlay != null)
+            {
+                _developerPanelOverlay.EnableDragging();
+                _developerPanelOverlay.Topmost = false;
+            }
 
             // Start following desktop switches
             StartDesktopFollower();
@@ -1523,6 +1634,11 @@ public partial class SearchOverlay
             {
                 _metricsViewerOverlay.DisableDragging();
                 _metricsViewerOverlay.Topmost = true;
+            }
+            if (_developerPanelOverlay != null)
+            {
+                _developerPanelOverlay.DisableDragging();
+                _developerPanelOverlay.Topmost = true;
             }
 
             // Stop following desktop switches

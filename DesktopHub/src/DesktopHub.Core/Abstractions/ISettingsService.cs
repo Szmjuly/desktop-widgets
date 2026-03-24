@@ -498,6 +498,12 @@ public interface ISettingsService
     void SetCheatSheetWidgetVisible(bool visible);
     bool GetCheatSheetWidgetEnabled();
     void SetCheatSheetWidgetEnabled(bool enabled);
+    (double? left, double? top) GetDeveloperPanelWidgetPosition();
+    void SetDeveloperPanelWidgetPosition(double left, double top);
+    bool GetDeveloperPanelWidgetVisible();
+    void SetDeveloperPanelWidgetVisible(bool visible);
+    bool GetDeveloperPanelWidgetEnabled();
+    void SetDeveloperPanelWidgetEnabled(bool enabled);
     bool GetCheatSheetSnapGridEnabled();
     void SetCheatSheetSnapGridEnabled(bool enabled);
     bool GetCheatSheetCrossDisciplineSearch();

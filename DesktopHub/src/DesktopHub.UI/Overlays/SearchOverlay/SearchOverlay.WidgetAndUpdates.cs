@@ -143,6 +143,45 @@ public partial class SearchOverlay
         }
     }
 
+    public void SetDeveloperPanelEnabled(bool enabled)
+    {
+        _isDeveloperUser = enabled;
+        if (_widgetLauncher != null)
+        {
+            var userEnabled = _settings.GetDeveloperPanelWidgetEnabled();
+            _widgetLauncher.UpdateDeveloperPanelButtonVisibility(enabled && userEnabled);
+            DebugLogger.Log($"SetDeveloperPanelEnabled: visibility set to {enabled && userEnabled}");
+        }
+
+        if (enabled && !_developerPanelRestoreApplied && _settings.GetDeveloperPanelWidgetVisible())
+        {
+            _developerPanelRestoreApplied = true;
+            if (_developerPanelOverlay == null)
+                CreateDeveloperPanelOverlay();
+            else
+            {
+                _developerPanelOverlay.Visibility = Visibility.Visible;
+                _developerPanelOverlay.Tag = "WasVisible";
+            }
+        }
+
+        if (!enabled && _developerPanelOverlay != null && _developerPanelOverlay.Visibility == Visibility.Visible)
+        {
+            _developerPanelOverlay.Visibility = Visibility.Hidden;
+            _developerPanelOverlay.Tag = null;
+        }
+    }
+
+    public void UpdateDeveloperPanelWidgetButton()
+    {
+        if (_widgetLauncher != null)
+        {
+            var enabled = _settings.GetDeveloperPanelWidgetEnabled();
+            _widgetLauncher.UpdateDeveloperPanelButtonVisibility(enabled && _isDeveloperUser);
+            DebugLogger.Log($"UpdateDeveloperPanelWidgetButton: visibility set to {enabled && _isDeveloperUser}");
+        }
+    }
+
     public void UpdateMetricsViewerWidgetButton()
     {
         if (_widgetLauncher != null)
@@ -335,6 +374,11 @@ public partial class SearchOverlay
                 if (_metricsViewerOverlay != null)
                 {
                     _metricsViewerOverlay.UpdateTransparency();
+                }
+
+                if (_developerPanelOverlay != null)
+                {
+                    _developerPanelOverlay.UpdateTransparency();
                 }
 
                 UpdateSmartSearchAttachedWindowTransparency();
