@@ -71,7 +71,7 @@ if (-not $SecretPath) {
 }
 if (-not $ServiceAccountPath) {
     $scriptDir = Split-Path -Parent $PSScriptRoot
-    $ServiceAccountPath = Join-Path $scriptDir "secrets" "firebase-license.json"
+    $ServiceAccountPath = Join-Path (Join-Path $scriptDir "secrets") "firebase-license.json"
     if (-not (Test-Path $ServiceAccountPath)) {
         $ServiceAccountPath = Join-Path $PSScriptRoot "firebase-license.json"
     }

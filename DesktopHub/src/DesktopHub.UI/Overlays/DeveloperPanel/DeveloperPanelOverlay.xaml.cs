@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using System.Windows.Input;
 using DesktopHub.Core.Abstractions;
@@ -17,7 +18,9 @@ public partial class DeveloperPanelOverlay : Window
     public DeveloperPanelOverlay(ISettingsService settings, IFirebaseService? firebaseService)
     {
         InitializeComponent();
-        _settings = settings;
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        if (WidgetHost == null)
+            throw new InvalidOperationException("DeveloperPanelOverlay XAML must define WidgetHost.");
 
         _widget = new DeveloperPanelWidget(firebaseService);
         WidgetHost.Content = _widget;

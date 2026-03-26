@@ -605,7 +605,7 @@ public partial class SearchOverlay
         if (_cheatSheetService == null)
             return;
 
-        var fbSvc = ((App)System.Windows.Application.Current).FirebaseManager?.FirebaseService;
+        var fbSvc = (System.Windows.Application.Current as App)?.FirebaseManager?.FirebaseService;
         _cheatSheetOverlay = new CheatSheetOverlay(_cheatSheetService, _settings, _cheatSheetDataService, fbSvc);
         ApplyResponsiveWidgetWidth(_cheatSheetOverlay);
         RegisterWidgetWindow(_cheatSheetOverlay);
@@ -780,7 +780,7 @@ public partial class SearchOverlay
 
     private void CreateDeveloperPanelOverlay(double? left = null, double? top = null)
     {
-        var fbSvc = ((App)System.Windows.Application.Current).FirebaseManager?.FirebaseService;
+        var fbSvc = (System.Windows.Application.Current as App)?.FirebaseManager?.FirebaseService;
         _developerPanelOverlay = new DeveloperPanelOverlay(_settings, fbSvc);
         RegisterWidgetWindow(_developerPanelOverlay);
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();
@@ -826,11 +826,41 @@ public partial class SearchOverlay
             _desktopFollower.TrackWindow(_developerPanelOverlay);
         }
 
+        // Defer registration until after layout; avoids NREs from UpdateIndicatorManager.Refresh
+        // while the window / Dispatcher are not fully ready. Use a dispatcher chain that survives
+        // rare cases where this Window's Dispatcher is not yet associated.
         var dpRef = _developerPanelOverlay;
-        _updateIndicatorManager?.RegisterWidget("DeveloperPanelOverlay", 11, _developerPanelOverlay,
-            visible => Dispatcher.Invoke(() => dpRef.SetUpdateIndicatorVisible(visible)));
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            try
+            {
+                if (dpRef == null) return;
+                _updateIndicatorManager?.RegisterWidget("DeveloperPanelOverlay", 11, dpRef,
+                    visible => RunOnUiThread(() => dpRef.SetUpdateIndicatorVisible(visible)));
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"CreateDeveloperPanelOverlay: RegisterWidget failed: {ex}");
+            }
+        }), System.Windows.Threading.DispatcherPriority.Background);
 
         DebugLogger.Log($"CreateDeveloperPanelOverlay: Created at ({_developerPanelOverlay.Left}, {_developerPanelOverlay.Top})");
+    }
+
+    /// <summary>Runs an action on the UI thread; prefers this window's dispatcher, then Application.Current.</summary>
+    private void RunOnUiThread(Action action)
+    {
+        var d = Dispatcher ?? System.Windows.Application.Current?.Dispatcher;
+        if (d == null)
+        {
+            action();
+            return;
+        }
+
+        if (d.CheckAccess())
+            action();
+        else
+            d.Invoke(action);
     }
 
     private void OnDeveloperPanelRequested(object? sender, EventArgs e)
@@ -874,7 +904,8 @@ public partial class SearchOverlay
         catch (Exception ex)
         {
             DebugLogger.Log($"OnDeveloperPanelRequested: Error: {ex}");
-            System.Windows.MessageBox.Show($"Error with developer panel: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            var detail = ex.InnerException != null ? $"{ex.Message}\n\n{ex.InnerException.Message}" : ex.Message;
+            System.Windows.MessageBox.Show($"Error with developer panel: {detail}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

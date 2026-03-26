@@ -79,19 +79,19 @@ public partial class DeveloperPanelWidget
             VerticalAlignment = VerticalAlignment.Center
         };
 
-        var stack = new StackPanel { Orientation = Orientation.Horizontal };
+        var stack = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
         stack.Children.Add(nameBlock);
         stack.Children.Add(countBlock);
 
         var isSelected = _selectedNodePill == nodeName;
         var bgBrush = isSelected ? FindBrush("AccentBrush") : FindBrush("SurfaceBrush");
-        var fgForSelected = isSelected ? Brushes.White : FindBrush("TextPrimaryBrush");
+        var fgForSelected = isSelected ? System.Windows.Media.Brushes.White : FindBrush("TextPrimaryBrush");
         var borderBrush = isSelected ? FindBrush("AccentBrush") : FindBrush("BorderBrush");
 
         if (isSelected)
         {
-            nameBlock.Foreground = Brushes.White;
-            countBlock.Foreground = new SolidColorBrush(Color.FromArgb(180, 255, 255, 255));
+            nameBlock.Foreground = System.Windows.Media.Brushes.White;
+            countBlock.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(180, 255, 255, 255));
         }
 
         var border = new Border
@@ -128,20 +128,172 @@ public partial class DeveloperPanelWidget
     {
         if (_lastNodeData == null) return;
 
+        var path = (NodePathBox.Text ?? string.Empty).Trim();
+        var projectTagsRoot = path.Equals("project_tags", StringComparison.OrdinalIgnoreCase);
+
         if (_dbShowJson)
         {
+            HideProjectTagsExplorer();
             NodeJsonBox.Text = JsonSerializer.Serialize(_lastNodeData, new JsonSerializerOptions { WriteIndented = true });
             NodeJsonBox.Visibility = Visibility.Visible;
             DbTreeView.Visibility = Visibility.Collapsed;
-            DbViewToggleBtn.Content = "Tree";
+            DbViewToggleBtn.Content = projectTagsRoot ? "Cards" : "Tree";
+        }
+        else if (projectTagsRoot)
+        {
+            DbTreeView.Visibility = Visibility.Collapsed;
+            NodeJsonBox.Visibility = Visibility.Collapsed;
+            ProjectTagsScroller.Visibility = Visibility.Visible;
+            BuildProjectTagsExplorer(_lastNodeData);
+            DbViewToggleBtn.Content = "JSON";
         }
         else
         {
+            HideProjectTagsExplorer();
             BuildTreeView(_lastNodeData);
             DbTreeView.Visibility = Visibility.Visible;
             NodeJsonBox.Visibility = Visibility.Collapsed;
             DbViewToggleBtn.Content = "JSON";
         }
+    }
+
+    private void HideProjectTagsExplorer()
+    {
+        ProjectTagsScroller.Visibility = Visibility.Collapsed;
+        ProjectTagsList.Children.Clear();
+    }
+
+    private static Dictionary<string, object>? AsStringObjectDict(object? o)
+    {
+        if (o is Dictionary<string, object> d)
+            return d;
+        if (o is IDictionary raw)
+        {
+            var result = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            foreach (DictionaryEntry e in raw)
+            {
+                if (e.Key != null)
+                    result[e.Key.ToString()!] = e.Value!;
+            }
+            return result;
+        }
+        return null;
+    }
+
+    private void BuildProjectTagsExplorer(Dictionary<string, object> root)
+    {
+        ProjectTagsList.Children.Clear();
+        foreach (var kvp in root.OrderBy(k => k.Key))
+        {
+            var entry = AsStringObjectDict(kvp.Value);
+            if (entry == null)
+                continue;
+
+            entry.TryGetValue("tags", out var tagsObj);
+            var tags = AsStringObjectDict(tagsObj);
+
+            var card = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
+            card.Children.Add(new TextBlock
+            {
+                Text = FormatProjectTagHashTitle(kvp.Key),
+                FontFamily = new System.Windows.Media.FontFamily("Consolas"),
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = FindBrush("TextPrimaryBrush"),
+            });
+
+            if (entry.TryGetValue("updated_by", out var ub) && ub != null)
+                card.Children.Add(CreateTagMetaLine("Updated by", ub.ToString()!));
+            if (entry.TryGetValue("updated_at", out var ua) && ua != null)
+                card.Children.Add(CreateTagMetaLine("Updated at", ua.ToString()!));
+
+            var fieldsPanel = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
+            if (tags != null && tags.Count > 0)
+                AddProjectTagFieldRows(fieldsPanel, tags, "");
+            else
+            {
+                foreach (var ek in entry.Where(e => !e.Key.Equals("tags", StringComparison.OrdinalIgnoreCase)))
+                    fieldsPanel.Children.Add(CreateTagFieldRow(ek.Key, FormatProjectTagValue(ek.Value)));
+            }
+
+            card.Children.Add(fieldsPanel);
+
+            ProjectTagsList.Children.Add(new Border
+            {
+                Background = FindBrush("FaintOverlayBrush"),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(10, 8, 10, 8),
+                BorderBrush = FindBrush("BorderBrush"),
+                BorderThickness = new Thickness(1),
+                Child = card,
+            });
+        }
+    }
+
+    private static string FormatProjectTagHashTitle(string hash)
+    {
+        if (string.IsNullOrEmpty(hash)) return "(empty key)";
+        if (hash.Length <= 16) return hash;
+        return $"{hash[..8]}…{hash[^8..]}";
+    }
+
+    private TextBlock CreateTagMetaLine(string label, string value) =>
+        new()
+        {
+            Text = $"{label}: {value}",
+            FontSize = 10,
+            Foreground = FindBrush("TextTertiaryBrush"),
+            Margin = new Thickness(0, 2, 0, 0),
+        };
+
+    private void AddProjectTagFieldRows(StackPanel panel, Dictionary<string, object> dict, string keyPrefix)
+    {
+        foreach (var (key, val) in dict.OrderBy(k => k.Key))
+        {
+            if (val is Dictionary<string, object> sub)
+            {
+                AddProjectTagFieldRows(panel, sub, $"{keyPrefix}{key} · ");
+                continue;
+            }
+
+            panel.Children.Add(CreateTagFieldRow($"{keyPrefix}{key}", FormatProjectTagValue(val)));
+        }
+    }
+
+    private Grid CreateTagFieldRow(string key, string value)
+    {
+        var g = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var kBlock = new TextBlock
+        {
+            Text = key,
+            FontSize = 10,
+            Foreground = FindBrush("TextTertiaryBrush"),
+            Margin = new Thickness(0, 0, 8, 0),
+        };
+        Grid.SetColumn(kBlock, 0);
+        g.Children.Add(kBlock);
+
+        var vBlock = new TextBlock
+        {
+            Text = value,
+            FontSize = 10,
+            Foreground = FindBrush("TextPrimaryBrush"),
+            TextWrapping = TextWrapping.Wrap,
+        };
+        Grid.SetColumn(vBlock, 1);
+        g.Children.Add(vBlock);
+
+        return g;
+    }
+
+    private static string FormatProjectTagValue(object? value)
+    {
+        if (value == null) return "—";
+        var s = value.ToString() ?? "";
+        return s.Length > 200 ? s[..200] + "…" : s;
     }
 
     private void BuildTreeView(Dictionary<string, object>? data)
@@ -197,7 +349,7 @@ public partial class DeveloperPanelWidget
 
     private UIElement CreateTreeHeader(string key, string typeTag, string valuePreview, string color)
     {
-        var panel = new StackPanel { Orientation = Orientation.Horizontal };
+        var panel = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
 
         panel.Children.Add(new TextBlock
         {
@@ -209,10 +361,10 @@ public partial class DeveloperPanelWidget
             Margin = new Thickness(0, 0, 6, 0)
         });
 
-        var tagColor = (Color)ColorConverter.ConvertFromString(color);
+        var tagColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(color);
         panel.Children.Add(new Border
         {
-            Background = new SolidColorBrush(Color.FromArgb(40, tagColor.R, tagColor.G, tagColor.B)),
+            Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(40, tagColor.R, tagColor.G, tagColor.B)),
             CornerRadius = new CornerRadius(3),
             Padding = new Thickness(4, 1, 4, 1),
             Margin = new Thickness(0, 0, 6, 0),
@@ -274,6 +426,7 @@ public partial class DeveloperPanelWidget
             _lastNodeData = null;
             NodeJsonBox.Text = "{}";
             DbTreeView.Items.Clear();
+            HideProjectTagsExplorer();
             AppendOutput($"No data found for '{path}'.");
             return;
         }

@@ -12,7 +12,7 @@ using DesktopHub.Infrastructure.Firebase;
 
 namespace DesktopHub.UI.Widgets;
 
-public partial class DeveloperPanelWidget : UserControl
+public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
 {
     private static readonly HashSet<string> AllowedScripts = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -38,16 +38,18 @@ public partial class DeveloperPanelWidget : UserControl
         "devices", "users", "licenses", "app_versions", "admin_users",
         "project_tags", "cheat_sheet_data", "events", "errors",
         "feature_flags", "dev_users", "cheat_sheet_editors", "metrics",
-        "tag_registry", "pending_updates"
+        "tag_registry", "force_update"
     };
 
     private static readonly (string Id, string Label)[] TabDefs =
     {
-        ("dashboard",   "Dashboard"),
-        ("database",    "Database"),
-        ("heartbeats",  "Heartbeats"),
-        ("permissions", "Permissions"),
-        ("updates",     "Updates"),
+        ("dashboard",     "Dashboard"),
+        ("database",      "Database"),
+        ("heartbeats",    "Heartbeats"),
+        ("users_devices", "Users / devices"),
+        ("permissions",   "Permissions"),
+        ("licensing",     "Licensing"),
+        ("updates",       "Updates"),
     };
 
     internal record ScriptTile(string Label, string Abbrev, string Color, Func<Task> Action, bool IsDanger = false);
@@ -69,7 +71,6 @@ public partial class DeveloperPanelWidget : UserControl
     internal bool _dbShowJson;
     internal List<string> _knownUsernames = new();
     internal DispatcherTimer? _heartbeatTimer;
-    internal bool _suppressSuggestion;
 
     public DeveloperPanelWidget(IFirebaseService? firebaseService)
     {
@@ -106,6 +107,7 @@ public partial class DeveloperPanelWidget : UserControl
     {
         _clockTimer.Stop();
         _heartbeatTimer?.Stop();
+        StopDashboardTimer();
     }
 
     private void SetCurrentUsername()
@@ -152,7 +154,7 @@ public partial class DeveloperPanelWidget : UserControl
     }
 
     internal SolidColorBrush FindBrush(string key) =>
-        TryFindResource(key) as SolidColorBrush ?? Brushes.Gray;
+        TryFindResource(key) as SolidColorBrush ?? System.Windows.Media.Brushes.Gray;
 
     // ════════════════════════════════════════════════════════════
     // TAB SWITCHING
@@ -165,7 +167,7 @@ public partial class DeveloperPanelWidget : UserControl
         {
             var isActive = _activeTab == id;
             var bgBrush = isActive ? FindBrush("AccentBrush") : FindBrush("SurfaceBrush");
-            var fgBrush = isActive ? Brushes.White : FindBrush("TextPrimaryBrush");
+            var fgBrush = isActive ? System.Windows.Media.Brushes.White : FindBrush("TextPrimaryBrush");
             var borderBrush = isActive ? FindBrush("AccentBrush") : FindBrush("BorderBrush");
 
             var text = new TextBlock
@@ -206,7 +208,9 @@ public partial class DeveloperPanelWidget : UserControl
         DashboardTab.Visibility = tabId == "dashboard" ? Visibility.Visible : Visibility.Collapsed;
         DatabaseTab.Visibility = tabId == "database" ? Visibility.Visible : Visibility.Collapsed;
         HeartbeatsTab.Visibility = tabId == "heartbeats" ? Visibility.Visible : Visibility.Collapsed;
+        UsersDevicesTab.Visibility = tabId == "users_devices" ? Visibility.Visible : Visibility.Collapsed;
         PermissionsTab.Visibility = tabId == "permissions" ? Visibility.Visible : Visibility.Collapsed;
+        LicensingTab.Visibility = tabId == "licensing" ? Visibility.Visible : Visibility.Collapsed;
         UpdatesTab.Visibility = tabId == "updates" ? Visibility.Visible : Visibility.Collapsed;
 
         // Lazy-load tab data on first visit
@@ -218,6 +222,11 @@ public partial class DeveloperPanelWidget : UserControl
             StartHeartbeatTimer();
         else
             _heartbeatTimer?.Stop();
+
+        if (tabId == "dashboard")
+            StartDashboardTimer();
+        else
+            StopDashboardTimer();
     }
 
     private async Task LoadTabAsync(string tabId)
@@ -225,7 +234,9 @@ public partial class DeveloperPanelWidget : UserControl
         switch (tabId)
         {
             case "dashboard":
+                await BuildHealthOverviewAsync();
                 BuildScriptTiles();
+                BuildSystemStatus();
                 await RefreshVersionInfoAsync();
                 break;
             case "database":
@@ -234,7 +245,16 @@ public partial class DeveloperPanelWidget : UserControl
             case "heartbeats":
                 await RefreshHeartbeatsAsync();
                 break;
+            case "users_devices":
+                await RefreshUsersDevicesAsync();
+                break;
             case "permissions":
+                WirePermissionTabEventsOnce();
+                PopulateUsernameDropdown();
+                await RefreshPermissionTabStateAsync();
+                break;
+            case "licensing":
+                await RefreshLicensesAsync();
                 break;
             case "updates":
                 InitUpdatesTab();
@@ -300,13 +320,9 @@ public partial class DeveloperPanelWidget : UserControl
     internal string ResolveUsername()
     {
         var normalized = NormalizeUsername(RoleUsernameBox.Text);
-        _suppressSuggestion = true;
         RoleUsernameBox.Text = normalized;
-        _suppressSuggestion = false;
         return normalized;
     }
-
-    private static string Quote(string value) => $"\"{value.Replace("\"", "\\\"")}\"";
 
     internal async Task RunScriptAsync(string fileName, params string[] args)
     {
@@ -336,21 +352,30 @@ public partial class DeveloperPanelWidget : UserControl
         if (!skipServiceAccount && _serviceAccountPath != null)
         {
             allArgs.Add("-ServiceAccountPath");
-            allArgs.Add(Quote(_serviceAccountPath));
+            allArgs.Add(_serviceAccountPath);
         }
 
+        // Use ArgumentList so each token is one argv entry. A single Arguments string with
+        // embedded quotes breaks PowerShell's parser and can leave e.g. firebase-license.json
+        // as a stray positional argument (ParameterBindingException).
         var psi = new ProcessStartInfo
         {
-            FileName = "powershell",
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -File {Quote(scriptPath)} {string.Join(" ", allArgs)}",
+            FileName = "powershell.exe",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
             WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory
         };
+        psi.ArgumentList.Add("-NoProfile");
+        psi.ArgumentList.Add("-ExecutionPolicy");
+        psi.ArgumentList.Add("Bypass");
+        psi.ArgumentList.Add("-File");
+        psi.ArgumentList.Add(scriptPath);
+        foreach (var a in allArgs)
+            psi.ArgumentList.Add(a);
 
-        AppendOutput($"> {fileName} {string.Join(" ", args)}");
+        AppendOutput($"> {fileName} {string.Join(" ", allArgs)}");
 
         try
         {
@@ -397,7 +422,7 @@ public partial class DeveloperPanelWidget : UserControl
 
         if (confirmDangerous)
         {
-            var result = MessageBox.Show(
+            var result = System.Windows.MessageBox.Show(
                 $"Confirm role action '{action}' for '{username}'?",
                 "Confirm Role Action",
                 MessageBoxButton.YesNo,
@@ -414,7 +439,7 @@ public partial class DeveloperPanelWidget : UserControl
 
     internal bool ConfirmDangerous(string message)
     {
-        return MessageBox.Show(message, "Confirm", MessageBoxButton.YesNo,
+        return System.Windows.MessageBox.Show(message, "Confirm", MessageBoxButton.YesNo,
             MessageBoxImage.Warning) == MessageBoxResult.Yes;
     }
 
@@ -436,13 +461,22 @@ public partial class DeveloperPanelWidget : UserControl
     // ════════════════════════════════════════════════════════════
 
     private void ClearOutput_Click(object sender, RoutedEventArgs e) => OutputBox.Clear();
-    private void NormalizeUsername_Click(object sender, RoutedEventArgs e) => _ = ResolveUsername();
+    private async void NormalizeUsername_Click(object sender, RoutedEventArgs e)
+    {
+        _ = ResolveUsername();
+        await RefreshPermissionTabStateAsync();
+    }
+
+    private void ClosePanel_Click(object sender, RoutedEventArgs e)
+    {
+        var w = Window.GetWindow(this);
+        if (w != null)
+            w.Hide();
+    }
 
     internal void NavigateToPermissions(string username)
     {
-        _suppressSuggestion = true;
         RoleUsernameBox.Text = username;
-        _suppressSuggestion = false;
         SwitchTab("permissions");
     }
 }

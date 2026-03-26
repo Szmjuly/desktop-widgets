@@ -5,7 +5,9 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using System.Windows.Threading;
+using WpfBrushes = System.Windows.Media.Brushes;
 
 namespace DesktopHub.UI.Widgets;
 
@@ -30,34 +32,30 @@ public partial class DeveloperPanelWidget
                 return;
             }
 
-            var grouped = devices
+            var lines = devices
                 .Select(kvp =>
                 {
                     var d = kvp.Value;
-                    return new
+                    return new HeartbeatDeviceLine
                     {
+                        DeviceId = kvp.Key,
                         Username = d.TryGetValue("username", out var u) ? u?.ToString() ?? "unknown" : "unknown",
-                        Device = d.TryGetValue("device_name", out var dn) ? dn?.ToString() ?? "" : "",
+                        DeviceName = d.TryGetValue("device_name", out var dn) ? dn?.ToString() ?? "" : "",
                         Status = d.TryGetValue("status", out var st) ? st?.ToString() ?? "unknown" : "unknown",
                         LastSeen = d.TryGetValue("last_seen", out var ls) ? ls?.ToString() ?? "" : "",
                     };
                 })
-                .GroupBy(x => x.Username)
-                .OrderBy(g => g.Key)
                 .ToList();
 
-            int onlineCount = grouped.SelectMany(g => g).Count(d => d.Status == "active");
+            var grouped = lines.GroupBy(x => x.Username).OrderBy(g => g.Key).ToList();
+
+            int onlineCount = lines.Count(d => d.Status == "active");
             HeartbeatCountText.Text = $"{onlineCount} online / {devices.Count} tracked";
 
-            // Store usernames for permissions autocomplete
             _knownUsernames = grouped.Select(g => g.Key).ToList();
+            PopulateUsernameDropdown();
 
-            foreach (var group in grouped)
-            {
-                var first = group.First();
-                var row = CreateHeartbeatRow(first.Username, first.Status, first.LastSeen);
-                HeartbeatList.Children.Add(row);
-            }
+            RenderHeartbeatTable(grouped);
         }
         catch (Exception ex)
         {
@@ -65,59 +63,118 @@ public partial class DeveloperPanelWidget
         }
     }
 
-    private UIElement CreateHeartbeatRow(string username, string status, string lastSeen)
+    private sealed class HeartbeatDeviceLine
     {
-        var grid = new Grid { Margin = new Thickness(0, 0, 0, 4) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        public required string DeviceId { get; init; }
+        public required string Username { get; init; }
+        public string DeviceName { get; init; } = "";
+        public string Status { get; init; } = "unknown";
+        public string LastSeen { get; init; } = "";
+    }
 
-        var leftStack = new StackPanel { Orientation = Orientation.Horizontal };
+    private void RenderHeartbeatTable(System.Collections.Generic.IEnumerable<System.Linq.IGrouping<string, HeartbeatDeviceLine>> grouped)
+    {
+        HeartbeatList.Children.Clear();
+        HeartbeatList.Children.Add(CreateHeartbeatHeaderRow());
+        var rowIndex = 0;
 
-        var nameBlock = new TextBlock
+        foreach (var group in grouped.OrderBy(g => g.Key))
         {
-            Text = username,
-            FontSize = 12,
-            Foreground = FindBrush("TextPrimaryBrush"),
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 8, 0)
-        };
-        leftStack.Children.Add(nameBlock);
+            var orderedDevices = group.OrderBy(d => d.DeviceName).ThenBy(d => d.DeviceId).ToList();
+            for (var i = 0; i < orderedDevices.Count; i++)
+            {
+                HeartbeatList.Children.Add(CreateHeartbeatDataRow(
+                    i == 0 ? group.Key : string.Empty,
+                    orderedDevices[i],
+                    rowIndex++));
+            }
+        }
+    }
 
-        var roleBadge = CreateRoleBadge(status);
-        leftStack.Children.Add(roleBadge);
-
-        Grid.SetColumn(leftStack, 0);
-        grid.Children.Add(leftStack);
-
-        var timeAgo = FormatTimeAgo(lastSeen);
-        var timeBlock = new TextBlock
+    private UIElement CreateHeartbeatHeaderRow()
+    {
+        var grid = CreateHeartbeatRowGrid();
+        grid.Children.Add(CreateCell("User", 0, true));
+        grid.Children.Add(CreateCell("Device", 1, true));
+        grid.Children.Add(CreateCell("Status", 2, true));
+        grid.Children.Add(CreateCell("Last Seen", 3, true));
+        return new Border
         {
-            Text = timeAgo,
-            FontSize = 10,
-            Foreground = FindBrush("TextTertiaryBrush"),
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        Grid.SetColumn(timeBlock, 1);
-        grid.Children.Add(timeBlock);
-
-        var border = new Border
-        {
-            Background = FindBrush("FaintOverlayBrush"),
-            CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(10, 6, 10, 6),
-            Margin = new Thickness(0, 0, 0, 2),
-            Cursor = System.Windows.Input.Cursors.Hand,
+            Background = FindBrush("SurfaceBrush"),
+            BorderBrush = FindBrush("BorderBrush"),
+            BorderThickness = new Thickness(1, 0, 1, 1),
+            Padding = new Thickness(8, 6, 8, 6),
             Child = grid
         };
+    }
 
-        // Click to navigate to permissions with this username
-        border.MouseLeftButtonDown += (_, _) => NavigateToPermissions(username);
+    private UIElement CreateHeartbeatDataRow(string usernameCell, HeartbeatDeviceLine d, int rowIndex)
+    {
+        var grid = CreateHeartbeatRowGrid();
+        var deviceText = string.IsNullOrWhiteSpace(d.DeviceName) ? d.DeviceId : d.DeviceName;
+        grid.Children.Add(CreateCell(usernameCell, 0, false));
+        grid.Children.Add(CreateCell(deviceText, 1, false));
+        grid.Children.Add(CreateStatusCell(d.Status, 2));
+        grid.Children.Add(CreateCell(FormatTimeAgo(d.LastSeen), 3, false));
 
-        // Hover effect
-        border.MouseEnter += (_, _) => border.Background = FindBrush("HoverMediumBrush");
-        border.MouseLeave += (_, _) => border.Background = FindBrush("FaintOverlayBrush");
+        return new Border
+        {
+            Background = rowIndex % 2 == 0 ? WpfBrushes.Transparent : FindBrush("FaintOverlayBrush"),
+            BorderBrush = FindBrush("BorderBrush"),
+            BorderThickness = new Thickness(1, 0, 1, 1),
+            Padding = new Thickness(8, 4, 8, 4),
+            Child = grid
+        };
+    }
 
-        return border;
+    private Grid CreateHeartbeatRowGrid()
+    {
+        var grid = new Grid { MinHeight = 28 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.3, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.9, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.9, GridUnitType.Star) });
+        return grid;
+    }
+
+    private UIElement CreateCell(string text, int column, bool isHeader)
+    {
+        var block = new TextBlock
+        {
+            Text = text,
+            FontSize = isHeader ? 10 : 10,
+            FontWeight = isHeader ? FontWeights.SemiBold : FontWeights.Normal,
+            Foreground = isHeader ? FindBrush("TextSecondaryBrush") : FindBrush("TextPrimaryBrush"),
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
+        Grid.SetColumn(block, column);
+        return block;
+    }
+
+    private UIElement CreateStatusCell(string status, int column)
+    {
+        var isActive = status == "active";
+        var dot = new Ellipse
+        {
+            Width = 7,
+            Height = 7,
+            Fill = FindBrush(isActive ? "GreenBrush" : "OrangeBrush"),
+            Margin = new Thickness(0, 0, 5, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var label = new TextBlock
+        {
+            Text = isActive ? "active" : status,
+            FontSize = 10,
+            Foreground = FindBrush(isActive ? "GreenBrush" : "OrangeBrush"),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var panel = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+        panel.Children.Add(dot);
+        panel.Children.Add(label);
+        Grid.SetColumn(panel, column);
+        return panel;
     }
 
     private Border CreateRoleBadge(string status)
@@ -175,10 +232,15 @@ public partial class DeveloperPanelWidget
 
     private void HeartbeatRowCount_Changed(object sender, SelectionChangedEventArgs e)
     {
+        // SelectionChanged can fire during InitializeComponent when SelectedIndex is applied,
+        // before later named elements (e.g. HeartbeatScroller) are wired up.
+        if (HeartbeatScroller == null)
+            return;
+
         if (HeartbeatRowCountBox?.SelectedItem is ComboBoxItem item &&
             int.TryParse(item.Content?.ToString(), out var count))
         {
-            HeartbeatScroller.MaxHeight = count * 38;
+            HeartbeatScroller.MaxHeight = count * 30;
         }
     }
 
