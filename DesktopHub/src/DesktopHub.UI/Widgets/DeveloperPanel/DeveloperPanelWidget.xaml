@@ -227,6 +227,87 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <!-- Expander toggle: same down-chevron Path + hover as SearchOverlay filter ComboBoxes -->
+        <Style x:Key="ThemedActivityLogExpander" TargetType="Expander">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Expander">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <DockPanel>
+                                <Border x:Name="ExpanderHeaderBorder" DockPanel.Dock="Top" Background="Transparent" Padding="0,2">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <ToggleButton x:Name="ExpanderToggle"
+                                                      Grid.Column="0"
+                                                      Focusable="False"
+                                                      VerticalAlignment="Center"
+                                                      Margin="4,0,2,0"
+                                                      Width="22"
+                                                      Height="22"
+                                                      IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                                      ClickMode="Press">
+                                            <ToggleButton.Template>
+                                                <ControlTemplate TargetType="ToggleButton">
+                                                    <Border x:Name="ToggleBd"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            CornerRadius="8"
+                                                            SnapsToDevicePixels="True">
+                                                        <Grid Width="8" Height="5" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                            <!-- Down / up chevrons (same geometry idea as SearchOverlay); visibility swap avoids nested transform setters -->
+                                                            <Path x:Name="ChevronDown"
+                                                                  Fill="{DynamicResource TextPrimaryBrush}"
+                                                                  Data="M 0 0 L 4 4 L 8 0 Z"
+                                                                  VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                            <Path x:Name="ChevronUp"
+                                                                  Fill="{DynamicResource TextPrimaryBrush}"
+                                                                  Data="M 0 4 L 4 0 L 8 4 Z"
+                                                                  VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                                  Visibility="Collapsed"/>
+                                                        </Grid>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsChecked" Value="True">
+                                                            <Setter TargetName="ToggleBd" Property="Background" Value="{DynamicResource HoverMediumBrush}"/>
+                                                            <Setter TargetName="ChevronDown" Property="Visibility" Value="Collapsed"/>
+                                                            <Setter TargetName="ChevronUp" Property="Visibility" Value="Visible"/>
+                                                        </Trigger>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="ToggleBd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </ToggleButton.Template>
+                                        </ToggleButton>
+                                        <ContentPresenter Grid.Column="1"
+                                                          ContentSource="Header"
+                                                          VerticalAlignment="Center"
+                                                          RecognizesAccessKey="True"/>
+                                    </Grid>
+                                </Border>
+                                <Border x:Name="ExpanderContentBorder" Visibility="Collapsed">
+                                    <ContentPresenter ContentSource="Content"/>
+                                </Border>
+                            </DockPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsExpanded" Value="True">
+                                <Setter TargetName="ExpanderContentBorder" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Grid>
@@ -591,50 +672,21 @@
             <Grid x:Name="UpdatesTab" Visibility="Collapsed">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <!-- Version management -->
-                <Border Style="{StaticResource SectionCard}" Margin="0,0,0,6">
-                    <StackPanel>
-                        <TextBlock Text="Version Management" Style="{StaticResource CardTitle}" Margin="0,0,0,8"/>
-                        <Grid Margin="0,0,0,6">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="App" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0"/>
-                            <ComboBox x:Name="UpdateAppBox" Grid.Column="1" Style="{StaticResource ThemedComboBox}" IsEditable="False"/>
-                        </Grid>
-                        <Grid Margin="0,0,0,6">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Version" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0"/>
-                            <TextBox x:Name="UpdateVersionBox" Grid.Column="1" Style="{StaticResource ThemedInput}" FontSize="11" Margin="0,0,8,0"/>
-                            <Button Grid.Column="2" Content="Publish" Style="{StaticResource ActionBtn}" Margin="0" Click="PublishVersion_Click"/>
-                        </Grid>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Notes" VerticalAlignment="Top" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0"/>
-                            <TextBox x:Name="UpdateNotesBox" Grid.Column="1" Style="{StaticResource ThemedInput}" FontSize="11" Height="40" AcceptsReturn="True" TextWrapping="Wrap"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
                 <!-- Device push + build actions -->
-                <Border Grid.Row="1" Style="{StaticResource SectionCard}" Margin="0,0,0,6">
+                <Border Grid.Row="0" Style="{StaticResource SectionCard}" Margin="0,0,0,6">
                     <StackPanel>
                         <Grid Margin="0,0,0,6">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Push Updates" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                            <StackPanel>
+                                <TextBlock Text="Push Updates" Style="{StaticResource CardTitle}"/>
+                                <TextBlock Text="Pick the app first (inventory, published latest, and push-update.ps1 all use it). Then use the toolbar or row Push. Target: Firebase latest for that app, or a specific version string."
+                                           FontSize="9" Foreground="{DynamicResource TextTertiaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                            </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal">
                                 <Button Content="List Devices" Style="{StaticResource ActionBtn}" Click="ListDevices_Click"/>
                                 <Button Content="Push All" Style="{StaticResource DangerBtn}" Margin="0,0,5,5" Click="PushUpdateAll_Click"/>
@@ -642,7 +694,18 @@
                                 <Button Content="Clear Done" Style="{StaticResource ActionBtn}" Margin="0" Click="ClearUpdates_Click"/>
                             </StackPanel>
                         </Grid>
-                        <Grid Margin="0,0,0,0">
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="App" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0"
+                                       ToolTip="Firebase app_versions key and devices/*/apps/{app}. Inventory and push scripts use this app."/>
+                            <ComboBox x:Name="UpdatesPushAppBox" Grid.Column="1" MinWidth="160" MaxWidth="320" HorizontalAlignment="Left"
+                                      Style="{StaticResource ThemedComboBox}" IsEditable="False"
+                                      SelectionChanged="UpdatesPushAppBox_SelectionChanged"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,6">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
@@ -654,17 +717,36 @@
                             <ComboBox x:Name="PushDeviceIdBox" Grid.Column="2" Style="{StaticResource ThemedComboBox}" FontSize="11" Margin="0,0,8,0"/>
                             <Button Grid.Column="3" Content="Push" Style="{StaticResource ActionBtn}" Margin="0" Click="PushUpdateDevice_Click"/>
                         </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Push target" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0"/>
+                            <ComboBox x:Name="PushTargetVersionModeBox" Grid.Column="1" Width="240" Style="{StaticResource ThemedComboBox}" IsEditable="False"
+                                      SelectionChanged="PushTargetVersionMode_Changed" Margin="0,0,8,0">
+                                <ComboBoxItem Content="Latest published (Firebase)" IsSelected="True"/>
+                                <ComboBoxItem Content="Specific version…"/>
+                            </ComboBox>
+                            <TextBox x:Name="PushTargetVersionCustomBox" Grid.Column="2" Style="{StaticResource ThemedInput}" FontSize="11"
+                                     Visibility="Collapsed" MinWidth="120" ToolTip="Version string only (e.g. 1.8.1). Uses the same download URL as Firebase latest."/>
+                        </Grid>
                     </StackPanel>
                 </Border>
-                <!-- Structured results (Firebase) above OUTPUT; scripts still append raw log below -->
-                <Grid Grid.Row="2">
+                <!-- Structured results: * row scrolls with window; Build Tools stays Auto -->
+                <Grid Grid.Row="1">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*" MinHeight="120"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Border x:Name="UpdateStructuredResultsBorder" Grid.Row="0" Style="{StaticResource SectionCard}" Margin="0,0,0,6"
-                            Padding="10,8" Visibility="Collapsed">
-                        <StackPanel>
+                            Padding="10,8" Visibility="Collapsed" VerticalAlignment="Stretch">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
                             <Grid Margin="0,0,0,4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -672,19 +754,20 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel>
                                     <TextBlock x:Name="UpdateStructuredResultsTitle" Style="{StaticResource CardTitle}" Margin="0,0,0,2"/>
-                                    <TextBlock Text="Live data from Firebase · full script transcript is in OUTPUT below."
+                                    <TextBlock Text="Live data from Firebase · expand Activity log (footer) for full script output."
                                                FontSize="9" Foreground="{DynamicResource TextTertiaryBrush}" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 <Button Grid.Column="1" Content="Dismiss" Style="{StaticResource ActionBtn}" Padding="8,4" Margin="8,0,0,0"
                                         VerticalAlignment="Top" FontSize="10" Click="DismissUpdateResults_Click"/>
                             </Grid>
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="240">
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                          Padding="0,4,0,0" VerticalAlignment="Stretch">
                                 <ScrollViewer.Resources>
                                     <Style TargetType="ScrollBar" BasedOn="{StaticResource ThemedScrollBar}"/>
                                 </ScrollViewer.Resources>
                                 <StackPanel x:Name="UpdateStructuredResultsPanel"/>
                             </ScrollViewer>
-                        </StackPanel>
+                        </Grid>
                     </Border>
                     <Border Grid.Row="1" Style="{StaticResource SectionCard}" Margin="0,0,0,6">
                         <StackPanel>
@@ -758,27 +841,62 @@
                     </ScrollViewer>
                 </Border>
             </Grid>
+
+            <!-- Publish Tab (Firebase app_versions metadata) -->
+            <Grid x:Name="PublishTab" Visibility="Collapsed">
+                <Border Style="{StaticResource SectionCard}" Margin="0,0,0,6" VerticalAlignment="Top">
+                    <StackPanel>
+                        <TextBlock Text="Version Management" Style="{StaticResource CardTitle}" Margin="0,0,0,2"/>
+                        <TextBlock Text="Writes latest version and release notes to Firebase. Use Updates to push builds to devices."
+                                   Style="{StaticResource CardSubtitle}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="App" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0"/>
+                            <ComboBox x:Name="UpdateAppBox" Grid.Column="1" Style="{StaticResource ThemedComboBox}" IsEditable="False"/>
+                        </Grid>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Version" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0"/>
+                            <TextBox x:Name="UpdateVersionBox" Grid.Column="1" Style="{StaticResource ThemedInput}" FontSize="11" Margin="0,0,8,0"/>
+                            <Button Grid.Column="2" Content="Publish" Style="{StaticResource ActionBtn}" Margin="0" Click="PublishVersion_Click"/>
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Notes" VerticalAlignment="Top" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0"/>
+                            <TextBox x:Name="UpdateNotesBox" Grid.Column="1" Style="{StaticResource ThemedInput}" FontSize="11" Height="40" AcceptsReturn="True" TextWrapping="Wrap"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </Grid>
         </Grid>
 
-        <!-- ROW 3: OUTPUT CONSOLE -->
+        <!-- ROW 3: Activity log (collapsed by default — frees space for tab content) -->
         <Border Grid.Row="3" Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}"
-                BorderThickness="1" CornerRadius="6" Margin="0,6,0,0" Padding="2">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                <Grid Margin="6,3,6,1">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="OUTPUT" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Center"/>
-                    <Button Grid.Column="1" Content="Clear" Style="{StaticResource ActionBtn}" Padding="8,2" Margin="0" FontSize="9" Click="ClearOutput_Click"/>
-                </Grid>
+                BorderThickness="1" CornerRadius="6" Margin="0,6,0,0" Padding="0">
+            <Expander x:Name="OutputExpander"
+                      Style="{StaticResource ThemedActivityLogExpander}"
+                      IsExpanded="False"
+                      Background="Transparent"
+                      BorderThickness="0">
+                <Expander.Header>
+                    <DockPanel LastChildFill="True" Margin="6,4">
+                        <Button DockPanel.Dock="Right" Content="Clear" Style="{StaticResource ActionBtn}" Padding="8,2" Margin="8,0,0,0" FontSize="9" Click="ClearOutput_Click"/>
+                        <TextBlock Text="Activity log" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                    </DockPanel>
+                </Expander.Header>
                 <TextBox x:Name="OutputBox"
-                         Grid.Row="1"
-                         Height="80"
+                         MinHeight="96"
+                         MaxHeight="200"
                          Background="Transparent"
                          Foreground="{DynamicResource TextSecondaryBrush}"
                          CaretBrush="{DynamicResource TextPrimaryBrush}"
@@ -789,13 +907,13 @@
                          VerticalScrollBarVisibility="Auto"
                          FontFamily="Consolas"
                          FontSize="10"
-                         Padding="6,2">
-                    <!-- ScrollBars live inside the TextBox template; scope resources here so they pick up the theme -->
+                         Padding="8,4,8,6"
+                         Margin="2,0,2,4">
                     <TextBox.Resources>
                         <Style TargetType="ScrollBar" BasedOn="{StaticResource ThemedScrollBar}"/>
                     </TextBox.Resources>
                 </TextBox>
-            </Grid>
+            </Expander>
         </Border>
     </Grid>
 </UserControl>

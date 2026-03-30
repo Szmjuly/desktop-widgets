@@ -64,8 +64,11 @@ param(
     [string]$ReleaseNotes,
     [string]$CsvFile,
     [string]$DeviceId,
+    [string]$TargetVersion,
     [string]$Collections,
-    [string]$ServiceAccountPath
+    [string]$ServiceAccountPath,
+    # Forwarded to push-update.ps1 (app_versions key, e.g. desktophub, hapextractor)
+    [string]$PushAppId
 )
 
 $ErrorActionPreference = "Stop"
@@ -262,11 +265,40 @@ if ($Action) {
         "build"            { & "$scriptDir\build-single-file.ps1" }
         "build-installer"  { & "$scriptDir\build-installer.ps1" }
         "show-secret"      { & "$scriptDir\tag-manager.ps1" -Action show-secret }
-        "update-list"      { & "$scriptDir\push-update.ps1" -Action list @sa }
-        "update-push"      { & "$scriptDir\push-update.ps1" -Action push -DeviceId $DeviceId @sa }
-        "update-push-all"  { & "$scriptDir\push-update.ps1" -Action push-all @sa }
-        "update-status"    { & "$scriptDir\push-update.ps1" -Action status @sa }
-        "update-clear"     { & "$scriptDir\push-update.ps1" -Action clear @sa }
+        "update-list"      {
+            if (-not [string]::IsNullOrWhiteSpace($PushAppId)) {
+                & "$scriptDir\push-update.ps1" -Action list -AppId $PushAppId @sa
+            } else {
+                & "$scriptDir\push-update.ps1" -Action list @sa
+            }
+        }
+        "update-push"      {
+            $pushArgs = @{ Action = "push"; DeviceId = $DeviceId }
+            if (-not [string]::IsNullOrWhiteSpace($TargetVersion)) { $pushArgs.TargetVersion = $TargetVersion }
+            if (-not [string]::IsNullOrWhiteSpace($PushAppId)) { $pushArgs.AppId = $PushAppId }
+            & "$scriptDir\push-update.ps1" @pushArgs @sa
+        }
+        "update-push-all"  {
+            if (-not [string]::IsNullOrWhiteSpace($PushAppId)) {
+                & "$scriptDir\push-update.ps1" -Action push-all -AppId $PushAppId @sa
+            } else {
+                & "$scriptDir\push-update.ps1" -Action push-all @sa
+            }
+        }
+        "update-status"    {
+            if (-not [string]::IsNullOrWhiteSpace($PushAppId)) {
+                & "$scriptDir\push-update.ps1" -Action status -AppId $PushAppId @sa
+            } else {
+                & "$scriptDir\push-update.ps1" -Action status @sa
+            }
+        }
+        "update-clear"     {
+            if (-not [string]::IsNullOrWhiteSpace($PushAppId)) {
+                & "$scriptDir\push-update.ps1" -Action clear -AppId $PushAppId @sa
+            } else {
+                & "$scriptDir\push-update.ps1" -Action clear @sa
+            }
+        }
         default            { Write-Host "Unknown action: $Action" -ForegroundColor Red; Write-Host "Run: .\admin.ps1 -Action help" }
     }
     exit 0

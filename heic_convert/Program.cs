@@ -1,5 +1,4 @@
-using System.IO;
-using System.Windows.Media.Imaging;
+using HeicConvert.Core;
 
 namespace HeicConvert.Cli;
 
@@ -49,52 +48,40 @@ internal static class Program
 
         Directory.CreateDirectory(options.OutputDirectory);
 
-        var sourceFiles = CollectSourceFiles(options.InputPath, options.Recursive.GetValueOrDefault()).ToList();
-        if (sourceFiles.Count == 0)
+        var batch = HeicConverter.RunConversion(
+            options,
+            onSourceFilesReady: count =>
+            {
+                if (count == 0)
+                {
+                    Console.WriteLine("No HEIC/HEIF files found.");
+                }
+                else
+                {
+                    Console.WriteLine($"Found {count} file(s). Starting conversion...");
+                    Console.WriteLine();
+                }
+            },
+            onConverted: (src, dest) => Console.WriteLine($"[OK] {src} -> {dest}"),
+            onSkipped: dest => Console.WriteLine($"[SKIP] Exists: {dest}"),
+            onFailed: (src, err) =>
+            {
+                Console.WriteLine($"[FAIL] {src}");
+                Console.WriteLine(err);
+            });
+
+        if (batch.TotalSourceFiles == 0)
         {
-            Console.WriteLine("No HEIC/HEIF files found.");
             return 0;
-        }
-
-        Console.WriteLine($"Found {sourceFiles.Count} file(s). Starting conversion...");
-
-        var converted = 0;
-        var skipped = 0;
-        var failed = 0;
-
-        foreach (var source in sourceFiles)
-        {
-            var destination = BuildDestinationPath(source, options.InputPath, options.OutputDirectory, options.Format);
-            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-
-            if (File.Exists(destination) && !options.Overwrite.GetValueOrDefault())
-            {
-                Console.WriteLine($"[SKIP] Exists: {destination}");
-                skipped++;
-                continue;
-            }
-
-            var result = ConvertWithWpfImaging(source, destination, options.Format, options.Quality);
-            if (result.Success)
-            {
-                Console.WriteLine($"[OK] {source} -> {destination}");
-                converted++;
-            }
-            else
-            {
-                Console.WriteLine($"[FAIL] {source}");
-                Console.WriteLine(result.ErrorMessage);
-                failed++;
-            }
         }
 
         Console.WriteLine();
         Console.WriteLine("Done.");
-        Console.WriteLine($"Converted: {converted}");
-        Console.WriteLine($"Skipped:   {skipped}");
-        Console.WriteLine($"Failed:    {failed}");
+        Console.WriteLine($"Converted: {batch.Converted}");
+        Console.WriteLine($"Skipped:   {batch.Skipped}");
+        Console.WriteLine($"Failed:    {batch.Failed}");
 
-        return failed > 0 ? 2 : 0;
+        return batch.Failed > 0 ? 2 : 0;
     }
 
     private static void PrintHelp()
@@ -137,7 +124,7 @@ internal static class Program
                     break;
                 case "--format":
                 case "-f":
-                    options.Format = NormalizeFormat(GetValue(args, ref i, token));
+                    options.Format = HeicConverter.NormalizeFormat(GetValue(args, ref i, token));
                     break;
                 case "--quality":
                 case "-q":
@@ -191,7 +178,7 @@ internal static class Program
         {
             Console.Write("Output format (jpg/png) [jpg]: ");
             var entered = Console.ReadLine()?.Trim();
-            options.Format = string.IsNullOrWhiteSpace(entered) ? "jpg" : NormalizeFormat(entered);
+            options.Format = string.IsNullOrWhiteSpace(entered) ? "jpg" : HeicConverter.NormalizeFormat(entered);
         }
 
         if (options.Quality == 0)
@@ -241,99 +228,4 @@ internal static class Program
 
         return true;
     }
-
-    private static IEnumerable<string> CollectSourceFiles(string inputPath, bool recursive)
-    {
-        if (File.Exists(inputPath))
-        {
-            if (IsHeicOrHeif(inputPath))
-            {
-                yield return Path.GetFullPath(inputPath);
-            }
-            yield break;
-        }
-
-        var option = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-        foreach (var path in Directory.EnumerateFiles(inputPath, "*.*", option))
-        {
-            if (IsHeicOrHeif(path))
-            {
-                yield return path;
-            }
-        }
-    }
-
-    private static bool IsHeicOrHeif(string path)
-    {
-        var ext = Path.GetExtension(path);
-        return ext.Equals(".heic", StringComparison.OrdinalIgnoreCase)
-            || ext.Equals(".heif", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string BuildDestinationPath(string sourceFile, string inputRoot, string outputRoot, string format)
-    {
-        if (File.Exists(inputRoot))
-        {
-            var fileName = Path.GetFileNameWithoutExtension(sourceFile);
-            return Path.Combine(outputRoot, $"{fileName}.{format}");
-        }
-
-        var relativePath = Path.GetRelativePath(inputRoot, sourceFile);
-        var changedExtension = Path.ChangeExtension(relativePath, format);
-        return Path.Combine(outputRoot, changedExtension);
-    }
-
-    private static ConversionResult ConvertWithWpfImaging(string sourceFile, string destinationFile, string format, int quality)
-    {
-        try
-        {
-            using var readStream = new FileStream(sourceFile, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var decoder = BitmapDecoder.Create(readStream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
-            var frame = decoder.Frames[0];
-
-            BitmapEncoder encoder = format.ToLowerInvariant() switch
-            {
-                "jpg" => new JpegBitmapEncoder { QualityLevel = quality },
-                "png" => new PngBitmapEncoder(),
-                _ => throw new ArgumentException($"Unsupported format: {format}")
-            };
-
-            encoder.Frames.Add(BitmapFrame.Create(frame));
-
-            using var writeStream = new FileStream(destinationFile, FileMode.Create, FileAccess.Write, FileShare.None);
-            encoder.Save(writeStream);
-
-            return ConversionResult.Ok();
-        }
-        catch (Exception ex)
-        {
-            return ConversionResult.Fail(ex.ToString());
-        }
-    }
-
-    private static string NormalizeFormat(string value) =>
-        value.Trim().TrimStart('.').ToLowerInvariant() switch
-        {
-            "jpeg" => "jpg",
-            var x => x
-        };
-}
-
-internal sealed class ConvertOptions
-{
-    public string? InputPath { get; set; }
-    public string? OutputDirectory { get; set; }
-    public string Format { get; set; } = "jpg";
-    public int Quality { get; set; } = 90;
-    public bool? Recursive { get; set; }
-    public bool? Overwrite { get; set; }
-}
-
-internal sealed class ConversionResult
-{
-    public bool Success { get; private init; }
-    public string ErrorMessage { get; private init; } = string.Empty;
-
-    public static ConversionResult Ok() => new() { Success = true };
-    public static ConversionResult Fail(string message) => new() { Success = false, ErrorMessage = message };
 }

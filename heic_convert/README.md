@@ -31,16 +31,64 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\scripts\dev-env.ps1
 ```
 
-## Run
+## Desktop app
+
+From the `heic_convert` folder:
 
 ```powershell
-dotnet run -- --input "C:\Photos\HEIC" --output-dir "C:\Photos\Export" --format jpg --quality 90 --recursive
+dotnet run --project HeicConvert.App
+```
+
+Drag and drop HEIC/HEIF files or folders onto the drop zone (or use **Add files…** / **Add folder…**), set the output folder and options in the **Settings** panel, then **Convert**. Settings are saved under `%LocalAppData%\HeicConvert\settings.json`.
+
+### Single-file publish — **desktop UI** (self-contained `.exe`)
+
+This builds **`HeicConvert.exe`**, the **WPF app** (window with drag-and-drop). It is **not** the console CLI.
+
+**Note:** `dotnet publish` on **`HeicConvert.sln`** (or without `--project`) also produces **`HeicConvert.Cli.exe`**. For **only the UI**, use the script below or **`--project HeicConvert.App`**.
+
+Produces one **x64** executable that includes the .NET runtime (no separate runtime install on other PCs). First run may unpack to a temp cache; size is typically on the order of tens of MB.
+
+From the `heic_convert` folder:
+
+```powershell
+.\scripts\publish-app.ps1
+```
+
+Output: **`heic_convert\publish-ui\HeicConvert.exe`**
+
+Manual equivalent (UI only):
+
+```powershell
+dotnet publish .\HeicConvert.App\HeicConvert.App.csproj -c Release -f net8.0-windows -p:PublishProfile=Win64-SingleFile -o publish-ui
+```
+
+### Single-file publish — CLI only (optional)
+
+```powershell
+dotnet publish .\HeicConvert.Cli.csproj -c Release -f net8.0-windows -r win-x64 --self-contained true `
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
+  -o publish-cli
+```
+
+Output: **`HeicConvert.Cli.exe`** (console).
+
+## Run (CLI)
+
+```powershell
+dotnet run --project HeicConvert.Cli -- --input "C:\Photos\HEIC" --output-dir "C:\Photos\Export" --format jpg --quality 90 --recursive
 ```
 
 Single-file conversion:
 
 ```powershell
-dotnet run -- --input "C:\Photos\a.heic" --output-dir "C:\Photos\Export" --format png
+dotnet run --project HeicConvert.Cli -- --input "C:\Photos\a.heic" --output-dir "C:\Photos\Export" --format png
+```
+
+Build everything:
+
+```powershell
+dotnet build HeicConvert.sln
 ```
 
 No arguments mode prompts interactively for missing values.

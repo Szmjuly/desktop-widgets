@@ -18,7 +18,10 @@ param(
     [string]$DeviceId,
     [string]$ServiceAccountPath,
 
-    [ValidateSet("desktophub", "hapextractor")]
+    # When set for -Action push (single device), force_update.target_version uses this instead of app_versions latest (download_url unchanged).
+    [string]$TargetVersion,
+
+    # Must match Firebase app_versions/{AppId} and devices/*/apps/{AppId}
     [string]$AppId = "desktophub"
 )
 
@@ -302,11 +305,15 @@ switch ($Action) {
         $latestVersion = $versionInfo.latest_version
         $downloadUrl = $versionInfo.download_url
 
+        if (-not [string]::IsNullOrWhiteSpace($TargetVersion)) {
+            $latestVersion = $TargetVersion.Trim()
+        }
+
         $username = try { $device.username } catch { "unknown" }
         $installedVersion = try { $device.apps.$appId.installed_version } catch { "unknown" }
 
         if (-not (Is-Outdated $installedVersion $latestVersion)) {
-            Write-Host "  Device '$DeviceId' ($username) is already on v$installedVersion (latest: $latestVersion)." -ForegroundColor Green
+            Write-Host "  Device '$DeviceId' ($username) is already on v$installedVersion (target: $latestVersion)." -ForegroundColor Green
             exit 0
         }
 
@@ -422,6 +429,9 @@ switch ($Action) {
             $did = $prop.Name
             $entry = $prop.Value
 
+            $entryApp = try { $entry.app_id } catch { "" }
+            if (-not [string]::IsNullOrWhiteSpace($entryApp) -and $entryApp -ne $appId) { continue }
+
             $status = try { $entry.status } catch { "?" }
             $targetVersion = try { $entry.target_version } catch { "?" }
             $pushedBy = try { $entry.pushed_by } catch { "?" }
@@ -470,6 +480,9 @@ switch ($Action) {
         foreach ($prop in $forceUpdates.PSObject.Properties) {
             $did = $prop.Name
             $entry = $prop.Value
+            $entryApp = try { $entry.app_id } catch { "" }
+            if (-not [string]::IsNullOrWhiteSpace($entryApp) -and $entryApp -ne $appId) { continue }
+
             $status = try { $entry.status } catch { "" }
 
             if ($status -eq "completed" -or $status -eq "failed") {

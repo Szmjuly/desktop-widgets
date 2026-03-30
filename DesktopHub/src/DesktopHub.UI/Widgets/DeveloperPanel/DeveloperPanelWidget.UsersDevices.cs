@@ -87,7 +87,7 @@ public partial class DeveloperPanelWidget
             LayoutUsersDevicesUniformGrid();
 
             PopulateUsernameDropdown();
-            PopulateUpdateDropdowns();
+            PopulatePushUpdateDropdowns();
 
             // Re-select detail panel if it was open
             if (_selectedDetailUser != null && _allDeviceDetails.Any(d => d.Username == _selectedDetailUser))

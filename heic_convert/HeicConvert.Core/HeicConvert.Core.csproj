@@ -1,13 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <UseWPF>true</UseWPF>
+    <RootNamespace>HeicConvert.Core</RootNamespace>
   </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="HeicConvert.Core\HeicConvert.Core.csproj" />
-  </ItemGroup>
 </Project>

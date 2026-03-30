@@ -15,23 +15,188 @@ public partial class DeveloperPanelWidget
 {
     private const string UpdatesAppId = "desktophub";
 
+    private bool _suppressUpdatesAppBoxEvent;
+
     // ════════════════════════════════════════════════════════════
     // UPDATES TAB
     // ════════════════════════════════════════════════════════════
 
-    private void InitUpdatesTab()
+    private bool _publishTabPrimed;
+
+    private void InitPublishTab()
     {
+        if (_publishTabPrimed)
+            return;
+        _publishTabPrimed = true;
         UpdateVersionBox.Text = DateTime.Now.ToString("yyyy.M.d", CultureInfo.InvariantCulture);
         UpdateNotesBox.Text = "";
-        PopulateUpdateDropdowns();
+        UpdateAppBox.ItemsSource = new[] { UpdatesAppId };
+        UpdateAppBox.SelectedIndex = 0;
     }
 
-    private void PopulateUpdateDropdowns()
+    private void InitUpdatesTab()
     {
-        UpdateAppBox.ItemsSource = new[] { "desktophub" };
-        if (UpdateAppBox.SelectedIndex < 0)
-            UpdateAppBox.SelectedIndex = 0;
+        PopulatePushUpdateDropdowns();
+        SyncPushTargetVersionCustomVisibility();
+        _ = InitializeUpdatesAppPickerAndLatestAsync();
+    }
 
+    private async Task InitializeUpdatesAppPickerAndLatestAsync()
+    {
+        await RefreshUpdatesAppPickerOnInitAsync();
+        await LoadPublishedLatestForPushLabelAsync();
+    }
+
+    private string GetSelectedUpdatesAppId()
+    {
+        var s = UpdatesPushAppBox?.SelectedItem?.ToString()?.Trim();
+        return string.IsNullOrWhiteSpace(s) ? UpdatesAppId : s;
+    }
+
+    private void UpdatesPushAppBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressUpdatesAppBoxEvent || UpdatesPushAppBox?.SelectedItem == null)
+            return;
+        _ = OnUpdatesPushAppSelectionChangedAsync();
+    }
+
+    private async Task OnUpdatesPushAppSelectionChangedAsync()
+    {
+        await LoadPublishedLatestForPushLabelAsync();
+        if (string.Equals(UpdateStructuredResultsTitle?.Text, "Devices & versions", StringComparison.Ordinal))
+            await RefreshDeviceInventoryUiAsync();
+    }
+
+    private static List<string> OrderAppIds(IEnumerable<string> ids)
+    {
+        var list = ids.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        static int Rank(string x)
+        {
+            if (string.Equals(x, "desktophub", StringComparison.OrdinalIgnoreCase)) return 0;
+            if (string.Equals(x, "hapextractor", StringComparison.OrdinalIgnoreCase)) return 1;
+            return 2;
+        }
+
+        return list.OrderBy(Rank).ThenBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private static void MergeAppKeysFromDevice(Dictionary<string, object> device, HashSet<string> set)
+    {
+        if (!device.TryGetValue("apps", out var appsObj) || appsObj == null)
+            return;
+        var apps = NormalizeToStringObjectMap(appsObj);
+        if (apps == null)
+            return;
+        foreach (var k in apps.Keys)
+        {
+            if (!string.IsNullOrWhiteSpace(k))
+                set.Add(k);
+        }
+    }
+
+    private static List<string> BuildAppIdListFromRootAndDevices(Dictionary<string, object>? versionsRoot,
+        Dictionary<string, Dictionary<string, object>>? devices)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "desktophub", "hapextractor" };
+        if (versionsRoot != null)
+        {
+            foreach (var k in versionsRoot.Keys)
+            {
+                if (!string.IsNullOrWhiteSpace(k))
+                    set.Add(k);
+            }
+        }
+
+        if (devices != null)
+        {
+            foreach (var d in devices.Values)
+                MergeAppKeysFromDevice(d, set);
+        }
+
+        return OrderAppIds(set);
+    }
+
+    private void ApplyAppPickerItemsPreservingSelection(List<string> ordered)
+    {
+        if (UpdatesPushAppBox == null || ordered.Count == 0)
+            return;
+        var sel = UpdatesPushAppBox.SelectedItem?.ToString()?.Trim();
+        _suppressUpdatesAppBoxEvent = true;
+        try
+        {
+            UpdatesPushAppBox.ItemsSource = ordered;
+            var pick = (!string.IsNullOrEmpty(sel) &&
+                        ordered.Exists(x => string.Equals(x, sel, StringComparison.OrdinalIgnoreCase))
+                ? ordered.First(x => string.Equals(x, sel, StringComparison.OrdinalIgnoreCase))
+                : null)
+                       ?? ordered.FirstOrDefault(x => string.Equals(x, UpdatesAppId, StringComparison.OrdinalIgnoreCase))
+                       ?? ordered[0];
+            UpdatesPushAppBox.SelectedItem = pick;
+        }
+        finally
+        {
+            _suppressUpdatesAppBoxEvent = false;
+        }
+    }
+
+    private async Task RefreshUpdatesAppPickerOnInitAsync()
+    {
+        if (UpdatesPushAppBox == null || _firebaseService == null || !_firebaseService.IsInitialized)
+            return;
+        try
+        {
+            var root = await _firebaseService.GetNodeAsync("app_versions");
+            var merged = BuildAppIdListFromRootAndDevices(root, devices: null);
+            await Dispatcher.InvokeAsync(() => ApplyAppPickerItemsPreservingSelection(merged));
+        }
+        catch
+        {
+            await Dispatcher.InvokeAsync(() =>
+                ApplyAppPickerItemsPreservingSelection(OrderAppIds(new[] { UpdatesAppId, "hapextractor" })));
+        }
+    }
+
+    private void SyncPushTargetVersionCustomVisibility()
+    {
+        if (PushTargetVersionCustomBox == null || PushTargetVersionModeBox == null)
+            return;
+        PushTargetVersionCustomBox.Visibility = PushTargetVersionModeBox.SelectedIndex == 1
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    private async Task LoadPublishedLatestForPushLabelAsync()
+    {
+        if (_firebaseService == null || !_firebaseService.IsInitialized)
+            return;
+        try
+        {
+            var appId = Dispatcher.Invoke(GetSelectedUpdatesAppId);
+            var ver = await _firebaseService.GetNodeAsync($"app_versions/{appId}");
+            var latest = ver?.TryGetValue("latest_version", out var lv) == true ? lv?.ToString()?.Trim() : null;
+            Dispatcher.Invoke(() => UpdatePushLatestVersionLabel(latest));
+        }
+        catch
+        {
+            /* ignore */
+        }
+    }
+
+    private void UpdatePushLatestVersionLabel(string? latestPublished)
+    {
+        var box = PushTargetVersionModeBox;
+        if (box == null || box.Items.Count < 1 || box.Items[0] is not ComboBoxItem first)
+            return;
+        first.Content = string.IsNullOrWhiteSpace(latestPublished) || latestPublished == "—"
+            ? "Latest published (Firebase)"
+            : $"Latest published ({latestPublished})";
+    }
+
+    private void PushTargetVersionMode_Changed(object sender, SelectionChangedEventArgs e) =>
+        SyncPushTargetVersionCustomVisibility();
+
+    private void PopulatePushUpdateDropdowns()
+    {
         var users = _allDeviceDetails.Select(d => d.Username).Distinct().OrderBy(x => x).ToList();
         users.Insert(0, "(all users)");
 
@@ -65,7 +230,7 @@ public partial class DeveloperPanelWidget
     }
 
     /// <summary>
-    /// Shows the structured panel above OUTPUT. Caller fills <see cref="UpdateStructuredResultsPanel"/>.
+    /// Shows the structured panel in the Updates tab. Caller fills <see cref="UpdateStructuredResultsPanel"/>.
     /// </summary>
     private void PresentStructuredResults(string title, Action populateBody)
     {
@@ -108,16 +273,68 @@ public partial class DeveloperPanelWidget
     private async void ListDevices_Click(object sender, RoutedEventArgs e)
     {
         await RefreshDeviceInventoryUiAsync();
-        await RunScriptWithOutputAsync("admin.ps1", false, "-Action", "update-list");
+        var app = GetSelectedUpdatesAppId();
+        await RunScriptWithOutputAsync("admin.ps1", false, "-Action", "update-list", "-PushAppId", app);
     }
 
     private async void PushUpdateAll_Click(object sender, RoutedEventArgs e)
     {
-        if (!ConfirmDangerous("Push update to all outdated devices?")) return;
-        await RunScriptAsync("admin.ps1", "-Action", "update-push-all");
+        var app = GetSelectedUpdatesAppId();
+        if (!ConfirmDangerous($"Push update to all outdated devices for app '{app}'?")) return;
+        await RunScriptAsync("admin.ps1", "-Action", "update-push-all", "-PushAppId", app);
     }
 
-    private async void PushUpdateDevice_Click(object sender, RoutedEventArgs e)
+    private async void PushUpdateDevice_Click(object sender, RoutedEventArgs e) => await RunSingleDevicePushAsync();
+
+    private async void PushDeviceFromTable_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button btn || btn.Tag is not string tag || string.IsNullOrWhiteSpace(tag))
+            return;
+
+        string deviceId;
+        string? username = null;
+        var sep = tag.IndexOf('\x1F', StringComparison.Ordinal);
+        if (sep >= 0)
+        {
+            username = tag[..sep];
+            deviceId = tag[(sep + 1)..];
+        }
+        else
+        {
+            deviceId = tag;
+        }
+
+        if (!string.IsNullOrEmpty(username))
+        {
+            foreach (var o in PushUserFilterBox.Items)
+            {
+                if (string.Equals(o?.ToString(), username, StringComparison.OrdinalIgnoreCase))
+                {
+                    PushUserFilterBox.SelectedItem = o;
+                    break;
+                }
+            }
+
+            RebuildPushDeviceDropdown();
+        }
+
+        PushDeviceIdBox.Text = deviceId;
+        foreach (var o in PushDeviceIdBox.Items)
+        {
+            if (string.Equals(o?.ToString(), deviceId, StringComparison.OrdinalIgnoreCase))
+            {
+                PushDeviceIdBox.SelectedItem = o;
+                break;
+            }
+        }
+
+        if (PushDeviceIdBox.SelectedItem == null)
+            PushDeviceIdBox.Text = deviceId;
+
+        await RunSingleDevicePushAsync();
+    }
+
+    private async Task RunSingleDevicePushAsync()
     {
         var deviceId = PushDeviceIdBox.Text?.Trim();
         if (string.IsNullOrWhiteSpace(deviceId))
@@ -126,8 +343,28 @@ public partial class DeveloperPanelWidget
             return;
         }
 
-        if (!ConfirmDangerous($"Push update to device '{deviceId}'?")) return;
-        await RunScriptAsync("admin.ps1", "-Action", "update-push", "-DeviceId", deviceId);
+        string[] args;
+        if (PushTargetVersionModeBox?.SelectedIndex == 1)
+        {
+            var v = PushTargetVersionCustomBox?.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(v))
+            {
+                AppendOutput("Enter a version (e.g. 1.8.1) or switch Push target to Latest published.");
+                return;
+            }
+
+            if (!ConfirmDangerous($"Push version {v} to device '{deviceId}' (app '{GetSelectedUpdatesAppId()}')? (download URL stays Firebase latest for that app)"))
+                return;
+            args = new[] { "-Action", "update-push", "-DeviceId", deviceId, "-TargetVersion", v, "-PushAppId", GetSelectedUpdatesAppId() };
+        }
+        else
+        {
+            if (!ConfirmDangerous($"Push latest published update to device '{deviceId}' (app '{GetSelectedUpdatesAppId()}')?"))
+                return;
+            args = new[] { "-Action", "update-push", "-DeviceId", deviceId, "-PushAppId", GetSelectedUpdatesAppId() };
+        }
+
+        await RunScriptWithOutputAsync("admin.ps1", false, args);
     }
 
     private void PushUserFilterBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -140,13 +377,15 @@ public partial class DeveloperPanelWidget
     private async void CheckUpdateStatus_Click(object sender, RoutedEventArgs e)
     {
         await RefreshForceUpdateStatusUiAsync();
-        await RunScriptWithOutputAsync("admin.ps1", false, "-Action", "update-status");
+        var app = GetSelectedUpdatesAppId();
+        await RunScriptWithOutputAsync("admin.ps1", false, "-Action", "update-status", "-PushAppId", app);
     }
 
     private async void ClearUpdates_Click(object sender, RoutedEventArgs e)
     {
-        if (!ConfirmDangerous("Clear completed/failed push update entries?")) return;
-        await RunScriptAsync("admin.ps1", "-Action", "update-clear");
+        var app = GetSelectedUpdatesAppId();
+        if (!ConfirmDangerous($"Clear completed/failed push update entries for app '{app}'?")) return;
+        await RunScriptAsync("admin.ps1", "-Action", "update-clear", "-PushAppId", app);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -168,61 +407,65 @@ public partial class DeveloperPanelWidget
             await Task.WhenAll(forceTask, devicesTask);
             var force = await forceTask;
             var devices = await devicesTask;
+            var appFilter = Dispatcher.Invoke(GetSelectedUpdatesAppId);
 
-            PresentStructuredResults("Force-update queue", () =>
+            await Dispatcher.InvokeAsync(() =>
             {
-                if (force == null || force.Count == 0)
+                PresentStructuredResults("Force-update queue", () =>
                 {
+                    if (force == null || force.Count == 0)
+                    {
+                        UpdateStructuredResultsPanel.Children.Add(new TextBlock
+                        {
+                            Text = "No force-update entries in Firebase.",
+                            FontSize = 10,
+                            Foreground = FindBrush("TextTertiaryBrush"),
+                            TextWrapping = TextWrapping.Wrap,
+                        });
+                        return;
+                    }
+
+                    var rows = new List<(string DeviceId, Dictionary<string, object> Map)>();
+                    foreach (var kvp in force)
+                    {
+                        if (!TryGetForceUpdateMap(kvp.Value, out var map) || map == null)
+                            continue;
+                        var rowApp = GetMapStr(map, "app_id");
+                        if (!string.IsNullOrEmpty(rowApp) &&
+                            !string.Equals(rowApp, appFilter, StringComparison.OrdinalIgnoreCase))
+                            continue;
+                        rows.Add((kvp.Key, map));
+                    }
+
+                    if (rows.Count == 0)
+                    {
+                        UpdateStructuredResultsPanel.Children.Add(new TextBlock
+                        {
+                            Text = $"No force-update entries for app '{appFilter}' (other app_id values are hidden).",
+                            FontSize = 10,
+                            Foreground = FindBrush("TextTertiaryBrush"),
+                            TextWrapping = TextWrapping.Wrap,
+                        });
+                        return;
+                    }
+
+                    rows = rows
+                        .OrderBy(r => ForceStatusSortKey(GetMapStr(r.Map, "status")))
+                        .ThenBy(r => ResolveDeviceUsername(devices, r.DeviceId))
+                        .ToList();
+
+                    UpdateStructuredResultsPanel.Children.Add(BuildForceUpdateHeaderRow());
+                    for (var i = 0; i < rows.Count; i++)
+                        UpdateStructuredResultsPanel.Children.Add(BuildForceUpdateDataRow(rows[i].DeviceId, rows[i].Map, devices, i));
+
+                    var pending = rows.Count(r => string.Equals(GetMapStr(r.Map, "status"), "pending", StringComparison.OrdinalIgnoreCase));
                     UpdateStructuredResultsPanel.Children.Add(new TextBlock
                     {
-                        Text = "No force-update entries in Firebase.",
-                        FontSize = 10,
+                        Text = $"{rows.Count} entr(y/ies) · {pending} pending",
+                        FontSize = 9,
                         Foreground = FindBrush("TextTertiaryBrush"),
-                        TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(0, 8, 0, 0),
                     });
-                    return;
-                }
-
-                var rows = new List<(string DeviceId, Dictionary<string, object> Map)>();
-                foreach (var kvp in force)
-                {
-                    if (!TryGetForceUpdateMap(kvp.Value, out var map) || map == null)
-                        continue;
-                    var appId = GetMapStr(map, "app_id");
-                    if (!string.IsNullOrEmpty(appId) &&
-                        !string.Equals(appId, UpdatesAppId, StringComparison.OrdinalIgnoreCase))
-                        continue;
-                    rows.Add((kvp.Key, map));
-                }
-
-                if (rows.Count == 0)
-                {
-                    UpdateStructuredResultsPanel.Children.Add(new TextBlock
-                    {
-                        Text = "No desktophub force-update entries (other app_id values are hidden).",
-                        FontSize = 10,
-                        Foreground = FindBrush("TextTertiaryBrush"),
-                        TextWrapping = TextWrapping.Wrap,
-                    });
-                    return;
-                }
-
-                rows = rows
-                    .OrderBy(r => ForceStatusSortKey(GetMapStr(r.Map, "status")))
-                    .ThenBy(r => ResolveDeviceUsername(devices, r.DeviceId))
-                    .ToList();
-
-                UpdateStructuredResultsPanel.Children.Add(BuildForceUpdateHeaderRow());
-                for (var i = 0; i < rows.Count; i++)
-                    UpdateStructuredResultsPanel.Children.Add(BuildForceUpdateDataRow(rows[i].DeviceId, rows[i].Map, devices, i));
-
-                var pending = rows.Count(r => string.Equals(GetMapStr(r.Map, "status"), "pending", StringComparison.OrdinalIgnoreCase));
-                UpdateStructuredResultsPanel.Children.Add(new TextBlock
-                {
-                    Text = $"{rows.Count} entr(y/ies) · {pending} pending",
-                    FontSize = 9,
-                    Foreground = FindBrush("TextTertiaryBrush"),
-                    Margin = new Thickness(0, 8, 0, 0),
                 });
             });
         }
@@ -243,53 +486,90 @@ public partial class DeveloperPanelWidget
         try
         {
             var devicesTask = _firebaseService.GetDevicesAsync();
-            var verTask = _firebaseService.GetNodeAsync($"app_versions/{UpdatesAppId}");
-            await Task.WhenAll(devicesTask, verTask);
+            var versionsRootTask = _firebaseService.GetNodeAsync("app_versions");
+            await Task.WhenAll(devicesTask, versionsRootTask);
             var devices = await devicesTask;
-            var verNode = await verTask;
+            var versionsRoot = await versionsRootTask;
+
+            var mergedAppIds = BuildAppIdListFromRootAndDevices(versionsRoot, devices);
+            await Dispatcher.InvokeAsync(() => ApplyAppPickerItemsPreservingSelection(mergedAppIds));
+
+            var appId = Dispatcher.Invoke(GetSelectedUpdatesAppId);
+            var verNode = await _firebaseService.GetNodeAsync($"app_versions/{appId}");
             var latest = verNode?.TryGetValue("latest_version", out var lv) == true ? lv?.ToString()?.Trim() : null;
             if (string.IsNullOrWhiteSpace(latest))
                 latest = "—";
 
-            PresentStructuredResults("Devices & versions", () =>
-            {
-                UpdateStructuredResultsPanel.Children.Add(new TextBlock
-                {
-                    Text = $"Published latest: {latest}",
-                    FontSize = 10,
-                    Foreground = FindBrush("TextSecondaryBrush"),
-                    Margin = new Thickness(0, 0, 0, 8),
-                });
+            await Dispatcher.InvokeAsync(() => UpdatePushLatestVersionLabel(latest));
 
-                if (devices == null || devices.Count == 0)
+            await Dispatcher.InvokeAsync(() =>
+            {
+                PresentStructuredResults("Devices & versions", () =>
                 {
                     UpdateStructuredResultsPanel.Children.Add(new TextBlock
                     {
-                        Text = "No devices in Firebase.",
+                        Text = $"Published latest ({appId}): {latest}",
                         FontSize = 10,
-                        Foreground = FindBrush("TextTertiaryBrush"),
+                        Foreground = FindBrush("TextSecondaryBrush"),
+                        Margin = new Thickness(0, 0, 0, 4),
                     });
-                    return;
-                }
+                    UpdateStructuredResultsPanel.Children.Add(new TextBlock
+                    {
+                        Text = $"Only devices with Firebase apps/{appId}. Machines that only report other apps are hidden. (Legacy: no apps node → still listed for desktophub.)",
+                        FontSize = 9,
+                        Foreground = FindBrush("TextTertiaryBrush"),
+                        TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(0, 0, 0, 8),
+                    });
 
-                var rows = devices
-                    .Select(kvp => BuildDeviceInvRow(kvp.Key, kvp.Value, latest))
-                    .OrderByDescending(r => r.Outdated)
-                    .ThenBy(r => r.Username, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(r => r.DeviceName, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
+                    if (devices == null || devices.Count == 0)
+                    {
+                        UpdateStructuredResultsPanel.Children.Add(new TextBlock
+                        {
+                            Text = "No devices in Firebase.",
+                            FontSize = 10,
+                            Foreground = FindBrush("TextTertiaryBrush"),
+                        });
+                        return;
+                    }
 
-                UpdateStructuredResultsPanel.Children.Add(BuildDeviceInventoryHeaderRow());
-                for (var i = 0; i < rows.Count; i++)
-                    UpdateStructuredResultsPanel.Children.Add(BuildDeviceInventoryDataRow(rows[i], i));
+                    var relevant = devices
+                        .Where(kvp => DeviceRelevantForSelectedApp(kvp.Value, appId))
+                        .ToList();
 
-                var outdated = rows.Count(r => r.Outdated);
-                UpdateStructuredResultsPanel.Children.Add(new TextBlock
-                {
-                    Text = $"{rows.Count} devices · {outdated} outdated vs {latest}",
-                    FontSize = 9,
-                    Foreground = FindBrush("TextTertiaryBrush"),
-                    Margin = new Thickness(0, 8, 0, 0),
+                    if (relevant.Count == 0)
+                    {
+                        UpdateStructuredResultsPanel.Children.Add(new TextBlock
+                        {
+                            Text = $"No devices have apps/{appId} ({devices.Count} in Firebase may only report other apps). Change App above or use User/Device to push.",
+                            FontSize = 10,
+                            Foreground = FindBrush("TextTertiaryBrush"),
+                            TextWrapping = TextWrapping.Wrap,
+                        });
+                        return;
+                    }
+
+                    var rows = relevant
+                        .Select(kvp => BuildDeviceInvRow(kvp.Key, kvp.Value, latest, appId))
+                        .OrderByDescending(r => r.Outdated)
+                        .ThenByDescending(r => r.MissingVersionReport)
+                        .ThenBy(r => r.Username, StringComparer.OrdinalIgnoreCase)
+                        .ThenBy(r => r.DeviceName, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    UpdateStructuredResultsPanel.Children.Add(BuildDeviceInventoryHeaderRow());
+                    for (var i = 0; i < rows.Count; i++)
+                        UpdateStructuredResultsPanel.Children.Add(BuildDeviceInventoryDataRow(rows[i], i));
+
+                    var outdated = rows.Count(r => r.Outdated);
+                    var missing = rows.Count(r => r.MissingVersionReport);
+                    UpdateStructuredResultsPanel.Children.Add(new TextBlock
+                    {
+                        Text = $"{rows.Count} devices · app {appId} · {outdated} behind {latest} · {missing} not reporting this app",
+                        FontSize = 9,
+                        Foreground = FindBrush("TextTertiaryBrush"),
+                        Margin = new Thickness(0, 8, 0, 0),
+                    });
                 });
             });
         }
@@ -306,18 +586,31 @@ public partial class DeveloperPanelWidget
         string DeviceName,
         string InstalledDisplay,
         bool Outdated,
+        bool MissingVersionReport,
+        string? InstalledCellToolTip,
         string LastSeen);
 
-    private DeviceInvRow BuildDeviceInvRow(string deviceId, Dictionary<string, object> d, string latestPublished)
+    private DeviceInvRow BuildDeviceInvRow(string deviceId, Dictionary<string, object> d, string latestPublished, string appId)
     {
         var user = d.TryGetValue("username", out var u) ? u?.ToString() ?? "?" : "?";
         var name = d.TryGetValue("device_name", out var dn) ? dn?.ToString() ?? "" : "";
         var lastSeen = d.TryGetValue("last_seen", out var ls) ? FormatDeviceLastSeen(ls?.ToString()) : "—";
-        var installed = GetInstalledVersionForApp(d);
-        var outdated = IsInstalledOutdated(installed, latestPublished);
-        var display = string.IsNullOrWhiteSpace(installed) ? "?" : installed;
-        if (outdated && latestPublished != "—")
-            display += "  (behind)";
+        var installed = GetInstalledVersionForApp(d, appId);
+        var missing = string.IsNullOrWhiteSpace(installed);
+        var outdated = !missing && IsInstalledOutdated(installed, latestPublished);
+        string display;
+        string? tip = null;
+        if (missing)
+        {
+            display = "not reported";
+            tip = BuildMissingVersionToolTip(d, appId);
+        }
+        else
+        {
+            display = installed!;
+            if (outdated && latestPublished != "—")
+                display += "  (behind)";
+        }
 
         return new DeviceInvRow(
             deviceId,
@@ -326,7 +619,37 @@ public partial class DeveloperPanelWidget
             name,
             display,
             outdated,
+            missing,
+            tip,
             lastSeen);
+    }
+
+    private static string BuildMissingVersionToolTip(Dictionary<string, object> d, string appId)
+    {
+        var others = new List<string>();
+        if (d.TryGetValue("apps", out var appsObj) && appsObj != null)
+        {
+            var apps = NormalizeToStringObjectMap(appsObj);
+            if (apps != null)
+            {
+                foreach (var kvp in apps)
+                {
+                    if (string.Equals(kvp.Key, appId, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    var v = NormalizeToStringObjectMap(kvp.Value);
+                    var iv = v?.TryGetValue("installed_version", out var ivs) == true ? ivs?.ToString()?.Trim() : null;
+                    if (!string.IsNullOrWhiteSpace(iv))
+                        others.Add($"{kvp.Key}: {iv}");
+                    else
+                        others.Add($"{kvp.Key}: (no version)");
+                }
+            }
+        }
+
+        if (others.Count > 0)
+            return $"This device has not reported installed_version for '{appId}'. Other apps: {string.Join(", ", others.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))}.";
+
+        return $"No '{appId}' entry under devices/…/apps. The app may not be installed, the client may be too old to report per-app versions, or the device has not heartbeated yet.";
     }
 
     private static string ShortenDeviceId(string id) =>
@@ -344,17 +667,42 @@ public partial class DeveloperPanelWidget
         return dt.ToString("MM/dd HH:mm", CultureInfo.InvariantCulture);
     }
 
-    private static string? GetInstalledVersionForApp(Dictionary<string, object> device)
+    /// <summary>
+    /// Inventory is scoped per app: only devices that have heartbeated with this app id under <c>devices/.../apps/{appId}</c>.
+    /// Exception: if <c>apps</c> is missing/empty, include the row only when viewing desktophub (legacy DesktopHub).
+    /// </summary>
+    private static bool DeviceRelevantForSelectedApp(Dictionary<string, object> device, string appId)
+    {
+        if (!device.TryGetValue("apps", out var appsObj) || appsObj == null)
+            return string.Equals(appId, UpdatesAppId, StringComparison.OrdinalIgnoreCase);
+
+        var apps = NormalizeToStringObjectMap(appsObj);
+        if (apps == null || apps.Count == 0)
+            return string.Equals(appId, UpdatesAppId, StringComparison.OrdinalIgnoreCase);
+
+        return apps.Keys.Any(k => string.Equals(k, appId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string? GetInstalledVersionForApp(Dictionary<string, object> device, string appId)
     {
         if (!device.TryGetValue("apps", out var appsObj) || appsObj == null)
             return null;
         var apps = NormalizeToStringObjectMap(appsObj);
-        if (apps == null || !apps.TryGetValue(UpdatesAppId, out var appEntry))
+        if (apps == null)
             return null;
-        var appMap = NormalizeToStringObjectMap(appEntry);
-        if (appMap == null)
+        Dictionary<string, object>? appEntry = null;
+        foreach (var kvp in apps)
+        {
+            if (string.Equals(kvp.Key, appId, StringComparison.OrdinalIgnoreCase))
+            {
+                appEntry = NormalizeToStringObjectMap(kvp.Value);
+                break;
+            }
+        }
+
+        if (appEntry == null)
             return null;
-        return appMap.TryGetValue("installed_version", out var v) ? v?.ToString() : null;
+        return appEntry.TryGetValue("installed_version", out var v) ? v?.ToString()?.Trim() : null;
     }
 
     private static Dictionary<string, object>? NormalizeToStringObjectMap(object? o)
@@ -379,8 +727,9 @@ public partial class DeveloperPanelWidget
         if (string.IsNullOrWhiteSpace(latest) || latest == "—")
             return false;
         installed = installed?.Trim();
+        // Unknown installed version is not "behind" — handled as "not reported" in the grid.
         if (string.IsNullOrWhiteSpace(installed))
-            return true;
+            return false;
         if (!TryParseLooseVersion(installed, out var vi))
             return true;
         if (!TryParseLooseVersion(latest, out var vl))
@@ -504,8 +853,9 @@ public partial class DeveloperPanelWidget
         grid.Children.Add(UpdatesHeaderCell("Device", 0));
         grid.Children.Add(UpdatesHeaderCell("User", 1));
         grid.Children.Add(UpdatesHeaderCell("Host", 2));
-        grid.Children.Add(UpdatesHeaderCell("Installed", 3));
+        grid.Children.Add(UpdatesHeaderCell("Installed (selected app)", 3));
         grid.Children.Add(UpdatesHeaderCell("Seen", 4));
+        grid.Children.Add(UpdatesHeaderCell("Push", 5));
         return WrapUpdatesTableRow(grid, isHeader: true, rowIndex: 0);
     }
 
@@ -517,10 +867,30 @@ public partial class DeveloperPanelWidget
             idTb.ToolTip = r.DeviceIdFull;
         grid.Children.Add(idCell);
         grid.Children.Add(UpdatesDataCell(r.Username, 1));
-        grid.Children.Add(UpdatesDataCell(string.IsNullOrWhiteSpace(r.DeviceName) ? "—" : r.DeviceName, 2));
-        grid.Children.Add(UpdatesDataCell(r.InstalledDisplay, 3, warn: r.Outdated));
+        grid.Children.Add(UpdatesHostCell(string.IsNullOrWhiteSpace(r.DeviceName) ? "—" : r.DeviceName, 2));
+        var installedCell = UpdatesDataCell(r.InstalledDisplay, 3, warn: r.Outdated, missingReport: r.MissingVersionReport);
+        if (installedCell is TextBlock instTb && r.InstalledCellToolTip != null)
+            instTb.ToolTip = r.InstalledCellToolTip;
+        grid.Children.Add(installedCell);
         grid.Children.Add(UpdatesDataCell(r.LastSeen, 4));
-        return WrapUpdatesTableRow(grid, isHeader: false, rowIndex);
+
+        var pushBtn = new System.Windows.Controls.Button
+        {
+            Content = "Push",
+            Style = TryFindResource("ActionBtn") as Style,
+            Padding = new Thickness(8, 2, 8, 2),
+            FontSize = 9,
+            Margin = new Thickness(4, 0, 0, 0),
+            Tag = $"{r.Username}\x1F{r.DeviceIdFull}",
+            VerticalAlignment = System.Windows.VerticalAlignment.Center,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+            ToolTip = "Push to this device (toolbar target + version rules apply)",
+        };
+        pushBtn.Click += PushDeviceFromTable_Click;
+        Grid.SetColumn(pushBtn, 5);
+        grid.Children.Add(pushBtn);
+
+        return WrapUpdatesTableRow(grid, isHeader: false, rowIndex, minInnerHeight: 32);
     }
 
     private Grid CreateUpdatesTableGrid(bool forceTable)
@@ -536,14 +906,29 @@ public partial class DeveloperPanelWidget
         }
         else
         {
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.85, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(92) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.75, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2.5, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.05, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(78) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         }
 
         return grid;
+    }
+
+    private UIElement UpdatesHostCell(string text, int col)
+    {
+        var block = new TextBlock
+        {
+            Text = text,
+            FontSize = 10,
+            Foreground = FindBrush("TextPrimaryBrush"),
+            TextWrapping = TextWrapping.Wrap,
+            VerticalAlignment = System.Windows.VerticalAlignment.Center,
+        };
+        Grid.SetColumn(block, col);
+        return block;
     }
 
     private UIElement UpdatesHeaderCell(string text, int col)
@@ -561,13 +946,17 @@ public partial class DeveloperPanelWidget
         return block;
     }
 
-    private UIElement UpdatesDataCell(string text, int col, bool monospace = false, bool warn = false)
+    private UIElement UpdatesDataCell(string text, int col, bool monospace = false, bool warn = false, bool missingReport = false)
     {
         var block = new TextBlock
         {
             Text = text,
             FontSize = 10,
-            Foreground = warn ? FindBrush("OrangeBrush") : FindBrush("TextPrimaryBrush"),
+            Foreground = warn
+                ? FindBrush("OrangeBrush")
+                : missingReport
+                    ? FindBrush("TextTertiaryBrush")
+                    : FindBrush("TextPrimaryBrush"),
             VerticalAlignment = System.Windows.VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
             FontFamily = monospace ? new WpfFontFamily("Consolas") : new WpfFontFamily("Segoe UI"),
@@ -608,8 +997,9 @@ public partial class DeveloperPanelWidget
         return border;
     }
 
-    private UIElement WrapUpdatesTableRow(Grid grid, bool isHeader, int rowIndex)
+    private UIElement WrapUpdatesTableRow(Grid grid, bool isHeader, int rowIndex, double minInnerHeight = 26)
     {
+        grid.MinHeight = Math.Max(grid.MinHeight, minInnerHeight);
         return new Border
         {
             Background = isHeader
@@ -617,7 +1007,7 @@ public partial class DeveloperPanelWidget
                 : (rowIndex % 2 == 0 ? System.Windows.Media.Brushes.Transparent : FindBrush("FaintOverlayBrush")),
             BorderBrush = FindBrush("BorderBrush"),
             BorderThickness = new Thickness(1, isHeader ? 1 : 0, 1, 1),
-            Padding = new Thickness(8, isHeader ? 6 : 4, 8, isHeader ? 6 : 4),
+            Padding = new Thickness(8, isHeader ? 6 : 6, 8, isHeader ? 6 : 6),
             Child = grid,
         };
     }

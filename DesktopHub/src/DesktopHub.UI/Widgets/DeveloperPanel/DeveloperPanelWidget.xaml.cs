@@ -49,6 +49,7 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
         ("users_devices", "Users / devices"),
         ("permissions",   "Permissions"),
         ("licensing",     "Licensing"),
+        ("publish",       "Publish"),
         ("updates",       "Updates"),
     };
 
@@ -211,6 +212,7 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
         UsersDevicesTab.Visibility = tabId == "users_devices" ? Visibility.Visible : Visibility.Collapsed;
         PermissionsTab.Visibility = tabId == "permissions" ? Visibility.Visible : Visibility.Collapsed;
         LicensingTab.Visibility = tabId == "licensing" ? Visibility.Visible : Visibility.Collapsed;
+        PublishTab.Visibility = tabId == "publish" ? Visibility.Visible : Visibility.Collapsed;
         UpdatesTab.Visibility = tabId == "updates" ? Visibility.Visible : Visibility.Collapsed;
 
         // Lazy-load tab data on first visit
@@ -255,6 +257,9 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
                 break;
             case "licensing":
                 await RefreshLicensesAsync();
+                break;
+            case "publish":
+                InitPublishTab();
                 break;
             case "updates":
                 InitUpdatesTab();

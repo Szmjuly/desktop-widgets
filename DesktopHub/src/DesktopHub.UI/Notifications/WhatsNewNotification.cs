@@ -178,13 +178,12 @@ internal class WhatsNewNotification : Window
         {
             return new[]
             {
-                "Dynamic Theming — full DynamicResource brush system across all overlays and widgets",
-                "Step-by-Step Guides — Interactive and Visual modes in Cheat Sheets with formula calculators",
-                "GEC Wire Reference Table — collapsible circular mil and mm² reference in GEC Calculator",
-                "Non-Live Widget Grid — auto-grid positioning with pinned positions per monitor layout",
-                "Remote Forced Updates — admin can push updates to specific devices via Firebase",
-                "Tag Registry Sync — custom tag keys register to shared Firebase vocabulary automatically",
-                "View Mode Toggle Polish — cleaner Table/Lookup switch with consistent label sizing"
+                "Developer Panel — tabbed admin widget with database explorer, user/device management, and remote update tools",
+                "Search History — persistent history tracking with configurable settings",
+                "Lighting & AV/IT Tags — new designer tag fields for project tagging",
+                "Cheat Sheet Telemetry — enhanced usage tracking for cheat sheet interactions",
+                "Developer Panel UI Polish — improved layout, functionality, and tab navigation",
+                "Documentation Cleanup — removed outdated docs, streamlined repo"
             };
         }
 
