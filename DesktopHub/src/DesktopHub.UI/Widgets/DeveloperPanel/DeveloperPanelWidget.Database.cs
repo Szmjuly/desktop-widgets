@@ -492,7 +492,7 @@ public partial class DeveloperPanelWidget
             return;
         }
 
-        if (!ConfirmDangerous($"Delete Firebase node '{path}'?"))
+        if (!await ConfirmDangerousAsync($"Delete Firebase node '{path}'?"))
         {
             AppendOutput("Delete cancelled.");
             return;

@@ -51,6 +51,8 @@ public partial class SearchOverlay : Window
     private IProjectTagService? _tagService;
     private Core.Abstractions.ITagVocabularyService? _vocabService;
     private Core.Abstractions.ITagRegistryService? _tagRegistryService;
+    private Core.Abstractions.IMasterStructureService? _masterStructureService;
+    private IFirebaseService? _firebaseService;
     private ProjectInfoOverlay? _projectInfoOverlay;
     private List<Project> _allProjects = new();
     private List<Project> _filteredProjects = new();

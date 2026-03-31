@@ -136,7 +136,7 @@ public partial class DeveloperPanelWidget
 
     private async Task RevokeLicenseAsync(string key)
     {
-        if (!ConfirmDangerous($"Revoke license '{key}'?"))
+        if (!await ConfirmDangerousAsync($"Revoke license '{key}'?"))
             return;
         if (_firebaseService == null) return;
         var ok = await _firebaseService.SetNodeAsync($"licenses/{key}/status", "revoked");
@@ -146,7 +146,7 @@ public partial class DeveloperPanelWidget
 
     private async Task DeleteLicenseAsync(string key)
     {
-        if (!ConfirmDangerous($"Delete license '{key}'? This cannot be undone."))
+        if (!await ConfirmDangerousAsync($"Delete license '{key}'? This cannot be undone."))
             return;
         if (_firebaseService == null) return;
         var ok = await _firebaseService.DeleteNodeAsync($"licenses/{key}");

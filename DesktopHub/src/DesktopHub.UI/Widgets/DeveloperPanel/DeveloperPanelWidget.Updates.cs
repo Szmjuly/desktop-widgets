@@ -34,8 +34,10 @@ public partial class DeveloperPanelWidget
         UpdateAppBox.SelectedIndex = 0;
     }
 
-    private void InitUpdatesTab()
+    private async void InitUpdatesTab()
     {
+        if (_allDeviceDetails.Count == 0)
+            await LoadDeviceDetailsAsync();
         PopulatePushUpdateDropdowns();
         SyncPushTargetVersionCustomVisibility();
         _ = InitializeUpdatesAppPickerAndLatestAsync();
@@ -258,12 +260,9 @@ public partial class DeveloperPanelWidget
         if (string.IsNullOrWhiteSpace(notes))
             notes = "New version available";
 
-        // Replace spaces with underscores for PowerShell arg safety
-        var safeNotes = notes.Replace(" ", "_");
+        if (!await ConfirmDangerousAsync($"Publish {appId} version {version}?")) return;
 
-        if (!ConfirmDangerous($"Publish {appId} version {version}?")) return;
-
-        await RunScriptAsync("admin.ps1", "-Action", "version-update", "-Version", version, "-ReleaseNotes", safeNotes);
+        await PublishVersionAsync(appId, version, notes);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -274,14 +273,14 @@ public partial class DeveloperPanelWidget
     {
         await RefreshDeviceInventoryUiAsync();
         var app = GetSelectedUpdatesAppId();
-        await RunScriptWithOutputAsync("admin.ps1", false, "-Action", "update-list", "-PushAppId", app);
+        await ListDevicesAndVersionsAsync(app);
     }
 
     private async void PushUpdateAll_Click(object sender, RoutedEventArgs e)
     {
         var app = GetSelectedUpdatesAppId();
-        if (!ConfirmDangerous($"Push update to all outdated devices for app '{app}'?")) return;
-        await RunScriptAsync("admin.ps1", "-Action", "update-push-all", "-PushAppId", app);
+        if (!await ConfirmDangerousAsync($"Push update to all outdated devices for app '{app}'?")) return;
+        await PushUpdateToAllAsync(app);
     }
 
     private async void PushUpdateDevice_Click(object sender, RoutedEventArgs e) => await RunSingleDevicePushAsync();
@@ -343,7 +342,7 @@ public partial class DeveloperPanelWidget
             return;
         }
 
-        string[] args;
+        string? targetVersion = null;
         if (PushTargetVersionModeBox?.SelectedIndex == 1)
         {
             var v = PushTargetVersionCustomBox?.Text?.Trim();
@@ -353,18 +352,18 @@ public partial class DeveloperPanelWidget
                 return;
             }
 
-            if (!ConfirmDangerous($"Push version {v} to device '{deviceId}' (app '{GetSelectedUpdatesAppId()}')? (download URL stays Firebase latest for that app)"))
+            if (!await ConfirmDangerousAsync($"Push version {v} to device '{deviceId}' (app '{GetSelectedUpdatesAppId()}')? (download URL stays Firebase latest for that app)"))
                 return;
-            args = new[] { "-Action", "update-push", "-DeviceId", deviceId, "-TargetVersion", v, "-PushAppId", GetSelectedUpdatesAppId() };
+            targetVersion = v;
         }
         else
         {
-            if (!ConfirmDangerous($"Push latest published update to device '{deviceId}' (app '{GetSelectedUpdatesAppId()}')?"))
+            if (!await ConfirmDangerousAsync($"Push latest published update to device '{deviceId}' (app '{GetSelectedUpdatesAppId()}')?"))
                 return;
-            args = new[] { "-Action", "update-push", "-DeviceId", deviceId, "-PushAppId", GetSelectedUpdatesAppId() };
         }
 
-        await RunScriptWithOutputAsync("admin.ps1", false, args);
+        var force = PushForceReinstallBox?.IsChecked == true;
+        await PushUpdateToDeviceAsync(deviceId, GetSelectedUpdatesAppId(), targetVersion, force);
     }
 
     private void PushUserFilterBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -378,14 +377,14 @@ public partial class DeveloperPanelWidget
     {
         await RefreshForceUpdateStatusUiAsync();
         var app = GetSelectedUpdatesAppId();
-        await RunScriptWithOutputAsync("admin.ps1", false, "-Action", "update-status", "-PushAppId", app);
+        await GetUpdateStatusAsync(app);
     }
 
     private async void ClearUpdates_Click(object sender, RoutedEventArgs e)
     {
         var app = GetSelectedUpdatesAppId();
-        if (!ConfirmDangerous($"Clear completed/failed push update entries for app '{app}'?")) return;
-        await RunScriptAsync("admin.ps1", "-Action", "update-clear", "-PushAppId", app);
+        if (!await ConfirmDangerousAsync($"Clear completed/failed push update entries for app '{app}'?")) return;
+        await ClearCompletedUpdatesAsync(app);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -1016,13 +1015,13 @@ public partial class DeveloperPanelWidget
     // BUILD TOOLS
     // ════════════════════════════════════════════════════════════
 
-    private async void Build_Click(object sender, RoutedEventArgs e)
+    private void Build_Click(object sender, RoutedEventArgs e)
     {
-        await RunScriptAsync("admin.ps1", "-Action", "build");
+        AppendOutput("Build operations are only available from the development environment (dotnet CLI).");
     }
 
-    private async void BuildInstaller_Click(object sender, RoutedEventArgs e)
+    private void BuildInstaller_Click(object sender, RoutedEventArgs e)
     {
-        await RunScriptAsync("admin.ps1", "-Action", "build-installer");
+        AppendOutput("Installer build is only available from the development environment.");
     }
 }

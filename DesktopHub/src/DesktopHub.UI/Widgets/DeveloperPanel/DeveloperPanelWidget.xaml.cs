@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -14,25 +13,6 @@ namespace DesktopHub.UI.Widgets;
 
 public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
 {
-    private static readonly HashSet<string> AllowedScripts = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "admin.ps1",
-        "manage-admin.ps1",
-        "manage-cheatsheet-editors.ps1",
-        "manage-dev.ps1",
-        "dump-database.ps1",
-        "backup-database.ps1",
-        "push-update.ps1",
-        "build-single-file.ps1",
-        "build-installer.ps1",
-        "Update-FirebaseVersion.ps1",
-        "tag-manager.ps1",
-        "wipe-tags.ps1",
-        "cleanup-auth-users.ps1",
-        "Reset-Metrics.ps1",
-        "wipe-devices.ps1"
-    };
-
     internal static readonly string[] KnownNodes =
     {
         "devices", "users", "licenses", "app_versions", "admin_users",
@@ -57,8 +37,6 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
 
     internal readonly IFirebaseService? _firebaseService;
     private bool _isDev;
-    internal readonly string _scriptsDir;
-    internal readonly string? _serviceAccountPath;
     private readonly DispatcherTimer _clockTimer;
 
     // Tab state
@@ -77,8 +55,6 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
     {
         InitializeComponent();
         _firebaseService = firebaseService;
-        _scriptsDir = ResolveScriptsDir();
-        _serviceAccountPath = ResolveServiceAccountPath();
 
         _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _clockTimer.Tick += (_, _) => ClockText.Text = DateTime.Now.ToString("h:mm:ss tt");
@@ -268,55 +244,7 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
     }
 
     // ════════════════════════════════════════════════════════════
-    // PATH RESOLUTION
-    // ════════════════════════════════════════════════════════════
-
-    private static string ResolveScriptsDir()
-    {
-        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-        var candidate = System.IO.Path.Combine(baseDir, "scripts");
-        if (System.IO.Directory.Exists(candidate))
-            return candidate;
-
-        var dir = new System.IO.DirectoryInfo(baseDir);
-        while (dir?.Parent != null)
-        {
-            dir = dir.Parent;
-            candidate = System.IO.Path.Combine(dir.FullName, "scripts");
-            if (System.IO.Directory.Exists(candidate) &&
-                System.IO.File.Exists(System.IO.Path.Combine(candidate, "admin.ps1")))
-                return candidate;
-        }
-
-        return System.IO.Path.Combine(baseDir, "scripts");
-    }
-
-    private static string? ResolveServiceAccountPath()
-    {
-        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-        var candidates = new[]
-        {
-            System.IO.Path.Combine(baseDir, "secrets", "firebase-license.json"),
-            System.IO.Path.Combine(baseDir, "firebase-license.json"),
-        };
-
-        foreach (var c in candidates)
-            if (System.IO.File.Exists(c)) return System.IO.Path.GetFullPath(c);
-
-        var dir = new System.IO.DirectoryInfo(baseDir);
-        while (dir?.Parent != null)
-        {
-            dir = dir.Parent;
-            var candidate = System.IO.Path.Combine(dir.FullName, "secrets", "firebase-license.json");
-            if (System.IO.File.Exists(candidate))
-                return System.IO.Path.GetFullPath(candidate);
-        }
-
-        return null;
-    }
-
-    // ════════════════════════════════════════════════════════════
-    // SCRIPT EXECUTION
+    // SHARED UTILITIES
     // ════════════════════════════════════════════════════════════
 
     internal static string NormalizeUsername(string? raw) =>
@@ -329,123 +257,33 @@ public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
         return normalized;
     }
 
-    internal async Task RunScriptAsync(string fileName, params string[] args)
-    {
-        await RunScriptWithOutputAsync(fileName, skipServiceAccount: false, args);
-    }
-
-    internal async Task<(string Stdout, string Stderr, int ExitCode)> RunScriptWithOutputAsync(
-        string fileName, bool skipServiceAccount = false, params string[] args)
-    {
-        if (!EnsureDevForAction($"run {fileName}"))
-            return ("", "DENIED", -1);
-
-        if (!AllowedScripts.Contains(fileName))
-        {
-            AppendOutput($"DENIED: Script '{fileName}' is not in the allowlist.");
-            return ("", "DENIED", -1);
-        }
-
-        var scriptPath = System.IO.Path.Combine(_scriptsDir, fileName);
-        if (!System.IO.File.Exists(scriptPath))
-        {
-            AppendOutput($"ERROR: Script not found: {scriptPath}");
-            return ("", "NOT_FOUND", -1);
-        }
-
-        var allArgs = new List<string>(args);
-        if (!skipServiceAccount && _serviceAccountPath != null)
-        {
-            allArgs.Add("-ServiceAccountPath");
-            allArgs.Add(_serviceAccountPath);
-        }
-
-        // Use ArgumentList so each token is one argv entry. A single Arguments string with
-        // embedded quotes breaks PowerShell's parser and can leave e.g. firebase-license.json
-        // as a stray positional argument (ParameterBindingException).
-        var psi = new ProcessStartInfo
-        {
-            FileName = "powershell.exe",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory
-        };
-        psi.ArgumentList.Add("-NoProfile");
-        psi.ArgumentList.Add("-ExecutionPolicy");
-        psi.ArgumentList.Add("Bypass");
-        psi.ArgumentList.Add("-File");
-        psi.ArgumentList.Add(scriptPath);
-        foreach (var a in allArgs)
-            psi.ArgumentList.Add(a);
-
-        AppendOutput($"> {fileName} {string.Join(" ", allArgs)}");
-
-        try
-        {
-            using var proc = Process.Start(psi);
-            if (proc == null)
-            {
-                AppendOutput("ERROR: Failed to start script process.");
-                return ("", "FAILED_TO_START", -1);
-            }
-
-            var stdout = await proc.StandardOutput.ReadToEndAsync();
-            var stderr = await proc.StandardError.ReadToEndAsync();
-            await proc.WaitForExitAsync();
-
-            if (!string.IsNullOrWhiteSpace(stdout))
-                AppendOutput(stdout.TrimEnd());
-            if (!string.IsNullOrWhiteSpace(stderr))
-                AppendOutput("STDERR: " + stderr.TrimEnd());
-
-            AppendOutput($"Exit code: {proc.ExitCode}");
-            return (stdout, stderr, proc.ExitCode);
-        }
-        catch (Exception ex)
-        {
-            AppendOutput($"ERROR running script: {ex.Message}");
-            return ("", ex.Message, -1);
-        }
-    }
-
     internal void AppendOutput(string text)
     {
         OutputBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {text}{Environment.NewLine}");
         OutputBox.ScrollToEnd();
     }
 
-    internal async Task ExecuteRoleActionAsync(string script, string action, bool confirmDangerous = false)
+    internal async Task<bool> ConfirmDangerousAsync(string message)
     {
-        var username = ResolveUsername();
-        if (string.IsNullOrWhiteSpace(username))
+        ConfirmOverlayMessage.Text = message;
+        ConfirmOverlay.Visibility = Visibility.Visible;
+
+        var tcs = new TaskCompletionSource<bool>();
+        void OnYes(object s, RoutedEventArgs e) => tcs.TrySetResult(true);
+        void OnNo(object s, RoutedEventArgs e) => tcs.TrySetResult(false);
+
+        ConfirmYesBtn.Click += OnYes;
+        ConfirmNoBtn.Click += OnNo;
+        try
         {
-            AppendOutput("Please enter a username first.");
-            return;
+            return await tcs.Task;
         }
-
-        if (confirmDangerous)
+        finally
         {
-            var result = System.Windows.MessageBox.Show(
-                $"Confirm role action '{action}' for '{username}'?",
-                "Confirm Role Action",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
-            if (result != MessageBoxResult.Yes)
-            {
-                AppendOutput("Cancelled.");
-                return;
-            }
+            ConfirmYesBtn.Click -= OnYes;
+            ConfirmNoBtn.Click -= OnNo;
+            ConfirmOverlay.Visibility = Visibility.Collapsed;
         }
-
-        await RunScriptAsync(script, "-Action", action, "-Username", username);
-    }
-
-    internal bool ConfirmDangerous(string message)
-    {
-        return System.Windows.MessageBox.Show(message, "Confirm", MessageBoxButton.YesNo,
-            MessageBoxImage.Warning) == MessageBoxResult.Yes;
     }
 
     internal static object? JsonElementToObject(JsonElement element) => element.ValueKind switch

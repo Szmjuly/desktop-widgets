@@ -915,7 +915,7 @@ public partial class SearchOverlay
     {
         if (_tagService == null) return;
 
-        _projectInfoOverlay = new ProjectInfoOverlay(_tagService, _vocabService, _settings);
+        _projectInfoOverlay = new ProjectInfoOverlay(_tagService, _vocabService, _settings, _masterStructureService, _firebaseService);
         ApplyResponsiveWidgetWidth(_projectInfoOverlay);
         RegisterWidgetWindow(_projectInfoOverlay);
         var isLivingWidgetsMode = _settings.GetLivingWidgetsMode();

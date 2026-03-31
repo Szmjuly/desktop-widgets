@@ -35,6 +35,50 @@ public partial class DeveloperPanelWidget
     private List<UserDeviceDetail> _allDeviceDetails = new();
     private string? _selectedDetailUser;
 
+    /// <summary>
+    /// Fetches device data from Firebase and populates <see cref="_allDeviceDetails"/> and <see cref="_knownUsernames"/>.
+    /// Called by both the Users/Devices tab and the Updates tab so either can initialize independently.
+    /// </summary>
+    internal async Task LoadDeviceDetailsAsync()
+    {
+        if (_firebaseService == null || !_firebaseService.IsInitialized) return;
+
+        var devices = await _firebaseService.GetDevicesAsync();
+        if (devices == null || devices.Count == 0)
+        {
+            _allDeviceDetails.Clear();
+            _knownUsernames.Clear();
+            return;
+        }
+
+        _allDeviceDetails = devices
+            .Select(kvp =>
+            {
+                var d = kvp.Value;
+                Dictionary<string, object>? apps = null;
+                if (d.TryGetValue("apps", out var appsObj) && appsObj is Dictionary<string, object> appsDict)
+                    apps = appsDict;
+
+                return new UserDeviceDetail
+                {
+                    DeviceId = kvp.Key,
+                    Username = d.TryGetValue("username", out var u) ? u?.ToString() ?? "unknown" : "unknown",
+                    DeviceName = d.TryGetValue("device_name", out var dn) ? dn?.ToString() ?? "" : "",
+                    Status = d.TryGetValue("status", out var st) ? st?.ToString() ?? "unknown" : "unknown",
+                    LastSeen = d.TryGetValue("last_seen", out var ls) ? ls?.ToString() ?? "" : "",
+                    MacAddress = d.TryGetValue("mac_address", out var mac) ? mac?.ToString() ?? "" : "",
+                    Platform = d.TryGetValue("platform", out var pl) ? pl?.ToString() ?? "" : "",
+                    PlatformVersion = d.TryGetValue("platform_version", out var pv) ? pv?.ToString() ?? "" : "",
+                    Machine = d.TryGetValue("machine", out var m) ? m?.ToString() ?? "" : "",
+                    LicenseKey = d.TryGetValue("license_key", out var lk) ? lk?.ToString() ?? "" : "",
+                    Apps = apps,
+                };
+            })
+            .ToList();
+
+        _knownUsernames = _allDeviceDetails.Select(d => d.Username).Distinct().OrderBy(x => x).ToList();
+    }
+
     private async Task RefreshUsersDevicesAsync()
     {
         if (_firebaseService == null || !_firebaseService.IsInitialized) return;
@@ -42,44 +86,16 @@ public partial class DeveloperPanelWidget
         try
         {
             UsersDevicesList.Children.Clear();
-            var devices = await _firebaseService.GetDevicesAsync();
-            if (devices == null || devices.Count == 0)
+            await LoadDeviceDetailsAsync();
+
+            if (_allDeviceDetails.Count == 0)
             {
                 UsersDevicesCountText.Text = "0 devices";
-                _knownUsernames.Clear();
-                _allDeviceDetails.Clear();
                 return;
             }
 
-            _allDeviceDetails = devices
-                .Select(kvp =>
-                {
-                    var d = kvp.Value;
-                    Dictionary<string, object>? apps = null;
-                    if (d.TryGetValue("apps", out var appsObj) && appsObj is Dictionary<string, object> appsDict)
-                        apps = appsDict;
-
-                    return new UserDeviceDetail
-                    {
-                        DeviceId = kvp.Key,
-                        Username = d.TryGetValue("username", out var u) ? u?.ToString() ?? "unknown" : "unknown",
-                        DeviceName = d.TryGetValue("device_name", out var dn) ? dn?.ToString() ?? "" : "",
-                        Status = d.TryGetValue("status", out var st) ? st?.ToString() ?? "unknown" : "unknown",
-                        LastSeen = d.TryGetValue("last_seen", out var ls) ? ls?.ToString() ?? "" : "",
-                        MacAddress = d.TryGetValue("mac_address", out var mac) ? mac?.ToString() ?? "" : "",
-                        Platform = d.TryGetValue("platform", out var pl) ? pl?.ToString() ?? "" : "",
-                        PlatformVersion = d.TryGetValue("platform_version", out var pv) ? pv?.ToString() ?? "" : "",
-                        Machine = d.TryGetValue("machine", out var m) ? m?.ToString() ?? "" : "",
-                        LicenseKey = d.TryGetValue("license_key", out var lk) ? lk?.ToString() ?? "" : "",
-                        Apps = apps,
-                    };
-                })
-                .ToList();
-
             var grouped = _allDeviceDetails.GroupBy(r => r.Username).OrderBy(g => g.Key).ToList();
-            UsersDevicesCountText.Text = $"{devices.Count} devices · {grouped.Count} users";
-
-            _knownUsernames = grouped.Select(g => g.Key).Distinct().OrderBy(x => x).ToList();
+            UsersDevicesCountText.Text = $"{_allDeviceDetails.Count} devices · {grouped.Count} users";
 
             foreach (var group in grouped)
                 UsersDevicesList.Children.Add(CreateUserCard(group.Key, group.ToList()));

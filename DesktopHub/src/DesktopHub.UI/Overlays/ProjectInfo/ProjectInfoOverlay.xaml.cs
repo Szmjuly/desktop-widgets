@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 using DesktopHub.Core.Abstractions;
+using DesktopHub.Infrastructure.Firebase;
 using DesktopHub.UI.Helpers;
 using DesktopHub.UI.Widgets;
 
@@ -13,12 +14,17 @@ public partial class ProjectInfoOverlay : Window
 
     public ProjectInfoWidget Widget => _widget;
 
-    public ProjectInfoOverlay(IProjectTagService tagService, ITagVocabularyService? vocabService, ISettingsService settings)
+    public ProjectInfoOverlay(
+        IProjectTagService tagService,
+        ITagVocabularyService? vocabService,
+        ISettingsService settings,
+        IMasterStructureService? masterStructureService = null,
+        IFirebaseService? firebaseService = null)
     {
         InitializeComponent();
         _settings = settings;
 
-        _widget = new ProjectInfoWidget(tagService, vocabService);
+        _widget = new ProjectInfoWidget(tagService, vocabService, masterStructureService, firebaseService);
         _widget.CloseRequested += (s, e) => HideAndLock();
         WidgetHost.Content = _widget;
     }

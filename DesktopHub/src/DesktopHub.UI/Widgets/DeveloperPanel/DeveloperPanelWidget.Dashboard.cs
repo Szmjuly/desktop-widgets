@@ -506,8 +506,7 @@ public partial class DeveloperPanelWidget
         AddSystemRow(SystemStatusPanel, "Firebase", fbStatus, fbColor);
         AddSystemRow(SystemStatusPanel, "User", Environment.UserName?.ToLowerInvariant() ?? "unknown", "TextPrimaryBrush");
         AddSystemRow(SystemStatusPanel, "Role", _isDev ? "DEV" : "DENIED", _isDev ? "BlueBrush" : "RedBrush");
-        AddSystemRow(SystemStatusPanel, "Scripts", System.IO.Directory.Exists(_scriptsDir) ? "Found" : "Missing",
-            System.IO.Directory.Exists(_scriptsDir) ? "GreenBrush" : "RedBrush");
+        AddSystemRow(SystemStatusPanel, "AdminOps", "Native C#", "GreenBrush");
     }
 
     private void AddSystemRow(StackPanel parent, string label, string value, string valueBrushKey)
@@ -540,24 +539,22 @@ public partial class DeveloperPanelWidget
         {
             ("Database", new List<ScriptTile>
             {
-                new("Dump DB",      "db", "#42A5F5", () => RunScriptAsync("admin.ps1", "-Action", "db-dump")),
-                new("Backup",       "bk", "#66BB6A", () => RunScriptAsync("admin.ps1", "-Action", "db-backup")),
-                new("Decrypt Tags", "dt", "#66BB6A", () => RunScriptAsync("admin.ps1", "-Action", "tags-decrypt")),
+                new("Dump DB",      "db", "#42A5F5", () => DumpDatabaseAsync()),
+                new("Backup",       "bk", "#66BB6A", () => BackupDatabaseAsync()),
+                new("Decrypt Tags", "dt", "#66BB6A", () => DecryptTagsAsync()),
             }),
             ("Deployment", new List<ScriptTile>
             {
-                new("Build",        "bl", "#AB47BC", () => RunScriptAsync("admin.ps1", "-Action", "build")),
                 new("Push Update",  "pu", "#FFA726", () => RunPushUpdateAll()),
                 new("Version",      "vr", "#26C6DA", () => RunVersionUpdate()),
             }),
             ("Management", new List<ScriptTile>
             {
-                new("List Devices", "ls", "#42A5F5", () => RunScriptAsync("admin.ps1", "-Action", "update-list")),
-                new("Auth Users",   "au", "#FFA726", () => RunScriptAsync("cleanup-auth-users.ps1")),
-                new("List Tags",    "tg", "#66BB6A", () => RunScriptAsync("admin.ps1", "-Action", "tags-list")),
-                new("Console",      "ac", "#42A5F5", () => RunScriptAsync("admin.ps1")),
-                new("HMAC Secret",  "hm", "#78909C", () => RunScriptWithOutputAsync("tag-manager.ps1", skipServiceAccount: true, "-Action", "show-secret")),
-                new("Metrics Reset","mr", "#EF5350", () => RunScriptAsync("admin.ps1", "-Action", "metrics-reset")),
+                new("List Devices", "ls", "#42A5F5", () => ListDevicesAndVersionsAsync()),
+                new("List Tags",    "tg", "#66BB6A", () => ListTagsAsync()),
+                new("Cleanup Devs", "cd", "#EF5350", () => CleanupDuplicateDevicesAsync(), IsDanger: true),
+                new("HMAC Secret",  "hm", "#78909C", () => { ShowHmacSecret(); return Task.CompletedTask; }),
+                new("Metrics Reset","mr", "#EF5350", () => { ResetLocalMetrics(); return Task.CompletedTask; }),
             }),
         };
 
@@ -800,14 +797,14 @@ public partial class DeveloperPanelWidget
 
     private async Task RunPushUpdateAll()
     {
-        if (!ConfirmDangerous("Push update to all outdated devices?")) return;
-        await RunScriptAsync("admin.ps1", "-Action", "update-push-all");
+        if (!await ConfirmDangerousAsync("Push update to all outdated devices?")) return;
+        await PushUpdateToAllAsync();
     }
 
     private async Task RunVersionUpdate()
     {
         var version = DateTime.Now.ToString("yyyy.M.d", CultureInfo.InvariantCulture);
-        await RunScriptAsync("admin.ps1", "-Action", "version-update", "-Version", version, "-ReleaseNotes", "Updated_from_Developer_Panel");
+        await PublishVersionAsync("desktophub", version, "Updated from Developer Panel");
     }
 
     private async void RefreshVersionInfo_Click(object sender, RoutedEventArgs e) => await RefreshVersionInfoAsync();

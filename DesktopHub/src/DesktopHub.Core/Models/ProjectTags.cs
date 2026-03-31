@@ -38,6 +38,9 @@ public class ProjectTags
     // --- Code ---
     public List<string> CodeReferences { get; set; } = new();
 
+    // --- Project Labels (merged from legacy ProjectMetadata.Tags) ---
+    public List<string> ProjectLabels { get; set; } = new();
+
     // --- Free-form custom tags (key → value) ---
     public Dictionary<string, string> Custom { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 

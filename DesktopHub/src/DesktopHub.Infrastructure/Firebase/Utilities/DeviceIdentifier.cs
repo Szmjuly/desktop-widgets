@@ -24,15 +24,19 @@ public static class DeviceIdentifier
                 return existingId;
             }
         }
-        
-        var newDeviceId = Guid.NewGuid().ToString();
-        
+
+        // Derive a deterministic ID from hardware so reinstalls produce the same ID
+        var mac = GetMacAddress() ?? "unknown";
+        var stable = $"{Environment.MachineName}|{mac}|{Environment.UserName}";
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(stable));
+        var newDeviceId = new Guid(hash[..16]).ToString();
+
         var directory = Path.GetDirectoryName(DeviceIdFile);
         if (directory != null && !Directory.Exists(directory))
         {
             Directory.CreateDirectory(directory);
         }
-        
+
         File.WriteAllText(DeviceIdFile, newDeviceId);
         return newDeviceId;
     }

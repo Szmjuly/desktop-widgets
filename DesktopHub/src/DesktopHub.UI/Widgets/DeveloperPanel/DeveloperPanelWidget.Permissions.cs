@@ -276,37 +276,52 @@ public partial class DeveloperPanelWidget
 
     private async void AddAdmin_Click(object sender, RoutedEventArgs e)
     {
-        await ExecuteRoleActionAsync("manage-admin.ps1", "add");
+        var username = ResolveUsername();
+        if (string.IsNullOrWhiteSpace(username)) { AppendOutput("Enter a username first."); return; }
+        await SetRoleAsync("admin_users", username, true);
         await AfterRoleMutationAsync();
     }
 
     private async void RemoveAdmin_Click(object sender, RoutedEventArgs e)
     {
-        await ExecuteRoleActionAsync("manage-admin.ps1", "remove", confirmDangerous: true);
+        var username = ResolveUsername();
+        if (string.IsNullOrWhiteSpace(username)) { AppendOutput("Enter a username first."); return; }
+        if (!await ConfirmDangerousAsync($"Remove admin role from '{username}'?")) return;
+        await SetRoleAsync("admin_users", username, false);
         await AfterRoleMutationAsync();
     }
 
     private async void AddEditor_Click(object sender, RoutedEventArgs e)
     {
-        await ExecuteRoleActionAsync("manage-cheatsheet-editors.ps1", "add");
+        var username = ResolveUsername();
+        if (string.IsNullOrWhiteSpace(username)) { AppendOutput("Enter a username first."); return; }
+        await SetRoleAsync("cheat_sheet_editors", username, true);
         await AfterRoleMutationAsync();
     }
 
     private async void RemoveEditor_Click(object sender, RoutedEventArgs e)
     {
-        await ExecuteRoleActionAsync("manage-cheatsheet-editors.ps1", "remove", confirmDangerous: true);
+        var username = ResolveUsername();
+        if (string.IsNullOrWhiteSpace(username)) { AppendOutput("Enter a username first."); return; }
+        if (!await ConfirmDangerousAsync($"Remove editor role from '{username}'?")) return;
+        await SetRoleAsync("cheat_sheet_editors", username, false);
         await AfterRoleMutationAsync();
     }
 
     private async void AddDev_Click(object sender, RoutedEventArgs e)
     {
-        await ExecuteRoleActionAsync("manage-dev.ps1", "add");
+        var username = ResolveUsername();
+        if (string.IsNullOrWhiteSpace(username)) { AppendOutput("Enter a username first."); return; }
+        await SetRoleAsync("dev_users", username, true);
         await AfterRoleMutationAsync();
     }
 
     private async void RemoveDev_Click(object sender, RoutedEventArgs e)
     {
-        await ExecuteRoleActionAsync("manage-dev.ps1", "remove", confirmDangerous: true);
+        var username = ResolveUsername();
+        if (string.IsNullOrWhiteSpace(username)) { AppendOutput("Enter a username first."); return; }
+        if (!await ConfirmDangerousAsync($"Remove dev role from '{username}'?")) return;
+        await SetRoleAsync("dev_users", username, false);
         await AfterRoleMutationAsync();
     }
 }

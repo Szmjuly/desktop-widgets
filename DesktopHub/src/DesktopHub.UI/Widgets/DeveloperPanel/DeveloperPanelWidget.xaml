@@ -715,7 +715,12 @@
                             <TextBlock Text="User" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0"/>
                             <ComboBox x:Name="PushUserFilterBox" Grid.Column="1" Width="150" Style="{StaticResource ThemedComboBox}" Margin="0,0,8,0" SelectionChanged="PushUserFilterBox_SelectionChanged"/>
                             <ComboBox x:Name="PushDeviceIdBox" Grid.Column="2" Style="{StaticResource ThemedComboBox}" FontSize="11" Margin="0,0,8,0"/>
-                            <Button Grid.Column="3" Content="Push" Style="{StaticResource ActionBtn}" Margin="0" Click="PushUpdateDevice_Click"/>
+                            <StackPanel Grid.Column="3" Orientation="Horizontal">
+                                <CheckBox x:Name="PushForceReinstallBox" Content="Force" VerticalAlignment="Center"
+                                          Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10" Margin="0,0,6,0"
+                                          ToolTip="Push even if device is already on the target version"/>
+                                <Button Content="Push" Style="{StaticResource ActionBtn}" Margin="0" Click="PushUpdateDevice_Click"/>
+                            </StackPanel>
                         </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -915,5 +920,37 @@
                 </TextBox>
             </Expander>
         </Border>
+        <!-- CONFIRM OVERLAY — covers entire panel -->
+        <Grid x:Name="ConfirmOverlay" Grid.Row="0" Grid.RowSpan="4"
+              Visibility="Collapsed" Panel.ZIndex="100">
+            <Border Background="#CC000000"/>
+            <Border Background="{DynamicResource CardBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="24,20,24,18"
+                    MaxWidth="360"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Confirm action"
+                               FontSize="13" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               Margin="0,0,0,10"/>
+                    <TextBlock x:Name="ConfirmOverlayMessage"
+                               Text=""
+                               FontSize="11"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,16"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="ConfirmNoBtn" Content="Cancel"
+                                Style="{StaticResource ActionBtn}" Margin="0,0,8,0"/>
+                        <Button x:Name="ConfirmYesBtn" Content="Confirm"
+                                Style="{StaticResource ActionBtn}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>

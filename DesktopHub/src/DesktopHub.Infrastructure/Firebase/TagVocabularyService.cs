@@ -7,13 +7,14 @@ namespace DesktopHub.Infrastructure.Firebase;
 
 /// <summary>
 /// Provides dropdown/autocomplete suggestions for tag fields.
-/// Purely local — derives suggestions from TagFieldRegistry defaults +
-/// values observed in the local project_tags cache. No Firebase access.
+/// Derives suggestions from TagFieldRegistry defaults + master structure extensions +
+/// values observed in the local project_tags cache.
 /// </summary>
 public class TagVocabularyService : ITagVocabularyService
 {
     // fieldKey → sorted list of known values
     private readonly ConcurrentDictionary<string, SortedSet<string>> _vocabulary = new(StringComparer.OrdinalIgnoreCase);
+    private IMasterStructureService? _masterStructureService;
 
     public TagVocabularyService()
     {
@@ -26,6 +27,17 @@ public class TagVocabularyService : ITagVocabularyService
             _vocabulary[field.Key] = set;
         }
         InfraLogger.Log($"TagVocabularyService: Seeded vocabulary with {_vocabulary.Count} fields from defaults");
+    }
+
+    /// <summary>
+    /// Set the master structure service to include dynamic field vocabulary.
+    /// Call after both services are initialized.
+    /// </summary>
+    public void SetMasterStructureService(IMasterStructureService? masterStructureService)
+    {
+        _masterStructureService = masterStructureService;
+        if (masterStructureService != null)
+            RefreshFromMasterStructure();
     }
 
     public List<string> GetValues(string fieldKey)
@@ -66,10 +78,31 @@ public class TagVocabularyService : ITagVocabularyService
                 added += MergeValue("engineers", eng);
             foreach (var cr in tags.CodeReferences)
                 added += MergeValue("code_refs", cr);
+            foreach (var label in tags.ProjectLabels)
+                added += MergeValue("project_labels", label);
         }
 
         if (added > 0)
             InfraLogger.Log($"TagVocabularyService: Refreshed from cache, added {added} new suggestion values");
+    }
+
+    /// <summary>
+    /// Merge dynamic field vocabulary from the master structure service.
+    /// </summary>
+    private void RefreshFromMasterStructure()
+    {
+        if (_masterStructureService == null) return;
+
+        var added = 0;
+        var mergedFields = _masterStructureService.GetMergedFields();
+        foreach (var field in mergedFields)
+        {
+            foreach (var val in field.SuggestedValues)
+                added += MergeValue(field.Key, val);
+        }
+
+        if (added > 0)
+            InfraLogger.Log($"TagVocabularyService: Refreshed from master structure, added {added} new suggestion values");
     }
 
     /// <summary>

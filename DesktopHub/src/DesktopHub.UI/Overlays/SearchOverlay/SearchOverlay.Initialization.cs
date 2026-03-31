@@ -31,10 +31,12 @@ public partial class SearchOverlay
         _vocabService = new TagVocabularyService(); // Local-only, no Firebase
         var app = (App)System.Windows.Application.Current;
         var firebaseService = app.FirebaseManager?.FirebaseService;
+        _firebaseService = firebaseService;
         if (firebaseService != null)
         {
             _tagService = new ProjectTagService(firebaseService);
             _tagRegistryService = new TagRegistryService(firebaseService);
+            _masterStructureService = new MasterStructureService(firebaseService);
             _searchService = new SearchService(_tagService);
         }
         else
@@ -190,8 +192,17 @@ public partial class SearchOverlay
                         if (_tagRegistryService != null)
                             await _tagRegistryService.InitializeAsync();
 
+                        // Initialize master structure service (dynamic field/category definitions)
+                        if (_masterStructureService != null)
+                        {
+                            await _masterStructureService.InitializeAsync();
+                            // Connect vocabulary service to master structure for dynamic field suggestions
+                            if (_vocabService is TagVocabularyService tvs)
+                                tvs.SetMasterStructureService(_masterStructureService);
+                        }
+
                         RefreshTagCarousel();
-                        DebugLogger.Log("SearchOverlay: Tag + vocabulary + registry services initialized");
+                        DebugLogger.Log("SearchOverlay: Tag + vocabulary + registry + master structure services initialized");
                     }
                     catch (Exception tagEx)
                     {
@@ -248,6 +259,17 @@ public partial class SearchOverlay
             _widgetLauncher.MetricsViewerRequested += OnMetricsViewerRequested;
             _widgetLauncher.DeveloperPanelRequested += OnDeveloperPanelRequested;
             _widgetLauncher.ProjectInfoRequested += OnProjectInfoRequested;
+
+            // Apply DEV role if Firebase resolved before the launcher was created
+            if (_isDeveloperUser)
+            {
+                _widgetLauncher.UpdateDeveloperPanelButtonVisibility(_settings.GetDeveloperPanelWidgetEnabled());
+                DebugLogger.Log($"Initialization: Applied cached _isDeveloperUser=true to launcher immediately");
+            }
+            else
+            {
+                DebugLogger.Log($"Initialization: _isDeveloperUser=false at launcher creation, will be applied when SetDeveloperPanelEnabled fires");
+            }
 
             RegisterWidgetWindow(this);
             RegisterWidgetWindow(_widgetLauncher);
@@ -435,7 +457,6 @@ public partial class SearchOverlay
             UpdateSmartProjectSearchWidgetButton();
             UpdateCheatSheetWidgetButton();
             UpdateDeveloperPanelWidgetButton();
-            SetDeveloperPanelEnabled(false);
 
             // Initialize periodic update checking
             InitializeUpdateCheckService();

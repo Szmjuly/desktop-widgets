@@ -293,6 +293,12 @@ public class ProjectTagService : IProjectTagService
                     { allMatch = false; break; }
                     continue;
                 }
+                if (key.Equals("project_labels", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!FuzzyListMatch(tags.ProjectLabels, value))
+                    { allMatch = false; break; }
+                    continue;
+                }
 
                 var tagValue = GetTagValueByKey(tags, key);
                 if (tagValue == null)
@@ -394,6 +400,7 @@ public class ProjectTagService : IProjectTagService
             "av_it_designer" => tags.AvItDesigner,
             "engineers" => tags.Engineers.Count > 0 ? string.Join(", ", tags.Engineers) : null,
             "code_refs" => tags.CodeReferences.Count > 0 ? string.Join(", ", tags.CodeReferences) : null,
+            "project_labels" => tags.ProjectLabels.Count > 0 ? string.Join(", ", tags.ProjectLabels) : null,
             _ => null
         };
     }
@@ -433,6 +440,12 @@ public class ProjectTagService : IProjectTagService
                     tags.CodeReferences = codeArr.ToObject<List<string>>() ?? new();
                 else if (strVal != null && !IsGarbageListString(strVal))
                     tags.CodeReferences = strVal.Split(',', StringSplitOptions.TrimEntries).ToList();
+                break;
+            case "project_labels":
+                if (value is Newtonsoft.Json.Linq.JArray labelArr)
+                    tags.ProjectLabels = labelArr.ToObject<List<string>>() ?? new();
+                else if (strVal != null && !IsGarbageListString(strVal))
+                    tags.ProjectLabels = strVal.Split(',', StringSplitOptions.TrimEntries).ToList();
                 break;
         }
     }
@@ -539,6 +552,8 @@ public class ProjectTagService : IProjectTagService
             data["engineers"] = tags.Engineers;
         if (tags.CodeReferences.Count > 0)
             data["code_refs"] = tags.CodeReferences;
+        if (tags.ProjectLabels.Count > 0)
+            data["project_labels"] = tags.ProjectLabels;
         if (tags.Custom.Count > 0)
             data["custom"] = tags.Custom;
 

@@ -146,11 +146,26 @@ public partial class SearchOverlay
     public void SetDeveloperPanelEnabled(bool enabled)
     {
         _isDeveloperUser = enabled;
+        DebugLogger.Log($"SetDeveloperPanelEnabled: enabled={enabled}, _widgetLauncher is {(_widgetLauncher == null ? "NULL" : "set")}");
         if (_widgetLauncher != null)
         {
             var userEnabled = _settings.GetDeveloperPanelWidgetEnabled();
             _widgetLauncher.UpdateDeveloperPanelButtonVisibility(enabled && userEnabled);
-            DebugLogger.Log($"SetDeveloperPanelEnabled: visibility set to {enabled && userEnabled}");
+            DebugLogger.Log($"SetDeveloperPanelEnabled: visibility set to {enabled && userEnabled} (userEnabled={userEnabled})");
+        }
+        else if (enabled)
+        {
+            // Widget launcher hasn't been created yet — schedule a deferred re-apply
+            DebugLogger.Log("SetDeveloperPanelEnabled: launcher null, scheduling deferred re-apply");
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () =>
+            {
+                if (_widgetLauncher != null && _isDeveloperUser)
+                {
+                    var userEnabled = _settings.GetDeveloperPanelWidgetEnabled();
+                    _widgetLauncher.UpdateDeveloperPanelButtonVisibility(userEnabled);
+                    DebugLogger.Log($"SetDeveloperPanelEnabled (deferred): visibility set to {userEnabled}");
+                }
+            });
         }
 
         if (enabled && !_developerPanelRestoreApplied && _settings.GetDeveloperPanelWidgetVisible())

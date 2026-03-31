@@ -21,6 +21,7 @@ public static class TelemetryCategory
     public const string Error = "error";
     public const string Performance = "performance";
     public const string Tag = "tag";
+    public const string FieldManagement = "field_management";
 }
 
 /// <summary>
@@ -106,6 +107,18 @@ public static class TelemetryEventType
     public const string TagDeleted = "tag_deleted";
     public const string TagSearchExecuted = "tag_search_executed";
     public const string TagCarouselClicked = "tag_carousel_clicked";
+
+    // Field Management (editor operations on master/project structure)
+    public const string MasterFieldAdded = "master_field_added";
+    public const string MasterCategoryAdded = "master_category_added";
+    public const string MasterDropdownExtended = "master_dropdown_extended";
+    public const string ProjectFieldAdded = "project_field_added";
+    public const string ProjectCategoryAdded = "project_category_added";
+    public const string ProjectDropdownExtended = "project_dropdown_extended";
+    public const string MasterFieldRemoved = "master_field_removed";
+    public const string MasterCategoryRemoved = "master_category_removed";
+    public const string ProjectFieldRemoved = "project_field_removed";
+    public const string ProjectCategoryRemoved = "project_category_removed";
 }
 
 /// <summary>
