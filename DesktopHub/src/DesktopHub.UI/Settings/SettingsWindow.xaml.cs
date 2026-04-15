@@ -548,10 +548,13 @@ public partial class SettingsWindow : Window
             QDriveEnabledToggle.IsChecked = _settings.GetQDriveEnabled();
             var qDrivePath = _settings.GetQDrivePath();
             QDrivePathBox.Text = string.IsNullOrEmpty(qDrivePath) ? "Q:\\" : qDrivePath;
-            
+            QDriveLabelText.Text = $"Q: Drive ({_settings.GetDriveLabel("Q")})";
+
             PDriveEnabledToggle.IsChecked = _settings.GetPDriveEnabled();
             var pDrivePath = _settings.GetPDrivePath();
             PDrivePathBox.Text = string.IsNullOrEmpty(pDrivePath) ? "P:\\" : pDrivePath;
+            PDriveLabelText.Text = $"P: Drive ({_settings.GetDriveLabel("P")})";
+
             
             // Load transparency settings (all sliders are now dynamic)
             _isUpdatingSliders = true;

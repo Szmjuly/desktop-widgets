@@ -555,8 +555,9 @@
                                 </ToggleButton>
                                 
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock Text="Q: Drive (Florida)" 
-                                               FontSize="14" 
+                                    <TextBlock x:Name="QDriveLabelText"
+                                               Text="Q: Drive"
+                                               FontSize="14"
                                                FontWeight="Medium"
                                                Foreground="{DynamicResource TextBrush}"
                                                Margin="0,0,0,4"/>
@@ -596,8 +597,9 @@
                                 </ToggleButton>
                                 
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock Text="P: Drive (Connecticut)" 
-                                               FontSize="14" 
+                                    <TextBlock x:Name="PDriveLabelText"
+                                               Text="P: Drive"
+                                               FontSize="14"
                                                FontWeight="Medium"
                                                Foreground="{DynamicResource TextBrush}"
                                                Margin="0,0,0,4"/>

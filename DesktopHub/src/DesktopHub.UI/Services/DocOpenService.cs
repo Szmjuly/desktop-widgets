@@ -18,17 +18,11 @@ public class DocOpenService
         "a", "an", "and", "or", "the", "from", "for", "to", "of", "in", "on", "at", "by", "with"
     };
 
-    private static readonly Dictionary<string, string[]> SmartTokenAliases = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["fault"] = new[] { "fault", "short", "short-circuit", "short circuit", "sc" },
-        ["current"] = new[] { "current", "amp", "amps", "amperage", "kaic", "aic" },
-        ["letter"] = new[] { "letter", "ltr", "memo", "correspondence" },
-        ["fpl"] = new[] { "fpl", "fp&l", "florida power", "florida power and light", "utility" },
-        ["utility"] = new[] { "utility", "fpl", "power" },
-        ["service"] = new[] { "service", "svc" },
-    };
+    private Dictionary<string, string[]> SmartTokenAliases => _settingsService?.GetSearchAliases()
+        ?? new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
 
     private readonly IDocumentScanner _scanner;
+    private readonly ISettingsService? _settingsService;
     private DocWidgetConfig _config;
     private ProjectFileInfo? _projectInfo;
     private Discipline _selectedDiscipline = Discipline.Mechanical;
@@ -52,9 +46,10 @@ public class DocOpenService
     public List<DocumentItem> CurrentFiles => _currentFiles;
     public bool IsScanning { get; private set; }
 
-    public DocOpenService(IDocumentScanner scanner)
+    public DocOpenService(IDocumentScanner scanner, ISettingsService? settingsService = null)
     {
         _scanner = scanner;
+        _settingsService = settingsService;
         _config = new DocWidgetConfig();
     }
 
@@ -267,7 +262,7 @@ public class DocOpenService
         }
     }
 
-    private static IEnumerable<DocumentItem> ApplyTokenSearch(IEnumerable<DocumentItem> files, string query)
+    private IEnumerable<DocumentItem> ApplyTokenSearch(IEnumerable<DocumentItem> files, string query)
     {
         var terms = ExtractSearchTerms(query);
         if (terms.Count == 0)
@@ -328,7 +323,7 @@ public class DocOpenService
         return terms;
     }
 
-    private static double ScoreTerm(DocumentItem doc, string term)
+    private double ScoreTerm(DocumentItem doc, string term)
     {
         var fileName = doc.FileName.ToLowerInvariant();
         var relativePath = doc.RelativePath.ToLowerInvariant();
@@ -352,7 +347,7 @@ public class DocOpenService
         return best;
     }
 
-    private static IEnumerable<string> ExpandTerm(string term)
+    private IEnumerable<string> ExpandTerm(string term)
     {
         if (SmartTokenAliases.TryGetValue(term, out var aliases) && aliases.Length > 0)
         {

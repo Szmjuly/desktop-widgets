@@ -45,7 +45,7 @@ public partial class SearchOverlay
         }
         _timerService = new TimerService();
         _taskService = new TaskService(new Infrastructure.Data.TaskDataStore());
-        _docService = new DocOpenService(new Infrastructure.Scanning.DocumentScanner());
+        _docService = new DocOpenService(new Infrastructure.Scanning.DocumentScanner(), _settings);
         _smartProjectSearchService = new SmartProjectSearchService(new Infrastructure.Scanning.DocumentScanner(), _settings);
         if (firebaseService != null)
         {

@@ -1,7 +1,7 @@
 namespace DesktopHub.Core.Models;
 
 /// <summary>
-/// Represents a project folder scanned from Q: or P: drive
+/// Represents a project folder scanned from a configured drive
 /// </summary>
 public class Project
 {
@@ -36,7 +36,7 @@ public class Project
     public string Year { get; set; } = string.Empty;
 
     /// <summary>
-    /// Drive location: "Q" (Florida) or "P" (Connecticut)
+    /// Drive location identifier (e.g., "Q", "P"). Use ISettingsService.GetDriveLabel() for display name.
     /// </summary>
     public string DriveLocation { get; set; } = "Q";
 
@@ -56,15 +56,25 @@ public class Project
     public string Display => $"{FullNumber} - {Name}";
 
     /// <summary>
-    /// Display name for drive location
+    /// Display name for drive location. Set by the scanner/UI using ISettingsService.GetDriveLabel().
+    /// Falls back to drive letter + colon if not explicitly set.
     /// </summary>
-    public string DriveLocationDisplay => DriveLocation == "Q" ? "Florida" : "Connecticut";
+    public string DriveLocationDisplay
+    {
+        get => _driveLocationDisplay ?? $"{DriveLocation}:";
+        set => _driveLocationDisplay = value;
+    }
+    private string? _driveLocationDisplay;
 
     /// <summary>
-    /// Display name for alternate drive location
+    /// Display name for alternate drive location. Set by the scanner/UI using ISettingsService.GetDriveLabel().
     /// </summary>
-    public string? AlternateDriveLocationDisplay => AlternateDriveLocation == "Q" ? "Florida" : 
-                                                     AlternateDriveLocation == "P" ? "Connecticut" : null;
+    public string? AlternateDriveLocationDisplay
+    {
+        get => _alternateDriveLocationDisplay ?? (AlternateDriveLocation != null ? $"{AlternateDriveLocation}:" : null);
+        set => _alternateDriveLocationDisplay = value;
+    }
+    private string? _alternateDriveLocationDisplay;
 
     /// <summary>
     /// Whether this project exists on multiple drives

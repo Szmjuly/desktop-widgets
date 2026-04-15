@@ -89,14 +89,8 @@ public partial class SearchOverlay : Window
     {
         "a", "an", "and", "or", "the", "from", "for", "to", "of", "in", "on", "at", "by", "with"
     };
-    private static readonly Dictionary<string, string[]> PathSearchAliases = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["fault"] = new[] { "fault", "short", "short-circuit", "short circuit", "sc" },
-        ["current"] = new[] { "current", "amp", "amps", "amperage", "kaic", "aic" },
-        ["letter"] = new[] { "letter", "ltr", "memo", "correspondence" },
-        ["fpl"] = new[] { "fpl", "fp&l", "florida power", "florida power and light", "utility" },
-        ["utility"] = new[] { "utility", "fpl", "power" },
-    };
+    private Dictionary<string, string[]> PathSearchAliases => _settings?.GetSearchAliases()
+        ?? new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
 
     public bool IsClosing => _isClosing;
     public TaskService? TaskService => _taskService;

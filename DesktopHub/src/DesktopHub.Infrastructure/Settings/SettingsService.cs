@@ -37,11 +37,27 @@ public class SettingsService : ISettingsService
     public bool GetQDriveEnabled() => _settings.QDriveEnabled;
     public void SetQDriveEnabled(bool enabled) => _settings.QDriveEnabled = enabled;
 
+    public string GetQDriveLabel() => _settings.QDriveLabel;
+    public void SetQDriveLabel(string label) => _settings.QDriveLabel = label;
+
     public string GetPDrivePath() => _settings.PDrivePath;
     public void SetPDrivePath(string path) => _settings.PDrivePath = path;
 
     public bool GetPDriveEnabled() => _settings.PDriveEnabled;
     public void SetPDriveEnabled(bool enabled) => _settings.PDriveEnabled = enabled;
+
+    public string GetPDriveLabel() => _settings.PDriveLabel;
+    public void SetPDriveLabel(string label) => _settings.PDriveLabel = label;
+
+    public string GetDriveLabel(string driveLocation) => driveLocation switch
+    {
+        "Q" => _settings.QDriveLabel,
+        "P" => _settings.PDriveLabel,
+        _ => driveLocation
+    };
+
+    public Dictionary<string, string[]> GetSearchAliases() => _settings.SearchAliases;
+    public void SetSearchAliases(Dictionary<string, string[]> aliases) => _settings.SearchAliases = aliases;
 
     public int GetScanIntervalMinutes() => _settings.ScanIntervalMinutes;
     public void SetScanIntervalMinutes(int minutes) => _settings.ScanIntervalMinutes = minutes;
@@ -613,9 +629,12 @@ public class SettingsService : ISettingsService
     private class AppSettings
     {
         public string QDrivePath { get; set; } = @"Q:\";
-        public bool QDriveEnabled { get; set; } = true;
+        public bool QDriveEnabled { get; set; } = false; // Disabled by default; existing users retain their saved value
+        public string QDriveLabel { get; set; } = "Florida";
         public string PDrivePath { get; set; } = @"P:\";
         public bool PDriveEnabled { get; set; } = false; // Disabled by default to minimize scan time
+        public string PDriveLabel { get; set; } = "Connecticut";
+        public Dictionary<string, string[]> SearchAliases { get; set; } = GetDefaultSearchAliases();
         public int ScanIntervalMinutes { get; set; } = 30;
         public int HotkeyModifiers { get; set; } = DefaultHotkeyModifiers; // Ctrl+Alt
         public int HotkeyKey { get; set; } = DefaultHotkeyKey; // Space
@@ -791,5 +810,17 @@ public class SettingsService : ISettingsService
             "png",
             "jpeg",
             "msg"
+        };
+
+    private static Dictionary<string, string[]> GetDefaultSearchAliases()
+        => new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["fault"] = new[] { "fault", "short", "short-circuit", "short circuit", "sc" },
+            ["current"] = new[] { "current", "amp", "amps", "amperage", "kaic", "aic" },
+            ["letter"] = new[] { "letter", "ltr", "memo", "correspondence" },
+            ["fpl"] = new[] { "fpl", "fp&l", "florida power", "florida power and light", "utility" },
+            ["utility"] = new[] { "utility", "fpl", "power" },
+            ["service"] = new[] { "service", "svc" },
+            ["revision"] = new[] { "revision", "rev", "issuance", "issued" },
         };
 }

@@ -28,6 +28,16 @@ public interface ISettingsService
     void SetQDriveEnabled(bool enabled);
 
     /// <summary>
+    /// Get user-facing label for Q: drive (e.g., "Florida", "Main Office")
+    /// </summary>
+    string GetQDriveLabel();
+
+    /// <summary>
+    /// Set user-facing label for Q: drive
+    /// </summary>
+    void SetQDriveLabel(string label);
+
+    /// <summary>
     /// Get P: drive path
     /// </summary>
     string GetPDrivePath();
@@ -46,6 +56,35 @@ public interface ISettingsService
     /// Set whether P drive is enabled for scanning
     /// </summary>
     void SetPDriveEnabled(bool enabled);
+
+    /// <summary>
+    /// Get user-facing label for P: drive (e.g., "Connecticut", "Branch Office")
+    /// </summary>
+    string GetPDriveLabel();
+
+    /// <summary>
+    /// Set user-facing label for P: drive
+    /// </summary>
+    void SetPDriveLabel(string label);
+
+    /// <summary>
+    /// Get display label for a drive location code (e.g., "Q" → "Florida", "P" → "Connecticut").
+    /// Falls back to the drive letter if no custom label is set.
+    /// </summary>
+    string GetDriveLabel(string driveLocation);
+
+    // --- Search Aliases ---
+
+    /// <summary>
+    /// Get configurable search term aliases (e.g., "fault" → ["short", "short-circuit", "sc"]).
+    /// Used by path search, smart project search, and doc quick open.
+    /// </summary>
+    Dictionary<string, string[]> GetSearchAliases();
+
+    /// <summary>
+    /// Set configurable search term aliases.
+    /// </summary>
+    void SetSearchAliases(Dictionary<string, string[]> aliases);
 
     /// <summary>
     /// Get scan interval in minutes

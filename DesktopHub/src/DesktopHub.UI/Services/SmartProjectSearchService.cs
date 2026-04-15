@@ -12,16 +12,7 @@ public sealed class SmartProjectSearchService
         "a", "an", "and", "or", "the", "from", "for", "to", "of", "in", "on", "at", "by", "with"
     };
 
-    private static readonly Dictionary<string, string[]> SmartTokenAliases = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["fault"] = new[] { "fault", "short", "short-circuit", "short circuit", "sc" },
-        ["current"] = new[] { "current", "amp", "amps", "amperage", "kaic", "aic" },
-        ["letter"] = new[] { "letter", "ltr", "memo", "correspondence" },
-        ["fpl"] = new[] { "fpl", "fp&l", "florida power", "florida power and light", "utility" },
-        ["utility"] = new[] { "utility", "fpl", "power" },
-        ["service"] = new[] { "service", "svc" },
-        ["revision"] = new[] { "revision", "rev", "issuance", "issued" }
-    };
+    private Dictionary<string, string[]> SmartTokenAliases => _settings.GetSearchAliases();
 
     private static readonly Dictionary<string, string[]> FileTypeAliases = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -342,7 +333,7 @@ public sealed class SmartProjectSearchService
         return pool;
     }
 
-    private static IEnumerable<IndexedDocument> ApplySearch(List<IndexedDocument> pool, string? query, string latestMode, IReadOnlyList<string> configuredFileTypes)
+    private IEnumerable<IndexedDocument> ApplySearch(List<IndexedDocument> pool, string? query, string latestMode, IReadOnlyList<string> configuredFileTypes)
     {
         if (pool.Count == 0)
             return Enumerable.Empty<IndexedDocument>();
@@ -461,7 +452,7 @@ public sealed class SmartProjectSearchService
                 .Select(s => s.Idx);
     }
 
-    private static (bool Matched, double Score) EvaluateClause(IndexedDocument idx, ParsedClause clause)
+    private (bool Matched, double Score) EvaluateClause(IndexedDocument idx, ParsedClause clause)
     {
         var best = 0.0;
         var matched = false;
@@ -482,7 +473,7 @@ public sealed class SmartProjectSearchService
         return (matched, best);
     }
 
-    private static double ScoreAlternative(IndexedDocument idx, string alternative)
+    private double ScoreAlternative(IndexedDocument idx, string alternative)
     {
         var normalizedOption = alternative.Trim();
         if (normalizedOption.Length == 0)
@@ -515,7 +506,7 @@ public sealed class SmartProjectSearchService
         return hits >= minimumHits || phraseMatch ? score : 0;
     }
 
-    private static double ScoreTerm(IndexedDocument idx, string term)
+    private double ScoreTerm(IndexedDocument idx, string term)
     {
         var best = 0.0;
 
@@ -591,7 +582,7 @@ public sealed class SmartProjectSearchService
         return prev[m];
     }
 
-    private static IEnumerable<string> ExpandTerm(string term)
+    private IEnumerable<string> ExpandTerm(string term)
     {
         if (SmartTokenAliases.TryGetValue(term, out var aliases) && aliases.Length > 0)
         {

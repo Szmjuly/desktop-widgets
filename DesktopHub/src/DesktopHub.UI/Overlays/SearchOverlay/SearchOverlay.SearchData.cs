@@ -41,11 +41,12 @@ public partial class SearchOverlay
                 _filteredProjects = _filteredProjects.Where(p => p.Year == selectedYear).ToList();
             }
 
-            // Apply drive location filter
+            // Apply drive location filter — extract drive letter from label format "Label (X:)"
             if (!string.IsNullOrEmpty(selectedLocation) && selectedLocation != "All Locations")
             {
-                var driveFilter = selectedLocation.Contains("Florida") ? "Q" : "P";
-                _filteredProjects = _filteredProjects.Where(p => p.DriveLocation == driveFilter).ToList();
+                var driveFilter = ExtractDriveLetterFromFilterLabel(selectedLocation);
+                if (driveFilter != null)
+                    _filteredProjects = _filteredProjects.Where(p => p.DriveLocation == driveFilter).ToList();
             }
 
             DebugLogger.Log($"LoadAllProjects: Final filtered count: {_filteredProjects.Count} projects for year {selectedYear}, location {selectedLocation}");
@@ -169,13 +170,16 @@ public partial class SearchOverlay
         bool pEnabled = _settings.GetPDriveEnabled();
         int enabledCount = (qEnabled ? 1 : 0) + (pEnabled ? 1 : 0);
 
+        var qLabel = $"{_settings.GetDriveLabel("Q")} (Q:)";
+        var pLabel = $"{_settings.GetDriveLabel("P")} (P:)";
+
         var locations = new List<string>();
 
         if (enabledCount <= 1)
         {
             // Single drive — show only that drive name, no dropdown interaction
-            if (qEnabled) locations.Add("Florida (Q:)");
-            else if (pEnabled) locations.Add("Connecticut (P:)");
+            if (qEnabled) locations.Add(qLabel);
+            else if (pEnabled) locations.Add(pLabel);
             else locations.Add("No Locations");
 
             DriveLocationFilter.ItemsSource = locations;
@@ -187,14 +191,29 @@ public partial class SearchOverlay
         {
             // Multiple drives — show "All Locations" plus each drive
             locations.Add("All Locations");
-            if (qEnabled) locations.Add("Florida (Q:)");
-            if (pEnabled) locations.Add("Connecticut (P:)");
+            if (qEnabled) locations.Add(qLabel);
+            if (pEnabled) locations.Add(pLabel);
 
             DriveLocationFilter.ItemsSource = locations;
             DriveLocationFilter.SelectedIndex = 0;
             DriveLocationFilter.IsHitTestVisible = true;
             DriveLocationFilter.Cursor = System.Windows.Input.Cursors.Hand;
         }
+    }
+
+    /// <summary>
+    /// Extract drive letter from filter label format "Label (X:)" → "X". Returns null if not parseable.
+    /// </summary>
+    private static string? ExtractDriveLetterFromFilterLabel(string label)
+    {
+        var openParen = label.LastIndexOf('(');
+        var closeParen = label.LastIndexOf(')');
+        if (openParen >= 0 && closeParen > openParen)
+        {
+            var inner = label[(openParen + 1)..closeParen].TrimEnd(':');
+            if (inner.Length > 0) return inner;
+        }
+        return null;
     }
 
     private async Task BackgroundScanAsync()
@@ -211,10 +230,13 @@ public partial class SearchOverlay
                 List<Project>? qScannedProjects = null;
                 List<Project>? pScannedProjects = null;
 
-                // Scan Q: drive (Florida) - only if enabled
+                var qLabel = _settings.GetDriveLabel("Q");
+                var pLabel = _settings.GetDriveLabel("P");
+
+                // Scan Q: drive - only if enabled
                 if (_settings.GetQDriveEnabled())
                 {
-                    await Dispatcher.InvokeAsync(() => StatusText.Text = "Scanning Q: drive (Florida)...");
+                    await Dispatcher.InvokeAsync(() => StatusText.Text = $"Scanning Q: drive ({qLabel})...");
                     var qDrivePath = _settings.GetQDrivePath();
                     if (Directory.Exists(qDrivePath))
                     {
@@ -235,10 +257,10 @@ public partial class SearchOverlay
                     DebugLogger.Log("Q: drive scanning disabled - skipping");
                 }
 
-                // Scan P: drive (Connecticut) - only if enabled
+                // Scan P: drive - only if enabled
                 if (_settings.GetPDriveEnabled())
                 {
-                    await Dispatcher.InvokeAsync(() => StatusText.Text = "Scanning P: drive (Connecticut)...");
+                    await Dispatcher.InvokeAsync(() => StatusText.Text = $"Scanning P: drive ({pLabel})...");
                     var pDrivePath = _settings.GetPDrivePath();
                     if (Directory.Exists(pDrivePath))
                     {
@@ -391,11 +413,12 @@ public partial class SearchOverlay
                 projectsToSearch = projectsToSearch.Where(p => p.Year == selectedYear).ToList();
             }
 
-            // Apply drive location filter
+            // Apply drive location filter — extract drive letter from label format "Label (X:)"
             if (!string.IsNullOrEmpty(selectedLocation) && selectedLocation != "All Locations")
             {
-                var driveFilter = selectedLocation.Contains("Florida") ? "Q" : "P";
-                projectsToSearch = projectsToSearch.Where(p => p.DriveLocation == driveFilter).ToList();
+                var driveFilter = ExtractDriveLetterFromFilterLabel(selectedLocation);
+                if (driveFilter != null)
+                    projectsToSearch = projectsToSearch.Where(p => p.DriveLocation == driveFilter).ToList();
             }
 
             // Search filtered projects

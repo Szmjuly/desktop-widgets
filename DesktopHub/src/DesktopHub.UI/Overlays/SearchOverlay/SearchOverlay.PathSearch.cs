@@ -187,7 +187,7 @@ public partial class SearchOverlay
         return terms;
     }
 
-    private static IEnumerable<string> ExpandPathSearchAliases(string term)
+    private IEnumerable<string> ExpandPathSearchAliases(string term)
     {
         if (PathSearchAliases.TryGetValue(term, out var aliases) && aliases.Length > 0)
         {
@@ -205,7 +205,7 @@ public partial class SearchOverlay
         return new[] { term };
     }
 
-    private static double ScorePathEntry(string fullPath, string normalizedQuery, IReadOnlyList<string> terms, Regex? regex)
+    private double ScorePathEntry(string fullPath, string normalizedQuery, IReadOnlyList<string> terms, Regex? regex)
     {
         if (regex != null)
             return regex.IsMatch(fullPath) ? 10.0 : 0.0;
