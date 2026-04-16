@@ -29,6 +29,12 @@ public partial class SearchOverlay : Window
     private readonly ISettingsService _settings;
     private readonly TimerService _timerService;
     private readonly List<GlobalHotkey> _hotkeys = new();
+    private readonly HashSet<(int mods, int key)> _failedHotkeyCombos = new();
+    /// <summary>
+    /// Set of (modifiers, key) pairs that failed to register globally on the last attempt.
+    /// Read by Settings to highlight conflicting groups.
+    /// </summary>
+    public IReadOnlyCollection<(int mods, int key)> FailedHotkeyCombos => _failedHotkeyCombos;
     private TrayIcon? _trayIcon;
     public TrayIcon? TrayIconInstance => _trayIcon;
     private TimerOverlay? _timerOverlay;

@@ -313,7 +313,7 @@ public class TrayIcon : IDisposable
                         ShowSearch,
                         RescanProjects,
                         CheckForUpdates,
-                        ShowSettings,
+                        () => ShowSettings(),
                         Exit,
                         isUpdateAvailable,
                         _settings
@@ -716,7 +716,7 @@ REM Delete this batch file
         public DateTime CreatedAtUtc { get; set; }
     }
 
-    public void ShowSettings()
+    public void ShowSettings(bool navigateToShortcuts = false)
     {
         System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
         {
@@ -745,8 +745,13 @@ REM Delete this batch file
                 () => _searchOverlay.UpdateCheatSheetWidgetButton(),
                 () => _searchOverlay.UpdateMetricsViewerWidgetButton(),
                 () => _searchOverlay.UpdateDeveloperPanelWidgetButton(),
-                () => _searchOverlay.ReleaseAllHotkeys()
+                () => _searchOverlay.ReleaseAllHotkeys(),
+                () => _searchOverlay.FailedHotkeyCombos
             );
+            if (navigateToShortcuts)
+            {
+                settings.NavigateToShortcuts();
+            }
             settings.Show();
         }), System.Windows.Threading.DispatcherPriority.Normal);
     }

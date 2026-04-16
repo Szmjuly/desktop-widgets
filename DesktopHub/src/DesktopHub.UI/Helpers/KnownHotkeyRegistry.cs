@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Input;
+using System.Windows.Interop;
+using System.Windows.Media.Imaging;
 
 namespace DesktopHub.UI.Helpers;
 
@@ -91,6 +93,32 @@ public static class KnownHotkeyRegistry
     private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
     private const int SW_RESTORE = 9;
+
+    /// <summary>
+    /// Extracts the executable icon for a running process and returns it as a WPF-ready BitmapSource.
+    /// Returns null if the process has exited, its module path is inaccessible, or icon extraction fails.
+    /// Result is frozen so it can be used safely across threads.
+    /// </summary>
+    public static BitmapSource? TryGetProcessIcon(Process process)
+    {
+        try
+        {
+            var path = process.MainModule?.FileName;
+            if (string.IsNullOrEmpty(path)) return null;
+            using var icon = System.Drawing.Icon.ExtractAssociatedIcon(path);
+            if (icon == null) return null;
+            var bitmap = Imaging.CreateBitmapSourceFromHIcon(
+                icon.Handle,
+                System.Windows.Int32Rect.Empty,
+                BitmapSizeOptions.FromEmptyOptions());
+            bitmap.Freeze();
+            return bitmap;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     public static bool BringToForeground(Process process)
     {

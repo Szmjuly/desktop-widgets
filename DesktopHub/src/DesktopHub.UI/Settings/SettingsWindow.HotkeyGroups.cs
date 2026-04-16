@@ -3,6 +3,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using DesktopHub.Core.Models;
+using DesktopHub.UI.Helpers;
 
 namespace DesktopHub.UI;
 
@@ -56,6 +57,15 @@ public partial class SettingsWindow
     private UIElement BuildHotkeyGroupRow(List<HotkeyGroup> groups, int index)
     {
         var group = groups[index];
+
+        // Detect conflict: hotkey is assigned but failed to register globally
+        bool isConflicted =
+            group.Key != 0 &&
+            (_failedHotkeysProvider?.Invoke()?.Contains((group.Modifiers, group.Key)) ?? false);
+        KnownHotkeyRegistry.ConflictMatch? conflictApp = isConflicted
+            ? KnownHotkeyRegistry.FindRunningConflict(group.Modifiers, group.Key)
+            : null;
+
         var outerBorder = new Border
         {
             BorderThickness = new Thickness(1),
@@ -69,10 +79,11 @@ public partial class SettingsWindow
         var stack = new StackPanel();
         outerBorder.Child = stack;
 
-        // Row header: group number + key binding recorder + remove button
+        // Row header: group number + key binding recorder + [open conflict app] + remove button
         var headerRow = new Grid();
         headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
@@ -110,7 +121,7 @@ public partial class SettingsWindow
         };
         var keyBox = new Border
         {
-            BorderThickness = new Thickness(1),
+            BorderThickness = new Thickness(isConflicted ? 2 : 1),
             CornerRadius = new CornerRadius(5),
             Padding = new Thickness(10, 5, 10, 5),
             Cursor = System.Windows.Input.Cursors.Hand,
@@ -118,7 +129,17 @@ public partial class SettingsWindow
             Tag = false, // recording state
         };
         keyBox.SetResourceReference(Border.BackgroundProperty, "FaintOverlayBrush");
-        keyBox.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
+        if (isConflicted)
+        {
+            keyBox.SetResourceReference(Border.BorderBrushProperty, "RedBrush");
+            keyBox.ToolTip = conflictApp != null
+                ? $"Conflict: {conflictApp.DisplayName} is currently using {FormatHotkey(group.Modifiers, group.Key)}.\nPick a different combo, or close {conflictApp.DisplayName} to free the shortcut."
+                : $"Conflict: another app is using {FormatHotkey(group.Modifiers, group.Key)}.\nPick a different combo, or close the conflicting app to free the shortcut.";
+        }
+        else
+        {
+            keyBox.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
+        }
         var keyBoxInner = new Grid();
         keyBoxInner.Children.Add(keyText);
         keyBoxInner.Children.Add(recordingText);
@@ -144,6 +165,58 @@ public partial class SettingsWindow
         };
         headerRow.Children.Add(keyBox);
 
+        // Quick-open conflicting app button (only when a known conflicting app is running).
+        // Compact icon button — uses the app's own icon if we can extract it, otherwise a glyph fallback.
+        if (conflictApp != null)
+        {
+            var appIcon = KnownHotkeyRegistry.TryGetProcessIcon(conflictApp.Process);
+
+            object buttonContent;
+            if (appIcon != null)
+            {
+                var img = new System.Windows.Controls.Image
+                {
+                    Source = appIcon,
+                    Width = 16,
+                    Height = 16,
+                    Stretch = System.Windows.Media.Stretch.Uniform,
+                };
+                System.Windows.Media.RenderOptions.SetBitmapScalingMode(
+                    img, System.Windows.Media.BitmapScalingMode.HighQuality);
+                buttonContent = img;
+            }
+            else
+            {
+                // Fallback glyph: "open in new window" arrow
+                buttonContent = new TextBlock
+                {
+                    Text = "\u2197", // ↗
+                    FontSize = 14,
+                    FontWeight = FontWeights.SemiBold,
+                };
+            }
+
+            var openAppBtn = new System.Windows.Controls.Button
+            {
+                Content = buttonContent,
+                Width = 28,
+                Height = 28,
+                Margin = new Thickness(8, 0, 0, 0),
+                BorderThickness = new Thickness(1),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = $"Open {conflictApp.DisplayName}",
+                Template = BuildRoundedButtonTemplate(6),
+            };
+            openAppBtn.SetResourceReference(System.Windows.Controls.Button.BackgroundProperty, "CardBorderBrush");
+            openAppBtn.SetResourceReference(System.Windows.Controls.Button.ForegroundProperty, "TextBrush");
+            openAppBtn.SetResourceReference(System.Windows.Controls.Button.BorderBrushProperty, "BorderBrush");
+            var capturedProcess = conflictApp.Process;
+            openAppBtn.Click += (s, e) => KnownHotkeyRegistry.BringToForeground(capturedProcess);
+            Grid.SetColumn(openAppBtn, 3);
+            headerRow.Children.Add(openAppBtn);
+        }
+
         // Remove button (hidden for group 1 if it's the only group)
         var removeBtn = new System.Windows.Controls.Button
         {
@@ -156,6 +229,7 @@ public partial class SettingsWindow
             Cursor = System.Windows.Input.Cursors.Hand,
             VerticalAlignment = VerticalAlignment.Center,
             Visibility = groups.Count > 1 ? Visibility.Visible : Visibility.Collapsed,
+            Template = BuildRoundedButtonTemplate(6),
         };
         removeBtn.SetResourceReference(System.Windows.Controls.Button.BackgroundProperty, "RedBackgroundBrush");
         removeBtn.SetResourceReference(System.Windows.Controls.Button.ForegroundProperty, "RedBrush");
@@ -168,10 +242,26 @@ public partial class SettingsWindow
             _onHotkeyChanged?.Invoke();
             RebuildHotkeyGroupsPanel(newGroups);
         };
-        Grid.SetColumn(removeBtn, 3);
+        Grid.SetColumn(removeBtn, 4);
         headerRow.Children.Add(removeBtn);
 
         stack.Children.Add(headerRow);
+
+        // Conflict banner (inline, under the header)
+        if (isConflicted)
+        {
+            var bannerText = new TextBlock
+            {
+                FontSize = 11,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 8, 0, 0),
+                Text = conflictApp != null
+                    ? $"\u26A0 {conflictApp.DisplayName} is currently using this shortcut. Pick a different combo or close {conflictApp.DisplayName}."
+                    : "\u26A0 This shortcut is in use by another app. Pick a different combo or close the other app."
+            };
+            bannerText.SetResourceReference(TextBlock.ForegroundProperty, "RedBrush");
+            stack.Children.Add(bannerText);
+        }
 
         // Widget pill row
         var pillLabel = new TextBlock
@@ -293,6 +383,31 @@ public partial class SettingsWindow
         };
 
         return pill;
+    }
+
+    /// <summary>
+    /// Builds a rounded-corner button template that honors Background/BorderBrush/BorderThickness.
+    /// Used for the remove (×) button and the "Open [App]" conflict button.
+    /// </summary>
+    private static ControlTemplate BuildRoundedButtonTemplate(double cornerRadius)
+    {
+        var template = new ControlTemplate(typeof(System.Windows.Controls.Button));
+        var border = new FrameworkElementFactory(typeof(Border));
+        border.SetValue(Border.CornerRadiusProperty, new CornerRadius(cornerRadius));
+        border.SetBinding(Border.BackgroundProperty,
+            new System.Windows.Data.Binding("Background") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
+        border.SetBinding(Border.BorderBrushProperty,
+            new System.Windows.Data.Binding("BorderBrush") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
+        border.SetBinding(Border.BorderThicknessProperty,
+            new System.Windows.Data.Binding("BorderThickness") { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
+
+        var content = new FrameworkElementFactory(typeof(ContentPresenter));
+        content.SetValue(ContentPresenter.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
+        content.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+        border.AppendChild(content);
+
+        template.VisualTree = border;
+        return template;
     }
 
     private void ApplyPillStyle(Border pill, TextBlock pillText, bool active)

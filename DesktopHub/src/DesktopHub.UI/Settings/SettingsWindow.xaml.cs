@@ -20,6 +20,7 @@ public partial class SettingsWindow : Window
     private int _recordedCloseShortcutKey;
     private Action? _onHotkeyChanged;
     private Action? _onHotkeyReleaseForProbe;
+    private Func<IReadOnlyCollection<(int mods, int key)>>? _failedHotkeysProvider;
     private Action? _onCloseShortcutChanged;
     private Action? _onLivingWidgetsModeChanged;
     private Action? _onDriveSettingsChanged;
@@ -58,13 +59,14 @@ public partial class SettingsWindow : Window
     private TextBlock? _activeGroupRecordingText;
     private int _activeGroupIndex = -1;
 
-    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null, Action? onFrequentProjectsWidgetEnabledChanged = null, Action? onFrequentProjectsLayoutChanged = null, Action? onQuickLaunchWidgetEnabledChanged = null, IProjectLaunchDataStore? launchDataStore = null, Action? onQuickLaunchLayoutChanged = null, Action? onWidgetSnapGapChanged = null, Action? onSmartProjectSearchWidgetEnabledChanged = null, Action? onWidgetLauncherLayoutChanged = null, Action? onCheatSheetWidgetEnabledChanged = null, Action? onMetricsViewerWidgetEnabledChanged = null, Action? onDeveloperPanelWidgetEnabledChanged = null, Action? onHotkeyReleaseForProbe = null)
+    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null, Action? onFrequentProjectsWidgetEnabledChanged = null, Action? onFrequentProjectsLayoutChanged = null, Action? onQuickLaunchWidgetEnabledChanged = null, IProjectLaunchDataStore? launchDataStore = null, Action? onQuickLaunchLayoutChanged = null, Action? onWidgetSnapGapChanged = null, Action? onSmartProjectSearchWidgetEnabledChanged = null, Action? onWidgetLauncherLayoutChanged = null, Action? onCheatSheetWidgetEnabledChanged = null, Action? onMetricsViewerWidgetEnabledChanged = null, Action? onDeveloperPanelWidgetEnabledChanged = null, Action? onHotkeyReleaseForProbe = null, Func<IReadOnlyCollection<(int mods, int key)>>? failedHotkeysProvider = null)
     {
         _settings = settings;
         _taskService = taskService;
         _docService = docService;
         _onHotkeyChanged = onHotkeyChanged;
         _onHotkeyReleaseForProbe = onHotkeyReleaseForProbe;
+        _failedHotkeysProvider = failedHotkeysProvider;
         _onCloseShortcutChanged = onCloseShortcutChanged;
         _onLivingWidgetsModeChanged = onLivingWidgetsModeChanged;
         _onDriveSettingsChanged = onDriveSettingsChanged;
@@ -1218,6 +1220,17 @@ public partial class SettingsWindow : Window
             // Ensure window is active before dragging to avoid "stuck" behavior
             this.Activate();
             this.DragMove();
+        }
+    }
+
+    /// <summary>
+    /// Programmatically selects the Shortcuts tab. Safe to call before or after the window is shown.
+    /// </summary>
+    public void NavigateToShortcuts()
+    {
+        if (ShortcutsMenuButton != null)
+        {
+            ShortcutsMenuButton.IsChecked = true;
         }
     }
 

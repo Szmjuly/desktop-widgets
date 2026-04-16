@@ -23,6 +23,7 @@ public partial class SearchOverlay
 
         var groups = _settings.GetHotkeyGroups();
         var failures = new List<(int mods, int key)>();
+        _failedHotkeyCombos.Clear();
         foreach (var group in groups)
         {
             if (group.Key == 0) continue; // Skip unassigned groups
@@ -39,6 +40,7 @@ public partial class SearchOverlay
             catch (Exception)
             {
                 failures.Add((capturedMods, capturedKey));
+                _failedHotkeyCombos.Add((capturedMods, capturedKey));
             }
         }
 
@@ -54,7 +56,7 @@ public partial class SearchOverlay
                 var result = HotkeyConflictDialog.ShowForStartup(label, first.mods, first.key, System.Windows.Application.Current?.MainWindow);
                 if (result == HotkeyConflictDialog.DialogAction.OpenSettings)
                 {
-                    _trayIcon?.ShowSettings();
+                    _trayIcon?.ShowSettings(navigateToShortcuts: true);
                 }
             }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         }
