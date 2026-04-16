@@ -26,14 +26,9 @@ public partial class SearchOverlay
             var selectedLocation = DriveLocationFilter.SelectedItem?.ToString();
 
             // Start with all projects, but filter by enabled drives first
-            _filteredProjects = _allProjects.Where(p =>
-            {
-                if (p.DriveLocation == "Q") return _settings.GetQDriveEnabled();
-                if (p.DriveLocation == "P") return _settings.GetPDriveEnabled();
-                return false; // Unknown drive, exclude
-            }).ToList();
+            _filteredProjects = _allProjects.Where(p => IsDriveEnabled(p.DriveLocation)).ToList();
 
-            DebugLogger.Log($"LoadAllProjects: After drive filter: {_filteredProjects.Count} projects (Q enabled: {_settings.GetQDriveEnabled()}, P enabled: {_settings.GetPDriveEnabled()})");
+            DebugLogger.Log($"LoadAllProjects: After drive filter: {_filteredProjects.Count} projects (Q: {_settings.GetQDriveEnabled()}, P: {_settings.GetPDriveEnabled()}, L: {_settings.GetLDriveEnabled()}, Archive: {_settings.GetArchiveDriveEnabled()})");
 
             // Apply year filter
             if (selectedYear != "All Years" && !string.IsNullOrEmpty(selectedYear))
@@ -132,15 +127,10 @@ public partial class SearchOverlay
             PopulateDriveLocationFilter();
 
             // Count only projects from enabled drives
-            var enabledProjectsCount = _allProjects.Count(p =>
-            {
-                if (p.DriveLocation == "Q") return _settings.GetQDriveEnabled();
-                if (p.DriveLocation == "P") return _settings.GetPDriveEnabled();
-                return false;
-            });
+            var enabledProjectsCount = _allProjects.Count(p => IsDriveEnabled(p.DriveLocation));
 
             StatusText.Text = $"{enabledProjectsCount} projects loaded";
-            DebugLogger.Log($"LoadProjectsAsync: Total in DB: {_allProjects.Count}, From enabled drives: {enabledProjectsCount} (Q: {_settings.GetQDriveEnabled()}, P: {_settings.GetPDriveEnabled()})");
+            DebugLogger.Log($"LoadProjectsAsync: Total in DB: {_allProjects.Count}, From enabled drives: {enabledProjectsCount} (Q: {_settings.GetQDriveEnabled()}, P: {_settings.GetPDriveEnabled()}, L: {_settings.GetLDriveEnabled()}, Archive: {_settings.GetArchiveDriveEnabled()})");
             ShowLoading(false);
         }
         catch (Exception ex)
@@ -168,10 +158,14 @@ public partial class SearchOverlay
     {
         bool qEnabled = _settings.GetQDriveEnabled();
         bool pEnabled = _settings.GetPDriveEnabled();
-        int enabledCount = (qEnabled ? 1 : 0) + (pEnabled ? 1 : 0);
+        bool lEnabled = _settings.GetLDriveEnabled();
+        bool archiveEnabled = _settings.GetArchiveDriveEnabled();
+        int enabledCount = (qEnabled ? 1 : 0) + (pEnabled ? 1 : 0) + (lEnabled ? 1 : 0) + (archiveEnabled ? 1 : 0);
 
         var qLabel = $"{_settings.GetDriveLabel("Q")} (Q:)";
         var pLabel = $"{_settings.GetDriveLabel("P")} (P:)";
+        var lLabel = $"{_settings.GetDriveLabel("L")} (L:)";
+        var archiveLabel = $"{_settings.GetDriveLabel("Archive")} (Archive:)";
 
         var locations = new List<string>();
 
@@ -180,6 +174,8 @@ public partial class SearchOverlay
             // Single drive — show only that drive name, no dropdown interaction
             if (qEnabled) locations.Add(qLabel);
             else if (pEnabled) locations.Add(pLabel);
+            else if (lEnabled) locations.Add(lLabel);
+            else if (archiveEnabled) locations.Add(archiveLabel);
             else locations.Add("No Locations");
 
             DriveLocationFilter.ItemsSource = locations;
@@ -193,6 +189,8 @@ public partial class SearchOverlay
             locations.Add("All Locations");
             if (qEnabled) locations.Add(qLabel);
             if (pEnabled) locations.Add(pLabel);
+            if (lEnabled) locations.Add(lLabel);
+            if (archiveEnabled) locations.Add(archiveLabel);
 
             DriveLocationFilter.ItemsSource = locations;
             DriveLocationFilter.SelectedIndex = 0;
@@ -216,6 +214,15 @@ public partial class SearchOverlay
         return null;
     }
 
+    private bool IsDriveEnabled(string driveLocation) => driveLocation switch
+    {
+        "Q" => _settings.GetQDriveEnabled(),
+        "P" => _settings.GetPDriveEnabled(),
+        "L" => _settings.GetLDriveEnabled(),
+        "Archive" => _settings.GetArchiveDriveEnabled(),
+        _ => false
+    };
+
     private async Task BackgroundScanAsync()
     {
         try
@@ -229,9 +236,13 @@ public partial class SearchOverlay
                 var allScannedProjects = new List<Project>();
                 List<Project>? qScannedProjects = null;
                 List<Project>? pScannedProjects = null;
+                List<Project>? lScannedProjects = null;
+                List<Project>? archiveScannedProjects = null;
 
                 var qLabel = _settings.GetDriveLabel("Q");
                 var pLabel = _settings.GetDriveLabel("P");
+                var lLabel = _settings.GetDriveLabel("L");
+                var archiveLabel = _settings.GetDriveLabel("Archive");
 
                 // Scan Q: drive - only if enabled
                 if (_settings.GetQDriveEnabled())
@@ -281,7 +292,58 @@ public partial class SearchOverlay
                     DebugLogger.Log("P: drive scanning disabled - skipping");
                 }
 
-                // Update database with all scanned projects (Q and P drives are separate)
+                // Scan L: drive (Legacy) - only if enabled
+                if (_settings.GetLDriveEnabled())
+                {
+                    await Dispatcher.InvokeAsync(() => StatusText.Text = $"Scanning L: drive ({lLabel})...");
+                    var lDrivePath = _settings.GetLDrivePath();
+                    if (Directory.Exists(lDrivePath))
+                    {
+                        try
+                        {
+                            lScannedProjects = await _scanner.ScanProjectsAsync(lDrivePath, "L", CancellationToken.None);
+                            allScannedProjects.AddRange(lScannedProjects);
+                            DebugLogger.Log($"L: drive scan completed: {lScannedProjects.Count} projects found");
+                        }
+                        catch (Exception ex)
+                        {
+                            DebugLogger.Log($"L: drive scan error: {ex.Message}");
+                        }
+                    }
+                }
+                else
+                {
+                    DebugLogger.Log("L: drive scanning disabled - skipping");
+                }
+
+                // Scan Archive drive - only if enabled
+                if (_settings.GetArchiveDriveEnabled())
+                {
+                    var archiveDrivePath = _settings.GetArchiveDrivePath();
+                    if (!string.IsNullOrWhiteSpace(archiveDrivePath))
+                    {
+                        await Dispatcher.InvokeAsync(() => StatusText.Text = $"Scanning Archive drive ({archiveLabel})...");
+                        if (Directory.Exists(archiveDrivePath))
+                        {
+                            try
+                            {
+                                archiveScannedProjects = await _scanner.ScanProjectsAsync(archiveDrivePath, "Archive", CancellationToken.None);
+                                allScannedProjects.AddRange(archiveScannedProjects);
+                                DebugLogger.Log($"Archive drive scan completed: {archiveScannedProjects.Count} projects found");
+                            }
+                            catch (Exception ex)
+                            {
+                                DebugLogger.Log($"Archive drive scan error: {ex.Message}");
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    DebugLogger.Log("Archive drive scanning disabled - skipping");
+                }
+
+                // Update database with all scanned projects
                 await _dataStore.BatchUpsertProjectsAsync(allScannedProjects);
 
                 // Remove stale records for each successfully-scanned drive.
@@ -298,6 +360,18 @@ public partial class SearchOverlay
                     var pIds = pScannedProjects.Select(p => p.Id);
                     await _dataStore.DeleteStaleProjectsForDriveAsync("P", pIds);
                     DebugLogger.Log($"P: stale record cleanup complete");
+                }
+                if (lScannedProjects != null)
+                {
+                    var lIds = lScannedProjects.Select(p => p.Id);
+                    await _dataStore.DeleteStaleProjectsForDriveAsync("L", lIds);
+                    DebugLogger.Log($"L: stale record cleanup complete");
+                }
+                if (archiveScannedProjects != null)
+                {
+                    var archiveIds = archiveScannedProjects.Select(p => p.Id);
+                    await _dataStore.DeleteStaleProjectsForDriveAsync("Archive", archiveIds);
+                    DebugLogger.Log($"Archive: stale record cleanup complete");
                 }
 
                 await _dataStore.UpdateLastScanTimeAsync(DateTime.UtcNow);
@@ -400,12 +474,7 @@ public partial class SearchOverlay
             var selectedLocation = DriveLocationFilter.SelectedItem?.ToString();
 
             // Start with all projects, but filter by enabled drives first
-            var projectsToSearch = _allProjects.Where(p =>
-            {
-                if (p.DriveLocation == "Q") return _settings.GetQDriveEnabled();
-                if (p.DriveLocation == "P") return _settings.GetPDriveEnabled();
-                return false; // Unknown drive, exclude
-            }).ToList();
+            var projectsToSearch = _allProjects.Where(p => IsDriveEnabled(p.DriveLocation)).ToList();
 
             // Apply year filter
             if (selectedYear != "All Years" && !string.IsNullOrEmpty(selectedYear))

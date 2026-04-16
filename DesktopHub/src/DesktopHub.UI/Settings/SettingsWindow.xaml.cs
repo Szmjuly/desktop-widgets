@@ -555,6 +555,16 @@ public partial class SettingsWindow : Window
             PDrivePathBox.Text = string.IsNullOrEmpty(pDrivePath) ? "P:\\" : pDrivePath;
             PDriveLabelText.Text = $"P: Drive ({_settings.GetDriveLabel("P")})";
 
+            LDriveEnabledToggle.IsChecked = _settings.GetLDriveEnabled();
+            var lDrivePath = _settings.GetLDrivePath();
+            LDrivePathBox.Text = string.IsNullOrEmpty(lDrivePath) ? "L:\\" : lDrivePath;
+            LDriveLabelText.Text = $"L: Drive ({_settings.GetDriveLabel("L")})";
+
+            ArchiveDriveEnabledToggle.IsChecked = _settings.GetArchiveDriveEnabled();
+            var archiveDrivePath = _settings.GetArchiveDrivePath();
+            ArchiveDrivePathBox.Text = string.IsNullOrEmpty(archiveDrivePath) ? "" : archiveDrivePath;
+            ArchiveDriveLabelText.Text = $"Archive Drive ({_settings.GetDriveLabel("Archive")})";
+
             
             // Load transparency settings (all sliders are now dynamic)
             _isUpdatingSliders = true;
@@ -1064,6 +1074,103 @@ public partial class SettingsWindow : Window
         await Task.Delay(2000);
         if (StatusText != null && StatusText.Text.Contains("updating"))
             StatusText.Text = "P: drive disabled";
+    }
+
+    private async void LDrivePathBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        try
+        {
+            if (_settings == null) return;
+            var path = LDrivePathBox.Text;
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                _settings.SetLDrivePath(path);
+                await _settings.SaveAsync();
+                if (StatusText != null)
+                    StatusText.Text = "L: drive path updated";
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"SettingsWindow: LDrivePathBox_TextChanged error: {ex.Message}");
+            if (StatusText != null)
+                StatusText.Text = $"Error updating path: {ex.Message}";
+        }
+    }
+
+    private async void LDriveEnabledToggle_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null) return;
+        _settings.SetLDriveEnabled(true);
+        await _settings.SaveAsync();
+        TelemetryAccessor.TrackSettingChanged("l_drive_enabled", "true");
+        if (StatusText != null)
+            StatusText.Text = "L: drive enabled - scanning...";
+        _onDriveSettingsChanged?.Invoke();
+        await Task.Delay(3000);
+        if (StatusText != null && StatusText.Text.Contains("scanning"))
+            StatusText.Text = "L: drive enabled - scan complete";
+    }
+
+    private async void LDriveEnabledToggle_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null) return;
+        _settings.SetLDriveEnabled(false);
+        await _settings.SaveAsync();
+        TelemetryAccessor.TrackSettingChanged("l_drive_enabled", "false");
+        if (StatusText != null)
+            StatusText.Text = "L: drive disabled - updating projects...";
+        _onDriveSettingsChanged?.Invoke();
+        await Task.Delay(2000);
+        if (StatusText != null && StatusText.Text.Contains("updating"))
+            StatusText.Text = "L: drive disabled";
+    }
+
+    private async void ArchiveDrivePathBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        try
+        {
+            if (_settings == null) return;
+            var path = ArchiveDrivePathBox.Text;
+            _settings.SetArchiveDrivePath(path ?? "");
+            await _settings.SaveAsync();
+            if (StatusText != null)
+                StatusText.Text = "Archive drive path updated";
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"SettingsWindow: ArchiveDrivePathBox_TextChanged error: {ex.Message}");
+            if (StatusText != null)
+                StatusText.Text = $"Error updating path: {ex.Message}";
+        }
+    }
+
+    private async void ArchiveDriveEnabledToggle_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null) return;
+        _settings.SetArchiveDriveEnabled(true);
+        await _settings.SaveAsync();
+        TelemetryAccessor.TrackSettingChanged("archive_drive_enabled", "true");
+        if (StatusText != null)
+            StatusText.Text = "Archive drive enabled - scanning...";
+        _onDriveSettingsChanged?.Invoke();
+        await Task.Delay(3000);
+        if (StatusText != null && StatusText.Text.Contains("scanning"))
+            StatusText.Text = "Archive drive enabled - scan complete";
+    }
+
+    private async void ArchiveDriveEnabledToggle_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null) return;
+        _settings.SetArchiveDriveEnabled(false);
+        await _settings.SaveAsync();
+        TelemetryAccessor.TrackSettingChanged("archive_drive_enabled", "false");
+        if (StatusText != null)
+            StatusText.Text = "Archive drive disabled - updating projects...";
+        _onDriveSettingsChanged?.Invoke();
+        await Task.Delay(2000);
+        if (StatusText != null && StatusText.Text.Contains("updating"))
+            StatusText.Text = "Archive drive disabled";
     }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e)

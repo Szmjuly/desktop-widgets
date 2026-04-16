@@ -135,8 +135,8 @@ public class ProjectScanner : IProjectScanner
 
     public Project? TryParseProjectFolder(string directoryName, string fullPath, string year, string driveLocation)
     {
-        // P Drive uses different pattern
-        if (driveLocation == "P")
+        // P Drive, L Drive (Legacy), and Archive drive use the same naming pattern
+        if (driveLocation is "P" or "L" or "Archive")
         {
             var pMatch = PDriveProjectPattern.Match(directoryName);
             if (pMatch.Success)

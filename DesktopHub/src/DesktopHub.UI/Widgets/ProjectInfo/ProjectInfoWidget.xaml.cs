@@ -41,6 +41,9 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
     // Missing field indicators — references to the input control borders for orange outline
     private readonly Dictionary<string, WpfControl> _fieldIndicatorControls = new();
 
+    // Editor action buttons (add/remove field/category) — hidden when locked
+    private readonly List<UIElement> _editorActionElements = new();
+
     public ProjectInfoWidget(
         IProjectTagService tagService,
         ITagVocabularyService? vocabService,
@@ -83,6 +86,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
         Dispatcher.BeginInvoke(new Action(() =>
         {
             BuildFieldUI();
+            UpdateFieldsEnabled();
             if (_currentProjectNumber != null)
                 _ = LoadTagsForProject(_currentProjectNumber);
         }));
@@ -92,6 +96,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
     {
         // The "+" buttons are dynamically added in BuildFieldUI, re-run it to show/hide them
         BuildFieldUI();
+        UpdateFieldsEnabled();
         if (_currentProjectNumber != null)
             _ = LoadTagsForProject(_currentProjectNumber);
     }
@@ -218,6 +223,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
         _multiSelectCombos.Clear();
         _multiSelectContainers.Clear();
         _fieldIndicatorControls.Clear();
+        _editorActionElements.Clear();
 
         // Use merged fields from master structure service, or fall back to static baseline
         var allFields = _masterStructureService?.GetMergedFields(_currentProjectNumber) ?? GetBuiltInFields();
@@ -317,6 +323,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
                 };
                 Grid.SetColumn(addFieldBtn, 3);
                 headerGrid.Children.Add(addFieldBtn);
+                _editorActionElements.Add(addFieldBtn);
 
                 // Remove button for non-built-in categories
                 if (!catDef.IsBuiltIn && _masterStructureService != null)
@@ -342,6 +349,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
                     headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                     Grid.SetColumn(removeCatBtn, 5);
                     headerGrid.Children.Add(removeCatBtn);
+                    _editorActionElements.Add(removeCatBtn);
                 }
             }
 
@@ -404,6 +412,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
                 OnAddCategoryClicked();
             };
             SidebarTabs.Children.Add(addCatBtn);
+            _editorActionElements.Add(addCatBtn);
         }
     }
 
@@ -553,6 +562,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             };
             Grid.SetColumn(removeFieldBtn, 2);
             row.Children.Add(removeFieldBtn);
+            _editorActionElements.Add(removeFieldBtn);
         }
 
         fieldsContainer.Children.Add(row);
@@ -720,6 +730,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             };
             removeBtn.MouseLeftButtonDown += (s, ev) =>
             {
+                if (_isLocked) { ev.Handled = true; return; }
                 _projectTagValues.RemoveAll(t => t.Key.Equals(capturedKey, StringComparison.OrdinalIgnoreCase));
                 RebuildProjectTagChips();
                 ev.Handled = true;
@@ -967,6 +978,9 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
         if (_projectTagsValueInput != null)
             _projectTagsValueInput.IsEnabled = enabled;
         SaveButton.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+        var editorVis = enabled ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var el in _editorActionElements)
+            el.Visibility = editorVis;
     }
 
     /// <summary>
@@ -1092,6 +1106,7 @@ public partial class ProjectInfoWidget : System.Windows.Controls.UserControl
             };
             removeBtn.MouseLeftButtonDown += (s, ev) =>
             {
+                if (_isLocked) { ev.Handled = true; return; }
                 if (_multiSelectValues.TryGetValue(fieldKey, out var vals))
                 {
                     vals.Remove(capturedVal);

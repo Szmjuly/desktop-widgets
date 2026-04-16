@@ -49,10 +49,30 @@ public class SettingsService : ISettingsService
     public string GetPDriveLabel() => _settings.PDriveLabel;
     public void SetPDriveLabel(string label) => _settings.PDriveLabel = label;
 
+    public string GetLDrivePath() => _settings.LDrivePath;
+    public void SetLDrivePath(string path) => _settings.LDrivePath = path;
+
+    public bool GetLDriveEnabled() => _settings.LDriveEnabled;
+    public void SetLDriveEnabled(bool enabled) => _settings.LDriveEnabled = enabled;
+
+    public string GetLDriveLabel() => _settings.LDriveLabel;
+    public void SetLDriveLabel(string label) => _settings.LDriveLabel = label;
+
+    public string GetArchiveDrivePath() => _settings.ArchiveDrivePath;
+    public void SetArchiveDrivePath(string path) => _settings.ArchiveDrivePath = path;
+
+    public bool GetArchiveDriveEnabled() => _settings.ArchiveDriveEnabled;
+    public void SetArchiveDriveEnabled(bool enabled) => _settings.ArchiveDriveEnabled = enabled;
+
+    public string GetArchiveDriveLabel() => _settings.ArchiveDriveLabel;
+    public void SetArchiveDriveLabel(string label) => _settings.ArchiveDriveLabel = label;
+
     public string GetDriveLabel(string driveLocation) => driveLocation switch
     {
         "Q" => _settings.QDriveLabel,
         "P" => _settings.PDriveLabel,
+        "L" => _settings.LDriveLabel,
+        "Archive" => _settings.ArchiveDriveLabel,
         _ => driveLocation
     };
 
@@ -634,6 +654,12 @@ public class SettingsService : ISettingsService
         public string PDrivePath { get; set; } = @"P:\";
         public bool PDriveEnabled { get; set; } = false; // Disabled by default to minimize scan time
         public string PDriveLabel { get; set; } = "Connecticut";
+        public string LDrivePath { get; set; } = @"L:\";
+        public bool LDriveEnabled { get; set; } = false;
+        public string LDriveLabel { get; set; } = "CT Legacy";
+        public string ArchiveDrivePath { get; set; } = "";
+        public bool ArchiveDriveEnabled { get; set; } = false;
+        public string ArchiveDriveLabel { get; set; } = "CT Archive";
         public Dictionary<string, string[]> SearchAliases { get; set; } = GetDefaultSearchAliases();
         public int ScanIntervalMinutes { get; set; } = 30;
         public int HotkeyModifiers { get; set; } = DefaultHotkeyModifiers; // Ctrl+Alt

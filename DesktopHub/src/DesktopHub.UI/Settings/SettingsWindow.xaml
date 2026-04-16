@@ -579,12 +579,12 @@
                             </Grid>
                             
                             <!-- P Drive -->
-                            <Grid>
+                            <Grid Margin="0,0,0,12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                
+
                                 <ToggleButton x:Name="PDriveEnabledToggle" Style="{StaticResource ToggleSwitch}"
                                               Grid.Column="0"
                                               Width="50"
@@ -595,7 +595,7 @@
                                               Unchecked="PDriveEnabledToggle_Unchecked"
                                               Cursor="Hand">
                                 </ToggleButton>
-                                
+
                                 <StackPanel Grid.Column="1">
                                     <TextBlock x:Name="PDriveLabelText"
                                                Text="P: Drive"
@@ -611,6 +611,90 @@
                                              Foreground="{DynamicResource TextBrush}"
                                              BorderBrush="{DynamicResource BorderBrush}"
                                              TextChanged="PDrivePathBox_TextChanged">
+                                        <TextBox.Resources>
+                                            <Style TargetType="Border">
+                                                <Setter Property="CornerRadius" Value="4"/>
+                                            </Style>
+                                        </TextBox.Resources>
+                                    </TextBox>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- L Drive (Legacy) -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <ToggleButton x:Name="LDriveEnabledToggle" Style="{StaticResource ToggleSwitch}"
+                                              Grid.Column="0"
+                                              Width="50"
+                                              Height="28"
+                                              VerticalAlignment="Bottom"
+                                              Margin="0,0,12,4"
+                                              Checked="LDriveEnabledToggle_Checked"
+                                              Unchecked="LDriveEnabledToggle_Unchecked"
+                                              Cursor="Hand">
+                                </ToggleButton>
+
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock x:Name="LDriveLabelText"
+                                               Text="L: Drive (CT Legacy)"
+                                               FontSize="14"
+                                               FontWeight="Medium"
+                                               Foreground="{DynamicResource TextBrush}"
+                                               Margin="0,0,0,4"/>
+                                    <TextBox x:Name="LDrivePathBox"
+                                             Text="L:\"
+                                             FontSize="12"
+                                             Padding="6"
+                                             Background="{DynamicResource CardBorderBrush}"
+                                             Foreground="{DynamicResource TextBrush}"
+                                             BorderBrush="{DynamicResource BorderBrush}"
+                                             TextChanged="LDrivePathBox_TextChanged">
+                                        <TextBox.Resources>
+                                            <Style TargetType="Border">
+                                                <Setter Property="CornerRadius" Value="4"/>
+                                            </Style>
+                                        </TextBox.Resources>
+                                    </TextBox>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Archive Drive -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <ToggleButton x:Name="ArchiveDriveEnabledToggle" Style="{StaticResource ToggleSwitch}"
+                                              Grid.Column="0"
+                                              Width="50"
+                                              Height="28"
+                                              VerticalAlignment="Bottom"
+                                              Margin="0,0,12,4"
+                                              Checked="ArchiveDriveEnabledToggle_Checked"
+                                              Unchecked="ArchiveDriveEnabledToggle_Unchecked"
+                                              Cursor="Hand">
+                                </ToggleButton>
+
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock x:Name="ArchiveDriveLabelText"
+                                               Text="Archive Drive (CT Archive)"
+                                               FontSize="14"
+                                               FontWeight="Medium"
+                                               Foreground="{DynamicResource TextBrush}"
+                                               Margin="0,0,0,4"/>
+                                    <TextBox x:Name="ArchiveDrivePathBox"
+                                             Text=""
+                                             FontSize="12"
+                                             Padding="6"
+                                             Background="{DynamicResource CardBorderBrush}"
+                                             Foreground="{DynamicResource TextBrush}"
+                                             BorderBrush="{DynamicResource BorderBrush}"
+                                             TextChanged="ArchiveDrivePathBox_TextChanged">
                                         <TextBox.Resources>
                                             <Style TargetType="Border">
                                                 <Setter Property="CornerRadius" Value="4"/>

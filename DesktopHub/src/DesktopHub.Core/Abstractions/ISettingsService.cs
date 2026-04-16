@@ -67,6 +67,70 @@ public interface ISettingsService
     /// </summary>
     void SetPDriveLabel(string label);
 
+    // --- L Drive (Legacy) ---
+
+    /// <summary>
+    /// Get L: drive path
+    /// </summary>
+    string GetLDrivePath();
+
+    /// <summary>
+    /// Set L: drive path
+    /// </summary>
+    void SetLDrivePath(string path);
+
+    /// <summary>
+    /// Get whether L drive is enabled for scanning
+    /// </summary>
+    bool GetLDriveEnabled();
+
+    /// <summary>
+    /// Set whether L drive is enabled for scanning
+    /// </summary>
+    void SetLDriveEnabled(bool enabled);
+
+    /// <summary>
+    /// Get user-facing label for L: drive (e.g., "CT Legacy")
+    /// </summary>
+    string GetLDriveLabel();
+
+    /// <summary>
+    /// Set user-facing label for L: drive
+    /// </summary>
+    void SetLDriveLabel(string label);
+
+    // --- Archive Drive ---
+
+    /// <summary>
+    /// Get Archive drive path
+    /// </summary>
+    string GetArchiveDrivePath();
+
+    /// <summary>
+    /// Set Archive drive path
+    /// </summary>
+    void SetArchiveDrivePath(string path);
+
+    /// <summary>
+    /// Get whether Archive drive is enabled for scanning
+    /// </summary>
+    bool GetArchiveDriveEnabled();
+
+    /// <summary>
+    /// Set whether Archive drive is enabled for scanning
+    /// </summary>
+    void SetArchiveDriveEnabled(bool enabled);
+
+    /// <summary>
+    /// Get user-facing label for Archive drive (e.g., "CT Archive")
+    /// </summary>
+    string GetArchiveDriveLabel();
+
+    /// <summary>
+    /// Set user-facing label for Archive drive
+    /// </summary>
+    void SetArchiveDriveLabel(string label);
+
     /// <summary>
     /// Get display label for a drive location code (e.g., "Q" → "Florida", "P" → "Connecticut").
     /// Falls back to the drive letter if no custom label is set.
