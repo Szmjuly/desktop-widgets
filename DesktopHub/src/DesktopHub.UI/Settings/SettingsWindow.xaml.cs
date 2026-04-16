@@ -19,6 +19,7 @@ public partial class SettingsWindow : Window
     private int _recordedCloseShortcutModifiers;
     private int _recordedCloseShortcutKey;
     private Action? _onHotkeyChanged;
+    private Action? _onHotkeyReleaseForProbe;
     private Action? _onCloseShortcutChanged;
     private Action? _onLivingWidgetsModeChanged;
     private Action? _onDriveSettingsChanged;
@@ -57,12 +58,13 @@ public partial class SettingsWindow : Window
     private TextBlock? _activeGroupRecordingText;
     private int _activeGroupIndex = -1;
 
-    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null, Action? onFrequentProjectsWidgetEnabledChanged = null, Action? onFrequentProjectsLayoutChanged = null, Action? onQuickLaunchWidgetEnabledChanged = null, IProjectLaunchDataStore? launchDataStore = null, Action? onQuickLaunchLayoutChanged = null, Action? onWidgetSnapGapChanged = null, Action? onSmartProjectSearchWidgetEnabledChanged = null, Action? onWidgetLauncherLayoutChanged = null, Action? onCheatSheetWidgetEnabledChanged = null, Action? onMetricsViewerWidgetEnabledChanged = null, Action? onDeveloperPanelWidgetEnabledChanged = null)
+    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null, Action? onFrequentProjectsWidgetEnabledChanged = null, Action? onFrequentProjectsLayoutChanged = null, Action? onQuickLaunchWidgetEnabledChanged = null, IProjectLaunchDataStore? launchDataStore = null, Action? onQuickLaunchLayoutChanged = null, Action? onWidgetSnapGapChanged = null, Action? onSmartProjectSearchWidgetEnabledChanged = null, Action? onWidgetLauncherLayoutChanged = null, Action? onCheatSheetWidgetEnabledChanged = null, Action? onMetricsViewerWidgetEnabledChanged = null, Action? onDeveloperPanelWidgetEnabledChanged = null, Action? onHotkeyReleaseForProbe = null)
     {
         _settings = settings;
         _taskService = taskService;
         _docService = docService;
         _onHotkeyChanged = onHotkeyChanged;
+        _onHotkeyReleaseForProbe = onHotkeyReleaseForProbe;
         _onCloseShortcutChanged = onCloseShortcutChanged;
         _onLivingWidgetsModeChanged = onLivingWidgetsModeChanged;
         _onDriveSettingsChanged = onDriveSettingsChanged;
@@ -703,6 +705,37 @@ public partial class SettingsWindow : Window
             int vk = KeyInterop.VirtualKeyFromKey(e.Key);
 
             var groups = _settings.GetHotkeyGroups();
+
+            // 1) Reject if another group in this app already uses this combo.
+            for (int i = 0; i < groups.Count; i++)
+            {
+                if (i == _activeGroupIndex) continue;
+                if (groups[i].Key != 0 && groups[i].Modifiers == mods && groups[i].Key == vk)
+                {
+                    CancelHotkeyRecordingUI();
+                    HotkeyConflictDialog.ShowForInternalConflict(FormatHotkey(mods, vk), i + 1, this);
+                    e.Handled = true;
+                    return;
+                }
+            }
+
+            // 2) Probe against Windows. Release our own hotkeys first so we don't false-positive
+            //    against our current registration for this or any other group.
+            _onHotkeyReleaseForProbe?.Invoke();
+
+            bool probeOk = GlobalHotkey.TryProbeRegister((uint)mods, (uint)vk, out _);
+
+            if (!probeOk)
+            {
+                // Restore original hotkey registrations (settings weren't changed yet).
+                _onHotkeyChanged?.Invoke();
+                CancelHotkeyRecordingUI();
+                HotkeyConflictDialog.ShowForSettingsConflict(FormatHotkey(mods, vk), mods, vk, this);
+                e.Handled = true;
+                return;
+            }
+
+            // 3) Commit the change.
             if (_activeGroupIndex < groups.Count)
             {
                 groups[_activeGroupIndex].Modifiers = mods;
@@ -1241,6 +1274,20 @@ public partial class SettingsWindow : Window
 
     private static string FormatHotkey(int modifiers, int key) =>
         HotkeyFormatter.FormatHotkey(modifiers, key);
+
+    private void CancelHotkeyRecordingUI()
+    {
+        if (_activeGroupKeyText != null)
+            _activeGroupKeyText.Visibility = Visibility.Visible;
+        if (_activeGroupRecordingText != null)
+            _activeGroupRecordingText.Visibility = Visibility.Collapsed;
+        if (_activeGroupKeyBox != null)
+            _activeGroupKeyBox.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
+        _activeGroupKeyBox = null;
+        _activeGroupKeyText = null;
+        _activeGroupRecordingText = null;
+        _activeGroupIndex = -1;
+    }
 
 
     private void SettingsScroll_ScrollChanged(object sender, System.Windows.Controls.ScrollChangedEventArgs e)

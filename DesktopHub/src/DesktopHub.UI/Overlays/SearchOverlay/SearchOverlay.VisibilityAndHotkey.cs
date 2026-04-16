@@ -19,11 +19,10 @@ public partial class SearchOverlay
     internal void RegisterHotkeysFromGroups()
     {
         // Dispose all existing hotkeys
-        foreach (var hk in _hotkeys)
-            hk.Dispose();
-        _hotkeys.Clear();
+        ReleaseAllHotkeys();
 
         var groups = _settings.GetHotkeyGroups();
+        var failures = new List<(int mods, int key)>();
         foreach (var group in groups)
         {
             if (group.Key == 0) continue; // Skip unassigned groups
@@ -37,13 +36,39 @@ public partial class SearchOverlay
                 hk.ShouldSuppressHotkey = () => ShouldSuppressHotkey(capturedMods, capturedKey);
                 _hotkeys.Add(hk);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Windows.MessageBox.Show(
-                    $"Failed to register hotkey ({FormatHotkey(capturedMods, capturedKey)}). {ex.Message}",
-                    "DesktopHub", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                failures.Add((capturedMods, capturedKey));
             }
         }
+
+        if (failures.Count > 0)
+        {
+            // Defer so the main window/tray is fully initialized before showing the modal
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var first = failures[0];
+                var label = failures.Count == 1
+                    ? FormatHotkey(first.mods, first.key)
+                    : $"{FormatHotkey(first.mods, first.key)} (+{failures.Count - 1} more)";
+                var result = HotkeyConflictDialog.ShowForStartup(label, first.mods, first.key, System.Windows.Application.Current?.MainWindow);
+                if (result == HotkeyConflictDialog.DialogAction.OpenSettings)
+                {
+                    _trayIcon?.ShowSettings();
+                }
+            }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        }
+    }
+
+    /// <summary>
+    /// Releases all currently-registered global hotkeys for this app.
+    /// Used by Settings so hotkey conflict probes don't collide with our own registrations.
+    /// </summary>
+    public void ReleaseAllHotkeys()
+    {
+        foreach (var hk in _hotkeys)
+            hk.Dispose();
+        _hotkeys.Clear();
     }
 
     private void OnHotkeyPressed(IReadOnlyList<string> targetWidgets, int modifiers, int key)

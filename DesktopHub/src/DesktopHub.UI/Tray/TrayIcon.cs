@@ -744,7 +744,8 @@ REM Delete this batch file
                 () => _searchOverlay.UpdateWidgetLauncherLayout(),
                 () => _searchOverlay.UpdateCheatSheetWidgetButton(),
                 () => _searchOverlay.UpdateMetricsViewerWidgetButton(),
-                () => _searchOverlay.UpdateDeveloperPanelWidgetButton()
+                () => _searchOverlay.UpdateDeveloperPanelWidgetButton(),
+                () => _searchOverlay.ReleaseAllHotkeys()
             );
             settings.Show();
         }), System.Windows.Threading.DispatcherPriority.Normal);

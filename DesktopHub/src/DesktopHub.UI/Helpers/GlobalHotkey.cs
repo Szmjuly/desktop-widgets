@@ -83,6 +83,25 @@ public class GlobalHotkey : IDisposable
         return IntPtr.Zero;
     }
 
+    /// <summary>
+    /// Attempts to register a hotkey temporarily on the calling thread to detect conflicts.
+    /// Returns true if the combo is currently available (not held by another app).
+    /// Caller must ensure this app's own hotkey holds are released first, otherwise this app's
+    /// own registrations will cause a false-positive conflict (error 1409).
+    /// </summary>
+    public static bool TryProbeRegister(uint modifiers, uint key, out int errorCode)
+    {
+        int probeId = new Random().Next(0x1000, 0xBFFF);
+        if (RegisterHotKey(IntPtr.Zero, probeId, modifiers, key))
+        {
+            UnregisterHotKey(IntPtr.Zero, probeId);
+            errorCode = 0;
+            return true;
+        }
+        errorCode = Marshal.GetLastWin32Error();
+        return false;
+    }
+
     public void Dispose()
     {
         if (_disposed)
