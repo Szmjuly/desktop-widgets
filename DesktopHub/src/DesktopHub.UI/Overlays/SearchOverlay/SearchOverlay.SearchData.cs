@@ -14,6 +14,11 @@ namespace DesktopHub.UI;
 
 public partial class SearchOverlay
 {
+    // Map of filter-dropdown display label → scan profile drive location code. Populated by
+    // PopulateDriveLocationFilter(); lets SearchBox_TextChanged / LoadAllProjects resolve the
+    // selected label back to its underlying profile without string-parsing.
+    private readonly Dictionary<string, string> _driveLocationFilterMap = new();
+
     private void LoadAllProjects()
     {
         try
@@ -25,10 +30,12 @@ public partial class SearchOverlay
             var selectedYear = YearFilter.SelectedItem?.ToString();
             var selectedLocation = DriveLocationFilter.SelectedItem?.ToString();
 
-            // Start with all projects, but filter by enabled drives first
-            _filteredProjects = _allProjects.Where(p => IsDriveEnabled(p.DriveLocation)).ToList();
+            var enabledCodes = GetEnabledDriveCodes();
 
-            DebugLogger.Log($"LoadAllProjects: After drive filter: {_filteredProjects.Count} projects (Q: {_settings.GetQDriveEnabled()}, P: {_settings.GetPDriveEnabled()}, L: {_settings.GetLDriveEnabled()}, Archive: {_settings.GetArchiveDriveEnabled()})");
+            // Start with all projects, but filter by enabled profiles first
+            _filteredProjects = _allProjects.Where(p => enabledCodes.Contains(p.DriveLocation)).ToList();
+
+            DebugLogger.Log($"LoadAllProjects: After profile filter: {_filteredProjects.Count} projects ({enabledCodes.Count} enabled profiles: {string.Join(",", enabledCodes)})");
 
             // Apply year filter
             if (selectedYear != "All Years" && !string.IsNullOrEmpty(selectedYear))
@@ -36,12 +43,12 @@ public partial class SearchOverlay
                 _filteredProjects = _filteredProjects.Where(p => p.Year == selectedYear).ToList();
             }
 
-            // Apply drive location filter — extract drive letter from label format "Label (X:)"
-            if (!string.IsNullOrEmpty(selectedLocation) && selectedLocation != "All Locations")
+            // Apply drive location filter — look up the selected label in the filter map
+            if (!string.IsNullOrEmpty(selectedLocation)
+                && selectedLocation != "All Locations"
+                && _driveLocationFilterMap.TryGetValue(selectedLocation, out var driveFilter))
             {
-                var driveFilter = ExtractDriveLetterFromFilterLabel(selectedLocation);
-                if (driveFilter != null)
-                    _filteredProjects = _filteredProjects.Where(p => p.DriveLocation == driveFilter).ToList();
+                _filteredProjects = _filteredProjects.Where(p => p.DriveLocation == driveFilter).ToList();
             }
 
             DebugLogger.Log($"LoadAllProjects: Final filtered count: {_filteredProjects.Count} projects for year {selectedYear}, location {selectedLocation}");
@@ -126,11 +133,12 @@ public partial class SearchOverlay
             PopulateYearFilter();
             PopulateDriveLocationFilter();
 
-            // Count only projects from enabled drives
-            var enabledProjectsCount = _allProjects.Count(p => IsDriveEnabled(p.DriveLocation));
+            // Count only projects from enabled profiles
+            var enabledCodes = GetEnabledDriveCodes();
+            var enabledProjectsCount = _allProjects.Count(p => enabledCodes.Contains(p.DriveLocation));
 
             StatusText.Text = $"{enabledProjectsCount} projects loaded";
-            DebugLogger.Log($"LoadProjectsAsync: Total in DB: {_allProjects.Count}, From enabled drives: {enabledProjectsCount} (Q: {_settings.GetQDriveEnabled()}, P: {_settings.GetPDriveEnabled()}, L: {_settings.GetLDriveEnabled()}, Archive: {_settings.GetArchiveDriveEnabled()})");
+            DebugLogger.Log($"LoadProjectsAsync: Total in DB: {_allProjects.Count}, From enabled profiles: {enabledProjectsCount} ({enabledCodes.Count} enabled)");
             ShowLoading(false);
         }
         catch (Exception ex)

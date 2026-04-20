@@ -223,4 +223,138 @@ public class ProjectScanner : IProjectScanner
             )
         ).Substring(0, 16);
     }
+
+    // Phase 2: profile-driven scan. Applies the profile's own regexes instead of the hardcoded
+    // Q / P / L / Archive branches. Keeps the legacy ScanProjectsAsync overloads working because
+    // they are still called from callers that haven't migrated yet — those route through the
+    // drive-code-based TryParseProjectFolder path.
+    public async Task<List<Project>> ScanProjectsAsync(ScanProfile profile, CancellationToken cancellationToken = default)
+    {
+        var projects = new List<Project>();
+
+        if (profile.Mode != ScanProfileMode.ProjectMode) return projects;
+        if (profile.ProjectPatterns is null) return projects;
+        if (string.IsNullOrWhiteSpace(profile.RootPath)) return projects;
+        if (!Directory.Exists(profile.RootPath)) return projects;
+
+        Regex yearRegex;
+        try
+        {
+            yearRegex = new Regex(profile.ProjectPatterns.YearDirRegex, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        }
+        catch (ArgumentException)
+        {
+            return projects;
+        }
+
+        var compiledPatterns = new List<(Regex regex, ProjectFolderPattern spec)>();
+        foreach (var p in profile.ProjectPatterns.Patterns)
+        {
+            try
+            {
+                compiledPatterns.Add((new Regex(p.Regex, RegexOptions.Compiled | RegexOptions.IgnoreCase), p));
+            }
+            catch (ArgumentException)
+            {
+                // Skip invalid regex; log-and-continue.
+            }
+        }
+        if (compiledPatterns.Count == 0) return projects;
+
+        // Drive location stored on each Project. Prefer legacy drive code for backward-compat
+        // with existing search filters; fall back to a short profile id for net-new profiles.
+        var driveLocation = !string.IsNullOrEmpty(profile.LegacyDriveCode)
+            ? profile.LegacyDriveCode
+            : profile.Id.Length >= 8 ? profile.Id.Substring(0, 8) : profile.Id;
+
+        var yearDirs = Directory.GetDirectories(profile.RootPath)
+            .Where(d => yearRegex.IsMatch(Path.GetFileName(d)))
+            .ToList();
+
+        await Task.Run(() =>
+        {
+            foreach (var yearDir in yearDirs)
+            {
+                if (cancellationToken.IsCancellationRequested) break;
+
+                var yearMatch = yearRegex.Match(Path.GetFileName(yearDir));
+                var year = yearMatch.Groups["year"].Value;
+                if (year.Length == 2) year = "20" + year;
+
+                try
+                {
+                    foreach (var projectDir in Directory.GetDirectories(yearDir))
+                    {
+                        if (cancellationToken.IsCancellationRequested) break;
+
+                        var dirName = Path.GetFileName(projectDir);
+                        foreach (var (regex, spec) in compiledPatterns)
+                        {
+                            var m = regex.Match(dirName);
+                            if (!m.Success) continue;
+
+                            var fullNumber = m.Groups["full_number"].Value;
+                            if (!string.IsNullOrEmpty(spec.FullNumberPrefix) && !fullNumber.StartsWith(spec.FullNumberPrefix))
+                            {
+                                fullNumber = spec.FullNumberPrefix + fullNumber;
+                            }
+
+                            var shortNumber = ExtractShortNumber(m, fullNumber, spec.ShortNumberStrategy);
+                            var name = m.Groups["name"]?.Value?.Trim() ?? string.Empty;
+
+                            projects.Add(new Project
+                            {
+                                Id = GenerateProjectId(projectDir),
+                                FullNumber = fullNumber,
+                                ShortNumber = shortNumber,
+                                Name = name,
+                                Path = projectDir,
+                                Year = year,
+                                DriveLocation = driveLocation,
+                                LastScanned = DateTime.UtcNow
+                            });
+                            break;
+                        }
+                    }
+                }
+                catch (UnauthorizedAccessException) { }
+                catch (IOException) { }
+            }
+        }, cancellationToken);
+
+        return projects;
+    }
+
+    private static string ExtractShortNumber(Match match, string fullNumber, ShortNumberStrategy strategy)
+    {
+        switch (strategy)
+        {
+            case ShortNumberStrategy.Capture:
+                var captured = match.Groups["short_number"]?.Value;
+                if (!string.IsNullOrEmpty(captured)) return captured;
+                return fullNumber;
+
+            case ShortNumberStrategy.Last6Digits:
+                {
+                    var digitsOnly = fullNumber.Replace(".", "").Replace("-", "");
+                    return digitsOnly.Length >= 6 ? digitsOnly.Substring(digitsOnly.Length - 6) : digitsOnly;
+                }
+
+            case ShortNumberStrategy.Last4Digits:
+                {
+                    var digitsOnly = fullNumber.Replace(".", "").Replace("-", "");
+                    return digitsOnly.Length >= 4 ? digitsOnly.Substring(digitsOnly.Length - 4) : digitsOnly;
+                }
+
+            case ShortNumberStrategy.BeforeDecimal:
+                {
+                    var idx = fullNumber.IndexOf('.');
+                    return idx > 0 ? fullNumber.Substring(0, idx) : fullNumber;
+                }
+
+            case ShortNumberStrategy.Full:
+            default:
+                return fullNumber;
+        }
+    }
 }

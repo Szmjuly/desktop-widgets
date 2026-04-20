@@ -57,4 +57,11 @@ public interface IProjectScanner
     /// <param name="driveLocation">Drive location identifier (e.g., "Q" or "P")</param>
     /// <returns>Parsed project if match, null otherwise</returns>
     Project? TryParseProjectFolder(string directoryName, string fullPath, string year, string driveLocation);
+
+    /// <summary>
+    /// Phase 2: scan using a configurable ScanProfile. For ProjectMode, the profile supplies
+    /// the year-directory regex and per-folder name patterns. For FileBrowser mode, returns
+    /// an empty list — filename indexing is handled by a separate path.
+    /// </summary>
+    Task<List<Project>> ScanProjectsAsync(ScanProfile profile, CancellationToken cancellationToken = default);
 }

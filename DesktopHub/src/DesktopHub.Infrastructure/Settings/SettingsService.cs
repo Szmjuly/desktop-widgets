@@ -32,40 +32,52 @@ public class SettingsService : ISettingsService
     }
 
     public string GetQDrivePath() => _settings.QDrivePath;
-    public void SetQDrivePath(string path) => _settings.QDrivePath = path;
+    public void SetQDrivePath(string path) { _settings.QDrivePath = path; CascadeLegacyToProfile("Q", p => p.RootPath = path); }
 
     public bool GetQDriveEnabled() => _settings.QDriveEnabled;
-    public void SetQDriveEnabled(bool enabled) => _settings.QDriveEnabled = enabled;
+    public void SetQDriveEnabled(bool enabled) { _settings.QDriveEnabled = enabled; CascadeLegacyToProfile("Q", p => p.Enabled = enabled); }
 
     public string GetQDriveLabel() => _settings.QDriveLabel;
-    public void SetQDriveLabel(string label) => _settings.QDriveLabel = label;
+    public void SetQDriveLabel(string label) { _settings.QDriveLabel = label; CascadeLegacyToProfile("Q", p => p.Name = label); }
 
     public string GetPDrivePath() => _settings.PDrivePath;
-    public void SetPDrivePath(string path) => _settings.PDrivePath = path;
+    public void SetPDrivePath(string path) { _settings.PDrivePath = path; CascadeLegacyToProfile("P", p => p.RootPath = path); }
 
     public bool GetPDriveEnabled() => _settings.PDriveEnabled;
-    public void SetPDriveEnabled(bool enabled) => _settings.PDriveEnabled = enabled;
+    public void SetPDriveEnabled(bool enabled) { _settings.PDriveEnabled = enabled; CascadeLegacyToProfile("P", p => p.Enabled = enabled); }
 
     public string GetPDriveLabel() => _settings.PDriveLabel;
-    public void SetPDriveLabel(string label) => _settings.PDriveLabel = label;
+    public void SetPDriveLabel(string label) { _settings.PDriveLabel = label; CascadeLegacyToProfile("P", p => p.Name = label); }
 
     public string GetLDrivePath() => _settings.LDrivePath;
-    public void SetLDrivePath(string path) => _settings.LDrivePath = path;
+    public void SetLDrivePath(string path) { _settings.LDrivePath = path; CascadeLegacyToProfile("L", p => p.RootPath = path); }
 
     public bool GetLDriveEnabled() => _settings.LDriveEnabled;
-    public void SetLDriveEnabled(bool enabled) => _settings.LDriveEnabled = enabled;
+    public void SetLDriveEnabled(bool enabled) { _settings.LDriveEnabled = enabled; CascadeLegacyToProfile("L", p => p.Enabled = enabled); }
 
     public string GetLDriveLabel() => _settings.LDriveLabel;
-    public void SetLDriveLabel(string label) => _settings.LDriveLabel = label;
+    public void SetLDriveLabel(string label) { _settings.LDriveLabel = label; CascadeLegacyToProfile("L", p => p.Name = label); }
 
     public string GetArchiveDrivePath() => _settings.ArchiveDrivePath;
-    public void SetArchiveDrivePath(string path) => _settings.ArchiveDrivePath = path;
+    public void SetArchiveDrivePath(string path) { _settings.ArchiveDrivePath = path; CascadeLegacyToProfile("Archive", p => p.RootPath = path); }
 
     public bool GetArchiveDriveEnabled() => _settings.ArchiveDriveEnabled;
-    public void SetArchiveDriveEnabled(bool enabled) => _settings.ArchiveDriveEnabled = enabled;
+    public void SetArchiveDriveEnabled(bool enabled) { _settings.ArchiveDriveEnabled = enabled; CascadeLegacyToProfile("Archive", p => p.Enabled = enabled); }
 
     public string GetArchiveDriveLabel() => _settings.ArchiveDriveLabel;
-    public void SetArchiveDriveLabel(string label) => _settings.ArchiveDriveLabel = label;
+    public void SetArchiveDriveLabel(string label) { _settings.ArchiveDriveLabel = label; CascadeLegacyToProfile("Archive", p => p.Name = label); }
+
+    private void CascadeLegacyToProfile(string legacyDriveCode, Action<ScanProfile> mutate)
+    {
+        // Keep the ScanProfiles list in sync with the legacy Q/P/L/Archive fields during the
+        // transition period. If a profile for this drive code already exists, update it in place;
+        // otherwise leave the list alone (a user might have deleted the profile intentionally).
+        var profile = _settings.ScanProfiles.FirstOrDefault(p => p.LegacyDriveCode == legacyDriveCode);
+        if (profile != null)
+        {
+            mutate(profile);
+        }
+    }
 
     public string GetDriveLabel(string driveLocation) => driveLocation switch
     {
@@ -572,6 +584,86 @@ public class SettingsService : ISettingsService
         _settings.CloseShortcutKey = key;
     }
 
+    public List<ScanProfile> GetScanProfiles() => _settings.ScanProfiles;
+
+    public void SetScanProfiles(List<ScanProfile> profiles)
+    {
+        _settings.ScanProfiles = profiles ?? new List<ScanProfile>();
+        // Project profile state back into legacy fields so callers that still read the legacy
+        // getters see consistent values until the UI is fully migrated off them.
+        ProjectProfilesToLegacy();
+    }
+
+    public bool GetHasCompletedFirstRun() => _settings.HasCompletedFirstRun;
+    public void SetHasCompletedFirstRun(bool completed) => _settings.HasCompletedFirstRun = completed;
+
+    private void ProjectProfilesToLegacy()
+    {
+        foreach (var profile in _settings.ScanProfiles)
+        {
+            switch (profile.LegacyDriveCode)
+            {
+                case "Q":
+                    _settings.QDrivePath = profile.RootPath;
+                    _settings.QDriveEnabled = profile.Enabled;
+                    _settings.QDriveLabel = profile.Name;
+                    break;
+                case "P":
+                    _settings.PDrivePath = profile.RootPath;
+                    _settings.PDriveEnabled = profile.Enabled;
+                    _settings.PDriveLabel = profile.Name;
+                    break;
+                case "L":
+                    _settings.LDrivePath = profile.RootPath;
+                    _settings.LDriveEnabled = profile.Enabled;
+                    _settings.LDriveLabel = profile.Name;
+                    break;
+                case "Archive":
+                    _settings.ArchiveDrivePath = profile.RootPath;
+                    _settings.ArchiveDriveEnabled = profile.Enabled;
+                    _settings.ArchiveDriveLabel = profile.Name;
+                    break;
+            }
+        }
+    }
+
+    // Seeds ScanProfiles from the legacy Q/P/L/Archive fields the first time the app loads after
+    // the Phase 2 refactor. Preserves the user's existing enabled/path/label choices so CES users
+    // see identical behavior post-migration.
+    private void MigrateLegacyDrivesToProfiles()
+    {
+        if (_settings.ScanProfiles.Count > 0) return;
+
+        var profiles = ScanProfilePresets.CES();
+        foreach (var profile in profiles)
+        {
+            switch (profile.LegacyDriveCode)
+            {
+                case "Q":
+                    profile.RootPath = _settings.QDrivePath;
+                    profile.Enabled = _settings.QDriveEnabled;
+                    profile.Name = _settings.QDriveLabel;
+                    break;
+                case "P":
+                    profile.RootPath = _settings.PDrivePath;
+                    profile.Enabled = _settings.PDriveEnabled;
+                    profile.Name = _settings.PDriveLabel;
+                    break;
+                case "L":
+                    profile.RootPath = _settings.LDrivePath;
+                    profile.Enabled = _settings.LDriveEnabled;
+                    profile.Name = _settings.LDriveLabel;
+                    break;
+                case "Archive":
+                    profile.RootPath = _settings.ArchiveDrivePath;
+                    profile.Enabled = _settings.ArchiveDriveEnabled;
+                    profile.Name = _settings.ArchiveDriveLabel;
+                    break;
+            }
+        }
+        _settings.ScanProfiles = profiles;
+    }
+
     public async Task SaveAsync()
     {
         await _fileLock.WaitAsync();
@@ -602,6 +694,10 @@ public class SettingsService : ISettingsService
             {
                 var json = File.ReadAllText(_settingsPath);
                 _settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+                MigrateLegacyDrivesToProfiles();
+                // Users with an existing settings.json have effectively completed first-run.
+                if (!_settings.HasCompletedFirstRun)
+                    _settings.HasCompletedFirstRun = true;
             }
         }
         finally
@@ -621,6 +717,11 @@ public class SettingsService : ISettingsService
                 var json = await File.ReadAllTextAsync(_settingsPath);
                 _settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
 
+                MigrateLegacyDrivesToProfiles();
+                // Users with an existing settings.json have effectively completed first-run.
+                if (!_settings.HasCompletedFirstRun)
+                    _settings.HasCompletedFirstRun = true;
+
                 if (_settings.HotkeyModifiers == LegacyHotkeyModifiers && _settings.HotkeyKey == LegacyHotkeyKey)
                 {
                     _settings.HotkeyModifiers = DefaultHotkeyModifiers;
@@ -634,6 +735,8 @@ public class SettingsService : ISettingsService
             else
             {
                 _settings = new AppSettings();
+                // Fresh install: leave ScanProfiles empty and HasCompletedFirstRun=false so the
+                // welcome wizard can offer preset picking. Migration will no-op.
                 _fileLock.Release();
                 await SaveAsync();
                 return;
@@ -660,6 +763,10 @@ public class SettingsService : ISettingsService
         public string ArchiveDrivePath { get; set; } = "";
         public bool ArchiveDriveEnabled { get; set; } = false;
         public string ArchiveDriveLabel { get; set; } = "CT Archive";
+
+        // Phase 2: generalised scan profile list. Empty until migration runs or a wizard/preset populates it.
+        public List<ScanProfile> ScanProfiles { get; set; } = new();
+        public bool HasCompletedFirstRun { get; set; } = false;
         public Dictionary<string, string[]> SearchAliases { get; set; } = GetDefaultSearchAliases();
         public int ScanIntervalMinutes { get; set; } = 30;
         public int HotkeyModifiers { get; set; } = DefaultHotkeyModifiers; // Ctrl+Alt

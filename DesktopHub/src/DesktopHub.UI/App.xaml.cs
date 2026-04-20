@@ -292,6 +292,10 @@ public partial class App : System.Windows.Application
     {
         try
         {
+#if DEBUG
+            DebugLogger.Log("ShouldSelfInstall: Skipping (Debug build)");
+            return false;
+#else
             // For single-file apps, use Process.MainModule.FileName instead of Assembly.Location
             var currentExe = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
             if (string.IsNullOrEmpty(currentExe))
@@ -299,13 +303,13 @@ public partial class App : System.Windows.Application
                 DebugLogger.Log("ShouldSelfInstall: Cannot determine current executable path");
                 return false;
             }
-            
+
             var expectedLocalPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "DesktopHub",
                 "DesktopHub.exe"
             );
-            
+
             // If we're not running from the expected local location, we should install
             if (!currentExe.Equals(expectedLocalPath, StringComparison.OrdinalIgnoreCase))
             {
@@ -314,7 +318,7 @@ public partial class App : System.Windows.Application
                 {
                     var currentVersion = System.Diagnostics.FileVersionInfo.GetVersionInfo(currentExe);
                     var installedVersion = System.Diagnostics.FileVersionInfo.GetVersionInfo(expectedLocalPath);
-                    
+
                     // If versions are the same, don't reinstall
                     if (currentVersion.FileVersion == installedVersion.FileVersion)
                     {
@@ -322,16 +326,32 @@ public partial class App : System.Windows.Application
                         return false;
                     }
                 }
-                
+
                 DebugLogger.Log($"ShouldSelfInstall: Need to install from {currentExe} to {expectedLocalPath}");
                 return true;
             }
-            
+
             return false;
+#endif
         }
         catch (Exception ex)
         {
             DebugLogger.Log($"ShouldSelfInstall: Error checking install status: {ex.Message}");
+            return false;
+        }
+    }
+
+    // Single-file publishes extract to a temp dir at runtime and leave Assembly.Location empty.
+    // Multi-file publishes expose the assembly alongside the exe.
+    private static bool IsSingleFilePublish()
+    {
+        try
+        {
+            var loc = System.Reflection.Assembly.GetExecutingAssembly().Location;
+            return string.IsNullOrEmpty(loc);
+        }
+        catch
+        {
             return false;
         }
     }
@@ -348,17 +368,35 @@ public partial class App : System.Windows.Application
         try
         {
             DebugLogger.Log($"PerformSelfInstall: Installing from {currentExe} to {targetExe}");
-            
+
             // Create install directory
             if (!Directory.Exists(installDir))
             {
                 Directory.CreateDirectory(installDir);
                 DebugLogger.Log($"PerformSelfInstall: Created directory {installDir}");
             }
-            
-            // Copy executable - this is the critical step
-            File.Copy(currentExe, targetExe, overwrite: true);
-            DebugLogger.Log($"PerformSelfInstall: Copied executable successfully");
+
+            if (IsSingleFilePublish())
+            {
+                // Single-file publish: one exe is all we need.
+                File.Copy(currentExe, targetExe, overwrite: true);
+                DebugLogger.Log("PerformSelfInstall: Copied single-file exe");
+            }
+            else
+            {
+                // Multi-file publish: copy the entire directory so runtime/app DLLs come along.
+                var sourceDir = Path.GetDirectoryName(currentExe) ?? "";
+                DebugLogger.Log($"PerformSelfInstall: Multi-file publish detected, copying directory {sourceDir}");
+                CopyDirectoryRecursive(sourceDir, installDir);
+                // Ensure the final exe lives at the canonical "DesktopHub.exe" name even if the
+                // source exe had a different name (e.g. DesktopHub.UI.exe during experimentation).
+                var copiedExe = Path.Combine(installDir, Path.GetFileName(currentExe));
+                if (!copiedExe.Equals(targetExe, StringComparison.OrdinalIgnoreCase) && File.Exists(copiedExe))
+                {
+                    File.Copy(copiedExe, targetExe, overwrite: true);
+                }
+                DebugLogger.Log("PerformSelfInstall: Copied multi-file publish directory");
+            }
         }
         catch (Exception ex)
         {
@@ -405,11 +443,32 @@ public partial class App : System.Windows.Application
         try
         {
             DebugLogger.Log($"PerformSelfInstall: Launching installed copy");
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            var child = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
             {
                 FileName = targetExe,
                 UseShellExecute = true
             });
+
+            // If the child exits within 3s it almost certainly failed to start (missing DLLs,
+            // runtime mismatch, etc.) — surface that instead of silently exiting this instance.
+            if (child != null && child.WaitForExit(3000))
+            {
+                var exitCode = child.ExitCode;
+                DebugLogger.Log($"PerformSelfInstall: Installed copy exited early with code {exitCode}");
+                var logHint = Path.Combine(installDir, "logs", "debug.log");
+                System.Windows.MessageBox.Show(
+                    $"DesktopHub installed to:\n{installDir}\n\n" +
+                    $"but the installed copy failed to start (exit code {exitCode}).\n\n" +
+                    $"Log (if Debug build): {logHint}\n\n" +
+                    "The current session will continue running from its original location.",
+                    "Installed Copy Failed to Start",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning
+                );
+                // Return false so OnStartup keeps running from the current location instead of
+                // calling Current.Shutdown(). Also skip the final "installed successfully" dialog.
+                return false;
+            }
         }
         catch (Exception ex)
         {
@@ -449,6 +508,43 @@ public partial class App : System.Windows.Application
         return launchSucceeded;
     }
     
+    private static void CopyDirectoryRecursive(string sourceDir, string targetDir)
+    {
+        if (!Directory.Exists(targetDir))
+        {
+            Directory.CreateDirectory(targetDir);
+        }
+
+        foreach (var dir in Directory.EnumerateDirectories(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(sourceDir, dir);
+            var destSub = Path.Combine(targetDir, relative);
+            if (!Directory.Exists(destSub))
+            {
+                Directory.CreateDirectory(destSub);
+            }
+        }
+
+        foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(sourceDir, file);
+            var destFile = Path.Combine(targetDir, relative);
+            try
+            {
+                File.Copy(file, destFile, overwrite: true);
+            }
+            catch (IOException ex)
+            {
+                // File in use (e.g. we're overwriting our own running install). Log and keep going.
+                DebugLogger.Log($"CopyDirectoryRecursive: Skipped '{relative}' ({ex.Message})");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                DebugLogger.Log($"CopyDirectoryRecursive: Access denied on '{relative}' ({ex.Message})");
+            }
+        }
+    }
+
     private void CreateStartMenuShortcut(string targetExe)
     {
         try

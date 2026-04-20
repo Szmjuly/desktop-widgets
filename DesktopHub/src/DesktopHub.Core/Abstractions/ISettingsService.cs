@@ -714,4 +714,30 @@ public interface ISettingsService
     /// Synchronous load — safe to call from the UI thread without deadlocking.
     /// </summary>
     void LoadSync();
+
+    // --- Scan Profiles (Phase 2 portability) ---
+
+    /// <summary>
+    /// Get the current list of scan profiles. A scan profile describes a root path to index
+    /// and, optionally, the project-folder naming pattern to apply. This replaces the hardcoded
+    /// Q/P/L/Archive drive model.
+    /// </summary>
+    List<ScanProfile> GetScanProfiles();
+
+    /// <summary>
+    /// Set the full list of scan profiles. Use this when applying a preset or when the user
+    /// reorders/edits profiles through the settings UI.
+    /// </summary>
+    void SetScanProfiles(List<ScanProfile> profiles);
+
+    /// <summary>
+    /// Whether the user has completed the first-run setup wizard. False on truly fresh installs.
+    /// </summary>
+    bool GetHasCompletedFirstRun();
+
+    /// <summary>
+    /// Set first-run completion flag. Called after the wizard completes or after a legacy
+    /// settings.json is migrated (existing users have effectively completed setup).
+    /// </summary>
+    void SetHasCompletedFirstRun(bool completed);
 }
