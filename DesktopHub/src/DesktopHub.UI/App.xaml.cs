@@ -96,7 +96,33 @@ public partial class App : System.Windows.Application
         themeSettings.LoadSync();
         _themeService = new ThemeService(themeSettings);
         _themeService.Initialize();
-        
+
+        // Phase 2: first-run preset picker. Shown once per install when ScanProfiles is empty
+        // AND the user has never completed setup. Legacy CES users are auto-migrated on load and
+        // marked complete, so they never see this.
+        if (!themeSettings.GetHasCompletedFirstRun() && themeSettings.GetScanProfiles().Count == 0)
+        {
+            try
+            {
+                var (preset, skipped) = WelcomeWizard.Show();
+                if (preset.HasValue)
+                {
+                    themeSettings.SetScanProfiles(ScanProfilePresets.ForPresetId(preset.Value));
+                    DebugLogger.Log($"WelcomeWizard: Applied preset {preset.Value} ({themeSettings.GetScanProfiles().Count} profile(s))");
+                }
+                else if (skipped)
+                {
+                    DebugLogger.Log("WelcomeWizard: User skipped — no profiles applied");
+                }
+                themeSettings.SetHasCompletedFirstRun(true);
+                themeSettings.SaveAsync().Wait(TimeSpan.FromSeconds(5));
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"WelcomeWizard: Error showing wizard: {ex.Message}");
+            }
+        }
+
         // Manually create SearchOverlay (it will hide itself after initialization)
         var mainWindow = new SearchOverlay();
         MainWindow = mainWindow;

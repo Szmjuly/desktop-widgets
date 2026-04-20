@@ -164,72 +164,89 @@ public partial class SearchOverlay
 
     private void PopulateDriveLocationFilter()
     {
-        bool qEnabled = _settings.GetQDriveEnabled();
-        bool pEnabled = _settings.GetPDriveEnabled();
-        bool lEnabled = _settings.GetLDriveEnabled();
-        bool archiveEnabled = _settings.GetArchiveDriveEnabled();
-        int enabledCount = (qEnabled ? 1 : 0) + (pEnabled ? 1 : 0) + (lEnabled ? 1 : 0) + (archiveEnabled ? 1 : 0);
+        _driveLocationFilterMap.Clear();
 
-        var qLabel = $"{_settings.GetDriveLabel("Q")} (Q:)";
-        var pLabel = $"{_settings.GetDriveLabel("P")} (P:)";
-        var lLabel = $"{_settings.GetDriveLabel("L")} (L:)";
-        var archiveLabel = $"{_settings.GetDriveLabel("Archive")} (Archive:)";
+        var enabledProfiles = _settings.GetScanProfiles()
+            .Where(p => p.Enabled)
+            .OrderBy(p => p.SortOrder)
+            .ToList();
 
         var locations = new List<string>();
 
-        if (enabledCount <= 1)
+        if (enabledProfiles.Count == 0)
         {
-            // Single drive — show only that drive name, no dropdown interaction
-            if (qEnabled) locations.Add(qLabel);
-            else if (pEnabled) locations.Add(pLabel);
-            else if (lEnabled) locations.Add(lLabel);
-            else if (archiveEnabled) locations.Add(archiveLabel);
-            else locations.Add("No Locations");
+            locations.Add("No Locations");
+            DriveLocationFilter.ItemsSource = locations;
+            DriveLocationFilter.SelectedIndex = 0;
+            DriveLocationFilter.IsHitTestVisible = false;
+            DriveLocationFilter.Cursor = System.Windows.Input.Cursors.Arrow;
+            return;
+        }
+
+        if (enabledProfiles.Count == 1)
+        {
+            var only = enabledProfiles[0];
+            var label = BuildFilterLabel(only);
+            locations.Add(label);
+            _driveLocationFilterMap[label] = ProfileDriveCode(only);
 
             DriveLocationFilter.ItemsSource = locations;
             DriveLocationFilter.SelectedIndex = 0;
             DriveLocationFilter.IsHitTestVisible = false;
             DriveLocationFilter.Cursor = System.Windows.Input.Cursors.Arrow;
+            return;
         }
-        else
-        {
-            // Multiple drives — show "All Locations" plus each drive
-            locations.Add("All Locations");
-            if (qEnabled) locations.Add(qLabel);
-            if (pEnabled) locations.Add(pLabel);
-            if (lEnabled) locations.Add(lLabel);
-            if (archiveEnabled) locations.Add(archiveLabel);
 
-            DriveLocationFilter.ItemsSource = locations;
-            DriveLocationFilter.SelectedIndex = 0;
-            DriveLocationFilter.IsHitTestVisible = true;
-            DriveLocationFilter.Cursor = System.Windows.Input.Cursors.Hand;
+        locations.Add("All Locations");
+        foreach (var profile in enabledProfiles)
+        {
+            var label = BuildFilterLabel(profile);
+            // Disambiguate if two profiles would share a label
+            var candidate = label;
+            var suffix = 2;
+            while (_driveLocationFilterMap.ContainsKey(candidate))
+            {
+                candidate = $"{label} #{suffix++}";
+            }
+            locations.Add(candidate);
+            _driveLocationFilterMap[candidate] = ProfileDriveCode(profile);
         }
+
+        DriveLocationFilter.ItemsSource = locations;
+        DriveLocationFilter.SelectedIndex = 0;
+        DriveLocationFilter.IsHitTestVisible = true;
+        DriveLocationFilter.Cursor = System.Windows.Input.Cursors.Hand;
     }
 
-    /// <summary>
-    /// Extract drive letter from filter label format "Label (X:)" → "X". Returns null if not parseable.
-    /// </summary>
-    private static string? ExtractDriveLetterFromFilterLabel(string label)
+    private static string BuildFilterLabel(ScanProfile profile)
     {
-        var openParen = label.LastIndexOf('(');
-        var closeParen = label.LastIndexOf(')');
-        if (openParen >= 0 && closeParen > openParen)
+        // For legacy drive-mapped profiles, show "<Name> (<Letter>:)" to match what CES users
+        // have always seen in the dropdown. For net-new profiles, just show the name.
+        if (!string.IsNullOrEmpty(profile.LegacyDriveCode))
         {
-            var inner = label[(openParen + 1)..closeParen].TrimEnd(':');
-            if (inner.Length > 0) return inner;
+            return $"{profile.Name} ({profile.LegacyDriveCode}:)";
         }
-        return null;
+        return string.IsNullOrWhiteSpace(profile.Name) ? "(Unnamed Profile)" : profile.Name;
     }
 
-    private bool IsDriveEnabled(string driveLocation) => driveLocation switch
+    private static string ProfileDriveCode(ScanProfile profile)
     {
-        "Q" => _settings.GetQDriveEnabled(),
-        "P" => _settings.GetPDriveEnabled(),
-        "L" => _settings.GetLDriveEnabled(),
-        "Archive" => _settings.GetArchiveDriveEnabled(),
-        _ => false
-    };
+        if (!string.IsNullOrEmpty(profile.LegacyDriveCode)) return profile.LegacyDriveCode;
+        return profile.Id.Length >= 8 ? profile.Id.Substring(0, 8) : profile.Id;
+    }
+
+    private HashSet<string> GetEnabledDriveCodes()
+    {
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var profile in _settings.GetScanProfiles())
+        {
+            if (!profile.Enabled) continue;
+            set.Add(ProfileDriveCode(profile));
+        }
+        return set;
+    }
+
+    private bool IsDriveEnabled(string driveLocation) => GetEnabledDriveCodes().Contains(driveLocation);
 
     private async Task BackgroundScanAsync()
     {
@@ -242,144 +259,56 @@ public partial class SearchOverlay
             if (lastScan == null || DateTime.UtcNow - lastScan.Value > scanInterval)
             {
                 var allScannedProjects = new List<Project>();
-                List<Project>? qScannedProjects = null;
-                List<Project>? pScannedProjects = null;
-                List<Project>? lScannedProjects = null;
-                List<Project>? archiveScannedProjects = null;
+                // Track per-profile scanned results so we can do stale-record cleanup scoped to
+                // each profile's drive-location code.
+                var perProfileResults = new Dictionary<string, List<Project>>(StringComparer.Ordinal);
 
-                var qLabel = _settings.GetDriveLabel("Q");
-                var pLabel = _settings.GetDriveLabel("P");
-                var lLabel = _settings.GetDriveLabel("L");
-                var archiveLabel = _settings.GetDriveLabel("Archive");
+                var profiles = _settings.GetScanProfiles()
+                    .Where(p => p.Enabled)
+                    .OrderBy(p => p.SortOrder)
+                    .ToList();
 
-                // Scan Q: drive - only if enabled
-                if (_settings.GetQDriveEnabled())
+                foreach (var profile in profiles)
                 {
-                    await Dispatcher.InvokeAsync(() => StatusText.Text = $"Scanning Q: drive ({qLabel})...");
-                    var qDrivePath = _settings.GetQDrivePath();
-                    if (Directory.Exists(qDrivePath))
+                    // FileBrowser profiles don't produce projects — their files are surfaced
+                    // through the path-search path instead. Skip them in the project scan loop.
+                    if (profile.Mode != ScanProfileMode.ProjectMode) continue;
+                    if (string.IsNullOrWhiteSpace(profile.RootPath))
                     {
-                        try
-                        {
-                            qScannedProjects = await _scanner.ScanProjectsAsync(qDrivePath, "Q", CancellationToken.None);
-                            allScannedProjects.AddRange(qScannedProjects);
-                            DebugLogger.Log($"Q: drive scan completed: {qScannedProjects.Count} projects found");
-                        }
-                        catch (Exception ex)
-                        {
-                            DebugLogger.Log($"Q: drive scan error: {ex.Message}");
-                        }
+                        DebugLogger.Log($"BackgroundScan: Skipping profile '{profile.Name}' (root path not configured)");
+                        continue;
                     }
-                }
-                else
-                {
-                    DebugLogger.Log("Q: drive scanning disabled - skipping");
-                }
-
-                // Scan P: drive - only if enabled
-                if (_settings.GetPDriveEnabled())
-                {
-                    await Dispatcher.InvokeAsync(() => StatusText.Text = $"Scanning P: drive ({pLabel})...");
-                    var pDrivePath = _settings.GetPDrivePath();
-                    if (Directory.Exists(pDrivePath))
+                    if (!Directory.Exists(profile.RootPath))
                     {
-                        try
-                        {
-                            pScannedProjects = await _scanner.ScanProjectsAsync(pDrivePath, "P", CancellationToken.None);
-                            allScannedProjects.AddRange(pScannedProjects);
-                            DebugLogger.Log($"P: drive scan completed: {pScannedProjects.Count} projects found");
-                        }
-                        catch (Exception ex)
-                        {
-                            DebugLogger.Log($"P: drive scan error: {ex.Message}");
-                        }
+                        DebugLogger.Log($"BackgroundScan: Skipping profile '{profile.Name}' (path does not exist: {profile.RootPath})");
+                        continue;
                     }
-                }
-                else
-                {
-                    DebugLogger.Log("P: drive scanning disabled - skipping");
-                }
 
-                // Scan L: drive (Legacy) - only if enabled
-                if (_settings.GetLDriveEnabled())
-                {
-                    await Dispatcher.InvokeAsync(() => StatusText.Text = $"Scanning L: drive ({lLabel})...");
-                    var lDrivePath = _settings.GetLDrivePath();
-                    if (Directory.Exists(lDrivePath))
+                    await Dispatcher.InvokeAsync(() => StatusText.Text = $"Scanning {profile.Name}...");
+                    try
                     {
-                        try
-                        {
-                            lScannedProjects = await _scanner.ScanProjectsAsync(lDrivePath, "L", CancellationToken.None);
-                            allScannedProjects.AddRange(lScannedProjects);
-                            DebugLogger.Log($"L: drive scan completed: {lScannedProjects.Count} projects found");
-                        }
-                        catch (Exception ex)
-                        {
-                            DebugLogger.Log($"L: drive scan error: {ex.Message}");
-                        }
+                        var scanned = await _scanner.ScanProjectsAsync(profile, CancellationToken.None);
+                        allScannedProjects.AddRange(scanned);
+                        perProfileResults[ProfileDriveCode(profile)] = scanned;
+                        DebugLogger.Log($"Profile '{profile.Name}' scan completed: {scanned.Count} projects found");
                     }
-                }
-                else
-                {
-                    DebugLogger.Log("L: drive scanning disabled - skipping");
-                }
-
-                // Scan Archive drive - only if enabled
-                if (_settings.GetArchiveDriveEnabled())
-                {
-                    var archiveDrivePath = _settings.GetArchiveDrivePath();
-                    if (!string.IsNullOrWhiteSpace(archiveDrivePath))
+                    catch (Exception ex)
                     {
-                        await Dispatcher.InvokeAsync(() => StatusText.Text = $"Scanning Archive drive ({archiveLabel})...");
-                        if (Directory.Exists(archiveDrivePath))
-                        {
-                            try
-                            {
-                                archiveScannedProjects = await _scanner.ScanProjectsAsync(archiveDrivePath, "Archive", CancellationToken.None);
-                                allScannedProjects.AddRange(archiveScannedProjects);
-                                DebugLogger.Log($"Archive drive scan completed: {archiveScannedProjects.Count} projects found");
-                            }
-                            catch (Exception ex)
-                            {
-                                DebugLogger.Log($"Archive drive scan error: {ex.Message}");
-                            }
-                        }
+                        DebugLogger.Log($"Profile '{profile.Name}' scan error: {ex.Message}");
                     }
-                }
-                else
-                {
-                    DebugLogger.Log("Archive drive scanning disabled - skipping");
                 }
 
                 // Update database with all scanned projects
                 await _dataStore.BatchUpsertProjectsAsync(allScannedProjects);
 
-                // Remove stale records for each successfully-scanned drive.
-                // When a project folder is renamed, the old path-based ID is left in the DB.
-                // This cleanup deletes any DB record whose ID (path hash) was not found in the scan.
-                if (qScannedProjects != null)
+                // Remove stale records for each successfully-scanned profile. When a project
+                // folder is renamed, the old path-based ID is left in the DB; this cleanup
+                // deletes any DB record whose ID (path hash) was not found in the scan.
+                foreach (var (driveCode, scanned) in perProfileResults)
                 {
-                    var qIds = qScannedProjects.Select(p => p.Id);
-                    await _dataStore.DeleteStaleProjectsForDriveAsync("Q", qIds);
-                    DebugLogger.Log($"Q: stale record cleanup complete");
-                }
-                if (pScannedProjects != null)
-                {
-                    var pIds = pScannedProjects.Select(p => p.Id);
-                    await _dataStore.DeleteStaleProjectsForDriveAsync("P", pIds);
-                    DebugLogger.Log($"P: stale record cleanup complete");
-                }
-                if (lScannedProjects != null)
-                {
-                    var lIds = lScannedProjects.Select(p => p.Id);
-                    await _dataStore.DeleteStaleProjectsForDriveAsync("L", lIds);
-                    DebugLogger.Log($"L: stale record cleanup complete");
-                }
-                if (archiveScannedProjects != null)
-                {
-                    var archiveIds = archiveScannedProjects.Select(p => p.Id);
-                    await _dataStore.DeleteStaleProjectsForDriveAsync("Archive", archiveIds);
-                    DebugLogger.Log($"Archive: stale record cleanup complete");
+                    var ids = scanned.Select(p => p.Id);
+                    await _dataStore.DeleteStaleProjectsForDriveAsync(driveCode, ids);
+                    DebugLogger.Log($"Profile '{driveCode}': stale record cleanup complete");
                 }
 
                 await _dataStore.UpdateLastScanTimeAsync(DateTime.UtcNow);
@@ -481,8 +410,9 @@ public partial class SearchOverlay
             var selectedYear = YearFilter.SelectedItem?.ToString();
             var selectedLocation = DriveLocationFilter.SelectedItem?.ToString();
 
-            // Start with all projects, but filter by enabled drives first
-            var projectsToSearch = _allProjects.Where(p => IsDriveEnabled(p.DriveLocation)).ToList();
+            var enabledCodes = GetEnabledDriveCodes();
+            // Start with all projects, but filter by enabled profiles first
+            var projectsToSearch = _allProjects.Where(p => enabledCodes.Contains(p.DriveLocation)).ToList();
 
             // Apply year filter
             if (selectedYear != "All Years" && !string.IsNullOrEmpty(selectedYear))
@@ -490,12 +420,12 @@ public partial class SearchOverlay
                 projectsToSearch = projectsToSearch.Where(p => p.Year == selectedYear).ToList();
             }
 
-            // Apply drive location filter — extract drive letter from label format "Label (X:)"
-            if (!string.IsNullOrEmpty(selectedLocation) && selectedLocation != "All Locations")
+            // Apply drive location filter via the label→code map
+            if (!string.IsNullOrEmpty(selectedLocation)
+                && selectedLocation != "All Locations"
+                && _driveLocationFilterMap.TryGetValue(selectedLocation, out var driveFilter))
             {
-                var driveFilter = ExtractDriveLetterFromFilterLabel(selectedLocation);
-                if (driveFilter != null)
-                    projectsToSearch = projectsToSearch.Where(p => p.DriveLocation == driveFilter).ToList();
+                projectsToSearch = projectsToSearch.Where(p => p.DriveLocation == driveFilter).ToList();
             }
 
             // Search filtered projects
