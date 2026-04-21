@@ -567,7 +567,53 @@ public class TrayIcon : IDisposable
 
                 var updateData = await response.Content.ReadAsByteArrayAsync();
                 DebugLogger.Log($"Update: Download complete, size: {updateData.Length} bytes");
-                
+
+                // Download detached signature alongside the EXE. The .sig must be
+                // produced by scripts/sign-update.ps1 (RSA-SHA256 over the EXE bytes)
+                // and uploaded next to the EXE at the same URL + ".sig".
+                var sigUrl = updateInfo.DownloadUrl + ".sig";
+                DebugLogger.Log($"Update: Fetching signature from {sigUrl}");
+                byte[]? signatureBytes = null;
+                try
+                {
+                    var sigResp = await client.GetAsync(sigUrl);
+                    if (sigResp.IsSuccessStatusCode)
+                    {
+                        signatureBytes = await sigResp.Content.ReadAsByteArrayAsync();
+                        DebugLogger.Log($"Update: Signature fetched, size: {signatureBytes.Length} bytes");
+                    }
+                    else
+                    {
+                        DebugLogger.Log($"Update: Signature fetch returned {(int)sigResp.StatusCode}");
+                    }
+                }
+                catch (Exception sigEx)
+                {
+                    DebugLogger.Log($"Update: Signature fetch threw: {sigEx.Message}");
+                }
+
+                if (signatureBytes == null)
+                {
+                    DebugLogger.Log("Update: ABORTING — no detached signature available. Updates are refused without a signed .sig file.");
+                    if (!silent) ShowCustomToast("DesktopHub", "Update refused: signature missing");
+                    return;
+                }
+
+                var verdict = Services.UpdateVerifier.Verify(updateData, signatureBytes);
+                if (verdict != Services.VerifyResult.Ok)
+                {
+                    DebugLogger.Log($"Update: ABORTING — signature verification result: {verdict}");
+                    if (!silent)
+                    {
+                        var msg = verdict == Services.VerifyResult.NoKeysConfigured
+                            ? "Update refused: no release keys embedded in this build"
+                            : "Update refused: signature verification failed";
+                        ShowCustomToast("DesktopHub", msg);
+                    }
+                    return;
+                }
+                DebugLogger.Log("Update: Signature verified OK");
+
                 await System.IO.File.WriteAllBytesAsync(tempPath, updateData);
                 DebugLogger.Log($"Update: Saved to {tempPath}");
             }

@@ -14,6 +14,14 @@ publish/
 # Secrets folder - service accounts, API keys, etc. (DO NOT COMMIT)
 secrets/
 
+# Update-signing private keys (DO NOT COMMIT). Public halves live in
+# assets/update-keys/ and are embedded into the client.
+.signing/*
+!.signing/README.md
+!.signing/.gitkeep
+*.private.pem
+desktophub-updates-private.pem
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/

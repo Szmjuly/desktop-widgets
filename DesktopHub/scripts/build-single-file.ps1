@@ -1,4 +1,4 @@
-# Build DesktopHub as a single-file executable
+﻿# Build DesktopHub as a single-file executable
 Write-Host "Building DesktopHub as single-file executable..." -ForegroundColor Green
 
 $projectRoot = Split-Path $PSScriptRoot -Parent
@@ -20,7 +20,24 @@ if ($LASTEXITCODE -eq 0) {
         $fileSize = (Get-Item $exePath).Length / 1MB
         Write-Host "✅ Build successful!" -ForegroundColor Green
         Write-Host "📁 Output: $exePath" -ForegroundColor Cyan
-        Write-Host "📊 Size: {0:F2} MB" -f $fileSize -ForegroundColor Cyan
+        Write-Host ("📊 Size: {0:F2} MB" -f $fileSize) -ForegroundColor Cyan
+
+        # Sign the release so the client's UpdateVerifier will accept it.
+        # Skipped silently if no signing key is configured (dev builds),
+        # but release uploads MUST have the .sig or clients will refuse.
+        if ($env:DH_SIGNING_KEY -and (Test-Path $env:DH_SIGNING_KEY)) {
+            Write-Host ""
+            Write-Host "Signing release artifact..." -ForegroundColor Yellow
+            & (Join-Path $PSScriptRoot "sign-update.ps1") -ExePath $exePath -PrivateKeyPath $env:DH_SIGNING_KEY
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "❌ Signing failed." -ForegroundColor Red
+                exit 1
+            }
+        } else {
+            Write-Warning "DH_SIGNING_KEY not set — build is NOT signed. Do not upload this EXE as a release."
+            Write-Warning "See assets/update-keys/README.md for signing setup."
+        }
+
         Write-Host ""
         Write-Host "You can now run the executable directly:" -ForegroundColor White
         Write-Host "  $exePath" -ForegroundColor Gray
