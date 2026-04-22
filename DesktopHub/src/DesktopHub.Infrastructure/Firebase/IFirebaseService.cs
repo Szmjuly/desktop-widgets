@@ -6,7 +6,30 @@ public interface IFirebaseService
 {
     Task InitializeAsync();
     bool IsInitialized { get; }
-    
+
+    /// <summary>
+    /// The auth manager, exposed so callers can invoke admin-tier Cloud
+    /// Functions with the current ID token as the Bearer credential.
+    /// </summary>
+    FirebaseAuth Auth { get; }
+
+    /// <summary>Current caller's privilege tier: "user" | "dev" | "admin".</summary>
+    string CurrentTier { get; }
+
+    /// <summary>
+    /// Whether the user has consented to telemetry. The five telemetry methods
+    /// (LogAppLaunch, LogAppClose, LogUsageEvent, LogError, SyncDailyMetrics)
+    /// short-circuit when this is false. Functional paths (heartbeat, license,
+    /// updates, roles) are not gated.
+    /// </summary>
+    bool IsTelemetryConsentGiven { get; }
+
+    /// <summary>
+    /// Apply the user's telemetry preference. Called on startup from App.xaml.cs
+    /// after reading SettingsService, and any time the Settings toggle changes.
+    /// </summary>
+    void SetTelemetryConsent(bool consent);
+
     string GetDeviceId();
     Task RegisterDeviceAsync();
     Task UpdateHeartbeatAsync();

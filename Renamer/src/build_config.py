@@ -1,25 +1,93 @@
-"""Build configuration helper - checks if licensing should be included."""
+"""Build-time and runtime configuration flags for Spec Header Updater.
+
+Two levels of control:
+
+1. BUILD-TIME, via `build_config.json` at the repo root.
+   - `network_features_enabled` (bool, default True): master switch. When False,
+     no Firebase, no license check, no telemetry, no auto-update. Also tells
+     `build_exe.py` to exclude firebase_admin / pyrebase / google.auth from the
+     bundled executable entirely, so the shipped .exe literally cannot reach
+     outside the network.
+   - `include_licensing` (bool, default True): legacy flag that only gates the
+     SubscriptionManager. Superseded by `network_features_enabled`.
+
+2. RUNTIME, via the `SPEC_UPDATER_OFFLINE` environment variable.
+   - Set to any truthy value ("1", "true", "yes", "on") to force offline mode
+     at runtime regardless of build flags. Lets IT test a networked build in
+     air-gapped mode without a rebuild.
+
+Consumers import the module-level constants:
+
+    from src.build_config import NETWORK_FEATURES_ENABLED, INCLUDE_LICENSING
+
+Both are resolved once at import time; there is no live reload.
+"""
+from __future__ import annotations
+
 import json
+import os
 from pathlib import Path
 
+_CONFIG_FILE = Path(__file__).parent.parent / "build_config.json"
 
-def should_include_licensing():
-    """Check if licensing code should be included based on build config."""
-    build_config_file = Path(__file__).parent.parent / 'build_config.json'
-    
-    # Default to True if config doesn't exist (backward compatibility)
-    if not build_config_file.exists():
-        return True
-    
+
+def _load_config() -> dict:
+    if not _CONFIG_FILE.exists():
+        return {}
     try:
-        with open(build_config_file, 'r') as f:
-            config = json.load(f)
-            return config.get('include_licensing', True)
+        with open(_CONFIG_FILE, "r") as f:
+            return json.load(f)
     except (json.JSONDecodeError, IOError):
-        # On error, default to True (include licensing)
-        return True
+        return {}
 
 
-# Export a constant for easy checking
-INCLUDE_LICENSING = should_include_licensing()
+def _runtime_override_offline() -> bool:
+    """Read SPEC_UPDATER_OFFLINE. Accepts 1/true/yes/on (case-insensitive)."""
+    raw = os.environ.get("SPEC_UPDATER_OFFLINE", "").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
 
+
+def _resolve_network_features_enabled(config: dict) -> bool:
+    """Master switch: anything network-bound must consult this.
+
+    Precedence:
+      1. Runtime SPEC_UPDATER_OFFLINE=1  -> False (offline)  [highest]
+      2. build_config.json network_features_enabled -> as-given
+      3. No config file present -> True (networked, backward-compat)
+    """
+    if _runtime_override_offline():
+        return False
+    # Default True for backward compat when the field is absent
+    return bool(config.get("network_features_enabled", True))
+
+
+def _resolve_include_licensing(config: dict, network_enabled: bool) -> bool:
+    """Legacy per-feature flag, forced off when the master switch is off."""
+    if not network_enabled:
+        return False
+    return bool(config.get("include_licensing", True))
+
+
+_CONFIG = _load_config()
+NETWORK_FEATURES_ENABLED: bool = _resolve_network_features_enabled(_CONFIG)
+INCLUDE_LICENSING: bool = _resolve_include_licensing(_CONFIG, NETWORK_FEATURES_ENABLED)
+
+# Convenience for callers that want the reverse phrasing.
+OFFLINE_MODE: bool = not NETWORK_FEATURES_ENABLED
+
+
+def why_offline() -> str | None:
+    """Human-readable reason we are in offline mode, or None if we aren't.
+
+    Used by the UI status pill to tell the user WHY they see 'Offline Build'.
+    """
+    if NETWORK_FEATURES_ENABLED:
+        return None
+    if _runtime_override_offline():
+        return "SPEC_UPDATER_OFFLINE environment variable is set"
+    return "Offline build (network features disabled at compile time)"
+
+
+# Back-compat: older code imported `should_include_licensing` as a function.
+def should_include_licensing() -> bool:
+    return INCLUDE_LICENSING

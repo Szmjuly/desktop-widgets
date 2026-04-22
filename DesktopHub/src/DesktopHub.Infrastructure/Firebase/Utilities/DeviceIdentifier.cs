@@ -13,6 +13,29 @@ public static class DeviceIdentifier
         "DesktopHub",
         "device_id.txt"
     );
+
+    // Salt for hashing any PII value that leaves the machine. Bumping the "v"
+    // intentionally invalidates previously hashed values on the server side if
+    // we ever need to break linkage (e.g. a privacy incident).
+    // This salt does NOT need to be secret -- hashed values are still
+    // deterministic per-device, which is required for duplicate detection.
+    private const string PiiHashSalt = "DesktopHub|pii|v1|2026";
+
+    /// <summary>
+    /// Returns a short deterministic hash of a PII value. Uses a salt + SHA256
+    /// and truncates to 16 hex chars (64 bits of entropy). The same raw value
+    /// always hashes the same way, so dev tools can still group by "this
+    /// machine's MAC" without ever handling the raw MAC address.
+    /// </summary>
+    public static string HashPiiValue(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw) || string.Equals(raw, "unknown", StringComparison.OrdinalIgnoreCase))
+            return "unknown";
+
+        var input = PiiHashSalt + "|" + raw.Trim();
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(input));
+        return Convert.ToHexString(hash)[..16].ToLowerInvariant();
+    }
     
     public static string GetDeviceId()
     {
@@ -25,8 +48,11 @@ public static class DeviceIdentifier
             }
         }
 
-        // Derive a deterministic ID from hardware so reinstalls produce the same ID
-        var mac = GetMacAddress() ?? "unknown";
+        // Derive a deterministic ID from hardware so reinstalls produce the same ID.
+        // This uses the RAW MAC because changing the derivation here would break
+        // backward compat for every device that already has a persisted ID. The
+        // raw MAC never leaves the machine -- only the resulting GUID does.
+        var mac = GetMacAddressRaw() ?? "unknown";
         var stable = $"{Environment.MachineName}|{mac}|{Environment.UserName}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(stable));
         var newDeviceId = new Guid(hash[..16]).ToString();
@@ -45,9 +71,13 @@ public static class DeviceIdentifier
     public static DeviceInfo GetDeviceInfo()
     {
         var deviceId = GetDeviceId();
-        var macAddress = GetMacAddress();
+        // IMPORTANT: only the HASHED MAC leaves this machine. Raw MAC stays
+        // local (used by GetDeviceId for deterministic hardware-based IDs).
+        // The hash is deterministic so Dev Panel "group duplicates by MAC"
+        // still works; the network just never sees the actual hardware addr.
+        var macHash = HashPiiValue(GetMacAddressRaw());
         var deviceName = GetDeviceName();
-        
+
         return new DeviceInfo
         {
             DeviceId = deviceId,
@@ -55,7 +85,7 @@ public static class DeviceIdentifier
             Platform = Environment.OSVersion.Platform.ToString(),
             PlatformVersion = Environment.OSVersion.Version.ToString(),
             MachineName = Environment.MachineName,
-            MacAddress = macAddress,
+            MacAddress = macHash,
             ProcessorArchitecture = Environment.Is64BitOperatingSystem ? "x64" : "x86"
         };
     }
@@ -69,7 +99,10 @@ public static class DeviceIdentifier
             components.Add(licenseKey);
         }
         
-        var macAddress = GetMacAddress();
+        // GetUserIdentifier is itself only used inside a SHA256, so it's fine
+        // to consume the raw MAC here -- the final identifier is a hash and
+        // never leaks the raw value.
+        var macAddress = GetMacAddressRaw();
         if (!string.IsNullOrEmpty(macAddress) && macAddress != "unknown")
         {
             components.Add(macAddress);
@@ -81,7 +114,14 @@ public static class DeviceIdentifier
         return Convert.ToHexString(hash)[..16];
     }
     
-    private static string? GetMacAddress()
+    /// <summary>
+    /// INTERNAL ONLY. Returns the raw MAC address of the first operational
+    /// NIC. This value must never leave the local machine -- it's used only
+    /// to derive deterministic hashes (device_id, PII hashes). All consumers
+    /// that need a stable machine identifier should use the hashed form via
+    /// <see cref="GetDeviceInfo"/>.
+    /// </summary>
+    private static string? GetMacAddressRaw()
     {
         try
         {

@@ -6,7 +6,7 @@
         AllowsTransparency="False"
         Background="Transparent"
         ResizeMode="NoResize"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="Manual"
         Width="480"
         Height="320"
         Topmost="True"

@@ -90,6 +90,11 @@
                                      GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
                                      Foreground="{DynamicResource TextPrimaryBrush}" Cursor="Hand"
                                      Style="{StaticResource SettingsNavButton}"/>
+
+                        <RadioButton x:Name="PrivacyMenuButton" Content="🛡 Privacy" Checked="MenuButton_Checked"
+                                     GroupName="SettingsMenu" Margin="0,0,0,8" Padding="12,10" FontSize="14" FontWeight="Medium"
+                                     Foreground="{DynamicResource TextPrimaryBrush}" Cursor="Hand"
+                                     Style="{StaticResource SettingsNavButton}"/>
                     </StackPanel>
                     </ScrollViewer>
                 </Border>
@@ -1084,7 +1089,122 @@
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
-                    
+
+                    <!-- Privacy Panel -->
+                    <Border x:Name="PrivacyPanel" Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource ThinScrollViewer}">
+                            <StackPanel>
+                                <!-- Usage Telemetry -->
+                                <Border Background="{DynamicResource CardBrush}"
+                                        BorderBrush="{DynamicResource CardBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="16"
+                                        Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="Usage Telemetry"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextBrush}"
+                                                   Margin="0,0,0,4"/>
+                                        <TextBlock Text="Control what DesktopHub sends back to the developers."
+                                                   FontSize="12"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   Margin="0,0,0,16"/>
+
+                                        <!-- Toggle -->
+                                        <Grid Margin="0,0,0,16">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Share anonymous usage data"
+                                                           FontSize="13" FontWeight="Medium"
+                                                           Foreground="{DynamicResource TextBrush}"
+                                                           Margin="0,0,0,2"/>
+                                                <TextBlock Text="Turn on to help us find bugs and prioritize features. Turn off to opt out entirely."
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="TelemetryConsentToggle"
+                                                          Style="{StaticResource ToggleSwitch}"
+                                                          Grid.Column="1" Width="50" Height="28"
+                                                          VerticalAlignment="Center"
+                                                          IsChecked="False"
+                                                          Checked="TelemetryConsentToggle_Changed"
+                                                          Unchecked="TelemetryConsentToggle_Changed"
+                                                          Cursor="Hand"/>
+                                        </Grid>
+
+                                        <!-- What's collected -->
+                                        <Border Background="{DynamicResource FaintOverlayBrush}"
+                                                CornerRadius="6"
+                                                Padding="12"
+                                                Margin="0,0,0,10">
+                                            <StackPanel>
+                                                <TextBlock Text="When enabled, we collect:"
+                                                           FontSize="11" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           Margin="0,0,0,4"/>
+                                                <TextBlock Text="• Feature usage counts (searches, hotkey presses, widget opens)"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextBrush}"
+                                                           TextWrapping="Wrap"
+                                                           Margin="0,0,0,2"/>
+                                                <TextBlock Text="• Anonymized performance timings and error stack traces"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextBrush}"
+                                                           TextWrapping="Wrap"
+                                                           Margin="0,0,0,2"/>
+                                                <TextBlock Text="• App version, OS version, hashed hardware identifier"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextBrush}"
+                                                           TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- What's NOT collected -->
+                                        <Border Background="{DynamicResource FaintOverlayBrush}"
+                                                CornerRadius="6"
+                                                Padding="12"
+                                                Margin="0,0,0,10">
+                                            <StackPanel>
+                                                <TextBlock Text="We never collect:"
+                                                           FontSize="11" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                                           Margin="0,0,0,4"/>
+                                                <TextBlock Text="• The contents of your searches, files, or documents"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextBrush}"
+                                                           TextWrapping="Wrap"
+                                                           Margin="0,0,0,2"/>
+                                                <TextBlock Text="• Keystrokes, clipboard contents, or screen contents"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextBrush}"
+                                                           TextWrapping="Wrap"
+                                                           Margin="0,0,0,2"/>
+                                                <TextBlock Text="• Raw MAC address, IP, or any identifiable personal data"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextBrush}"
+                                                           TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <TextBlock Text="Heartbeat, license validation, and update checks remain on regardless — these are required for the app to work. You can reset DesktopHub entirely with DesktopHubPurge.exe if you want to wipe local state."
+                                                   FontSize="10"
+                                                   Foreground="{DynamicResource TextTertiaryBrush}"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+
                     <!-- Quick Tasks Panel -->
                     <Border x:Name="QuickTasksPanel" Background="{DynamicResource SurfaceBrush}"
                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"

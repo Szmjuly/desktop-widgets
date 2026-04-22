@@ -30,10 +30,21 @@ from docx import Document
 from docx.shared import Pt
 import psutil
 
-# Local imports - Conditional licensing
-from src.build_config import INCLUDE_LICENSING
+# Local imports - Conditional licensing + offline master switch.
+#
+# NETWORK_FEATURES_ENABLED is the master: when False, ALL outbound features
+# (licensing, telemetry, any future updater) are disabled. INCLUDE_LICENSING
+# is the legacy per-feature gate and is forced to False whenever the master
+# switch is off. SubscriptionManager is only imported when licensing actually
+# ships with this build.
+from src.build_config import (
+    INCLUDE_LICENSING,
+    NETWORK_FEATURES_ENABLED,
+    OFFLINE_MODE,
+    why_offline,
+)
 
-if INCLUDE_LICENSING:
+if NETWORK_FEATURES_ENABLED and INCLUDE_LICENSING:
     from src.subscription import SubscriptionManager
 
 # ============================================================================
@@ -680,7 +691,13 @@ class MainWindowV2(QWidget):
     
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Spec Header Date & Phase Updater")
+        # Title reflects build mode so IT and end users can see at a glance
+        # whether this instance is a regular (networked) build or an offline
+        # (no-Firebase, no-telemetry, no-updater) variant.
+        title = "Spec Header Date & Phase Updater"
+        if OFFLINE_MODE:
+            title += "  —  Offline Build"
+        self.setWindowTitle(title)
         self.setMinimumSize(self.BASE_WIDTH, self.MIN_HEIGHT)
         self.resize(self.BASE_WIDTH, self.BASE_HEIGHT)
         

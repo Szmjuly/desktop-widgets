@@ -486,6 +486,31 @@ public partial class SettingsWindow
         }
     }
 
+    private void TelemetryConsentToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || !IsLoaded) return;
+        var enabled = TelemetryConsentToggle.IsChecked == true;
+        _settings.SetTelemetryConsentGiven(enabled);
+        // User has explicitly answered via Settings -- keep the Asked flag true
+        // so the first-run dialog never pops again.
+        _settings.SetTelemetryConsentAsked(true);
+        _ = _settings.SaveAsync();
+
+        // Apply the change live to the running FirebaseService so the effect is
+        // instant -- no restart needed. FirebaseLifecycleManager owns the
+        // service; expose it via a lightweight accessor if needed.
+        try
+        {
+            if (System.Windows.Application.Current is App app)
+            {
+                app.ApplyTelemetryConsent(enabled);
+            }
+        }
+        catch { /* non-fatal -- the next launch will pick it up */ }
+
+        StatusText.Text = enabled ? "Usage telemetry enabled" : "Usage telemetry disabled";
+    }
+
     private void LoadUpdateFrequencyCombo()
     {
         var currentMinutes = _settings.GetUpdateCheckFrequencyMinutes();

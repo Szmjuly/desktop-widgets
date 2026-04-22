@@ -18,20 +18,41 @@ from docx import Document
 from docx.shared import Pt
 import psutil
 
-# Local imports - Conditional licensing
-from src.build_config import INCLUDE_LICENSING
+# Local imports - Conditional licensing and network features.
+#
+# Two gates at work here:
+#
+#   NETWORK_FEATURES_ENABLED  - master switch. When False, the app makes
+#                               zero outbound network calls: no Firebase,
+#                               no license check, no telemetry, no updater.
+#                               This is the "IT-approved offline build".
+#
+#   INCLUDE_LICENSING         - legacy per-feature gate. Forced False when
+#                               NETWORK_FEATURES_ENABLED is False.
+#
+# When the master switch is off, we substitute a permissive dummy for
+# SubscriptionManager so the rest of main.py can keep using the same
+# API without code-path forks everywhere.
+from src.build_config import INCLUDE_LICENSING, NETWORK_FEATURES_ENABLED, OFFLINE_MODE, why_offline
 
-if INCLUDE_LICENSING:
+if NETWORK_FEATURES_ENABLED and INCLUDE_LICENSING:
     from src.subscription import SubscriptionManager
 else:
-    # Dummy class when licensing is disabled
+    # Dummy SubscriptionManager used in two cases:
+    #  1. `include_licensing=false` in build_config.json (legacy flag)
+    #  2. `network_features_enabled=false` OR SPEC_UPDATER_OFFLINE=1 runtime override
+    # In either case the user gets full access with no Firebase calls.
     class SubscriptionManager:
         def __init__(self, *args, **kwargs):
             pass
         def is_subscribed(self):
             return True  # Always return True when licensing disabled
         def get_subscription_info(self):
-            return {'status': 'not_included', 'message': 'Licensing not included in this build'}
+            reason = why_offline()
+            return {
+                'status': 'offline' if OFFLINE_MODE else 'not_included',
+                'message': reason or 'Licensing not included in this build',
+            }
         def validate_license_key(self, key):
             return True
         def check_document_limit(self):
@@ -1904,7 +1925,13 @@ class SubscriptionStatusWidget(QFrame):
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("📝 Spec Header Date & Phase Updater")
+        # Append "(Offline Build)" to the title when the master switch is off
+        # so the user always sees which variant they're running -- and, when
+        # it matters, can explain why features that phone home are absent.
+        title = "📝 Spec Header Date & Phase Updater"
+        if OFFLINE_MODE:
+            title += "  —  Offline Build"
+        self.setWindowTitle(title)
         self.resize(900, 500)
         
         # Load app configuration

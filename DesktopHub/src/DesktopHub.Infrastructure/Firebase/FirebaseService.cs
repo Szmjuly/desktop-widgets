@@ -6,8 +6,6 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.IO;
-using FirebaseAdmin;
-using Google.Apis.Auth.OAuth2;
 using Newtonsoft.Json;
 using DesktopHub.Infrastructure.Firebase.Models;
 using DesktopHub.Infrastructure.Firebase.Utilities;
@@ -21,7 +19,7 @@ public class FirebaseService : IFirebaseService
     private const string DefaultDatabaseUrl = "https://licenses-ff136-default-rtdb.firebaseio.com";
     private readonly string _appDataDir;
     private readonly string _configFilePath;
-    private FirebaseApp? _firebaseApp;
+    private readonly FirebaseAuth _auth = new();
     private HttpClient? _httpClient;
     private string? _databaseUrl;
     private DeviceInfo? _deviceInfo;
@@ -30,6 +28,33 @@ public class FirebaseService : IFirebaseService
     private bool _isInitialized;
     private bool _forcedUpdateProcessing;
     private readonly string _username = Environment.UserName.ToLowerInvariant();
+
+    /// <summary>
+    /// Exposes the auth object so the developer panel can invoke admin-tier
+    /// callable Cloud Functions (pushForceUpdate, clearForceUpdate) with the
+    /// current ID token as the Bearer credential.
+    /// </summary>
+    public FirebaseAuth Auth => _auth;
+
+    /// <summary>Current user's privilege tier: "user" | "dev" | "admin".</summary>
+    public string CurrentTier => _auth.Tier ?? "user";
+
+    // Telemetry consent gate. Set to true on startup by App.xaml.cs after
+    // reading SettingsService, and flipped any time the user toggles the
+    // Privacy switch in Settings. When false, the five methods at the bottom
+    // of this file (LogAppLaunch, LogAppClose, LogUsageEvent, LogError,
+    // SyncDailyMetrics) short-circuit without writing to Firebase. Heartbeat,
+    // license, updates, and role checks are NOT gated -- those are functional,
+    // not telemetry.
+    private volatile bool _telemetryConsentGiven;
+
+    public void SetTelemetryConsent(bool consent)
+    {
+        _telemetryConsentGiven = consent;
+        InfraLogger.Log($"Firebase: telemetry consent set to {consent}");
+    }
+
+    public bool IsTelemetryConsentGiven => _telemetryConsentGiven;
 
     public event EventHandler<Models.ForcedUpdateInfo>? ForcedUpdateDetected;
 
@@ -57,47 +82,33 @@ public class FirebaseService : IFirebaseService
         try
         {
             InfraLogger.Log("Firebase: Starting initialization...");
-            
-            InfraLogger.Log("Firebase: Loading credentials...");
-            var credential = await GetCredentialAsync();
-            if (credential == null)
-            {
-                InfraLogger.Log("Firebase: No credentials found, running in offline mode");
-                _isInitialized = false;
-                return;
-            }
 
-            InfraLogger.Log("Firebase: Getting database URL...");
-            var databaseUrl = await GetDatabaseUrlAsync();
-            if (string.IsNullOrEmpty(databaseUrl))
-            {
-                InfraLogger.Log("Firebase: No database URL found");
-                _isInitialized = false;
-                return;
-            }
-
-            InfraLogger.Log("Firebase: Creating Firebase app instance...");
-            if (FirebaseApp.DefaultInstance == null)
-            {
-                _firebaseApp = FirebaseApp.Create(new AppOptions
-                {
-                    Credential = credential,
-                    ServiceAccountId = "firebase-adminsdk-ftaw@licenses-ff136.iam.gserviceaccount.com"
-                });
-            }
-            else
-            {
-                _firebaseApp = FirebaseApp.DefaultInstance;
-            }
-
-            InfraLogger.Log("Firebase: Setting up HTTP client and device info...");
-            _databaseUrl = databaseUrl;
-            _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
             _deviceInfo = DeviceIdentifier.GetDeviceInfo();
+            _databaseUrl = DefaultDatabaseUrl;
+            _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
             _sessionStartTime = DateTime.UtcNow;
-            _isInitialized = true;
 
-            InfraLogger.Log($"Firebase: Initialized successfully for device {_deviceInfo.DeviceId}");
+            // Read or auto-provision a license key locally so the first-run
+            // handshake with the Cloud Function has something to send.
+            var licenseKey = await GetLicenseKeyAsync();
+            if (string.IsNullOrWhiteSpace(licenseKey))
+            {
+                licenseKey = GenerateFreeLicenseKey();
+                await SaveLicenseKeyAsync(licenseKey);
+                InfraLogger.Log($"Firebase: Generated FREE license locally: {licenseKey}");
+            }
+
+            InfraLogger.Log($"Firebase: Signing in (device={_deviceInfo.DeviceId}, user={_username})...");
+            var signedIn = await _auth.SignInAsync(licenseKey, _username, _deviceInfo.DeviceId);
+            if (!signedIn)
+            {
+                InfraLogger.Log("Firebase: SignIn failed -- running in offline mode");
+                _isInitialized = false;
+                return;
+            }
+
+            _isInitialized = true;
+            InfraLogger.Log($"Firebase: Initialized; tier={_auth.Tier} device={_deviceInfo.DeviceId}");
         }
         catch (Exception ex)
         {
@@ -105,146 +116,6 @@ public class FirebaseService : IFirebaseService
             InfraLogger.Log($"Firebase: Stack trace: {ex.StackTrace}");
             _isInitialized = false;
         }
-    }
-
-    private async Task<GoogleCredential?> GetCredentialAsync()
-    {
-        if (File.Exists(_configFilePath))
-        {
-            try
-            {
-                var json = await File.ReadAllTextAsync(_configFilePath);
-                return GoogleCredential.FromJson(json);
-            }
-            catch (Exception ex)
-            {
-                InfraLogger.Log($"Firebase: Failed to load config from file: {ex.Message}");
-            }
-        }
-
-        var embeddedConfig = GetEmbeddedServiceAccount();
-        if (embeddedConfig != null)
-        {
-            try
-            {
-                return GoogleCredential.FromJson(embeddedConfig);
-            }
-            catch (Exception ex)
-            {
-                InfraLogger.Log($"Firebase: Failed to load embedded config: {ex.Message}");
-            }
-        }
-
-        return null;
-    }
-
-    private async Task<string?> GetDatabaseUrlAsync()
-    {
-        const string defaultUrl = "https://licenses-ff136-default-rtdb.firebaseio.com";
-        
-        if (File.Exists(_configFilePath))
-        {
-            try
-            {
-                var json = await File.ReadAllTextAsync(_configFilePath);
-                var config = JsonConvert.DeserializeObject<Dictionary<string, object>>(json);
-                if (config?.ContainsKey("databaseURL") == true)
-                {
-                    return config["databaseURL"]?.ToString();
-                }
-            }
-            catch
-            {
-                // Ignore
-            }
-        }
-
-        return defaultUrl;
-    }
-
-    private string? GetEmbeddedServiceAccount()
-    {
-        try
-        {
-            // First try to read from embedded resource (for Release single-file builds)
-            InfraLogger.Log("Firebase: Checking for embedded resource credentials...");
-            var assembly = System.Reflection.Assembly.GetEntryAssembly();
-            if (assembly != null)
-            {
-                var resourceName = "firebase-license.json";
-                var resourceNames = assembly.GetManifestResourceNames();
-                var matchingResource = resourceNames.FirstOrDefault(r => r.EndsWith(resourceName));
-                
-                if (matchingResource != null)
-                {
-                    InfraLogger.Log($"Firebase: Found embedded resource: {matchingResource}");
-                    using (var stream = assembly.GetManifestResourceStream(matchingResource))
-                    {
-                        if (stream != null)
-                        {
-                            using (var reader = new StreamReader(stream))
-                            {
-                                var content = reader.ReadToEnd();
-                                InfraLogger.Log("Firebase: Successfully read credentials from embedded resource");
-                                return content;
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    InfraLogger.Log($"Firebase: No embedded resource found. Available resources: {string.Join(", ", resourceNames)}");
-                }
-            }
-            
-            // Fallback: Check the application directory (for non-single-file builds)
-            var appDir = AppDomain.CurrentDomain.BaseDirectory;
-            var appDirLicense = Path.Combine(appDir, "firebase-license.json");
-            
-            InfraLogger.Log($"Firebase: Checking for credentials at: {appDirLicense}");
-            if (File.Exists(appDirLicense))
-            {
-                InfraLogger.Log("Firebase: Found credentials in application directory");
-                return File.ReadAllText(appDirLicense);
-            }
-            
-            // Fallback: Look for firebase-license.json in the secrets/ folder (for Debug builds)
-            var solutionRoot = FindSolutionRoot(appDir);
-            if (solutionRoot != null)
-            {
-                var licenseFile = Path.Combine(solutionRoot, "secrets", "firebase-license.json");
-                InfraLogger.Log($"Firebase: Checking for credentials at: {licenseFile}");
-                if (File.Exists(licenseFile))
-                {
-                    InfraLogger.Log("Firebase: Found credentials in secrets folder");
-                    return File.ReadAllText(licenseFile);
-                }
-            }
-            
-            InfraLogger.Log("Firebase: No credentials file found in any location");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            InfraLogger.Log($"Firebase: Failed to read embedded service account: {ex.Message}");
-            InfraLogger.Log($"Firebase: Stack trace: {ex.StackTrace}");
-            return null;
-        }
-    }
-
-    private string? FindSolutionRoot(string startPath)
-    {
-        var dir = new DirectoryInfo(startPath);
-        while (dir != null)
-        {
-            // Look for .sln file or specific marker
-            if (dir.GetFiles("*.sln").Any() || dir.GetFiles("firebase-license.json").Any())
-            {
-                return dir.FullName;
-            }
-            dir = dir.Parent;
-        }
-        return null;
     }
 
     public string GetDeviceId()
@@ -484,6 +355,7 @@ public class FirebaseService : IFirebaseService
 
     public async Task LogAppLaunchAsync(string appVersion)
     {
+        if (!_telemetryConsentGiven) return;
         if (!_isInitialized || _httpClient == null || _deviceInfo == null)
         {
             return;
@@ -514,6 +386,7 @@ public class FirebaseService : IFirebaseService
 
     public async Task LogAppCloseAsync(TimeSpan sessionDuration)
     {
+        if (!_telemetryConsentGiven) return;
         if (!_isInitialized || _httpClient == null || _deviceInfo == null)
         {
             return;
@@ -553,6 +426,7 @@ public class FirebaseService : IFirebaseService
 
     public async Task LogUsageEventAsync(string eventType, Dictionary<string, object>? data = null)
     {
+        if (!_telemetryConsentGiven) return;
         if (!_isInitialized || _httpClient == null || _deviceInfo == null)
         {
             return;
@@ -586,6 +460,7 @@ public class FirebaseService : IFirebaseService
 
     public async Task LogErrorAsync(Exception ex, string context, string appVersion)
     {
+        if (!_telemetryConsentGiven) return;
         if (!_isInitialized || _httpClient == null || _deviceInfo == null)
         {
             return;
@@ -750,6 +625,23 @@ public class FirebaseService : IFirebaseService
         return await GetFeatureFlagAsync("metrics_viewer_enabled", defaultValue: true);
     }
 
+    /// <summary>
+    /// Lenient role flag parser: the node existing at all with anything other
+    /// than a literally-false value counts as membership. Previously we
+    /// required the value to parse as exactly `true`, which silently failed
+    /// when Firebase returned `1`, `"yes"`, or any truthy-but-non-bool value.
+    /// </summary>
+    private static bool InterpretRoleFlag(object? raw)
+    {
+        if (raw == null) return false;
+        var s = raw.ToString()?.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(s)) return false;
+        // Explicit negatives
+        if (s == "false" || s == "0" || s == "null" || s == "no" || s == "off") return false;
+        // Anything else: the node exists with a truthy value
+        return true;
+    }
+
     public async Task<bool> IsUserAdminAsync(string? windowsUsername = null)
     {
         if (!_isInitialized || _httpClient == null)
@@ -759,15 +651,9 @@ public class FirebaseService : IFirebaseService
         {
             var username = (windowsUsername ?? Environment.UserName).ToLowerInvariant();
             var adminFlag = await GetDataAsync<object>($"admin_users/{username}");
-            if (adminFlag != null)
-            {
-                var isAdmin = ParseBool(adminFlag.ToString()) ?? false;
-                InfraLogger.Log($"Firebase: Admin check for '{username}' = {isAdmin}");
-                return isAdmin;
-            }
-
-            InfraLogger.Log($"Firebase: Admin check for '{username}' = false (not found)");
-            return false;
+            var isAdmin = InterpretRoleFlag(adminFlag);
+            InfraLogger.Log($"Firebase: Admin check for '{username}' = {isAdmin} (raw='{adminFlag}')");
+            return isAdmin;
         }
         catch (Exception ex)
         {
@@ -779,21 +665,18 @@ public class FirebaseService : IFirebaseService
     public async Task<bool> IsUserDevAsync(string? windowsUsername = null)
     {
         if (!_isInitialized || _httpClient == null)
+        {
+            InfraLogger.Log("Firebase: DEV check skipped - service not initialized");
             return false;
+        }
 
         try
         {
             var username = (windowsUsername ?? Environment.UserName).ToLowerInvariant();
             var devFlag = await GetDataAsync<object>($"dev_users/{username}");
-            if (devFlag != null)
-            {
-                var isDev = ParseBool(devFlag.ToString()) ?? false;
-                InfraLogger.Log($"Firebase: DEV check for '{username}' = {isDev}");
-                return isDev;
-            }
-
-            InfraLogger.Log($"Firebase: DEV check for '{username}' = false (not found)");
-            return false;
+            var isDev = InterpretRoleFlag(devFlag);
+            InfraLogger.Log($"Firebase: DEV check for '{username}' = {isDev} (raw='{devFlag}')");
+            return isDev;
         }
         catch (Exception ex)
         {
@@ -813,26 +696,25 @@ public class FirebaseService : IFirebaseService
 
             // Check dedicated editor role first
             var editorFlag = await GetDataAsync<object>($"cheat_sheet_editors/{username}");
-            if (editorFlag != null)
+            if (InterpretRoleFlag(editorFlag))
             {
-                var isEditor = ParseBool(editorFlag.ToString()) ?? false;
-                if (isEditor)
-                {
-                    InfraLogger.Log($"Firebase: CheatSheet editor check for '{username}' = true (editor role)");
-                    return true;
-                }
+                InfraLogger.Log($"Firebase: CheatSheet editor check for '{username}' = true (editor role)");
+                return true;
             }
 
-            // Fall back to admin check — admins automatically have editor privileges
+            // Fall back to admin or dev check -- both have editor privileges
             var adminFlag = await GetDataAsync<object>($"admin_users/{username}");
-            if (adminFlag != null)
+            if (InterpretRoleFlag(adminFlag))
             {
-                var isAdmin = ParseBool(adminFlag.ToString()) ?? false;
-                if (isAdmin)
-                {
-                    InfraLogger.Log($"Firebase: CheatSheet editor check for '{username}' = true (admin role)");
-                    return true;
-                }
+                InfraLogger.Log($"Firebase: CheatSheet editor check for '{username}' = true (admin role)");
+                return true;
+            }
+
+            var devFlag = await GetDataAsync<object>($"dev_users/{username}");
+            if (InterpretRoleFlag(devFlag))
+            {
+                InfraLogger.Log($"Firebase: CheatSheet editor check for '{username}' = true (dev role)");
+                return true;
             }
 
             InfraLogger.Log($"Firebase: CheatSheet editor check for '{username}' = false");
@@ -1154,89 +1036,70 @@ public class FirebaseService : IFirebaseService
         return bool.TryParse(value, out var result) ? result : null;
     }
 
-    private async Task<string?> GetAccessTokenAsync()
+    // ─────────────────── REST helpers ───────────────────
+    //
+    // All RTDB REST calls now authenticate with a short-lived Firebase ID token
+    // (minted by the issueToken Cloud Function and exchanged for an ID token via
+    // Identity Toolkit). The `?auth=<idToken>` parameter runs through database
+    // rules, so every call is scoped by the caller's tier claim.
+
+    private async Task<string?> BuildUrlAsync(string path)
     {
-        if (_firebaseApp == null) return null;
-        
-        try
+        if (_httpClient == null || string.IsNullOrEmpty(_databaseUrl)) return null;
+        var idToken = await _auth.GetIdTokenAsync();
+        if (string.IsNullOrEmpty(idToken))
         {
-            var credential = _firebaseApp.Options.Credential;
-            
-            // Add timeout to prevent hanging
-            var tokenTask = ((GoogleCredential)credential).UnderlyingCredential.GetAccessTokenForRequestAsync();
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(5));
-            
-            var completedTask = await Task.WhenAny(tokenTask, timeoutTask);
-            
-            if (completedTask == timeoutTask)
-            {
-                InfraLogger.Log("Firebase: Access token request timed out");
-                return null;
-            }
-            
-            return await tokenTask;
-        }
-        catch (Exception ex)
-        {
-            InfraLogger.Log($"Firebase: Failed to get access token: {ex.Message}");
+            InfraLogger.Log($"Firebase: no ID token available, skipping call to {path}");
             return null;
         }
+        return $"{_databaseUrl}/{path}.json?auth={Uri.EscapeDataString(idToken)}";
     }
 
     private async Task PutDataAsync(string path, object data)
     {
-        if (_httpClient == null || string.IsNullOrEmpty(_databaseUrl)) return;
-
-        var token = await GetAccessTokenAsync();
-        var url = $"{_databaseUrl}/{path}.json?access_token={token}";
+        var url = await BuildUrlAsync(path);
+        if (url == null) return;
         var json = JsonConvert.SerializeObject(data);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
-        await _httpClient.PutAsync(url, content);
+        await _httpClient!.PutAsync(url, content);
     }
 
     private async Task PostDataAsync(string path, object data)
     {
-        if (_httpClient == null || string.IsNullOrEmpty(_databaseUrl)) return;
-
-        var token = await GetAccessTokenAsync();
-        var url = $"{_databaseUrl}/{path}.json?access_token={token}";
+        var url = await BuildUrlAsync(path);
+        if (url == null) return;
         var json = JsonConvert.SerializeObject(data);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
-        await _httpClient.PostAsync(url, content);
+        await _httpClient!.PostAsync(url, content);
     }
 
     private async Task<T?> GetDataAsync<T>(string path)
     {
-        if (_httpClient == null || string.IsNullOrEmpty(_databaseUrl)) return default;
-
-        var token = await GetAccessTokenAsync();
-        var url = $"{_databaseUrl}/{path}.json?access_token={token}";
-        var response = await _httpClient.GetAsync(url);
-        
+        var url = await BuildUrlAsync(path);
+        if (url == null) return default;
+        var response = await _httpClient!.GetAsync(url);
         if (!response.IsSuccessStatusCode) return default;
-        
+
         var json = await response.Content.ReadAsStringAsync();
         if (string.IsNullOrEmpty(json) || json == "null") return default;
-        
         return JsonConvert.DeserializeObject<T>(json);
     }
 
     private async Task PatchDataAsync(string path, object data)
     {
-        if (_httpClient == null || string.IsNullOrEmpty(_databaseUrl)) return;
-
-        var token = await GetAccessTokenAsync();
-        var url = $"{_databaseUrl}/{path}.json?access_token={token}";
+        var url = await BuildUrlAsync(path);
+        if (url == null) return;
         var json = JsonConvert.SerializeObject(data);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
         var request = new HttpRequestMessage(new HttpMethod("PATCH"), url) { Content = content };
-        await _httpClient.SendAsync(request);
+        await _httpClient!.SendAsync(request);
     }
 
     // --- Metrics sync for admin multi-user view ---
 
     public async Task SyncDailyMetricsAsync(string date, Dictionary<string, object> data)
     {
+        if (!_telemetryConsentGiven) return;
         if (!_isInitialized || _httpClient == null || _deviceInfo == null) return;
 
         try
@@ -1348,11 +1211,9 @@ public class FirebaseService : IFirebaseService
 
     private async Task DeleteDataAsync(string path)
     {
-        if (_httpClient == null || string.IsNullOrEmpty(_databaseUrl)) return;
-
-        var token = await GetAccessTokenAsync();
-        var url = $"{_databaseUrl}/{path}.json?access_token={token}";
-        await _httpClient.DeleteAsync(url);
+        var url = await BuildUrlAsync(path);
+        if (url == null) return;
+        await _httpClient!.DeleteAsync(url);
     }
 
 }

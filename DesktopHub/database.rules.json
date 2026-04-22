@@ -1,0 +1,111 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "licenses": {
+      "$licenseKey": {
+        ".read": "auth != null",
+        ".write": "auth.token.tier === 'admin' || auth.token.tier === 'dev' || (auth.token.tier === 'user' && auth.token.license_key === $licenseKey && (!data.exists() || newData.child('license_key').val() === data.child('license_key').val()))",
+        ".indexOn": ["email", "status", "app_id", "plan", "source"]
+      }
+    },
+
+    "app_versions": {
+      "$appId": {
+        ".read": "auth != null",
+        ".write": "auth.token.tier === 'admin' || auth.token.tier === 'dev'",
+        ".indexOn": ["latest_version", "updated_at"]
+      }
+    },
+
+    "admin_users": {
+      "$u": {
+        ".read": "auth != null",
+        ".write": "auth.token.tier === 'admin' || auth.token.tier === 'dev'"
+      }
+    },
+    "dev_users": {
+      "$u": {
+        ".read": "auth != null",
+        ".write": "auth.token.tier === 'dev'"
+      }
+    },
+    "cheat_sheet_editors": {
+      "$u": {
+        ".read": "auth != null",
+        ".write": "auth.token.tier === 'admin' || auth.token.tier === 'dev'"
+      }
+    },
+
+    "users": {
+      "$username": {
+        ".read": "auth.token.tier === 'admin' || auth.token.tier === 'dev' || auth.token.username === $username",
+        ".write": "auth.token.tier === 'admin' || auth.token.tier === 'dev' || auth.token.username === $username"
+      }
+    },
+
+    "devices": {
+      "$deviceId": {
+        ".read": "auth.token.tier === 'admin' || auth.token.tier === 'dev' || (data.child('username').val() === auth.token.username)",
+        ".write": "auth.token.tier === 'admin' || auth.token.tier === 'dev' || (!data.exists() || data.child('username').val() === auth.token.username)",
+        ".indexOn": ["license_key", "username", "status", "last_seen"]
+      }
+    },
+
+    "events": {
+      "$appId": {
+        "$month": {
+          ".read": "auth.token.tier === 'admin' || auth.token.tier === 'dev'",
+          ".write": "auth != null"
+        }
+      }
+    },
+    "errors": {
+      "$appId": {
+        "$month": {
+          ".read": "auth.token.tier === 'admin' || auth.token.tier === 'dev'",
+          ".write": "auth != null"
+        }
+      }
+    },
+
+    "metrics": {
+      "$deviceId": {
+        ".read": "auth.token.tier === 'admin' || auth.token.tier === 'dev'",
+        ".write": "auth != null",
+        ".indexOn": ["date", "user_name"]
+      }
+    },
+
+    "feature_flags": {
+      ".read": "auth != null",
+      ".write": "auth.token.tier === 'admin' || auth.token.tier === 'dev'"
+    },
+
+    "force_update": {
+      "$deviceId": {
+        ".read": "auth != null",
+        ".write": "auth.token.tier === 'admin' || auth.token.tier === 'dev'"
+      }
+    },
+
+    "config": {
+      ".read": "auth != null",
+      ".write": "auth.token.tier === 'admin' || auth.token.tier === 'dev'"
+    },
+
+    "project_tags": {
+      "$hash": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "tag_vocabulary": {
+      "$fieldKey": {
+        ".read": "auth != null",
+        ".write": "auth.token.tier === 'admin' || auth.token.tier === 'dev'"
+      }
+    }
+  }
+}

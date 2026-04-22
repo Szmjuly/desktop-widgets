@@ -740,4 +740,18 @@ public interface ISettingsService
     /// settings.json is migrated (existing users have effectively completed setup).
     /// </summary>
     void SetHasCompletedFirstRun(bool completed);
+
+    // --- Telemetry consent ---
+
+    /// <summary>True if we have asked the user about telemetry at least once.</summary>
+    bool GetTelemetryConsentAsked();
+
+    /// <summary>Marks that the consent dialog has been shown; answer stored separately.</summary>
+    void SetTelemetryConsentAsked(bool asked);
+
+    /// <summary>True if the user has opted in to usage telemetry.</summary>
+    bool GetTelemetryConsentGiven();
+
+    /// <summary>Set the user's telemetry preference (also used by Settings toggle).</summary>
+    void SetTelemetryConsentGiven(bool given);
 }

@@ -78,6 +78,14 @@ public partial class SearchOverlay : Window
     private string _lastQuerySource = DesktopHub.Core.Models.QuerySources.Typed;
     private bool _isClosing = false;
     private bool _isDeveloperUser = false;
+
+    /// <summary>
+    /// Exposed so SettingsWindow can gate the "Developer Panel" toggle row in
+    /// the Widget Launcher settings tab -- non-dev users never see that row.
+    /// Matches the private field used by SetDeveloperPanelEnabled.
+    /// </summary>
+    public bool IsDeveloperUser => _isDeveloperUser;
+
     private bool _developerPanelRestoreApplied;
     private bool _isDragging = false;
     private System.Windows.Point _dragStartPoint;

@@ -168,20 +168,22 @@ public partial class DeveloperPanelWidget
                 return;
             }
 
-            var now = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-            var pushData = new Dictionary<string, object>
+            // Admin writes to force_update/ go through the pushForceUpdate Cloud
+            // Function, which checks the caller's tier claim server-side. This
+            // means the client never needs direct write access to the node and
+            // compromising the client can't forge admin-tier pushes.
+            var result = await _firebaseService.Auth.CallFunctionAsync("pushForceUpdate", new
             {
-                ["app_id"] = appId,
-                ["target_version"] = resolvedTarget,
-                ["download_url"] = downloadUrl,
-                ["pushed_by"] = Environment.UserName?.ToLowerInvariant() ?? "unknown",
-                ["pushed_at"] = now,
-                ["status"] = "pending",
-                ["status_updated_at"] = now,
-                ["retry_count"] = 0
-            };
-
-            await _firebaseService.SetNodeAsync($"force_update/{deviceId}", pushData);
+                deviceId,
+                targetVersion = resolvedTarget,
+                downloadUrl,
+                appId
+            });
+            if (result == null)
+            {
+                AppendOutput($"ERROR: pushForceUpdate call failed (tier={_firebaseService.CurrentTier}). Check logs.");
+                return;
+            }
             AppendOutput($"Pushed v{resolvedTarget} to {username} ({deviceId[..Math.Min(12, deviceId.Length)]}...)");
         }
         catch (Exception ex)
@@ -223,27 +225,26 @@ public partial class DeveloperPanelWidget
 
                 var username = GetStringProp(dev, "username") ?? "unknown";
 
-                var pushData = new Dictionary<string, object>
-                {
-                    ["app_id"] = appId,
-                    ["target_version"] = latestVersion,
-                    ["download_url"] = downloadUrl,
-                    ["pushed_by"] = pushedBy,
-                    ["pushed_at"] = now,
-                    ["status"] = "pending",
-                    ["status_updated_at"] = now,
-                    ["retry_count"] = 0
-                };
-
                 try
                 {
-                    await _firebaseService.SetNodeAsync($"force_update/{deviceId}", pushData);
+                    var result = await _firebaseService.Auth.CallFunctionAsync("pushForceUpdate", new
+                    {
+                        deviceId,
+                        targetVersion = latestVersion,
+                        downloadUrl,
+                        appId
+                    });
+                    if (result == null)
+                    {
+                        AppendOutput($"  FAILED: {username} -- pushForceUpdate call returned null");
+                        continue;
+                    }
                     pushed++;
                     AppendOutput($"  Pushed to {username} ({deviceId[..Math.Min(8, deviceId.Length)]}...)");
                 }
                 catch (Exception ex)
                 {
-                    AppendOutput($"  FAILED: {username} — {ex.Message}");
+                    AppendOutput($"  FAILED: {username} -- {ex.Message}");
                 }
             }
 

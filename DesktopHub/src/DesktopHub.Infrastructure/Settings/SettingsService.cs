@@ -597,6 +597,20 @@ public class SettingsService : ISettingsService
     public bool GetHasCompletedFirstRun() => _settings.HasCompletedFirstRun;
     public void SetHasCompletedFirstRun(bool completed) => _settings.HasCompletedFirstRun = completed;
 
+    // --- Telemetry consent ---
+    //
+    // TelemetryConsentAsked: have we shown the first-run privacy dialog yet?
+    // TelemetryConsentGiven: user's choice (true = opted in, false = opted out).
+    //
+    // The two are tracked separately because we need to distinguish "user
+    // declined" (false/true) from "never asked" (false/false). The first-run
+    // dialog fires when Asked=false. After that, users change their mind via
+    // the Privacy section of Settings.
+    public bool GetTelemetryConsentAsked() => _settings.TelemetryConsentAsked;
+    public void SetTelemetryConsentAsked(bool asked) => _settings.TelemetryConsentAsked = asked;
+    public bool GetTelemetryConsentGiven() => _settings.TelemetryConsentGiven;
+    public void SetTelemetryConsentGiven(bool given) => _settings.TelemetryConsentGiven = given;
+
     private void ProjectProfilesToLegacy()
     {
         foreach (var profile in _settings.ScanProfiles)
@@ -767,6 +781,11 @@ public class SettingsService : ISettingsService
         // Phase 2: generalised scan profile list. Empty until migration runs or a wizard/preset populates it.
         public List<ScanProfile> ScanProfiles { get; set; } = new();
         public bool HasCompletedFirstRun { get; set; } = false;
+
+        // Telemetry consent. Defaults: not asked, not given -> app runs in
+        // "functional only" mode until the first-run dialog completes.
+        public bool TelemetryConsentAsked { get; set; } = false;
+        public bool TelemetryConsentGiven { get; set; } = false;
         public Dictionary<string, string[]> SearchAliases { get; set; } = GetDefaultSearchAliases();
         public int ScanIntervalMinutes { get; set; } = 30;
         public int HotkeyModifiers { get; set; } = DefaultHotkeyModifiers; // Ctrl+Alt

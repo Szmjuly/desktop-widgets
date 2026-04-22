@@ -97,10 +97,23 @@ public partial class App : System.Windows.Application
         _themeService = new ThemeService(themeSettings);
         _themeService.Initialize();
 
+        // Phase 1: "Installation complete" dialog -- shown ONLY once, immediately after
+        // a self-install. Gated on the marker file the installer process drops; the
+        // marker is deleted as soon as we read it so the dialog never appears again.
+        // Must run BEFORE the WelcomeWizard so the user sees dialogs sequentially.
+        // Return value: true = a fresh install was just completed, which forces the
+        // WelcomeWizard below even if HasCompletedFirstRun was left true from a
+        // previous install (common when reinstalling over existing settings).
+        var justInstalled = TryShowInstallCompleteDialog();
+
         // Phase 2: first-run preset picker. Shown once per install when ScanProfiles is empty
-        // AND the user has never completed setup. Legacy CES users are auto-migrated on load and
-        // marked complete, so they never see this.
-        if (!themeSettings.GetHasCompletedFirstRun() && themeSettings.GetScanProfiles().Count == 0)
+        // AND the user has never completed setup -- OR any time a fresh install was just
+        // completed (justInstalled forces the wizard so a reinstall still re-asks the preset).
+        // Legacy CES users are auto-migrated on load and marked complete; on a fresh install
+        // the marker forces them through the picker once.
+        var needsFirstRun = justInstalled ||
+            (!themeSettings.GetHasCompletedFirstRun() && themeSettings.GetScanProfiles().Count == 0);
+        if (needsFirstRun)
         {
             try
             {
@@ -123,11 +136,58 @@ public partial class App : System.Windows.Application
             }
         }
 
+        // Phase 2b: telemetry consent. Shown once per install (tracked by the
+        // TelemetryConsentAsked flag) -- AFTER the WelcomeWizard so the first-run
+        // experience is: install -> welcome -> privacy choice -> main app. The
+        // choice is persisted immediately and re-applied on every subsequent
+        // launch without prompting again. Users revisit via Settings -> Privacy.
+        if (!themeSettings.GetTelemetryConsentAsked())
+        {
+            try
+            {
+                var consented = TelemetryConsentDialog.Show();
+                themeSettings.SetTelemetryConsentGiven(consented);
+                themeSettings.SetTelemetryConsentAsked(true);
+                themeSettings.SaveAsync().Wait(TimeSpan.FromSeconds(5));
+                DesktopHub.Infrastructure.Logging.InfraLogger.Log(
+                    $"TelemetryConsent: first-run choice = {(consented ? "GRANTED" : "DECLINED")}");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"TelemetryConsent: dialog failed: {ex.Message}");
+                // Fall back to opt-out on dialog failure (safer default) and
+                // keep TelemetryConsentAsked=false so we ask again next launch.
+            }
+        }
+
         // Manually create SearchOverlay (it will hide itself after initialization)
         var mainWindow = new SearchOverlay();
         MainWindow = mainWindow;
         mainWindow.Show(); // Must show to trigger Window_Loaded which initializes tray/hotkey
-        
+
+        // Phase 3: "What's New" dialog -- deferred to SystemIdle so it always
+        // runs AFTER anything else queued during startup. In particular the
+        // HotkeyConflict dialog is queued at ApplicationIdle (higher priority)
+        // inside SearchOverlay's hotkey registration; because ShowDialog is
+        // modal, the dispatcher will pump the conflict dialog first, the user
+        // dismisses it, and only then does our SystemIdle-queued What's New
+        // callback fire. End result: install complete -> welcome -> conflict
+        // (if any) -> main app loads -> what's new.
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            try
+            {
+                if (MainWindow is SearchOverlay overlay && overlay.TrayIconInstance != null)
+                {
+                    overlay.TrayIconInstance.ShowWhatsNewIfApplicable();
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"App.OnStartup: ShowWhatsNewIfApplicable threw {ex.Message}");
+            }
+        }), System.Windows.Threading.DispatcherPriority.SystemIdle);
+
         // Track startup timing
         var startupMs = _startupStopwatch.ElapsedMilliseconds;
         DebugLogger.Log($"App startup completed in {startupMs}ms");
@@ -167,7 +227,22 @@ public partial class App : System.Windows.Application
                 {
                     await initTask; // Propagate any exceptions
                     DebugLogger.Log("Firebase: Initialization completed successfully");
-                    
+
+                    // Apply stored telemetry consent -- gates the five telemetry
+                    // methods on FirebaseService. Heartbeat/license/updates/roles
+                    // are not affected (functional traffic stays on).
+                    try
+                    {
+                        var settingsForConsent = new DesktopHub.Infrastructure.Settings.SettingsService();
+                        settingsForConsent.LoadSync();
+                        var consent = settingsForConsent.GetTelemetryConsentGiven();
+                        _firebaseService.SetTelemetryConsent(consent);
+                    }
+                    catch (Exception consentEx)
+                    {
+                        DebugLogger.Log($"TelemetryConsent: failed to apply stored consent: {consentEx.Message}");
+                    }
+
                     // Connect Firebase to telemetry for periodic sync
                     if (_telemetryService != null && _firebaseService.IsInitialized)
                     {
@@ -381,7 +456,126 @@ public partial class App : System.Windows.Application
             return false;
         }
     }
-    
+
+    /// <summary>
+    /// Called from SettingsWindow when the Privacy toggle changes, so the
+    /// running FirebaseService picks up the new consent state immediately
+    /// (no app restart needed). The setting was already persisted by the
+    /// caller; we just forward the live flag here.
+    /// </summary>
+    public void ApplyTelemetryConsent(bool consent)
+    {
+        try
+        {
+            if (_firebaseService != null && _firebaseService.IsInitialized)
+            {
+                _firebaseService.SetTelemetryConsent(consent);
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"ApplyTelemetryConsent: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// If an install-completed marker file is present in LocalAppData, show the
+    /// branded InstallCompleteDialog and delete the marker. The dialog is modal,
+    /// so WelcomeWizard (called immediately after in OnStartup) never overlaps.
+    ///
+    /// Returns true when the marker was present -- the caller uses this to
+    /// force the first-run wizard even if HasCompletedFirstRun was set during
+    /// a prior install (common on reinstalls where settings persist).
+    /// </summary>
+    private static bool TryShowInstallCompleteDialog()
+    {
+        var markerPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "DesktopHub",
+            "install-completed.marker");
+
+        DesktopHub.Infrastructure.Logging.InfraLogger.Log($"TryShowInstallCompleteDialog: marker path = {markerPath}");
+        if (!File.Exists(markerPath))
+        {
+            DesktopHub.Infrastructure.Logging.InfraLogger.Log("TryShowInstallCompleteDialog: no marker -- skipping");
+            return false;
+        }
+        DesktopHub.Infrastructure.Logging.InfraLogger.Log("TryShowInstallCompleteDialog: MARKER FOUND -- will show dialog");
+
+        string installDir = "";
+        List<string> warnings = new();
+
+        try
+        {
+            var json = File.ReadAllText(markerPath);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("installDir", out var d))
+                installDir = d.GetString() ?? "";
+            if (root.TryGetProperty("warnings", out var w) &&
+                w.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                foreach (var item in w.EnumerateArray())
+                {
+                    var s = item.GetString();
+                    if (!string.IsNullOrWhiteSpace(s)) warnings.Add(s!);
+                }
+            }
+        }
+        catch (Exception readEx)
+        {
+            DesktopHub.Infrastructure.Logging.InfraLogger.Log($"TryShowInstallCompleteDialog: marker malformed ({readEx.Message}); showing dialog with defaults");
+        }
+
+        // Always consume the marker -- even on a malformed read -- so we never
+        // re-show the dialog on subsequent launches.
+        try { File.Delete(markerPath); }
+        catch (Exception delEx) { DesktopHub.Infrastructure.Logging.InfraLogger.Log($"TryShowInstallCompleteDialog: failed to delete marker: {delEx.Message}"); }
+
+        if (string.IsNullOrWhiteSpace(installDir))
+            installDir = System.AppContext.BaseDirectory;
+
+        // Try the branded dialog; if it crashes for any reason, fall back to a
+        // plain MessageBox so the user still sees an install confirmation.
+        // Returning true here commits us to the "just installed" flow even if
+        // the dialog failed -- the WelcomeWizard still needs to run next.
+        try
+        {
+            DesktopHub.Infrastructure.Logging.InfraLogger.Log($"TryShowInstallCompleteDialog: constructing InstallCompleteDialog (installDir={installDir}, warnings={warnings.Count})");
+            InstallCompleteDialog.Show(installDir, warnings);
+            DesktopHub.Infrastructure.Logging.InfraLogger.Log("TryShowInstallCompleteDialog: dialog closed normally");
+        }
+        catch (Exception ex)
+        {
+            DesktopHub.Infrastructure.Logging.InfraLogger.Log($"TryShowInstallCompleteDialog: BRANDED DIALOG CRASHED -- {ex.GetType().Name}: {ex.Message}");
+            DesktopHub.Infrastructure.Logging.InfraLogger.Log($"TryShowInstallCompleteDialog: stack: {ex.StackTrace}");
+            try
+            {
+                var msg = "DesktopHub has been installed.\n\n"
+                       + "Location: " + installDir + "\n\n"
+                       + "Look for the tray icon or press Ctrl+Alt+Space to open.";
+                if (warnings.Count > 0)
+                {
+                    msg += "\n\nHeads up -- some optional features could not be configured:\n"
+                         + string.Join("\n", warnings.ConvertAll(w => "  - " + w));
+                }
+                System.Windows.MessageBox.Show(
+                    msg,
+                    "DesktopHub Installed",
+                    System.Windows.MessageBoxButton.OK,
+                    warnings.Count > 0
+                        ? System.Windows.MessageBoxImage.Warning
+                        : System.Windows.MessageBoxImage.Information);
+            }
+            catch (Exception fbEx)
+            {
+                DesktopHub.Infrastructure.Logging.InfraLogger.Log($"TryShowInstallCompleteDialog: even MessageBox fallback failed: {fbEx.Message}");
+            }
+        }
+
+        return true;
+    }
+
     private bool PerformSelfInstall()
     {
         var currentExe = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "";
@@ -464,6 +658,37 @@ public partial class App : System.Windows.Application
             warnings.Add("Auto-start registry entry could not be created");
         }
         
+        // Drop the install-completed marker BEFORE launching the child.
+        // The child process reads this marker on startup to decide whether to
+        // show the branded "Installation complete" dialog. If we wrote it
+        // AFTER Process.Start, the child would lose the race and see no
+        // marker (which is exactly the bug that killed the dialog on first
+        // launch). Marker contents are informational (install dir + warnings).
+        try
+        {
+            var markerDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "DesktopHub");
+            Directory.CreateDirectory(markerDir);
+            var markerPath = Path.Combine(markerDir, "install-completed.marker");
+            var markerPayload = new Dictionary<string, object>
+            {
+                ["installDir"] = installDir,
+                ["timestamp"] = DateTime.UtcNow.ToString("o"),
+                ["warnings"] = warnings
+            };
+            File.WriteAllText(markerPath,
+                System.Text.Json.JsonSerializer.Serialize(markerPayload));
+            DesktopHub.Infrastructure.Logging.InfraLogger.Log(
+                $"PerformSelfInstall: wrote install marker at {markerPath} BEFORE child launch");
+        }
+        catch (Exception markerEx)
+        {
+            DesktopHub.Infrastructure.Logging.InfraLogger.Log(
+                $"PerformSelfInstall: failed to write install marker: {markerEx.Message}");
+            // Non-fatal: the child will just miss the dialog.
+        }
+
         // Launch the installed copy
         bool launchSucceeded = true;
         try
@@ -503,34 +728,26 @@ public partial class App : System.Windows.Application
             launchSucceeded = false;
         }
         
-        // Show success message with any warnings
-        var message = "DesktopHub has been installed successfully!\n\n" +
-                      $"Location: {installDir}\n\n";
-        
-        if (launchSucceeded)
+        // (Marker was written above, before Process.Start — the child has
+        // already read it by now, which is the intended race order.)
+        if (!launchSucceeded)
         {
-            message += "The application is now running in the background.\n" +
-                      "Look for the tray icon or press Ctrl+Alt+Space to open.";
+            // The installed copy couldn't be launched. Fall back to a minimal
+            // message from this process since there's no child to do it for us.
+            var fallback = "DesktopHub has been installed to:\n" + installDir + "\n\n" +
+                "Please launch it manually from the Start Menu or:\n" + targetExe;
+            if (warnings.Count > 0)
+            {
+                fallback += "\n\nSome optional features could not be configured:\n" +
+                    string.Join("\n", warnings.Select(w => "  - " + w));
+            }
+            System.Windows.MessageBox.Show(
+                fallback,
+                "DesktopHub Installed",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Warning);
         }
-        else
-        {
-            message += "Please launch DesktopHub from the Start Menu or:\n" +
-                      $"{targetExe}";
-        }
-        
-        if (warnings.Count > 0)
-        {
-            message += "\n\nNote: Some optional features could not be configured:\n" +
-                      string.Join("\n", warnings.Select(w => $"• {w}"));
-        }
-        
-        System.Windows.MessageBox.Show(
-            message,
-            "DesktopHub Installed",
-            System.Windows.MessageBoxButton.OK,
-            warnings.Count > 0 ? System.Windows.MessageBoxImage.Warning : System.Windows.MessageBoxImage.Information
-        );
-        
+
         return launchSucceeded;
     }
     

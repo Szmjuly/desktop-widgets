@@ -1,0 +1,162 @@
+<Window x:Class="DesktopHub.UI.InstallCompleteDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="DesktopHub"
+        WindowStyle="None"
+        AllowsTransparency="False"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        Width="460"
+        SizeToContent="Height"
+        Topmost="True"
+        ShowInTaskbar="False">
+
+    <Border x:Name="RootBorder"
+            Background="{DynamicResource WindowBackgroundDeepBrush}"
+            CornerRadius="12"
+            BorderBrush="{DynamicResource WindowBorderSolidBrush}"
+            BorderThickness="1">
+        <Grid Margin="28">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Check-mark header -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+                <Border Width="36" Height="36" CornerRadius="18"
+                        Background="{DynamicResource GreenBackgroundBrush}"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="&#x2713;"
+                               FontSize="22"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource GreenBrush}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Text="Installation complete"
+                           FontSize="22"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextBrush}"
+                           Margin="14,0,0,0"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Subtitle -->
+            <TextBlock Grid.Row="1"
+                       Text="DesktopHub is installed and ready."
+                       FontSize="13"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,18"/>
+
+            <!-- Install location row -->
+            <Grid Grid.Row="2" Margin="0,0,0,14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="Location:"
+                           FontSize="12"
+                           Foreground="{DynamicResource TextTertiaryBrush}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0"/>
+                <TextBlock Grid.Column="1"
+                           x:Name="LocationText"
+                           FontSize="12"
+                           FontFamily="Consolas"
+                           Foreground="{DynamicResource TextBrush}"
+                           TextWrapping="Wrap"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- Hotkey hint -->
+            <Border Grid.Row="3"
+                    Background="{DynamicResource FaintOverlayBrush}"
+                    CornerRadius="8"
+                    Padding="14,10"
+                    Margin="0,0,0,14">
+                <StackPanel>
+                    <TextBlock Text="Quick start"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               Margin="0,0,0,4"/>
+                    <TextBlock FontSize="12"
+                               Foreground="{DynamicResource TextBrush}"
+                               TextWrapping="Wrap">
+                        Look for the DesktopHub icon in the system tray, or press
+                        <Run FontFamily="Consolas" FontWeight="SemiBold">Ctrl + Alt + Space</Run>
+                        to open the search overlay.
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+
+            <!-- Warnings (hidden when none) -->
+            <Border Grid.Row="4"
+                    x:Name="WarningsBorder"
+                    Background="{DynamicResource OrangeBackgroundBrush}"
+                    CornerRadius="8"
+                    Padding="14,10"
+                    Margin="0,0,0,14"
+                    Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock Text="Heads up"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource OrangeBrush}"
+                               Margin="0,0,0,4"/>
+                    <TextBlock x:Name="WarningsText"
+                               FontSize="12"
+                               Foreground="{DynamicResource TextBrush}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Button row -->
+            <Grid Grid.Row="5" Margin="0,6,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="1"
+                        x:Name="GetStartedButton"
+                        Content="Get started"
+                        Width="120"
+                        Height="34"
+                        Background="{DynamicResource PrimaryBrush}"
+                        Foreground="White"
+                        BorderBrush="{DynamicResource PrimaryBrush}"
+                        Click="GetStartedButton_Click"
+                        Cursor="Hand"
+                        IsDefault="True">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6">
+                                            <ContentPresenter HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

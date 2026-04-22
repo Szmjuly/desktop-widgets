@@ -35,7 +35,15 @@ public partial class HotkeyConflictDialog : Window
             WindowHelper.UpdateRootClip(RootBorder, 12, "HotkeyConflictDialog");
         };
 
-        Loaded += (s, e) => PrimaryButton.Focus();
+        Loaded += (s, e) =>
+        {
+            // DPI-aware centering on the active screen -- required because
+            // WPF's built-in CenterOwner/CenterScreen uses the primary monitor
+            // and visibly misplaces this dialog in RDP sessions and on
+            // multi-monitor setups.
+            WindowHelper.CenterOnCursorScreen(this);
+            PrimaryButton.Focus();
+        };
     }
 
     private void PrimaryButton_Click(object sender, RoutedEventArgs e)
@@ -133,10 +141,10 @@ public partial class HotkeyConflictDialog : Window
         {
             dialog.Owner = owner;
         }
-        else
-        {
-            dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        }
+        // Positioning is handled in Loaded via WindowHelper.CenterOnCursorScreen
+        // (DPI + multi-monitor + RDP aware). Do NOT fall back to
+        // CenterScreen here -- it misplaces the dialog on secondary monitors.
+
         dialog.TitleText.Text = "Shortcut Unavailable";
         dialog.SubtitleText.Text = "DesktopHub couldn't register its global shortcut because another app is already using it.";
         dialog.HotkeyText.Text = hotkeyLabel;

@@ -46,13 +46,35 @@ public class TrayIcon : IDisposable
         
         _notifyIcon.DoubleClick += (s, e) => ShowSearch();
 
-        if (!TryShowPendingWhatsNew())
-        {
-            TryShowWhatsNewForVersionChange();
-        }
+        // NOTE: Do NOT fire What's New here. It is deferred to
+        // ShowWhatsNewIfApplicable() so it runs AFTER any first-run dialogs
+        // (InstallComplete, WelcomeWizard, HotkeyConflict). Previously, this
+        // dialog appeared at the same moment as the HotkeyConflict dialog,
+        // and the conflict dialog's Topmost focus made "Got it" unclickable.
 
         // Show balloon tip on first run
         ShowCustomToast("DesktopHub", $"Press {_hotkeyLabel} to search projects");
+    }
+
+    /// <summary>
+    /// Shows the What's New dialog if there's a pending one from an auto-update,
+    /// or a version-change since last launch. Called by App.OnStartup at a low
+    /// dispatcher priority so any pending first-run dialogs (InstallComplete,
+    /// WelcomeWizard, HotkeyConflict) run to completion first.
+    /// </summary>
+    public void ShowWhatsNewIfApplicable()
+    {
+        try
+        {
+            if (!TryShowPendingWhatsNew())
+            {
+                TryShowWhatsNewForVersionChange();
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Log($"ShowWhatsNewIfApplicable: {ex.Message}");
+        }
     }
 
     private static System.Drawing.Icon LoadCustomIcon()
@@ -762,10 +784,34 @@ REM Delete this batch file
         public DateTime CreatedAtUtc { get; set; }
     }
 
+    // Ensures only one SettingsWindow exists at a time. Re-invocations bring
+    // the existing window forward instead of spawning a duplicate.
+    private static SettingsWindow? _openSettingsWindow;
+
     public void ShowSettings(bool navigateToShortcuts = false)
     {
         System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
         {
+            if (_openSettingsWindow != null && _openSettingsWindow.IsLoaded)
+            {
+                DebugLogger.Log("ShowSettings: bringing existing SettingsWindow to front");
+                try
+                {
+                    if (_openSettingsWindow.WindowState == System.Windows.WindowState.Minimized)
+                        _openSettingsWindow.WindowState = System.Windows.WindowState.Normal;
+                    _openSettingsWindow.Activate();
+                    _openSettingsWindow.Topmost = true;
+                    _openSettingsWindow.Topmost = false;
+                    _openSettingsWindow.Focus();
+                    if (navigateToShortcuts) _openSettingsWindow.NavigateToShortcuts();
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"ShowSettings: failed to bring to front: {ex.Message}");
+                }
+                return;
+            }
+
             var settings = new SettingsWindow(
                 _settings,
                 () => _searchOverlay.ReloadHotkey(),
@@ -792,12 +838,19 @@ REM Delete this batch file
                 () => _searchOverlay.UpdateMetricsViewerWidgetButton(),
                 () => _searchOverlay.UpdateDeveloperPanelWidgetButton(),
                 () => _searchOverlay.ReleaseAllHotkeys(),
-                () => _searchOverlay.FailedHotkeyCombos
+                () => _searchOverlay.FailedHotkeyCombos,
+                () => _searchOverlay.IsDeveloperUser
             );
             if (navigateToShortcuts)
             {
                 settings.NavigateToShortcuts();
             }
+            _openSettingsWindow = settings;
+            settings.Closed += (_, __) =>
+            {
+                if (ReferenceEquals(_openSettingsWindow, settings))
+                    _openSettingsWindow = null;
+            };
             settings.Show();
         }), System.Windows.Threading.DispatcherPriority.Normal);
     }

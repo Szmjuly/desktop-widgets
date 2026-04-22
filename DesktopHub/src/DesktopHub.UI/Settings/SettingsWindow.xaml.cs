@@ -59,11 +59,17 @@ public partial class SettingsWindow : Window
     private TextBlock? _activeGroupRecordingText;
     private int _activeGroupIndex = -1;
 
-    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null, Action? onFrequentProjectsWidgetEnabledChanged = null, Action? onFrequentProjectsLayoutChanged = null, Action? onQuickLaunchWidgetEnabledChanged = null, IProjectLaunchDataStore? launchDataStore = null, Action? onQuickLaunchLayoutChanged = null, Action? onWidgetSnapGapChanged = null, Action? onSmartProjectSearchWidgetEnabledChanged = null, Action? onWidgetLauncherLayoutChanged = null, Action? onCheatSheetWidgetEnabledChanged = null, Action? onMetricsViewerWidgetEnabledChanged = null, Action? onDeveloperPanelWidgetEnabledChanged = null, Action? onHotkeyReleaseForProbe = null, Func<IReadOnlyCollection<(int mods, int key)>>? failedHotkeysProvider = null)
+    // When true (via the delegate set at construction), the current user is in
+    // dev_users / has tier=dev and is allowed to see the Developer Panel toggle
+    // in the Widget Launcher settings tab. Non-dev users never see that row.
+    private readonly Func<bool> _isDeveloperUser;
+
+    public SettingsWindow(ISettingsService settings, Action? onHotkeyChanged = null, Action? onCloseShortcutChanged = null, Action? onLivingWidgetsModeChanged = null, Action? onDriveSettingsChanged = null, Action? onTransparencyChanged = null, TaskService? taskService = null, DocOpenService? docService = null, Action? onSearchWidgetEnabledChanged = null, Action? onTimerWidgetEnabledChanged = null, Action? onQuickTasksWidgetEnabledChanged = null, Action? onDocWidgetEnabledChanged = null, Action? onUpdateSettingsChanged = null, Action? onFrequentProjectsWidgetEnabledChanged = null, Action? onFrequentProjectsLayoutChanged = null, Action? onQuickLaunchWidgetEnabledChanged = null, IProjectLaunchDataStore? launchDataStore = null, Action? onQuickLaunchLayoutChanged = null, Action? onWidgetSnapGapChanged = null, Action? onSmartProjectSearchWidgetEnabledChanged = null, Action? onWidgetLauncherLayoutChanged = null, Action? onCheatSheetWidgetEnabledChanged = null, Action? onMetricsViewerWidgetEnabledChanged = null, Action? onDeveloperPanelWidgetEnabledChanged = null, Action? onHotkeyReleaseForProbe = null, Func<IReadOnlyCollection<(int mods, int key)>>? failedHotkeysProvider = null, Func<bool>? isDeveloperUser = null)
     {
         _settings = settings;
         _taskService = taskService;
         _docService = docService;
+        _isDeveloperUser = isDeveloperUser ?? (() => false);
         _onHotkeyChanged = onHotkeyChanged;
         _onHotkeyReleaseForProbe = onHotkeyReleaseForProbe;
         _failedHotkeysProvider = failedHotkeysProvider;
@@ -301,8 +307,14 @@ public partial class SettingsWindow : Window
         // Special: Search Widget toggle (not in registry as a launcher toggle)
         AddWidgetToggleRow(WidgetTogglesContainer, "search_button", "Search Widget", "Search button in the Widget Launcher", true);
 
+        var isDev = _isDeveloperUser();
         foreach (var entry in WidgetRegistry.WithLauncherToggle)
         {
+            // Hide the Developer Panel row from non-dev users so the toggle isn't
+            // even visible. Dev users see it and can toggle it like any other widget.
+            if (entry.Id == WidgetIds.DeveloperPanel && !isDev)
+                continue;
+
             AddWidgetToggleRow(WidgetTogglesContainer, entry.Id, entry.DisplayName, entry.Description, true);
         }
     }
@@ -603,6 +615,9 @@ public partial class SettingsWindow : Window
             AutoUpdateCheckToggle.IsChecked = _settings.GetAutoUpdateCheckEnabled();
             AutoUpdateInstallToggle.IsChecked = _settings.GetAutoUpdateInstallEnabled();
             LoadUpdateFrequencyCombo();
+
+            // Load telemetry consent state for the Privacy toggle on the Updates tab.
+            TelemetryConsentToggle.IsChecked = _settings.GetTelemetryConsentGiven();
             
             // Load notification duration setting
             LoadNotificationDurationSetting();
@@ -1243,6 +1258,7 @@ public partial class SettingsWindow : Window
             if (AppearancePanel != null) AppearancePanel.Visibility = Visibility.Collapsed;
             if (GeneralPanel != null) GeneralPanel.Visibility = Visibility.Collapsed;
             if (UpdatesPanel != null) UpdatesPanel.Visibility = Visibility.Collapsed;
+            if (PrivacyPanel != null) PrivacyPanel.Visibility = Visibility.Collapsed;
             if (TagsPanel != null) TagsPanel.Visibility = Visibility.Collapsed;
 
             // Hide all dynamic widget panels
@@ -1265,6 +1281,14 @@ public partial class SettingsWindow : Window
             else if (radioButton.Name == "UpdatesMenuButton" && UpdatesPanel != null)
             {
                 UpdatesPanel.Visibility = Visibility.Visible;
+            }
+            else if (radioButton.Name == "PrivacyMenuButton" && PrivacyPanel != null)
+            {
+                PrivacyPanel.Visibility = Visibility.Visible;
+                // Refresh toggle state whenever the user opens the tab so it reflects
+                // any external changes (e.g. if the first-run dialog has since fired).
+                if (_settings != null)
+                    TelemetryConsentToggle.IsChecked = _settings.GetTelemetryConsentGiven();
             }
             else if (radioButton.Name == "TagsMenuButton" && TagsPanel != null)
             {
