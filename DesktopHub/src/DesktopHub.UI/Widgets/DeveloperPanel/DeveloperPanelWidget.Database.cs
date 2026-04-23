@@ -16,6 +16,15 @@ public partial class DeveloperPanelWidget
     // NODE PILLS (cached)
     // ════════════════════════════════════════════════════════════
 
+    // Subsections surveyed under /tenants/{current}/ in the Database tab.
+    // Keeps the pill grid focused on this build's tenant -- admins browsing
+    // cross-tenant data should use admin-cli.js or the Firebase console.
+    private static readonly string[] TenantSections =
+    {
+        "admin_users", "dev_users", "cheat_sheet_editors",
+        "users", "devices", "metrics", "events", "errors", "licenses"
+    };
+
     private async Task DiscoverNodePillsAsync()
     {
         NodePillsPanel.Children.Clear();
@@ -26,18 +35,33 @@ public partial class DeveloperPanelWidget
             return;
         }
 
-        // Fetch all nodes and cache them
         _nodeCache = new Dictionary<string, Dictionary<string, object>?>();
         int found = 0;
 
+        // 1. Flat root nodes (app_versions, project_tags, feature_flags, etc).
         foreach (var nodeName in KnownNodes)
         {
+            if (nodeName == "tenants") continue; // handled below
             try
             {
                 var data = await _firebaseService.GetNodeAsync(nodeName);
                 if (data == null) continue;
-
                 _nodeCache[nodeName] = data;
+                found++;
+            }
+            catch { }
+        }
+
+        // 2. This build's tenant subsections, displayed with a `tenant/` prefix
+        //    so admins can see at a glance which entries belong to tenant data.
+        foreach (var section in TenantSections)
+        {
+            try
+            {
+                var data = await _firebaseService.GetNodeAsync(
+                    _firebaseService.TenantPath(section));
+                if (data == null) continue;
+                _nodeCache[$"tenant/{section}"] = data;
                 found++;
             }
             catch { }

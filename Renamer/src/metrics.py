@@ -1,4 +1,12 @@
-"""Device identification and fingerprinting utilities."""
+"""Device identification and fingerprinting utilities.
+
+Note on PII hashing (2026-04-23):
+The raw MAC address used to be included verbatim in outbound device-fingerprint
+payloads. That matched the pattern DesktopHub v1.9 was EDR-flagged for. The
+raw MAC is now kept LOCAL (used only for deriving the stable device-id hash);
+any code that wants to send a MAC-derived identifier outbound must use
+`get_mac_hash()`, which returns a salted, truncated SHA-256.
+"""
 import json
 import uuid
 import hashlib
@@ -7,6 +15,25 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any
 import os
+
+
+# Salt for hashing PII values before they leave the machine. Bumping the "v"
+# intentionally invalidates previously-hashed values on the server side if
+# we ever need to break linkage. The salt is NOT a secret -- hashes must be
+# deterministic per-device so the admin dashboard can dedupe machines.
+_PII_HASH_SALT = "SpecUpdater|pii|v1|2026"
+
+
+def _hash_pii(raw: Optional[str]) -> str:
+    """Salted SHA-256, truncated to 16 hex chars (64 bits).
+
+    Returns "unknown" for falsy / sentinel inputs. Deterministic: the same
+    raw value always maps to the same hash on the same build.
+    """
+    if not raw or str(raw).strip().lower() == "unknown":
+        return "unknown"
+    material = f"{_PII_HASH_SALT}|{str(raw).strip()}"
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()[:16]
 
 # Try to get MAC address (cross-platform)
 try:
@@ -54,10 +81,21 @@ if not MAC_ADDRESS:
         MAC_ADDRESS = "unknown"
 
 
+def get_mac_hash() -> str:
+    """Return the hashed form of the local MAC address (safe to send outbound)."""
+    return _hash_pii(MAC_ADDRESS)
+
+
 def get_device_fingerprint() -> Dict[str, Any]:
-    """Get comprehensive device identification."""
+    """Device metadata safe to send outbound.
+
+    The `mac_address` field here is the HASHED value -- the raw MAC never
+    leaves this process. Consumers that need the raw MAC for a local-only
+    purpose (deriving a stable device-id etc.) read the module-level
+    `MAC_ADDRESS` directly.
+    """
     return {
-        'mac_address': MAC_ADDRESS,
+        'mac_address': get_mac_hash(),
         'machine_name': platform.node(),
         'platform': platform.system(),
         'platform_version': platform.version(),

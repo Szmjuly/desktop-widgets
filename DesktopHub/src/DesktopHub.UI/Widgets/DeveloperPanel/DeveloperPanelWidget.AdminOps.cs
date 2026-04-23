@@ -16,6 +16,13 @@ public partial class DeveloperPanelWidget
     // ════════════════════════════════════════════════════════════
     // ROLE MANAGEMENT  (admin_users, dev_users, cheat_sheet_editors)
     // ════════════════════════════════════════════════════════════
+    //
+    // All role mutations go through Cloud Functions (setRole,
+    // setCheatSheetEditor). The client never hashes the username itself
+    // because the per-tenant HMAC salt lives only in Secret Manager. The
+    // function takes the raw username, hashes it server-side, and writes
+    // the tenant-scoped node. The RTDB rules deny direct writes to these
+    // paths from the client.
 
     internal async Task SetRoleAsync(string node, string username, bool grant)
     {
@@ -34,16 +41,37 @@ public partial class DeveloperPanelWidget
 
         try
         {
-            if (grant)
+            var tenantId = _firebaseService.Auth.TenantId
+                ?? DesktopHub.Core.BuildConfig.TenantId;
+
+            JsonElement? result;
+            if (node == "cheat_sheet_editors")
             {
-                await _firebaseService.SetNodeAsync($"{node}/{username}", true);
-                AppendOutput($"Granted {node} role to '{username}'.");
+                result = await _firebaseService.Auth.CallFunctionAsync("setCheatSheetEditor",
+                    new { username, tenantId, enabled = grant });
             }
             else
             {
-                await _firebaseService.DeleteNodeAsync($"{node}/{username}");
-                AppendOutput($"Revoked {node} role from '{username}'.");
+                // node is "admin_users" or "dev_users" -- translate to role param.
+                var role = node switch
+                {
+                    "admin_users" => grant ? "admin" : "none",
+                    "dev_users" => grant ? "dev" : "none",
+                    _ => throw new ArgumentException($"unknown role node '{node}'")
+                };
+                result = await _firebaseService.Auth.CallFunctionAsync("setRole",
+                    new { username, tenantId, role });
             }
+
+            if (result == null)
+            {
+                AppendOutput($"ERROR: {(grant ? "grant" : "revoke")} {node} call failed (tier={_firebaseService.CurrentTier}).");
+                return;
+            }
+
+            AppendOutput(grant
+                ? $"Granted {node} role to '{username}'."
+                : $"Revoked {node} role from '{username}'.");
         }
         catch (Exception ex)
         {
@@ -103,18 +131,22 @@ public partial class DeveloperPanelWidget
             var latestVersion = GetStringProp(versionNode, "latest_version") ?? "?";
             AppendOutput($"Latest {appId} version: {latestVersion}");
 
-            var devices = await _firebaseService.GetNodeAsync("devices");
+            var devices = await _firebaseService.GetNodeAsync(_firebaseService.TenantPath("devices"));
             if (devices == null || devices.Count == 0)
             {
                 AppendOutput("No devices found.");
                 return;
             }
 
+            // Ensure user_id -> username map is cached before rendering.
+            if (_tenantUsers.Count == 0) await RefreshPermissionDirectoryAsync();
+
             var outdatedCount = 0;
             foreach (var (deviceId, deviceObj) in devices)
             {
                 var dev = ToDict(deviceObj);
-                var username = GetStringProp(dev, "username") ?? "?";
+                var userId = GetStringProp(dev, "user_id") ?? "?";
+                var displayUser = ResolveUserDisplay(userId);
                 var deviceName = GetStringProp(dev, "device_name") ?? "?";
                 var installed = GetAppInstalledVersion(dev, appId);
                 var outdated = IsOutdated(installed, latestVersion);
@@ -122,7 +154,7 @@ public partial class DeveloperPanelWidget
 
                 var tag = outdated ? " [OUTDATED]" : "";
                 var shortId = deviceId.Length > 12 ? deviceId[..12] + "..." : deviceId;
-                AppendOutput($"  {shortId}  {username,-12} {deviceName,-14} v{installed}{tag}");
+                AppendOutput($"  {shortId}  {displayUser,-16} {deviceName,-14} v{installed}{tag}");
             }
 
             AppendOutput($"Total: {devices.Count} devices, {outdatedCount} outdated");
@@ -147,7 +179,7 @@ public partial class DeveloperPanelWidget
 
         try
         {
-            var device = await _firebaseService.GetNodeAsync($"devices/{deviceId}");
+            var device = await _firebaseService.GetNodeAsync(_firebaseService.TenantPath($"devices/{deviceId}"));
             if (device == null)
             {
                 AppendOutput($"ERROR: Device '{deviceId}' not found.");
@@ -160,11 +192,12 @@ public partial class DeveloperPanelWidget
             var resolvedTarget = string.IsNullOrWhiteSpace(targetVersion) ? latestVersion : targetVersion;
 
             var installed = GetAppInstalledVersion(device, appId);
-            var username = GetStringProp(device, "username") ?? "unknown";
+            var userId = GetStringProp(device, "user_id") ?? "unknown";
+            var displayUser = ResolveUserDisplay(userId);
 
             if (!force && !IsOutdated(installed, resolvedTarget))
             {
-                AppendOutput($"Device '{deviceId}' ({username}) is already on v{installed} (target: {resolvedTarget}). Use force to push anyway.");
+                AppendOutput($"Device '{deviceId}' ({displayUser}) is already on v{installed} (target: {resolvedTarget}). Use force to push anyway.");
                 return;
             }
 
@@ -184,7 +217,7 @@ public partial class DeveloperPanelWidget
                 AppendOutput($"ERROR: pushForceUpdate call failed (tier={_firebaseService.CurrentTier}). Check logs.");
                 return;
             }
-            AppendOutput($"Pushed v{resolvedTarget} to {username} ({deviceId[..Math.Min(12, deviceId.Length)]}...)");
+            AppendOutput($"Pushed v{resolvedTarget} to {displayUser} ({deviceId[..Math.Min(12, deviceId.Length)]}...)");
         }
         catch (Exception ex)
         {
@@ -206,7 +239,7 @@ public partial class DeveloperPanelWidget
             var latestVersion = GetStringProp(versionNode, "latest_version") ?? "0.0.0";
             var downloadUrl = GetStringProp(versionNode, "download_url") ?? "";
 
-            var devices = await _firebaseService.GetNodeAsync("devices");
+            var devices = await _firebaseService.GetNodeAsync(_firebaseService.TenantPath("devices"));
             if (devices == null || devices.Count == 0)
             {
                 AppendOutput("No devices found.");
@@ -214,7 +247,6 @@ public partial class DeveloperPanelWidget
             }
 
             var now = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-            var pushedBy = Environment.UserName?.ToLowerInvariant() ?? "unknown";
             var pushed = 0;
 
             foreach (var (deviceId, deviceObj) in devices)
@@ -223,7 +255,8 @@ public partial class DeveloperPanelWidget
                 var installed = GetAppInstalledVersion(dev, appId);
                 if (!IsOutdated(installed, latestVersion)) continue;
 
-                var username = GetStringProp(dev, "username") ?? "unknown";
+                var userId = GetStringProp(dev, "user_id") ?? "unknown";
+                var displayUser = ResolveUserDisplay(userId);
 
                 try
                 {
@@ -236,15 +269,15 @@ public partial class DeveloperPanelWidget
                     });
                     if (result == null)
                     {
-                        AppendOutput($"  FAILED: {username} -- pushForceUpdate call returned null");
+                        AppendOutput($"  FAILED: {displayUser} -- pushForceUpdate call returned null");
                         continue;
                     }
                     pushed++;
-                    AppendOutput($"  Pushed to {username} ({deviceId[..Math.Min(8, deviceId.Length)]}...)");
+                    AppendOutput($"  Pushed to {displayUser} ({deviceId[..Math.Min(8, deviceId.Length)]}...)");
                 }
                 catch (Exception ex)
                 {
-                    AppendOutput($"  FAILED: {username} -- {ex.Message}");
+                    AppendOutput($"  FAILED: {displayUser} -- {ex.Message}");
                 }
             }
 
@@ -286,11 +319,12 @@ public partial class DeveloperPanelWidget
                 var pushedAt = GetStringProp(entry, "pushed_at") ?? "?";
                 var error = GetStringProp(entry, "error") ?? "";
 
-                var device = await _firebaseService.GetNodeAsync($"devices/{deviceId}");
-                var username = GetStringProp(device, "username") ?? "?";
+                var device = await _firebaseService.GetNodeAsync(_firebaseService.TenantPath($"devices/{deviceId}"));
+                var userId = GetStringProp(device, "user_id") ?? "?";
+                var displayUser = ResolveUserDisplay(userId);
 
                 var shortId = deviceId.Length > 12 ? deviceId[..12] + "..." : deviceId;
-                AppendOutput($"  {shortId} ({username})  status={status}  target=v{target}  by={pushedBy}");
+                AppendOutput($"  {shortId} ({displayUser})  status={status}  target=v{target}  by={pushedBy}");
                 if (!string.IsNullOrWhiteSpace(error))
                     AppendOutput($"    error: {error}");
             }
@@ -361,9 +395,21 @@ public partial class DeveloperPanelWidget
             AppendOutput("Fetching database structure...");
             foreach (var node in KnownNodes)
             {
+                if (node == "tenants") continue; // expanded below
                 var data = await _firebaseService.GetNodeAsync(node);
                 var count = data?.Count ?? 0;
                 AppendOutput($"  {node}: {count} entries");
+            }
+
+            // Expand this build's tenant subtree so the dump reflects the
+            // post-multi-tenant layout (admin_users, devices, users, etc).
+            AppendOutput($"  tenants/{_firebaseService.Auth.TenantId}:");
+            foreach (var section in TenantSections)
+            {
+                var data = await _firebaseService.GetNodeAsync(
+                    _firebaseService.TenantPath(section));
+                var count = data?.Count ?? 0;
+                AppendOutput($"    {section}: {count} entries");
             }
             AppendOutput("Done.");
         }
@@ -387,7 +433,15 @@ public partial class DeveloperPanelWidget
             var backup = new Dictionary<string, object?>();
             foreach (var node in KnownNodes)
             {
+                if (node == "tenants") continue;
                 backup[node] = await _firebaseService.GetNodeAsync(node);
+            }
+            // Snapshot this tenant's subtree as a single object keyed by
+            // `tenant/{section}` so restore/inspection tools see the split.
+            foreach (var section in TenantSections)
+            {
+                backup[$"tenant/{section}"] =
+                    await _firebaseService.GetNodeAsync(_firebaseService.TenantPath(section));
             }
 
             var backupDir = System.IO.Path.Combine(
@@ -497,23 +551,24 @@ public partial class DeveloperPanelWidget
 
         try
         {
-            var devices = await _firebaseService.GetNodeAsync("devices");
+            var devices = await _firebaseService.GetNodeAsync(_firebaseService.TenantPath("devices"));
             if (devices == null || devices.Count == 0)
             {
                 AppendOutput("No devices found.");
                 return;
             }
 
-            // Group by (username, mac_address) — duplicates share both
+            // Group by (user_id, mac_address) -- duplicates share both.
             var grouped = new Dictionary<string, List<(string DeviceId, string LastSeen)>>();
             foreach (var (deviceId, deviceObj) in devices)
             {
                 var dev = ToDict(deviceObj);
-                var username = GetStringProp(dev, "username") ?? "unknown";
+                var userId = GetStringProp(dev, "user_id") ?? "unknown";
+                var displayUser = ResolveUserDisplay(userId);
                 var mac = GetStringProp(dev, "mac_address") ?? "unknown";
                 var lastSeen = GetStringProp(dev, "last_seen") ?? "";
 
-                var key = $"{username}|{mac}";
+                var key = $"{userId}|{mac}";
                 if (!grouped.ContainsKey(key))
                     grouped[key] = new List<(string, string)>();
                 grouped[key].Add((deviceId, lastSeen));
@@ -524,7 +579,6 @@ public partial class DeveloperPanelWidget
             {
                 if (dupes.Count <= 1) continue;
 
-                // Keep the most recently seen device, delete the rest
                 var sorted = dupes.OrderByDescending(d => d.LastSeen).ToList();
                 var keeper = sorted[0];
 
@@ -532,15 +586,16 @@ public partial class DeveloperPanelWidget
                 {
                     var stale = sorted[i];
                     var dev = ToDict(devices.GetValueOrDefault(stale.DeviceId));
-                    var username = GetStringProp(dev, "username") ?? "unknown";
+                    var userId = GetStringProp(dev, "user_id") ?? "unknown";
+                var displayUser = ResolveUserDisplay(userId);
 
-                    await _firebaseService.DeleteNodeAsync($"devices/{stale.DeviceId}");
-                    await _firebaseService.DeleteNodeAsync($"users/{username}/devices/{stale.DeviceId}");
+                    await _firebaseService.DeleteNodeAsync(_firebaseService.TenantPath($"devices/{stale.DeviceId}"));
+                    await _firebaseService.DeleteNodeAsync(_firebaseService.TenantPath($"users/{userId}/devices/{stale.DeviceId}"));
                     await _firebaseService.DeleteNodeAsync($"force_update/{stale.DeviceId}");
                     deleted++;
 
                     var shortId = stale.DeviceId.Length > 12 ? stale.DeviceId[..12] + "..." : stale.DeviceId;
-                    AppendOutput($"  Removed stale device: {shortId} ({username})");
+                    AppendOutput($"  Removed stale device: {shortId} ({displayUser})");
                 }
             }
 
@@ -557,6 +612,22 @@ public partial class DeveloperPanelWidget
     // ════════════════════════════════════════════════════════════
     // HELPERS
     // ════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Resolve an HMAC user_id back to its display username via the cached
+    /// listTenantUsers response. Returns the hash itself (truncated) if the
+    /// cache has no entry for that id -- keeps rows identifiable without
+    /// leaking that decryption failed.
+    /// </summary>
+    private string ResolveUserDisplay(string? userId)
+    {
+        if (string.IsNullOrEmpty(userId)) return "unknown";
+        var match = _tenantUsers.FirstOrDefault(
+            u => string.Equals(u.UserId, userId, StringComparison.OrdinalIgnoreCase));
+        if (match != null && !string.IsNullOrWhiteSpace(match.Username))
+            return match.Username;
+        return userId.Length > 12 ? userId[..12] : userId;
+    }
 
     private static Dictionary<string, object>? ToDict(object? obj)
     {

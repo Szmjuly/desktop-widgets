@@ -36,25 +36,31 @@ public partial class DeveloperPanelWidget
             if (string.IsNullOrWhiteSpace(LicenseKeyBox.Text))
                 LicenseKeyBox.Text = GenerateLicenseKey();
 
-            var node = await _firebaseService.GetNodeAsync("licenses");
+            // Licenses now live at tenants/{tid}/licenses/{appId}/{licenseKey}.
+            // Flatten the two-level node (appId -> licenseKey -> record) into
+            // the local list so the existing renderer keeps working.
+            var node = await _firebaseService.GetNodeAsync(_firebaseService.TenantPath("licenses"));
             _licenses.Clear();
 
             if (node != null)
             {
-                foreach (var kvp in node)
+                foreach (var appKvp in node)
                 {
-                    if (kvp.Value is not Dictionary<string, object> data)
-                        continue;
-                    _licenses.Add(new LicenseRecord(
-                        kvp.Key,
-                        data.TryGetValue("plan", out var p) ? p?.ToString() ?? "FREE" : "FREE",
-                        data.TryGetValue("status", out var s) ? s?.ToString() ?? "active" : "active",
-                        data.TryGetValue("app_id", out var a) ? a?.ToString() ?? "desktophub" : "desktophub",
-                        data.TryGetValue("max_devices", out var m) && int.TryParse(m?.ToString(), out var md) ? md : 1,
-                        data.TryGetValue("expires_at", out var e) ? e?.ToString() ?? "never" : "never",
-                        data.TryGetValue("username", out var u) ? u?.ToString() ?? "" : "",
-                        data.TryGetValue("created_at", out var c) ? c?.ToString() ?? "" : ""
-                    ));
+                    if (appKvp.Value is not Dictionary<string, object> appLicenses) continue;
+                    foreach (var kvp in appLicenses)
+                    {
+                        if (kvp.Value is not Dictionary<string, object> data) continue;
+                        _licenses.Add(new LicenseRecord(
+                            kvp.Key,
+                            data.TryGetValue("plan", out var p) ? p?.ToString() ?? "FREE" : "FREE",
+                            data.TryGetValue("status", out var s) ? s?.ToString() ?? "active" : "active",
+                            data.TryGetValue("app_id", out var a) ? a?.ToString() ?? appKvp.Key : appKvp.Key,
+                            data.TryGetValue("max_devices", out var m) && int.TryParse(m?.ToString(), out var md) ? md : 1,
+                            data.TryGetValue("expires_at", out var e) ? e?.ToString() ?? "never" : "never",
+                            data.TryGetValue("user_id", out var u) ? u?.ToString() ?? "" : "",
+                            data.TryGetValue("created_at", out var c) ? c?.ToString() ?? "" : ""
+                        ));
+                    }
                 }
             }
 
@@ -104,11 +110,11 @@ public partial class DeveloperPanelWidget
 
             var buttons = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             var revoke = new System.Windows.Controls.Button { Content = "Revoke", Style = (Style)FindResource("ActionBtn"), Margin = new Thickness(0, 0, 6, 0) };
-            revoke.Click += async (_, _) => await RevokeLicenseAsync(license.Key);
+            revoke.Click += async (_, _) => await RevokeLicenseAsync(license.Key, license.AppId);
             buttons.Children.Add(revoke);
 
             var delete = new System.Windows.Controls.Button { Content = "Delete", Style = (Style)FindResource("DangerBtn"), Margin = new Thickness(0) };
-            delete.Click += async (_, _) => await DeleteLicenseAsync(license.Key);
+            delete.Click += async (_, _) => await DeleteLicenseAsync(license.Key, license.AppId);
             buttons.Children.Add(delete);
 
             Grid.SetColumn(buttons, 1);
@@ -134,22 +140,24 @@ public partial class DeveloperPanelWidget
         return $"{plan}-{suffix}";
     }
 
-    private async Task RevokeLicenseAsync(string key)
+    private async Task RevokeLicenseAsync(string key, string appId)
     {
         if (!await ConfirmDangerousAsync($"Revoke license '{key}'?"))
             return;
         if (_firebaseService == null) return;
-        var ok = await _firebaseService.SetNodeAsync($"licenses/{key}/status", "revoked");
+        var ok = await _firebaseService.SetNodeAsync(
+            _firebaseService.TenantPath($"licenses/{appId}/{key}/status"), "revoked");
         AppendOutput(ok ? $"Revoked {key}" : $"Failed to revoke {key}");
         await RefreshLicensesAsync();
     }
 
-    private async Task DeleteLicenseAsync(string key)
+    private async Task DeleteLicenseAsync(string key, string appId)
     {
         if (!await ConfirmDangerousAsync($"Delete license '{key}'? This cannot be undone."))
             return;
         if (_firebaseService == null) return;
-        var ok = await _firebaseService.DeleteNodeAsync($"licenses/{key}");
+        var ok = await _firebaseService.DeleteNodeAsync(
+            _firebaseService.TenantPath($"licenses/{appId}/{key}"));
         AppendOutput(ok ? $"Deleted {key}" : $"Failed to delete {key}");
         await RefreshLicensesAsync();
     }
@@ -180,10 +188,11 @@ public partial class DeveloperPanelWidget
             ["max_devices"] = maxDevices,
             ["expires_at"] = string.IsNullOrWhiteSpace(expiresAt) ? "never" : expiresAt,
             ["created_at"] = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
-            ["username"] = Environment.UserName?.ToLowerInvariant() ?? "unknown",
+            ["user_id"] = _firebaseService.Auth.UserId ?? "unknown",
         };
 
-        var ok = await _firebaseService.SetNodeAsync($"licenses/{key}", payload);
+        var ok = await _firebaseService.SetNodeAsync(
+            _firebaseService.TenantPath($"licenses/{appId}/{key}"), payload);
         AppendOutput(ok ? $"Created license {key}" : $"Failed to create license {key}");
         if (ok)
         {

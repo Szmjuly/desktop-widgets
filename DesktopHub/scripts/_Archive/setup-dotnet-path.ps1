@@ -1,4 +1,4 @@
-# Setup .NET SDK path for DesktopHub development
+﻿# Setup .NET SDK path for DesktopHub development
 $dotnetPath = "C:\dotnet"
 
 # Check if dotnet exists at the specified path

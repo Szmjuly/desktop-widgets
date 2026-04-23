@@ -1,4 +1,4 @@
-# Install DesktopHub to system with proper shortcuts and search integration
+﻿# Install DesktopHub to system with proper shortcuts and search integration
 param(
     [string]$InstallPath = "$env:ProgramFiles\DesktopHub",
     [switch]$AddToPath,

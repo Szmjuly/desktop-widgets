@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 # Firebase Migration Status & Cleanup Tool
 # Shows migration progress from legacy flat structure to new users/devices/events structure.
 #

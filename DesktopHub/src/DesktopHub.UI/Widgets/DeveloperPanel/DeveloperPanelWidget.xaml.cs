@@ -13,12 +13,15 @@ namespace DesktopHub.UI.Widgets;
 
 public partial class DeveloperPanelWidget : System.Windows.Controls.UserControl
 {
+    // Root-level nodes surveyed by the DB-dump tool. User-scoped data now
+    // lives under tenants/{tenantId}/... -- that subtree is surveyed via the
+    // listTenantUsers / getTenantSummary flow rather than direct reads, since
+    // the client has no rule-level access to those paths except its own.
     internal static readonly string[] KnownNodes =
     {
-        "devices", "users", "licenses", "app_versions", "admin_users",
-        "project_tags", "cheat_sheet_data", "events", "errors",
-        "feature_flags", "dev_users", "cheat_sheet_editors", "metrics",
-        "tag_registry", "force_update"
+        "app_versions", "project_tags", "cheat_sheet_data",
+        "feature_flags", "tag_registry", "force_update",
+        "config", "tag_vocabulary", "tenants"
     };
 
     private static readonly (string Id, string Label)[] TabDefs =

@@ -1,4 +1,4 @@
-# Build DesktopHub and create installer
+﻿# Build DesktopHub and create installer
 param(
     [switch]$SkipBuild,
     [switch]$IncludeAutoStart

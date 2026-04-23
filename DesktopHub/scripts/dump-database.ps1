@@ -276,8 +276,11 @@ foreach ($node in $topNodes) {
 # WIPE OPERATIONS
 # ============================================================
 
-# Nodes that are NEVER wiped (critical system data + tagging)
-$PreservedNodes = @("app_versions", "admin_users", "project_tags", "tag_vocabulary", "tag_registry")
+# Nodes that are NEVER wiped (critical system data + tagging).
+# Under the multi-tenant layout, tenants/{tid}/admin_users and dev_users
+# also must be preserved -- those live under the tenants/ subtree, which
+# the wipe logic below treats separately (via tenants/{tid}/devices etc).
+$PreservedNodes = @("app_versions", "project_tags", "tag_vocabulary", "tag_registry", "tenants")
 
 function Wipe-Node([string]$nodeName) {
     $count = Count-Children (fb-get $nodeName)
@@ -310,7 +313,17 @@ if ($WipeDevices -and -not $WipeAll) {
     Write-Host ""
     Write-Host "  Both DesktopHub and Renamer recreate their entry on next launch." -ForegroundColor Gray
     $confirm = if ($Force) { "YES" } else { Read-Host "  Type 'YES' to wipe devices/" }
-    if ($confirm -eq "YES") { Wipe-Node "devices" }
+    # Devices live under tenants/{tenant}/devices. Walk all tenants.
+    if ($confirm -eq "YES") {
+        $tenants = fb-get "tenants"
+        if ($null -eq $tenants) {
+            Write-Host "  No tenants node found -- nothing to wipe." -ForegroundColor Gray
+        } else {
+            foreach ($prop in $tenants.PSObject.Properties) {
+                Wipe-Node "tenants/$($prop.Name)/devices"
+            }
+        }
+    }
     else { Write-Host "  Cancelled." -ForegroundColor Gray }
     Write-Host ""
 }

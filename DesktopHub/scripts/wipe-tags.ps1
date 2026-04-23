@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 # Wipe Tagging Data — dedicated script for wiping project tags, vocabulary, and registry.
 # Separate from the main wipe script to prevent accidental tag data loss.
 #

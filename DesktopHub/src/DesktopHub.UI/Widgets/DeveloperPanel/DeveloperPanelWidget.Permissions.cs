@@ -81,6 +81,19 @@ public partial class DeveloperPanelWidget
     // DIRECTORY COUNTS (Firebase)
     // ════════════════════════════════════════════════════════════
 
+    // Cached snapshot from the last listTenantUsers call. Populated by
+    // RefreshPermissionDirectoryAsync and read by RefreshSelectedUserPermissionsAsync.
+    private List<TenantUser> _tenantUsers = new();
+
+    private sealed class TenantUser
+    {
+        public string UserId { get; set; } = "";
+        public string Username { get; set; } = "";
+        public bool IsAdmin { get; set; }
+        public bool IsDev { get; set; }
+        public bool IsEditor { get; set; }
+    }
+
     private async Task RefreshPermissionDirectoryAsync()
     {
         if (PermDirAdminLine == null || PermDirEditorLine == null || PermDirDevLine == null)
@@ -101,17 +114,40 @@ public partial class DeveloperPanelWidget
 
         try
         {
-            var admins = await _firebaseService.GetNodeAsync("admin_users");
-            var editors = await _firebaseService.GetNodeAsync("cheat_sheet_editors");
-            var devs = await _firebaseService.GetNodeAsync("dev_users");
+            // Cloud Function decrypts the user_directory and returns
+            // admin/dev/editor flags in one round trip. Client never sees
+            // the ciphertext directly.
+            var result = await _firebaseService.Auth.CallFunctionAsync(
+                "listTenantUsers", new { });
+            if (result == null)
+            {
+                SetUnavailable();
+                AppendOutput("ERROR: listTenantUsers call failed (are you admin/dev?).");
+                return;
+            }
 
-            var ac = CountActiveRoleMembers(admins);
-            var ec = CountActiveRoleMembers(editors);
-            var dc = CountActiveRoleMembers(devs);
+            var list = new List<TenantUser>();
+            var root = result.Value;
+            if (root.TryGetProperty("users", out var usersEl) &&
+                usersEl.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var u in usersEl.EnumerateArray())
+                {
+                    list.Add(new TenantUser
+                    {
+                        UserId = u.TryGetProperty("userId", out var uid) ? uid.GetString() ?? "" : "",
+                        Username = u.TryGetProperty("username", out var un) ? un.GetString() ?? "" : "",
+                        IsAdmin = u.TryGetProperty("isAdmin", out var ia) && ia.ValueKind == JsonValueKind.True,
+                        IsDev = u.TryGetProperty("isDev", out var id) && id.ValueKind == JsonValueKind.True,
+                        IsEditor = u.TryGetProperty("isEditor", out var ie) && ie.ValueKind == JsonValueKind.True,
+                    });
+                }
+            }
+            _tenantUsers = list;
 
-            PermDirAdminLine.Text = $"Admins: {ac}";
-            PermDirEditorLine.Text = $"Editors: {ec} (cheat_sheet_editors)";
-            PermDirDevLine.Text = $"Devs: {dc}";
+            PermDirAdminLine.Text = $"Admins: {list.Count(u => u.IsAdmin)}";
+            PermDirEditorLine.Text = $"Editors: {list.Count(u => u.IsEditor)} (cheat_sheet_editors)";
+            PermDirDevLine.Text = $"Devs: {list.Count(u => u.IsDev)}";
         }
         catch (Exception ex)
         {
@@ -212,19 +248,26 @@ public partial class DeveloperPanelWidget
 
         try
         {
-            var admins = await _firebaseService.GetNodeAsync("admin_users");
-            var editors = await _firebaseService.GetNodeAsync("cheat_sheet_editors");
-            var devs = await _firebaseService.GetNodeAsync("dev_users");
+            // Use the cached tenant user list populated by RefreshPermissionDirectoryAsync.
+            // If empty (first call), fetch now.
+            if (_tenantUsers.Count == 0)
+                await RefreshPermissionDirectoryAsync();
 
-            var isAdmin = UserHasRole(admins, username);
-            var isEditor = UserHasRole(editors, username);
-            var isDev = UserHasRole(devs, username);
+            var match = _tenantUsers.FirstOrDefault(
+                u => string.Equals(u.Username, username, StringComparison.OrdinalIgnoreCase));
 
-            if (isAdmin)
+            if (match == null)
+            {
+                PermSelectedUserBadges.Children.Add(CreatePermHint(
+                    "No directory entry for this user yet — they must sign in once to appear."));
+                return;
+            }
+
+            if (match.IsAdmin)
                 PermSelectedUserBadges.Children.Add(CreatePermissionRoleBadge("ADMIN", "OrangeBackgroundBrush", "OrangeBrush"));
-            if (isEditor)
+            if (match.IsEditor)
                 PermSelectedUserBadges.Children.Add(CreatePermissionRoleBadge("EDITOR", "GreenBackgroundBrush", "GreenBrush"));
-            if (isDev)
+            if (match.IsDev)
                 PermSelectedUserBadges.Children.Add(CreatePermissionRoleBadge("DEV", "BlueBackgroundBrush", "BlueBrush"));
 
             if (PermSelectedUserBadges.Children.Count == 0)

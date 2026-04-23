@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
   Sign a release artifact with the DesktopHub update-signing RSA key.

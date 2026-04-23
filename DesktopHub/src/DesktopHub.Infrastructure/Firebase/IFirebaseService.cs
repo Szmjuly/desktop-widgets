@@ -17,6 +17,13 @@ public interface IFirebaseService
     string CurrentTier { get; }
 
     /// <summary>
+    /// Prefixes a relative path with the current tenant namespace:
+    /// <c>TenantPath("devices")</c> -> <c>tenants/internal/devices</c>.
+    /// Use for any RTDB path that lives under the tenant subtree.
+    /// </summary>
+    string TenantPath(string relative);
+
+    /// <summary>
     /// Whether the user has consented to telemetry. The five telemetry methods
     /// (LogAppLaunch, LogAppClose, LogUsageEvent, LogError, SyncDailyMetrics)
     /// short-circuit when this is false. Functional paths (heartbeat, license,

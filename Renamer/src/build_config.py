@@ -75,6 +75,13 @@ INCLUDE_LICENSING: bool = _resolve_include_licensing(_CONFIG, NETWORK_FEATURES_E
 # Convenience for callers that want the reverse phrasing.
 OFFLINE_MODE: bool = not NETWORK_FEATURES_ENABLED
 
+# Tenant identity baked into this binary. Sent with every issueToken request;
+# server hashes the username under the matching tenant salt and gates every
+# RTDB path at /tenants/{TENANT_ID}/. External-customer builds override this
+# via build_config.json so a leaked license from one tenant cannot auth into
+# another tenant's data -- the binary is cryptographically bound to its tenant.
+TENANT_ID: str = str(_CONFIG.get("tenant_id", "ces")).strip().lower() or "ces"
+
 
 def why_offline() -> str | None:
     """Human-readable reason we are in offline mode, or None if we aren't.

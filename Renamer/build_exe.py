@@ -167,17 +167,13 @@ def build_executable():
         "hashlib",
     ]
 
+    # 2026-04-23: As part of the Cloud-Function-token migration, the client
+    # no longer depends on firebase_admin / pyrebase / google.auth at all.
+    # All Firebase interaction lives in src/firebase_auth.py and uses only
+    # the standard-library urllib. Keep the entry here (empty) as a place
+    # to reintroduce imports if a future networked feature needs them.
     network_hidden_imports = [
-        "firebase_admin",
-        "firebase_admin.credentials",
-        "firebase_admin.db",
-        "firebase_admin.auth",
-        "google.auth",
-        "google.auth.transport",
-        "google.auth.transport.requests",
-        "google.oauth2",
-        "google.cloud",
-        "src.firebase_config_embedded",  # Embedded Firebase config
+        "src.firebase_auth",
     ]
 
     hidden_imports = core_hidden_imports + ([] if offline_build else network_hidden_imports)

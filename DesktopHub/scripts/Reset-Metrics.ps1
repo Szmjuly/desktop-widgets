@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Reset DesktopHub telemetry metrics data.
 

@@ -38,10 +38,23 @@ public partial class DeveloperPanelWidget
     /// <summary>
     /// Fetches device data from Firebase and populates <see cref="_allDeviceDetails"/> and <see cref="_knownUsernames"/>.
     /// Called by both the Users/Devices tab and the Updates tab so either can initialize independently.
+    ///
+    /// Post-multi-tenant refactor: device records carry `user_id` (HMAC hash),
+    /// not raw `username`. This method resolves the hash back to a display
+    /// name via the cached listTenantUsers response (_tenantUsers) populated
+    /// by RefreshPermissionDirectoryAsync. If the tenant directory cache is
+    /// empty, we fetch it first so device rows can show real names.
     /// </summary>
     internal async Task LoadDeviceDetailsAsync()
     {
         if (_firebaseService == null || !_firebaseService.IsInitialized) return;
+
+        // Ensure the user_id -> username map is populated before rendering devices.
+        if (_tenantUsers.Count == 0)
+            await RefreshPermissionDirectoryAsync();
+
+        var userIdToUsername = _tenantUsers.ToDictionary(
+            u => u.UserId, u => u.Username, StringComparer.OrdinalIgnoreCase);
 
         var devices = await _firebaseService.GetDevicesAsync();
         if (devices == null || devices.Count == 0)
@@ -59,10 +72,17 @@ public partial class DeveloperPanelWidget
                 if (d.TryGetValue("apps", out var appsObj) && appsObj is Dictionary<string, object> appsDict)
                     apps = appsDict;
 
+                // Prefer decrypted display name; fall back to the hash itself
+                // so rows keyed by an unknown hash remain identifiable.
+                var userId = d.TryGetValue("user_id", out var uid) ? uid?.ToString() ?? "" : "";
+                var displayName = userIdToUsername.TryGetValue(userId, out var un) && !string.IsNullOrEmpty(un)
+                    ? un
+                    : (string.IsNullOrEmpty(userId) ? "unknown" : userId);
+
                 return new UserDeviceDetail
                 {
                     DeviceId = kvp.Key,
-                    Username = d.TryGetValue("username", out var u) ? u?.ToString() ?? "unknown" : "unknown",
+                    Username = displayName,
                     DeviceName = d.TryGetValue("device_name", out var dn) ? dn?.ToString() ?? "" : "",
                     Status = d.TryGetValue("status", out var st) ? st?.ToString() ?? "unknown" : "unknown",
                     LastSeen = d.TryGetValue("last_seen", out var ls) ? ls?.ToString() ?? "" : "",
@@ -474,21 +494,25 @@ public partial class DeveloperPanelWidget
         var normalized = NormalizeUsername(username);
         var badges = new WrapPanel();
 
-        // Same rules as Permissions tab: read each role *collection* and look up the username.
-        // GetNodeAsync("admin_users/someone") fails for boolean leaves — RTDB stores true/false, not objects.
+        // Role collections live under /tenants/{tid}/{admin_users|dev_users|cheat_sheet_editors}
+        // keyed by hashed user_id, unreadable from the client. listTenantUsers Cloud Function
+        // decrypts the user_directory and returns flags in one round trip.
         try
         {
-            var adminsTask = _firebaseService.GetNodeAsync("admin_users");
-            var editorsTask = _firebaseService.GetNodeAsync("cheat_sheet_editors");
-            var devsTask = _firebaseService.GetNodeAsync("dev_users");
-            await Task.WhenAll(adminsTask, editorsTask, devsTask);
+            if (_tenantUsers.Count == 0)
+                await RefreshPermissionDirectoryAsync();
 
-            if (UserHasRole(await adminsTask, normalized))
-                badges.Children.Add(CreatePermissionRoleBadge("ADMIN", "OrangeBackgroundBrush", "OrangeBrush"));
-            if (UserHasRole(await editorsTask, normalized))
-                badges.Children.Add(CreatePermissionRoleBadge("EDITOR", "GreenBackgroundBrush", "GreenBrush"));
-            if (UserHasRole(await devsTask, normalized))
-                badges.Children.Add(CreatePermissionRoleBadge("DEV", "BlueBackgroundBrush", "BlueBrush"));
+            var match = _tenantUsers.FirstOrDefault(
+                u => string.Equals(u.Username, normalized, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+            {
+                if (match.IsAdmin)
+                    badges.Children.Add(CreatePermissionRoleBadge("ADMIN", "OrangeBackgroundBrush", "OrangeBrush"));
+                if (match.IsEditor)
+                    badges.Children.Add(CreatePermissionRoleBadge("EDITOR", "GreenBackgroundBrush", "GreenBrush"));
+                if (match.IsDev)
+                    badges.Children.Add(CreatePermissionRoleBadge("DEV", "BlueBackgroundBrush", "BlueBrush"));
+            }
         }
         catch
         {
@@ -556,7 +580,7 @@ public partial class DeveloperPanelWidget
 
         foreach (var device in devices)
         {
-            var root = await _firebaseService.GetNodeAsync($"metrics/{device.DeviceId}");
+            var root = await _firebaseService.GetNodeAsync(_firebaseService.TenantPath($"metrics/{device.DeviceId}"));
             if (root == null || root.Count == 0)
                 continue;
 

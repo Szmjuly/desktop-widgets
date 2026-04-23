@@ -80,6 +80,21 @@ if (-not $ServiceAccountPath) {
 $DatabaseUrl = "https://licenses-ff136-default-rtdb.firebaseio.com"
 $FirebaseNode = "project_tags"
 
+# Hash the operator's Windows username so audit fields (updated_by) stay
+# out of the database in plaintext. Shells out to admin-cli.js (which owns
+# the tenant salt). Tenant defaults to 'ces' for this admin tool.
+function Get-OperatorUserId {
+    param([string]$Tenant = "ces")
+    $cli = Join-Path $PSScriptRoot "admin-cli.js"
+    if (-not (Test-Path $cli)) { return "unknown" }
+    $env:NODE_PATH = Join-Path $PSScriptRoot "..\functions\node_modules"
+    try {
+        $h = & node $cli hash $env:USERNAME --tenant $Tenant 2>$null
+        if ($LASTEXITCODE -eq 0 -and $h) { return ($h.Trim()) }
+    } catch {}
+    return "unknown"
+}
+
 # --- HMAC Hashing ---
 function Get-OrCreateSecret {
     if (Test-Path $SecretPath) {
@@ -365,7 +380,7 @@ switch ($Action) {
 
         $hash = Get-ProjectHash $ProjectNumber
         $now = (Get-Date).ToUniversalTime().ToString("o")
-        $username = $env:USERNAME.ToLowerInvariant()
+        $operatorId = Get-OperatorUserId
 
         # Handle list fields
         $value = $TagValue
@@ -376,7 +391,7 @@ switch ($Action) {
         $tagData = @{ $TagKey = $value }
         Invoke-FirebasePatch "$FirebaseNode/$hash/tags" $tagData
         Invoke-FirebasePatch "$FirebaseNode/$hash" @{
-            updated_by = $username
+            updated_by = $operatorId
             updated_at = $now
         }
 
@@ -432,7 +447,7 @@ switch ($Action) {
         if (-not (Test-Path $CsvFile)) { throw "CSV file not found: $CsvFile" }
 
         $csv = Import-Csv $CsvFile
-        $username = $env:USERNAME.ToLowerInvariant()
+        $operatorId = Get-OperatorUserId
         $now = (Get-Date).ToUniversalTime().ToString("o")
 
         # CSV must have a 'project_number' column; all other columns are tag fields
@@ -462,7 +477,7 @@ switch ($Action) {
             if ($tagData.Count -gt 0) {
                 Invoke-FirebasePatch "$FirebaseNode/$hash/tags" $tagData
                 Invoke-FirebasePatch "$FirebaseNode/$hash" @{
-                    updated_by = $username
+                    updated_by = $operatorId
                     updated_at = $now
                 }
                 $imported++

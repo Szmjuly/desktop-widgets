@@ -92,15 +92,19 @@ if (-not [string]::IsNullOrWhiteSpace($ServiceAccountPath)) {
     $saCandidates += $ServiceAccountPath
 }
 $saCandidates += @(
+    # Preferred: off-repo, per-user secret store. Set via:
+    #   setx FIREBASE_ADMIN_KEY_PATH "$env:USERPROFILE\.desktophub\firebase-admin-key.json"
+    $env:FIREBASE_ADMIN_KEY_PATH,
+    (Join-Path $env:USERPROFILE ".desktophub\firebase-admin-key.json"),
+    # Fallback: DesktopHub's own embedded-secrets location (legacy, still supported)
     (Join-Path $scriptDir "..\secrets\firebase-license.json"),
-    (Join-Path $scriptDir "..\..\Renamer\firebase-admin-key.json"),
-    (Join-Path $scriptDir "..\..\firebase-admin-key.json"),
     (Join-Path $scriptDir "firebase-license.json"),
     (Join-Path (Split-Path -Parent $scriptDir) "secrets\firebase-license.json"),
-    (Join-Path (Split-Path -Parent $scriptDir) "..\Renamer\firebase-admin-key.json"),
     (Join-Path $PWD.Path "DesktopHub\secrets\firebase-license.json"),
-    (Join-Path $PWD.Path "Renamer\firebase-admin-key.json"),
     (Join-Path $PWD.Path "firebase-license.json")
+    # REMOVED 2026-04-22: auto-discovery from the Renamer repo. A committed
+    # admin-SDK key used to live there; it has been rotated and purged.
+    # Never auto-discover secrets from *any* repo root.
 )
 $saCandidates = @($saCandidates | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
 foreach ($c in $saCandidates) {
@@ -131,9 +135,9 @@ function Show-Menu {
     Write-Host "  DATABASE" -ForegroundColor Yellow
     Write-Host "    [1]  Dump database structure"
     Write-Host "    [2]  Dump database (full detail)"
-    Write-Host "    [3]  Wipe devices node"
+    Write-Host "    [3]  Wipe devices node (all tenants)"
     Write-Host "    [4]  Backup entire database"
-    Write-Host "    [5]  Wipe ALL (preserves licenses/versions/admins/tags)"
+    Write-Host "    [5]  Wipe / reset submenu (full DB, non-tenant, tenant, section)"
     Write-Host ""
     Write-Host "  PROJECT TAGS" -ForegroundColor Yellow
     Write-Host "    [10] Get tags for a project"
@@ -222,6 +226,58 @@ function Build-SaParams {
     $p = @{}
     if ($script:resolvedSaPath) { $p['ServiceAccountPath'] = $script:resolvedSaPath }
     return $p
+}
+
+function Invoke-WipeMenu {
+    Write-Host ""
+    Write-Host "  === WIPE / RESET ===" -ForegroundColor Cyan
+    Write-Host "    [a] Wipe ENTIRE DATABASE (every node, every tenant)" -ForegroundColor Red
+    Write-Host "    [b] Wipe NON-TENANT data only (app_versions, tags, etc; keeps /tenants)"
+    Write-Host "    [c] Wipe an ENTIRE tenant (pick tenant id)"
+    Write-Host "    [d] Wipe a SECTION of a tenant (admin_users / devices / metrics / ...)"
+    Write-Host "    [x] Cancel"
+    Write-Host ""
+
+    $params = $null
+    switch ((Read-Host "  Select wipe mode").ToLower()) {
+        "a" { $params = @{ Mode="all" } }
+        "b" { $params = @{ Mode="non-tenant" } }
+        "c" {
+            $t = Prompt-Input "Tenant id to wipe (e.g. ces, internal)"
+            if ($t) { $params = @{ Mode="tenant"; Tenant=$t } }
+        }
+        "d" {
+            $t = Prompt-Input "Tenant id"
+            if (-not $t) { return }
+            Write-Host "  Sections: admin_users, dev_users, cheat_sheet_editors,"
+            Write-Host "            users, devices, metrics, events, errors, licenses"
+            $s = Prompt-Input "Section name"
+            if ($s) { $params = @{ Mode="tenant-section"; Tenant=$t; Section=$s } }
+        }
+        default { Write-Host "  Cancelled." -ForegroundColor Gray; return }
+    }
+    if (-not $params) { return }
+
+    # Call wipe-manager.ps1 directly (bypassing Invoke-Script's pause) so the
+    # dry-run output flows straight into the confirmation prompt.
+    $wipeScript = Join-Path $scriptDir "wipe-manager.ps1"
+    if ($script:resolvedSaPath -and -not $params.ContainsKey('ServiceAccountPath')) {
+        $params['ServiceAccountPath'] = $script:resolvedSaPath
+    }
+
+    Write-Host ""
+    & $wipeScript @params
+
+    $confirm = Read-Host "`n  Commit the deletion? Type 'yes' to proceed"
+    if ($confirm -eq "yes") {
+        $params['Force'] = $true
+        & $wipeScript @params
+    } else {
+        Write-Host "  Cancelled -- nothing deleted." -ForegroundColor Gray
+    }
+    Write-Host ""
+    Write-Host "  Press Enter to continue..." -ForegroundColor DarkGray
+    Read-Host | Out-Null
 }
 
 # ============================================================
@@ -320,16 +376,7 @@ while ($true) {
         "2" { Invoke-Script "dump-database.ps1" @{Full=$true} }
         "3" { Invoke-Script "dump-database.ps1" @{WipeDevices=$true; Force=$true} }
         "4" { Invoke-Script "backup-database.ps1" }
-        "5" {
-            Write-Host ""
-            Write-Host "  WARNING: This will wipe EVERYTHING except app_versions, admin_users, and tagging data." -ForegroundColor Red
-            $confirm = Read-Host "  Type 'WIPE' to confirm full reset"
-            if ($confirm -eq "WIPE") {
-                Invoke-Script "dump-database.ps1" @{WipeAll=$true; Force=$true}
-            } else {
-                Write-Host "  Cancelled." -ForegroundColor Gray
-            }
-        }
+        "5" { Invoke-WipeMenu }
 
         # --- PROJECT TAGS ---
         "10" {

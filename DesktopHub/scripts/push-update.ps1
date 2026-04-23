@@ -21,12 +21,31 @@ param(
     # When set for -Action push (single device), force_update.target_version uses this instead of app_versions latest (download_url unchanged).
     [string]$TargetVersion,
 
-    # Must match Firebase app_versions/{AppId} and devices/*/apps/{AppId}
-    [string]$AppId = "desktophub"
+    # Must match Firebase app_versions/{AppId} and tenants/{tid}/devices/*/apps/{AppId}
+    [string]$AppId = "desktophub",
+
+    # Tenant to operate on. Device paths live under tenants/{TenantId}/devices/.
+    [string]$TenantId = "ces"
 )
 
 $baseUrl = "https://licenses-ff136-default-rtdb.firebaseio.com"
 $appId = $AppId
+$devicesRoot = "tenants/$TenantId/devices"
+
+# Hash the operator's Windows username so audit fields like `pushed_by` never
+# contain raw PII. Shells out to admin-cli.js which owns the tenant salt.
+function Get-OperatorUserId {
+    $scriptDir = $PSScriptRoot
+    $cli = Join-Path $scriptDir "admin-cli.js"
+    if (-not (Test-Path $cli)) { return "unknown" }
+    $env:NODE_PATH = Join-Path $scriptDir "..\functions\node_modules"
+    try {
+        $h = & node $cli hash $env:USERNAME --tenant $TenantId 2>$null
+        if ($LASTEXITCODE -eq 0 -and $h) { return ($h.Trim()) }
+    } catch {}
+    return "unknown"
+}
+$script:OperatorUserId = Get-OperatorUserId
 
 # ============================================================
 # SERVICE ACCOUNT AUTH
@@ -218,7 +237,7 @@ switch ($Action) {
         Write-Host "  Latest version: $latestVersion" -ForegroundColor Green
         Write-Host ""
 
-        $devices = fb-get "devices"
+        $devices = fb-get $devicesRoot
         if ($null -eq $devices) {
             Write-Host "  No devices found." -ForegroundColor Yellow
             exit 0
@@ -235,7 +254,7 @@ switch ($Action) {
             $lastSeen = "?"
             $status = "?"
 
-            try { $username = $dev.username } catch {}
+            try { $username = $dev.user_id } catch {}
             try { $deviceName = $dev.device_name } catch {}
             try { $lastSeen = $dev.last_seen } catch {}
 
@@ -295,7 +314,7 @@ switch ($Action) {
         }
 
         # Verify device exists
-        $device = fb-get "devices/$DeviceId"
+        $device = fb-get "$devicesRoot/$DeviceId"
         if ($null -eq $device) {
             Write-Host "Error: Device '$DeviceId' not found in Firebase." -ForegroundColor Red
             exit 1
@@ -309,7 +328,7 @@ switch ($Action) {
             $latestVersion = $TargetVersion.Trim()
         }
 
-        $username = try { $device.username } catch { "unknown" }
+        $username = try { $device.user_id } catch { "unknown" }
         $installedVersion = try { $device.apps.$appId.installed_version } catch { "unknown" }
 
         if (-not (Is-Outdated $installedVersion $latestVersion)) {
@@ -330,7 +349,7 @@ switch ($Action) {
             app_id            = $appId
             target_version    = $latestVersion
             download_url      = $downloadUrl
-            pushed_by         = $env:USERNAME.ToLower()
+            pushed_by         = $script:OperatorUserId
             pushed_at         = $now
             status            = "pending"
             status_updated_at = $now
@@ -348,7 +367,7 @@ switch ($Action) {
         $latestVersion = $versionInfo.latest_version
         $downloadUrl = $versionInfo.download_url
 
-        $devices = fb-get "devices"
+        $devices = fb-get $devicesRoot
         if ($null -eq $devices) {
             Write-Host "  No devices found." -ForegroundColor Yellow
             exit 0
@@ -361,7 +380,7 @@ switch ($Action) {
             $installedVersion = "0.0.0"
             try { $installedVersion = $dev.apps.$appId.installed_version } catch {}
             if (Is-Outdated $installedVersion $latestVersion) {
-                $username = try { $dev.username } catch { "unknown" }
+                $username = try { $dev.user_id } catch { "unknown" }
                 $outdated += @{ Id = $did; User = $username; Version = $installedVersion }
             }
         }
@@ -392,7 +411,7 @@ switch ($Action) {
                     app_id            = $appId
                     target_version    = $latestVersion
                     download_url      = $downloadUrl
-                    pushed_by         = $env:USERNAME.ToLower()
+                    pushed_by         = $script:OperatorUserId
                     pushed_at         = $now
                     status            = "pending"
                     status_updated_at = $now
@@ -442,7 +461,7 @@ switch ($Action) {
 
             # Look up username from devices node
             $device = fb-get "devices/$did"
-            $username = try { $device.username } catch { "?" }
+            $username = try { $device.user_id } catch { "?" }
 
             $statusColor = switch ($status) {
                 "pending"     { "Yellow" }

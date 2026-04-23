@@ -4,11 +4,12 @@
     ".write": false,
 
     "licenses": {
-      "$licenseKey": {
-        ".read": "auth != null",
-        ".write": "auth.token.tier === 'admin' || auth.token.tier === 'dev' || (auth.token.tier === 'user' && auth.token.license_key === $licenseKey && (!data.exists() || newData.child('license_key').val() === data.child('license_key').val()))",
-        ".indexOn": ["email", "status", "app_id", "plan", "source"]
-      }
+      ".read": false,
+      ".write": false
+    },
+    "spec_updater_licenses": {
+      ".read": false,
+      ".write": false
     },
 
     "app_versions": {
@@ -20,62 +21,127 @@
     },
 
     "admin_users": {
-      "$u": {
-        ".read": "auth != null",
-        ".write": "auth.token.tier === 'admin' || auth.token.tier === 'dev'"
-      }
+      ".read": false,
+      ".write": false
     },
     "dev_users": {
-      "$u": {
-        ".read": "auth != null",
-        ".write": "auth.token.tier === 'dev'"
+      ".read": false,
+      ".write": false
+    },
+
+    "tenants": {
+      "$tenantId": {
+        "licenses": {
+          "$appId": {
+            "$licenseKey": {
+              ".read": "auth.token.tenant_id === $tenantId && auth.token.app_id === $appId && auth != null",
+              ".write": "auth.token.tenant_id === $tenantId && (auth.token.tier === 'admin' || auth.token.tier === 'dev' || (auth.token.tier === 'user' && auth.token.app_id === $appId && auth.token.license_key === $licenseKey && (!data.exists() || newData.child('license_key').val() === data.child('license_key').val())))",
+              ".indexOn": ["email", "status", "plan", "source"]
+            }
+          }
+        },
+
+        "admin_users": {
+          ".read": false,
+          ".write": false,
+          "$userId": {
+            ".read": false,
+            ".write": false
+          }
+        },
+
+        "dev_users": {
+          ".read": false,
+          ".write": false,
+          "$userId": {
+            ".read": false,
+            ".write": false
+          }
+        },
+
+        "users": {
+          ".read": "auth.token.tenant_id === $tenantId && (auth.token.tier === 'admin' || auth.token.tier === 'dev')",
+          "$userId": {
+            ".read": "auth.token.tenant_id === $tenantId && (auth.token.tier === 'admin' || auth.token.tier === 'dev' || auth.token.user_id === $userId)",
+            ".write": "auth.token.tenant_id === $tenantId && (auth.token.tier === 'admin' || auth.token.tier === 'dev' || auth.token.user_id === $userId)"
+          }
+        },
+
+        "devices": {
+          ".read": "auth.token.tenant_id === $tenantId && (auth.token.tier === 'admin' || auth.token.tier === 'dev')",
+          ".indexOn": ["license_key", "user_id", "status", "last_seen"],
+          "$deviceId": {
+            ".read": "auth.token.tenant_id === $tenantId && (auth.token.tier === 'admin' || auth.token.tier === 'dev' || data.child('user_id').val() === auth.token.user_id)",
+            ".write": "auth.token.tenant_id === $tenantId && (auth.token.tier === 'admin' || auth.token.tier === 'dev' || !data.exists() || data.child('user_id').val() === auth.token.user_id)"
+          }
+        },
+
+        "events": {
+          "$appId": {
+            "$month": {
+              ".read": "auth.token.tenant_id === $tenantId && (auth.token.tier === 'admin' || auth.token.tier === 'dev')",
+              ".write": "auth.token.tenant_id === $tenantId"
+            }
+          }
+        },
+
+        "errors": {
+          "$appId": {
+            "$month": {
+              ".read": "auth.token.tenant_id === $tenantId && (auth.token.tier === 'admin' || auth.token.tier === 'dev')",
+              ".write": "auth.token.tenant_id === $tenantId"
+            }
+          }
+        },
+
+        "metrics": {
+          ".read": "auth.token.tenant_id === $tenantId && (auth.token.tier === 'admin' || auth.token.tier === 'dev')",
+          ".indexOn": ["date", "user_id"],
+          "$deviceId": {
+            ".read": "auth.token.tenant_id === $tenantId && (auth.token.tier === 'admin' || auth.token.tier === 'dev')",
+            ".write": "auth.token.tenant_id === $tenantId"
+          }
+        },
+
+        "cheat_sheet_editors": {
+          ".read": false,
+          ".write": false,
+          "$userId": {
+            ".read": "auth.token.tenant_id === $tenantId && (auth.token.tier === 'admin' || auth.token.tier === 'dev' || auth.token.user_id === $userId)",
+            ".write": false
+          }
+        }
       }
     },
+
     "cheat_sheet_editors": {
-      "$u": {
-        ".read": "auth != null",
-        ".write": "auth.token.tier === 'admin' || auth.token.tier === 'dev'"
-      }
+      ".read": false,
+      ".write": false
     },
 
     "users": {
-      "$username": {
-        ".read": "auth.token.tier === 'admin' || auth.token.tier === 'dev' || auth.token.username === $username",
-        ".write": "auth.token.tier === 'admin' || auth.token.tier === 'dev' || auth.token.username === $username"
-      }
+      ".read": false,
+      ".write": false
     },
 
     "devices": {
-      "$deviceId": {
-        ".read": "auth.token.tier === 'admin' || auth.token.tier === 'dev' || (data.child('username').val() === auth.token.username)",
-        ".write": "auth.token.tier === 'admin' || auth.token.tier === 'dev' || (!data.exists() || data.child('username').val() === auth.token.username)",
-        ".indexOn": ["license_key", "username", "status", "last_seen"]
-      }
+      ".read": false,
+      ".write": false
     },
 
     "events": {
-      "$appId": {
-        "$month": {
-          ".read": "auth.token.tier === 'admin' || auth.token.tier === 'dev'",
-          ".write": "auth != null"
-        }
-      }
+      ".read": false,
+      ".write": false
     },
+
     "errors": {
-      "$appId": {
-        "$month": {
-          ".read": "auth.token.tier === 'admin' || auth.token.tier === 'dev'",
-          ".write": "auth != null"
-        }
-      }
+      ".read": false,
+      ".write": false
     },
 
     "metrics": {
-      "$deviceId": {
-        ".read": "auth.token.tier === 'admin' || auth.token.tier === 'dev'",
-        ".write": "auth != null",
-        ".indexOn": ["date", "user_name"]
-      }
+      ".read": false,
+      ".write": false
     },
 
     "feature_flags": {
@@ -101,6 +167,7 @@
         ".write": "auth != null"
       }
     },
+
     "tag_vocabulary": {
       "$fieldKey": {
         ".read": "auth != null",

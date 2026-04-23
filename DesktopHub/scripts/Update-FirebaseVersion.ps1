@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     Updates DesktopHub version information in Firebase

@@ -6,9 +6,12 @@ psutil>=5.9.0
 # GUI framework
 PySide6>=6.5.0
 
-# Firebase integration
-firebase-admin>=6.2.0
-Pyrebase4>=4.7.1
-
 # Utilities
 python-dotenv>=1.0.0
+
+# Note (2026-04-23): firebase-admin and Pyrebase4 have been REMOVED from the
+# shipping client. All Firebase interaction now goes through the issueToken
+# Cloud Function via plain HTTPS (src/firebase_auth.py uses only urllib).
+# The old dependencies are still required by the admin-side tooling under
+# admin/ -- if you install those for admin use, install firebase-admin
+# manually: pip install firebase-admin

@@ -1,4 +1,4 @@
-# Simple DesktopHub Installation Script
+﻿# Simple DesktopHub Installation Script
 param(
     [string]$InstallPath = "$env:ProgramFiles\DesktopHub",
     [switch]$CreateDesktopShortcut,

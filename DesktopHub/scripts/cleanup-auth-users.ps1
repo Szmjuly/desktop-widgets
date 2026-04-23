@@ -33,9 +33,14 @@ function Get-ServiceAccountAccessToken([string]$jsonPath) {
     $now = [long][Math]::Floor(([DateTime]::UtcNow - $epoch).TotalSeconds)
 
     $header = '{"alg":"RS256","typ":"JWT"}'
+    # Use the modern cloud-platform scope. The legacy "identitytoolkit"
+    # OAuth scope was deprecated in 2020; Google now returns HTTP 400
+    # during token exchange when it's requested. cloud-platform is the
+    # superset that includes the Identity Toolkit admin APIs this script
+    # hits (projects:accounts:batchGet / batchDelete).
     $claims = @{
         iss   = $email
-        scope = "https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/identitytoolkit"
+        scope = "https://www.googleapis.com/auth/cloud-platform"
         aud   = "https://oauth2.googleapis.com/token"
         iat   = $now
         exp   = $now + 3600
@@ -70,10 +75,26 @@ function Get-ServiceAccountAccessToken([string]$jsonPath) {
     $sigB64 = ConvertTo-Base64Url($sigBytes)
     $jwt = "$unsigned.$sigB64"
 
-    $response = Invoke-RestMethod -Uri "https://oauth2.googleapis.com/token" -Method Post -Body @{
-        grant_type = "urn:ietf:params:oauth:grant-type:jwt-bearer"
-        assertion  = $jwt
-    } -ContentType "application/x-www-form-urlencoded" -TimeoutSec 20
+    try {
+        $response = Invoke-RestMethod -Uri "https://oauth2.googleapis.com/token" -Method Post -Body @{
+            grant_type = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+            assertion  = $jwt
+        } -ContentType "application/x-www-form-urlencoded" -TimeoutSec 20
+    } catch [System.Net.WebException] {
+        # Google's OAuth endpoint returns a JSON body like
+        # {"error":"invalid_grant","error_description":"..."} on 4xx.
+        # Surface that so we can diagnose instead of just "400 Bad Request".
+        $resp = $_.Exception.Response
+        $body = "(no body)"
+        if ($null -ne $resp) {
+            try {
+                $stream = $resp.GetResponseStream()
+                $reader = [System.IO.StreamReader]::new($stream)
+                $body = $reader.ReadToEnd()
+            } catch {}
+        }
+        throw "OAuth token exchange failed: $($_.Exception.Message)`nGoogle said: $body`nService account: $email`nKey ID prefix: $($sa.private_key_id.Substring(0, [Math]::Min(12, $sa.private_key_id.Length)))..."
+    }
 
     return @{
         AccessToken = $response.access_token
@@ -87,11 +108,13 @@ function Get-ServiceAccountAccessToken([string]$jsonPath) {
 
 if ([string]::IsNullOrWhiteSpace($ServiceAccountPath)) {
     $scriptDir = $PSScriptRoot
+    # Prefer the off-repo per-user secret store, falling back to legacy paths.
+    # The Renamer path was removed on 2026-04-22 after the credential rotation.
     $candidates = @(
-        (Join-Path $scriptDir "..\secrets\firebase-license.json"),
-        (Join-Path $scriptDir "..\..\Renamer\firebase-admin-key.json"),
-        (Join-Path $scriptDir "..\..\firebase-admin-key.json")
-    )
+        $env:FIREBASE_ADMIN_KEY_PATH,
+        (Join-Path $env:USERPROFILE ".desktophub\firebase-admin-key.json"),
+        (Join-Path $scriptDir "..\secrets\firebase-license.json")
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
 
     foreach ($c in $candidates) {
         if (Test-Path $c) {
@@ -103,11 +126,22 @@ if ([string]::IsNullOrWhiteSpace($ServiceAccountPath)) {
 
 if ([string]::IsNullOrWhiteSpace($ServiceAccountPath) -or -not (Test-Path $ServiceAccountPath)) {
     Write-Host "Error: Service account JSON not found." -ForegroundColor Red
-    Write-Host "Looked in:" -ForegroundColor Yellow
+    Write-Host "Looked in (in priority order):" -ForegroundColor Yellow
+    Write-Host "  `$env:FIREBASE_ADMIN_KEY_PATH = '$env:FIREBASE_ADMIN_KEY_PATH'" -ForegroundColor Yellow
+    Write-Host "  $env:USERPROFILE\.desktophub\firebase-admin-key.json" -ForegroundColor Yellow
     Write-Host "  DesktopHub\secrets\firebase-license.json" -ForegroundColor Yellow
-    Write-Host "  Renamer\firebase-admin-key.json" -ForegroundColor Yellow
     Write-Host "Or provide: -ServiceAccountPath <path>" -ForegroundColor Yellow
     exit 1
+}
+
+# Diagnostic: which key is being used
+try {
+    $debugSa = Get-Content $ServiceAccountPath -Raw | ConvertFrom-Json
+    Write-Host ("Using key: {0}" -f $ServiceAccountPath) -ForegroundColor DarkGray
+    Write-Host ("  Service account: {0}" -f $debugSa.client_email) -ForegroundColor DarkGray
+    Write-Host ("  Key ID prefix:   {0}..." -f $debugSa.private_key_id.Substring(0, 12)) -ForegroundColor DarkGray
+} catch {
+    Write-Host "Warning: could not inspect key file for diagnostic info" -ForegroundColor DarkGray
 }
 
 Write-Host "Authenticating with service account..." -ForegroundColor Gray

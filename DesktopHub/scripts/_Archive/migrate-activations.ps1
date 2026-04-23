@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 # Device Activations Migration Tool
 #
 # Reads device_activations (legacy flat node) and migrates all data into the new

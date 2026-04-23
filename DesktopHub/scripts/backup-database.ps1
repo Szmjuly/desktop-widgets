@@ -4,10 +4,16 @@
 #
 # Usage:
 #   .\backup-database.ps1                                    # Backup entire database
-#   .\backup-database.ps1 -Collections "devices,users"       # Backup specific collections
-#   .\backup-database.ps1 -Collections "project_tags"        # Backup just tags
+#   .\backup-database.ps1 -Collections "tenants,project_tags" # Backup specific roots
+#   .\backup-database.ps1 -Collections "app_versions"        # Just release metadata
 #   .\backup-database.ps1 -OutputDir "C:\backups"            # Custom output directory
 #   .\backup-database.ps1 -ServiceAccountPath "path\to\sa.json"
+#
+# Schema note (post-2026-04 multi-tenant refactor):
+#   All user-scoped data lives under `tenants/{tenantId}/`. A full-DB backup
+#   includes it via the top-level `tenants` node. Legacy flat roots like
+#   `devices`, `users`, `admin_users`, `licenses`, `spec_updater_licenses`
+#   no longer exist.
 
 param(
     [string]$Collections,

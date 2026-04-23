@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.IO;
 using Newtonsoft.Json;
+using DesktopHub.Core;
 using DesktopHub.Infrastructure.Firebase.Models;
 using DesktopHub.Infrastructure.Firebase.Utilities;
 using DesktopHub.Infrastructure.Logging;
@@ -28,6 +29,17 @@ public class FirebaseService : IFirebaseService
     private bool _isInitialized;
     private bool _forcedUpdateProcessing;
     private readonly string _username = Environment.UserName.ToLowerInvariant();
+
+    // Every user-scoped / license / device / telemetry path must be prefixed
+    // with tenants/{tenantId}/. Raw root-level writes are locked out by rules.
+    private string T(string rel) => $"tenants/{_auth.TenantId ?? BuildConfig.TenantId}/{rel}";
+
+    public string TenantPath(string relative) => T(relative);
+
+    // Hashed user id issued by issueToken. Before sign-in completes, fall back
+    // to a deterministic placeholder so any early probe fails cleanly rather
+    // than leaking the raw Windows username into an RTDB path.
+    private string UserKey => _auth.UserId ?? "pending";
 
     /// <summary>
     /// Exposes the auth object so the developer panel can invoke admin-tier
@@ -98,8 +110,8 @@ public class FirebaseService : IFirebaseService
                 InfraLogger.Log($"Firebase: Generated FREE license locally: {licenseKey}");
             }
 
-            InfraLogger.Log($"Firebase: Signing in (device={_deviceInfo.DeviceId}, user={_username})...");
-            var signedIn = await _auth.SignInAsync(licenseKey, _username, _deviceInfo.DeviceId);
+            InfraLogger.Log($"Firebase: Signing in (device={_deviceInfo.DeviceId})...");
+            var signedIn = await _auth.SignInAsync(licenseKey, _username, _deviceInfo.DeviceId, BuildConfig.TenantId);
             if (!signedIn)
             {
                 InfraLogger.Log("Firebase: SignIn failed -- running in offline mode");
@@ -139,7 +151,7 @@ public class FirebaseService : IFirebaseService
             // Register user and device in new structure
             await RegisterUserAndDeviceAsync(licenseKey, appVersion, now);
 
-            InfraLogger.Log($"Firebase: Device registered - {_deviceInfo.DeviceId} (user: {_username})");
+            InfraLogger.Log($"Firebase: Device registered - {_deviceInfo.DeviceId}");
         }
         catch (Exception ex)
         {
@@ -158,24 +170,23 @@ public class FirebaseService : IFirebaseService
 
         try
         {
-            // Update users/{username} — create or update
-            await PatchDataAsync($"users/{_username}", new Dictionary<string, object>
+            // Update users/{userKey} — create or update
+            await PatchDataAsync(T($"users/{UserKey}"), new Dictionary<string, object>
             {
                 ["last_seen"] = timestamp,
-                ["display_name"] = Environment.UserName // preserve original casing
+                ["user_id"] = _auth.UserId ?? "(pending)"
             });
 
             // Set first_seen only if not already set (use PUT on the specific field with a rule,
             // but since RTDB doesn't support "write if absent" easily, we just patch —
             // the first call creates it, subsequent calls update last_seen only)
             // Link device to user
-            await PutDataAsync($"users/{_username}/devices/{_deviceInfo.DeviceId}", true);
+            await PutDataAsync(T($"users/{UserKey}/devices/{_deviceInfo.DeviceId}"), true);
 
             // Update devices/{device_id} — device info stored once
             var deviceData = new Dictionary<string, object>
             {
                 ["device_name"] = _deviceInfo.DeviceName,
-                ["username"] = _username,
                 ["mac_address"] = _deviceInfo.MacAddress ?? "unknown",
                 ["platform"] = "Windows",
                 ["platform_version"] = Environment.OSVersion.Version.ToString(),
@@ -184,7 +195,7 @@ public class FirebaseService : IFirebaseService
                 ["status"] = "active",
                 ["license_key"] = licenseKey ?? "FREE-AUTO"
             };
-            await PatchDataAsync($"devices/{_deviceInfo.DeviceId}", deviceData);
+            await PatchDataAsync(T($"devices/{_deviceInfo.DeviceId}"), deviceData);
 
             // Update per-app state on device: devices/{device_id}/apps/{app_id}
             var appState = new Dictionary<string, object>
@@ -193,9 +204,9 @@ public class FirebaseService : IFirebaseService
                 ["last_launch"] = timestamp,
                 ["status"] = "active"
             };
-            await PatchDataAsync($"devices/{_deviceInfo.DeviceId}/apps/{AppId}", appState);
+            await PatchDataAsync(T($"devices/{_deviceInfo.DeviceId}/apps/{AppId}"), appState);
 
-            InfraLogger.Log($"Firebase: User '{_username}' and device registered in new structure");
+            InfraLogger.Log($"Firebase: User and device registered in new structure");
         }
         catch (Exception ex)
         {
@@ -217,27 +228,26 @@ public class FirebaseService : IFirebaseService
 
             // Update devices/{id} with full info (including username) on every heartbeat
             var licenseKey = await GetLicenseKeyAsync();
-            await PatchDataAsync($"devices/{_deviceInfo.DeviceId}", new Dictionary<string, object>
+            await PatchDataAsync(T($"devices/{_deviceInfo.DeviceId}"), new Dictionary<string, object>
             {
                 ["device_name"] = _deviceInfo.DeviceName,
-                ["username"] = _username,
                 ["mac_address"] = _deviceInfo.MacAddress ?? "unknown",
                 ["last_seen"] = now,
                 ["status"] = "active",
                 ["license_key"] = licenseKey ?? "FREE-AUTO"
             });
-            await PatchDataAsync($"devices/{_deviceInfo.DeviceId}/apps/{AppId}", new Dictionary<string, object>
+            await PatchDataAsync(T($"devices/{_deviceInfo.DeviceId}/apps/{AppId}"), new Dictionary<string, object>
             {
                 ["installed_version"] = appVersion,
                 ["last_launch"] = now,
                 ["status"] = "active"
             });
             // Update user last_seen
-            await PatchDataAsync($"users/{_username}", new Dictionary<string, object>
+            await PatchDataAsync(T($"users/{UserKey}"), new Dictionary<string, object>
             {
                 ["last_seen"] = now
             });
-            await PutDataAsync($"users/{_username}/devices/{_deviceInfo.DeviceId}", true);
+            await PutDataAsync(T($"users/{UserKey}/devices/{_deviceInfo.DeviceId}"), true);
 
             // Check for admin-pushed forced update
             if (!_forcedUpdateProcessing)
@@ -279,7 +289,7 @@ public class FirebaseService : IFirebaseService
                 return null;
             }
 
-            var data = await GetDataAsync<Dictionary<string, object>>($"licenses/{licenseKey}");
+            var data = await GetDataAsync<Dictionary<string, object>>(T($"licenses/{AppId}/{licenseKey}"));
             if (data == null)
             {
                 return null;
@@ -334,10 +344,10 @@ public class FirebaseService : IFirebaseService
                 ["documents_used"] = 0,
                 ["is_bundle"] = false,
                 ["email"] = null!,
-                ["username"] = _username
+                ["user_id"] = _auth.UserId ?? "(pending)"
             };
 
-            await PutDataAsync($"licenses/{licenseKey}", licenseData);
+            await PutDataAsync(T($"licenses/{AppId}/{licenseKey}"), licenseData);
 
             await SaveLicenseKeyAsync(licenseKey);
 
@@ -370,13 +380,13 @@ public class FirebaseService : IFirebaseService
             {
                 ["event_type"] = "app_launch",
                 ["device_id"] = _deviceInfo.DeviceId,
-                ["username"] = _username,
+                ["user_id"] = _auth.UserId ?? "(pending)",
                 ["timestamp"] = now,
                 ["app_version"] = appVersion
             };
-            await PostDataAsync($"events/{AppId}/{GetEventMonth()}", eventData);
+            await PostDataAsync(T($"events/{AppId}/{GetEventMonth()}"), eventData);
 
-            InfraLogger.Log($"Firebase: App launch logged (user: {_username})");
+            InfraLogger.Log($"Firebase: App launch logged");
         }
         catch (Exception ex)
         {
@@ -402,15 +412,15 @@ public class FirebaseService : IFirebaseService
             {
                 ["event_type"] = "app_close",
                 ["device_id"] = _deviceInfo.DeviceId,
-                ["username"] = _username,
+                ["user_id"] = _auth.UserId ?? "(pending)",
                 ["timestamp"] = now,
                 ["app_version"] = appVersion,
                 ["session_duration_seconds"] = (int)sessionDuration.TotalSeconds
             };
-            await PostDataAsync($"events/{AppId}/{GetEventMonth()}", eventData);
+            await PostDataAsync(T($"events/{AppId}/{GetEventMonth()}"), eventData);
 
             // Mark app as inactive on device
-            await PatchDataAsync($"devices/{_deviceInfo.DeviceId}/apps/{AppId}", new Dictionary<string, object>
+            await PatchDataAsync(T($"devices/{_deviceInfo.DeviceId}/apps/{AppId}"), new Dictionary<string, object>
             {
                 ["status"] = "inactive",
                 ["last_seen"] = now
@@ -441,7 +451,7 @@ public class FirebaseService : IFirebaseService
             {
                 ["event_type"] = eventType,
                 ["device_id"] = _deviceInfo.DeviceId,
-                ["username"] = _username,
+                ["user_id"] = _auth.UserId ?? "(pending)",
                 ["timestamp"] = now,
                 ["app_version"] = GetAppVersion()
             };
@@ -450,7 +460,7 @@ public class FirebaseService : IFirebaseService
                 foreach (var kvp in data)
                     eventData[kvp.Key] = kvp.Value;
             }
-            await PostDataAsync($"events/{AppId}/{GetEventMonth()}", eventData);
+            await PostDataAsync(T($"events/{AppId}/{GetEventMonth()}"), eventData);
         }
         catch (Exception ex)
         {
@@ -471,7 +481,7 @@ public class FirebaseService : IFirebaseService
             var errorData = new Dictionary<string, object>
             {
                 ["device_id"] = _deviceInfo.DeviceId,
-                ["username"] = _username,
+                ["user_id"] = _auth.UserId ?? "(pending)",
                 ["timestamp"] = DateTime.UtcNow.ToString("o"),
                 ["error_type"] = ex.GetType().Name,
                 ["error_message"] = ex.Message,
@@ -480,7 +490,7 @@ public class FirebaseService : IFirebaseService
                 ["app_version"] = appVersion
             };
 
-            await PostDataAsync($"errors/{AppId}/{GetEventMonth()}", errorData);
+            await PostDataAsync(T($"errors/{AppId}/{GetEventMonth()}"), errorData);
 
             InfraLogger.Log($"Firebase: Error logged - {ex.GetType().Name}");
         }
@@ -549,7 +559,7 @@ public class FirebaseService : IFirebaseService
             {
                 ["event_type"] = "update_check",
                 ["device_id"] = _deviceInfo.DeviceId,
-                ["username"] = _username,
+                ["user_id"] = _auth.UserId ?? "(pending)",
                 ["current_version"] = currentVersion,
                 ["latest_version"] = latestVersion,
                 ["update_available"] = updateInfo.UpdateAvailable,
@@ -557,10 +567,10 @@ public class FirebaseService : IFirebaseService
             };
 
             InfraLogger.Log("FirebaseService: Logging update check to Firebase");
-            await PostDataAsync($"events/{AppId}/{GetEventMonth()}", checkData);
+            await PostDataAsync(T($"events/{AppId}/{GetEventMonth()}"), checkData);
 
             // Also update the device record with last update check info
-            await PatchDataAsync($"devices/{_deviceInfo.DeviceId}/apps/{AppId}", new Dictionary<string, object>
+            await PatchDataAsync(T($"devices/{_deviceInfo.DeviceId}/apps/{AppId}"), new Dictionary<string, object>
             {
                 ["last_update_check"] = now,
                 ["last_known_version"] = latestVersion
@@ -625,64 +635,16 @@ public class FirebaseService : IFirebaseService
         return await GetFeatureFlagAsync("metrics_viewer_enabled", defaultValue: true);
     }
 
-    /// <summary>
-    /// Lenient role flag parser: the node existing at all with anything other
-    /// than a literally-false value counts as membership. Previously we
-    /// required the value to parse as exactly `true`, which silently failed
-    /// when Firebase returned `1`, `"yes"`, or any truthy-but-non-bool value.
-    /// </summary>
-    private static bool InterpretRoleFlag(object? raw)
+    public Task<bool> IsUserAdminAsync(string? windowsUsername = null)
     {
-        if (raw == null) return false;
-        var s = raw.ToString()?.Trim().ToLowerInvariant();
-        if (string.IsNullOrEmpty(s)) return false;
-        // Explicit negatives
-        if (s == "false" || s == "0" || s == "null" || s == "no" || s == "off") return false;
-        // Anything else: the node exists with a truthy value
-        return true;
+        // Role comes from the JWT claim minted by Cloud Functions. No RTDB read.
+        var tier = _auth.Tier;
+        return Task.FromResult(tier == "admin" || tier == "dev");
     }
 
-    public async Task<bool> IsUserAdminAsync(string? windowsUsername = null)
+    public Task<bool> IsUserDevAsync(string? windowsUsername = null)
     {
-        if (!_isInitialized || _httpClient == null)
-            return false;
-
-        try
-        {
-            var username = (windowsUsername ?? Environment.UserName).ToLowerInvariant();
-            var adminFlag = await GetDataAsync<object>($"admin_users/{username}");
-            var isAdmin = InterpretRoleFlag(adminFlag);
-            InfraLogger.Log($"Firebase: Admin check for '{username}' = {isAdmin} (raw='{adminFlag}')");
-            return isAdmin;
-        }
-        catch (Exception ex)
-        {
-            InfraLogger.Log($"Firebase: Admin check failed: {ex.Message}");
-            return false;
-        }
-    }
-
-    public async Task<bool> IsUserDevAsync(string? windowsUsername = null)
-    {
-        if (!_isInitialized || _httpClient == null)
-        {
-            InfraLogger.Log("Firebase: DEV check skipped - service not initialized");
-            return false;
-        }
-
-        try
-        {
-            var username = (windowsUsername ?? Environment.UserName).ToLowerInvariant();
-            var devFlag = await GetDataAsync<object>($"dev_users/{username}");
-            var isDev = InterpretRoleFlag(devFlag);
-            InfraLogger.Log($"Firebase: DEV check for '{username}' = {isDev} (raw='{devFlag}')");
-            return isDev;
-        }
-        catch (Exception ex)
-        {
-            InfraLogger.Log($"Firebase: DEV check failed: {ex.Message}");
-            return false;
-        }
+        return Task.FromResult(_auth.Tier == "dev");
     }
 
     public async Task<bool> IsCheatSheetEditorAsync(string? windowsUsername = null)
@@ -692,33 +654,22 @@ public class FirebaseService : IFirebaseService
 
         try
         {
-            var username = (windowsUsername ?? Environment.UserName).ToLowerInvariant();
-
-            // Check dedicated editor role first
-            var editorFlag = await GetDataAsync<object>($"cheat_sheet_editors/{username}");
-            if (InterpretRoleFlag(editorFlag))
+            // Admin / dev tier always has editor privileges — claim-based, no RTDB read.
+            var tier = _auth.Tier;
+            if (tier == "admin" || tier == "dev")
             {
-                InfraLogger.Log($"Firebase: CheatSheet editor check for '{username}' = true (editor role)");
+                InfraLogger.Log($"Firebase: CheatSheet editor check = true (tier={tier})");
                 return true;
             }
 
-            // Fall back to admin or dev check -- both have editor privileges
-            var adminFlag = await GetDataAsync<object>($"admin_users/{username}");
-            if (InterpretRoleFlag(adminFlag))
-            {
-                InfraLogger.Log($"Firebase: CheatSheet editor check for '{username}' = true (admin role)");
-                return true;
-            }
-
-            var devFlag = await GetDataAsync<object>($"dev_users/{username}");
-            if (InterpretRoleFlag(devFlag))
-            {
-                InfraLogger.Log($"Firebase: CheatSheet editor check for '{username}' = true (dev role)");
-                return true;
-            }
-
-            InfraLogger.Log($"Firebase: CheatSheet editor check for '{username}' = false");
-            return false;
+            // Tenant-scoped editor list keyed by hashed user id.
+            var editorFlag = await GetDataAsync<object>(T($"cheat_sheet_editors/{UserKey}"));
+            if (editorFlag == null) return false;
+            var s = editorFlag.ToString()?.Trim().ToLowerInvariant();
+            if (string.IsNullOrEmpty(s)) return false;
+            if (s == "false" || s == "0" || s == "null" || s == "no" || s == "off") return false;
+            InfraLogger.Log($"Firebase: CheatSheet editor check = true (editor role)");
+            return true;
         }
         catch (Exception ex)
         {
@@ -791,15 +742,15 @@ public class FirebaseService : IFirebaseService
             {
                 ["event_type"] = "update_installed",
                 ["device_id"] = _deviceInfo.DeviceId,
-                ["username"] = _username,
+                ["user_id"] = _auth.UserId ?? "(pending)",
                 ["version"] = version,
                 ["timestamp"] = now
             };
 
-            await PostDataAsync($"events/{AppId}/{GetEventMonth()}", installData);
+            await PostDataAsync(T($"events/{AppId}/{GetEventMonth()}"), installData);
 
             // Update installed version on device
-            await PatchDataAsync($"devices/{_deviceInfo?.DeviceId}/apps/{AppId}", new Dictionary<string, object>
+            await PatchDataAsync(T($"devices/{_deviceInfo?.DeviceId}/apps/{AppId}"), new Dictionary<string, object>
             {
                 ["installed_version"] = version
             });
@@ -1104,7 +1055,7 @@ public class FirebaseService : IFirebaseService
 
         try
         {
-            await PutDataAsync($"metrics/{_deviceInfo.DeviceId}/{date}", data);
+            await PutDataAsync(T($"metrics/{_deviceInfo.DeviceId}/{date}"), data);
         }
         catch (Exception ex)
         {
@@ -1118,7 +1069,7 @@ public class FirebaseService : IFirebaseService
 
         try
         {
-            return await GetDataAsync<Dictionary<string, Dictionary<string, Dictionary<string, object>>>>("metrics");
+            return await GetDataAsync<Dictionary<string, Dictionary<string, Dictionary<string, object>>>>(T("metrics"));
         }
         catch (Exception ex)
         {
@@ -1133,7 +1084,7 @@ public class FirebaseService : IFirebaseService
 
         try
         {
-            return await GetDataAsync<Dictionary<string, Dictionary<string, object>>>("devices");
+            return await GetDataAsync<Dictionary<string, Dictionary<string, object>>>(T("devices"));
         }
         catch (Exception ex)
         {
@@ -1170,10 +1121,10 @@ public class FirebaseService : IFirebaseService
             var cutoffMonth = cutoff.ToString("yyyy-MM");
 
             // Clean up events/ months
-            await CleanupOldMonthNodes($"events/{AppId}", cutoffMonth);
+            await CleanupOldMonthNodes(T($"events/{AppId}"), cutoffMonth);
 
             // Clean up errors/ months
-            await CleanupOldMonthNodes($"errors/{AppId}", cutoffMonth);
+            await CleanupOldMonthNodes(T($"errors/{AppId}"), cutoffMonth);
         }
         catch (Exception ex)
         {

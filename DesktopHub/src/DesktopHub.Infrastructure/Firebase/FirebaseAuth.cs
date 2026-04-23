@@ -48,7 +48,9 @@ public sealed class FirebaseAuth : IDisposable
     private string? _refreshToken;
     private DateTime _expiresAtUtc = DateTime.MinValue;
     private string? _tier;
-    private string? _username;
+    private string? _username;   // local only, never logged or written to RTDB
+    private string? _userId;     // HMAC hash issued by Cloud Function
+    private string? _tenantId;
     private string? _licenseKey;
     private string? _deviceId;
 
@@ -59,15 +61,23 @@ public sealed class FirebaseAuth : IDisposable
     }
 
     public string? Tier => _tier;
-    public string? Username => _username;
+
+    /// <summary>HMAC'd user id returned by issueToken. Use this for every
+    /// user-keyed RTDB path. The raw Windows username never leaves memory.</summary>
+    public string? UserId => _userId;
+
+    public string? TenantId => _tenantId;
+
     public bool IsReady => !string.IsNullOrEmpty(_idToken) && DateTime.UtcNow < _expiresAtUtc;
 
     /// <summary>Initial handshake. Idempotent — re-calling before expiry is a no-op.</summary>
-    public async Task<bool> SignInAsync(string licenseKey, string username, string deviceId)
+    public async Task<bool> SignInAsync(string licenseKey, string username, string deviceId,
+                                        string tenantId)
     {
         _licenseKey = licenseKey;
         _username = username.ToLowerInvariant();
         _deviceId = deviceId;
+        _tenantId = tenantId;
 
         await _gate.WaitAsync().ConfigureAwait(false);
         try
@@ -121,7 +131,9 @@ public sealed class FirebaseAuth : IDisposable
                 {
                     licenseKey = _licenseKey,
                     username = _username,
-                    deviceId = _deviceId
+                    deviceId = _deviceId,
+                    tenantId = _tenantId,
+                    appId = "desktophub"
                 }
             });
 
@@ -146,6 +158,9 @@ public sealed class FirebaseAuth : IDisposable
 
             var customToken = issueResult.GetProperty("token").GetString();
             _tier = issueResult.TryGetProperty("tier", out var tierEl) ? tierEl.GetString() : "user";
+            _userId = issueResult.TryGetProperty("userId", out var uidEl) ? uidEl.GetString() : null;
+            if (issueResult.TryGetProperty("tenantId", out var tnEl))
+                _tenantId = tnEl.GetString() ?? _tenantId;
 
             if (string.IsNullOrEmpty(customToken))
             {
@@ -182,7 +197,8 @@ public sealed class FirebaseAuth : IDisposable
                 out var secs) ? secs : 3600;
             _expiresAtUtc = DateTime.UtcNow.AddSeconds(expiresIn);
 
-            InfraLogger.Log($"FirebaseAuth: signed in as '{_username}' tier={_tier} (expires in {expiresIn}s)");
+            // Never log raw username. user_id is the hashed, non-reversible identifier.
+            InfraLogger.Log($"FirebaseAuth: signed in tenant={_tenantId} user_id={_userId} tier={_tier} (expires in {expiresIn}s)");
             return !string.IsNullOrEmpty(_idToken);
         }
         catch (Exception ex)

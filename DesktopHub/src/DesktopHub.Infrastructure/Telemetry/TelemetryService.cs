@@ -357,7 +357,9 @@ public class TelemetryService : ITelemetryService, IDisposable
                     ["file_extension_frequency"] = summary.FileExtensionFrequency,
                     ["top_search_queries"] = summary.TopSearchQueries.Select(q => new Dictionary<string, object> { ["query"] = q.Query, ["count"] = q.Count }).ToList(),
                     ["device_name"] = Environment.MachineName,
-                    ["user_name"] = Environment.UserName,
+                    // user_id is the HMAC'd id minted by the issueToken Cloud Function.
+                    // Never write Environment.UserName here -- that's raw PII.
+                    ["user_id"] = _firebaseService.Auth.UserId ?? "",
                     ["synced_at"] = DateTime.UtcNow.ToString("O")
                 };
 
@@ -441,16 +443,18 @@ public class TelemetryService : ITelemetryService, IDisposable
                 return await GetLocalSummariesAsync(from, to);
             }
 
-            // Build device ID → user/device name lookup from devices/ node
+            // Build device ID -> (user_id, device_name) lookup from devices/ node.
+            // The admin UI uses user_id as a pseudonymous label -- raw usernames
+            // never hit the database under the multi-tenant schema.
             var deviceLookup = new Dictionary<string, (string userName, string deviceName)>();
             var devices = await _firebaseService.GetDevicesAsync();
             if (devices != null)
             {
                 foreach (var (deviceId, deviceData) in devices)
                 {
-                    var userName = deviceData.TryGetValue("username", out var u) ? u?.ToString() ?? "" : "";
+                    var userId = deviceData.TryGetValue("user_id", out var u) ? u?.ToString() ?? "" : "";
                     var deviceName = deviceData.TryGetValue("device_name", out var d) ? d?.ToString() ?? "" : "";
-                    deviceLookup[deviceId] = (userName, deviceName);
+                    deviceLookup[deviceId] = (userId, deviceName);
                 }
             }
 
@@ -525,8 +529,12 @@ public class TelemetryService : ITelemetryService, IDisposable
                 return 0;
             }
 
-            // Resolve user/device name: prefer embedded fields, fall back to devices/ lookup
-            var userName = fields.TryGetValue("user_name", out var un) ? un?.ToString() ?? "" : "";
+            // Resolve user_id/device_name: prefer embedded fields, fall back to devices/ lookup.
+            // `user_name` is legacy -- new writes only store `user_id`. Read both for
+            // back-compat with rows written before the PII-hashing refactor.
+            var userName = fields.TryGetValue("user_id", out var uid) ? uid?.ToString() ?? "" : "";
+            if (string.IsNullOrEmpty(userName) && fields.TryGetValue("user_name", out var un))
+                userName = un?.ToString() ?? "";
             var deviceName = fields.TryGetValue("device_name", out var dn) ? dn?.ToString() ?? "" : "";
             if (string.IsNullOrEmpty(userName) && deviceLookup.TryGetValue(deviceId, out var lookup))
             {
@@ -604,7 +612,9 @@ public class TelemetryService : ITelemetryService, IDisposable
             var results = new List<MetricsUserInfo>();
             foreach (var (deviceId, deviceData) in devices)
             {
-                var userName = deviceData.TryGetValue("username", out var u) ? u?.ToString() ?? "" : "";
+                // Under the multi-tenant schema the device node carries `user_id`
+                // (HMAC hash), not `username`. Use it as the display/grouping key.
+                var userName = deviceData.TryGetValue("user_id", out var u) ? u?.ToString() ?? "" : "";
                 var deviceName = deviceData.TryGetValue("device_name", out var d) ? d?.ToString() ?? "" : "";
                 var lastSeen = DateTime.UtcNow;
                 if (deviceData.TryGetValue("last_seen", out var ls) && DateTime.TryParse(ls?.ToString(), out var parsed))

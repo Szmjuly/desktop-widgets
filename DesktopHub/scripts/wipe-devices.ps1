@@ -110,51 +110,60 @@ function fb-delete([string]$path) {
     Invoke-RestMethod -Uri "$baseUrl/$path.json?access_token=$($script:token)" -Method Delete -TimeoutSec 15 | Out-Null
 }
 
-# Show current counts
-$devices = fb-get "devices"
-$devCount = 0
-if ($devices) { try { $devCount = @($devices.PSObject.Properties).Count } catch {} }
+# Enumerate every tenant and show counts for devices + licenses under each.
+$tenants = fb-get "tenants"
+if ($null -eq $tenants) {
+    Write-Host "No tenants node found. Nothing to do." -ForegroundColor Yellow
+    exit 0
+}
 
-$licData = fb-get "licenses"
-$licCount = 0
-if ($licData) { try { $licCount = @($licData.PSObject.Properties).Count } catch {} }
+$tenantIds = @($tenants.PSObject.Properties | ForEach-Object { $_.Name })
+$plan = @()   # list of { tenant, kind, path, count }
+
+foreach ($tid in $tenantIds) {
+    $d = fb-get "tenants/$tid/devices"
+    $dc = 0; if ($d) { try { $dc = @($d.PSObject.Properties).Count } catch {} }
+    $plan += [pscustomobject]@{ Tenant=$tid; Kind="devices"; Path="tenants/$tid/devices"; Count=$dc }
+
+    $l = fb-get "tenants/$tid/licenses"
+    $lc = 0
+    if ($l) {
+        # two-level: licenses/{appId}/{key}
+        foreach ($appProp in $l.PSObject.Properties) {
+            try { $lc += @($appProp.Value.PSObject.Properties).Count } catch {}
+        }
+    }
+    $plan += [pscustomobject]@{ Tenant=$tid; Kind="licenses"; Path="tenants/$tid/licenses"; Count=$lc }
+}
 
 Write-Host ""
-Write-Host "  devices/   : $devCount entries" -ForegroundColor Cyan
-Write-Host "  licenses/  : $licCount entries" -ForegroundColor Cyan
+foreach ($row in $plan) {
+    Write-Host ("  {0,-20}  {1,-10} {2,6} entries" -f $row.Tenant, $row.Kind, $row.Count) -ForegroundColor Cyan
+}
 Write-Host ""
 Write-Host "  Both apps recreate their device entry on next launch." -ForegroundColor Gray
 Write-Host "  Renamer auto-creates a new free license on next launch." -ForegroundColor Gray
 Write-Host ""
 
-if ($devCount -eq 0 -and $licCount -eq 0) {
+$total = ($plan | Measure-Object Count -Sum).Sum
+if ($total -eq 0) {
     Write-Host "Nothing to wipe." -ForegroundColor Yellow
     exit 0
 }
 
 if (-not $Force) {
-    $prompt = "Type YES to wipe devices/ and licenses/"
-    $confirm = Read-Host $prompt
+    $confirm = Read-Host "Type YES to wipe devices/ and licenses/ under ALL tenants"
     if ($confirm -ne "YES") {
         Write-Host "Cancelled." -ForegroundColor Gray
         exit 0
     }
 }
 
-if ($devCount -gt 0) {
-    Write-Host "  Deleting devices/ ($devCount)..." -NoNewline -ForegroundColor Yellow
+foreach ($row in $plan) {
+    if ($row.Count -eq 0) { continue }
+    Write-Host ("  Deleting {0} ({1})..." -f $row.Path, $row.Count) -NoNewline -ForegroundColor Yellow
     try {
-        fb-delete "devices"
-        Write-Host " done" -ForegroundColor Green
-    } catch {
-        Write-Host " FAILED: $($_.Exception.Message)" -ForegroundColor Red
-    }
-}
-
-if ($licCount -gt 0) {
-    Write-Host "  Deleting licenses/ ($licCount)..." -NoNewline -ForegroundColor Yellow
-    try {
-        fb-delete "licenses"
+        fb-delete $row.Path
         Write-Host " done" -ForegroundColor Green
     } catch {
         Write-Host " FAILED: $($_.Exception.Message)" -ForegroundColor Red

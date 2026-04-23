@@ -3,6 +3,13 @@ firebase_config.json
 config/firebase_config.json
 firebase-admin-key.json
 config/firebase-admin-key.json
+# Belt-and-suspenders: any service-account JSON pattern, anywhere in the tree.
+# A committed admin key in the history was the reason for this audit on 2026-04-22.
+**/firebase-adminsdk-*.json
+**/*-firebase-adminsdk-*.json
+**/firebase-admin-key*.json
+**/service-account*.json
+**/gcp-sa*.json
 
 # App configuration (contains subscription settings)
 app_config.json
