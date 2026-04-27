@@ -85,6 +85,16 @@ $u = [Security.Cryptography.ProtectedData]::Unprotect($b, $null,
 }
 
 const { salt: saltBuf, encryptKey } = readDpapiCache(TENANT);
+
+// DB paths use the HASHED tenant key, matching Cloud Functions + admin-cli.
+function tenantKeyFor(plaintext) {
+  const n = String(plaintext || "").trim().toLowerCase();
+  return crypto.createHash("sha256")
+    .update("dh-tenant-v1:" + n)
+    .digest("hex")
+    .slice(0, 16);
+}
+const TENANT_KEY = tenantKeyFor(TENANT);
 if (saltBuf.length < 16) {
   console.error(`tenant-salt-${TENANT} too short (${saltBuf.length} bytes)`);
   process.exit(1);
@@ -122,7 +132,7 @@ admin.initializeApp({
 const db = admin.database();
 
 // ─── helpers ───────────────────────────────────────────────────────
-const tRoot = `tenants/${TENANT}`;
+const tRoot = `tenants/${TENANT_KEY}`;
 const plan = [];
 
 function queue(op, label) {

@@ -42,6 +42,9 @@ public partial class DeveloperPanelWidget
             var node = await _firebaseService.GetNodeAsync(_firebaseService.TenantPath("licenses"));
             _licenses.Clear();
 
+            // Tenant directory for user_id -> username resolution.
+            await EnsureTenantUsersLoadedAsync();
+
             if (node != null)
             {
                 foreach (var appKvp in node)
@@ -50,6 +53,8 @@ public partial class DeveloperPanelWidget
                     foreach (var kvp in appLicenses)
                     {
                         if (kvp.Value is not Dictionary<string, object> data) continue;
+                        var uid = data.TryGetValue("user_id", out var u) ? u?.ToString() ?? "" : "";
+                        var userDisplay = string.IsNullOrEmpty(uid) ? "" : ResolveUserDisplay(uid);
                         _licenses.Add(new LicenseRecord(
                             kvp.Key,
                             data.TryGetValue("plan", out var p) ? p?.ToString() ?? "FREE" : "FREE",
@@ -57,7 +62,7 @@ public partial class DeveloperPanelWidget
                             data.TryGetValue("app_id", out var a) ? a?.ToString() ?? appKvp.Key : appKvp.Key,
                             data.TryGetValue("max_devices", out var m) && int.TryParse(m?.ToString(), out var md) ? md : 1,
                             data.TryGetValue("expires_at", out var e) ? e?.ToString() ?? "never" : "never",
-                            data.TryGetValue("user_id", out var u) ? u?.ToString() ?? "" : "",
+                            userDisplay,
                             data.TryGetValue("created_at", out var c) ? c?.ToString() ?? "" : ""
                         ));
                     }

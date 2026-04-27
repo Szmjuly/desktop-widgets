@@ -249,6 +249,22 @@ public partial class App : System.Windows.Application
                         _telemetryService.SetFirebaseService(_firebaseService);
                     }
 
+                    // Warm the tenant user directory cache so the first Dev
+                    // Panel / Metrics Viewer open doesn't block on a network
+                    // round-trip. Fire-and-forget; admins/dev tiers populate
+                    // it, lower tiers skip silently server-side.
+                    if (_firebaseService.IsInitialized)
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            try { await _firebaseService.PreloadTenantUsersAsync(); }
+                            catch (Exception preEx)
+                            {
+                                DebugLogger.Log($"Firebase: PreloadTenantUsers exception: {preEx.Message}");
+                            }
+                        });
+                    }
+
                     // Wire forced update handler — when heartbeat detects admin push, trigger silent update
                     if (_firebaseService.IsInitialized)
                     {

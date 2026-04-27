@@ -17,11 +17,30 @@ public interface IFirebaseService
     string CurrentTier { get; }
 
     /// <summary>
-    /// Prefixes a relative path with the current tenant namespace:
-    /// <c>TenantPath("devices")</c> -> <c>tenants/internal/devices</c>.
+    /// Prefixes a relative path with the current tenant namespace. The
+    /// segment is the HASHED tenant key (never the plaintext name), so
+    /// <c>TenantPath("devices")</c> returns something like
+    /// <c>tenants/4f6e07127abbf63c/devices</c>.
     /// Use for any RTDB path that lives under the tenant subtree.
     /// </summary>
     string TenantPath(string relative);
+
+    /// <summary>
+    /// Cached snapshot of listTenantUsers output for the caller's tenant.
+    /// Populated by <see cref="PreloadTenantUsersAsync"/> at startup and used
+    /// by every UI surface that needs to resolve user_id hashes back to the
+    /// decrypted username (Dev Panel, Metrics Viewer, etc). Empty when the
+    /// caller lacks admin/dev tier.
+    /// </summary>
+    IReadOnlyList<TenantUserEntry> TenantUsers { get; }
+
+    /// <summary>
+    /// Fetches the tenant user directory from the listTenantUsers Cloud
+    /// Function and caches it on <see cref="TenantUsers"/>. Fire-and-forget
+    /// at startup so the first Dev Panel / Metrics Viewer open doesn't pay
+    /// the network round-trip.
+    /// </summary>
+    Task<bool> PreloadTenantUsersAsync(bool force = false);
 
     /// <summary>
     /// Whether the user has consented to telemetry. The five telemetry methods

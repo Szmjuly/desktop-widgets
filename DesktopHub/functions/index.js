@@ -98,14 +98,35 @@ function getTenantEncryptKey(tenantId) {
   return key;
 }
 
-function hmacUserId(tenantId, username) {
-  const salt = getTenantSalt(tenantId);
+function hmacUserId(tenantName, username) {
+  const salt = getTenantSalt(tenantName);
   const normalized = String(username || "").trim().toLowerCase();
   if (!normalized) {
     throw new HttpsError("invalid-argument", "username required");
   }
   const mac = crypto.createHmac("sha256", salt).update(normalized).digest("hex");
   return mac.slice(0, USER_ID_HEX_LEN);
+}
+
+// Deterministic, non-secret hash of the plaintext tenant name. The DB uses
+// this hash as the path segment ({tenants/{tenantKey}/...}) so a Firebase
+// console snapshot doesn't leak which tenants exist. The plaintext name is
+// only ever seen in:
+//   - the issueToken request body (client -> server, in flight)
+//   - Secret Manager secret names (TENANT_SALT_CES, etc -- admin-only)
+// The hash is stable across deploys (no secrets involved) but salted with
+// a version prefix so we can rotate the scheme later without renaming
+// every existing path.
+const TENANT_KEY_PREFIX = "dh-tenant-v1:";
+const TENANT_KEY_HEX_LEN = 16;
+
+function tenantKeyFor(plaintext) {
+  const n = String(plaintext || "").trim().toLowerCase();
+  if (!n) throw new HttpsError("invalid-argument", "tenant name required");
+  return crypto.createHash("sha256")
+    .update(TENANT_KEY_PREFIX + n)
+    .digest("hex")
+    .slice(0, TENANT_KEY_HEX_LEN);
 }
 
 // AES-256-GCM. Output format: base64(iv[12] || ciphertext || tag[16]).
@@ -140,6 +161,41 @@ const ALL_TENANT_SECRETS = [
   ...Object.values(TENANT_SALT_SECRETS),
   ...Object.values(TENANT_ENCRYPT_SECRETS),
 ];
+
+// Reverse map hashed tenant_id -> plaintext name. Callers that only have
+// the claim (auth.token.tenant_id = hash) use this to find the right
+// Secret Manager entries for decryption. Built at cold start.
+const TENANT_HASH_TO_NAME = Object.fromEntries(
+  Object.keys(TENANT_SALT_SECRETS).map(name => [tenantKeyFor(name), name])
+);
+
+function tenantNameFromHash(hash) {
+  const name = TENANT_HASH_TO_NAME[hash];
+  if (!name) {
+    throw new HttpsError("permission-denied",
+      `unknown tenant hash '${hash}'`);
+  }
+  return name;
+}
+
+// Resolve the caller's tenant from whatever value sits in their token's
+// tenant_id claim. Modern tokens carry the hashed key; older tokens issued
+// before the hashing change carry the plaintext name. Returning both forms
+// here lets the rest of the function reach for the right one (paths use
+// `key`, Secret Manager lookups use `name`).
+function resolveCallerTenant(claimValue) {
+  if (!claimValue) {
+    throw new HttpsError("permission-denied", "no tenant on token");
+  }
+  if (TENANT_HASH_TO_NAME[claimValue]) {
+    return { name: TENANT_HASH_TO_NAME[claimValue], key: claimValue };
+  }
+  if (ALLOWED_TENANT_IDS.has(claimValue)) {
+    return { name: claimValue, key: tenantKeyFor(claimValue) };
+  }
+  throw new HttpsError("permission-denied",
+    `unknown caller tenant '${claimValue}' -- sign in again`);
+}
 
 // ─────────────────────────────────────────────────────────────
 //  App / tenant config
@@ -199,22 +255,25 @@ exports.issueToken = onCall(
     }
 
     const appId = rawAppId;
-    const tenantId = rawTenantId;
+    // tenantName = plaintext (admin-facing, used for Secret Manager lookup)
+    // tenantKey  = hash    (DB-facing, used for every RTDB path + the claim)
+    const tenantName = rawTenantId;
+    const tenantKey = tenantKeyFor(tenantName);
     const username = rawUsername.toLowerCase();
-    const userId = hmacUserId(tenantId, username);
+    const userId = hmacUserId(tenantName, username);
 
     // License validation -- tenant-scoped, per-app path.
-    const licenseRef = licenseRefFor(tenantId, appId, licenseKey);
+    const licenseRef = licenseRefFor(tenantKey, appId, licenseKey);
     const licSnap = await licenseRef.get();
 
     if (!licSnap.exists()) {
       logger.info("issueToken: license not found",
-        { appId, tenantId, licenseKey });
+        { appId, tenantName, tenantKey, licenseKey });
       if (/^FREE-[A-Za-z0-9-]+$/.test(licenseKey)) {
         await licenseRef.set({
           license_key: licenseKey,
           app_id: appId,
-          tenant_id: tenantId,
+          tenant_key: tenantKey,
           plan: "free",
           status: "active",
           created_at: new Date().toISOString(),
@@ -227,8 +286,8 @@ exports.issueToken = onCall(
 
     // Role resolution under the tenant namespace. dev > admin > user.
     const [adminSnap, devSnap] = await Promise.all([
-      db.ref(`tenants/${tenantId}/admin_users/${userId}`).get(),
-      db.ref(`tenants/${tenantId}/dev_users/${userId}`).get(),
+      db.ref(`tenants/${tenantKey}/admin_users/${userId}`).get(),
+      db.ref(`tenants/${tenantKey}/dev_users/${userId}`).get(),
     ]);
 
     let tier = "user";
@@ -236,30 +295,34 @@ exports.issueToken = onCall(
     else if (adminSnap.val() === true) tier = "admin";
 
     // Refresh the encrypted username + auth timestamp on the user's profile
-    // node. Stored under users/{user_id} alongside device linkages etc; the
+    // node. Stored under users/{user_id} alongside device linkages; the
     // admin-only listTenantUsers decrypts username_ct server-side. Using
     // .update() so we don't clobber the client-owned fields of this node.
-    const userRef = db.ref(`tenants/${tenantId}/users/${userId}`);
+    const userRef = db.ref(`tenants/${tenantKey}/users/${userId}`);
     await userRef.update({
-      username_ct: encryptUsername(tenantId, username),
+      username_ct: encryptUsername(tenantName, username),
       last_seen: new Date().toISOString(),
     });
 
     const prefix = UID_PREFIX[appId] || "app_";
-    // Firebase uid -- per-app, per-tenant, hashed. No raw username anywhere.
-    const uid = `${prefix}${tenantId}_${userId}`;
+    // Firebase uid -- per-app + per-tenant + per-user, all hashed. No raw
+    // username AND no plaintext tenant name leaks into the auth system.
+    const uid = `${prefix}${tenantKey}_${userId}`;
 
+    // Minted claim: tenant_id is the HASH. Clients never see the plaintext
+    // tenant name again (they sent it in the request, we verified it, but
+    // from here on everything -- paths, rules, audit logs -- uses the hash).
     const customToken = await auth.createCustomToken(uid, {
       tier,
       app_id: appId,
-      tenant_id: tenantId,
+      tenant_id: tenantKey,
       user_id: userId,
       license_key: licenseKey,
       device_id: deviceId,
     });
 
     logger.info("issueToken: minted",
-      { appId, tenantId, userId, tier, deviceId });
+      { appId, tenantName, tenantKey, userId, tier, deviceId });
 
     return {
       token: customToken,
@@ -267,7 +330,7 @@ exports.issueToken = onCall(
       expiresIn: TOKEN_TTL_SECONDS,
       uid,
       appId,
-      tenantId,
+      tenantId: tenantKey,   // client stores the hash as its tenant id
       userId,
     };
   }
@@ -304,10 +367,20 @@ exports.setRole = onCall(
       throw new HttpsError("invalid-argument", "username required");
     }
     if (!ALLOWED_TENANT_IDS.has(tenantId)) {
-      throw new HttpsError("invalid-argument", `unknown tenantId '${tenantId}'`);
+      throw new HttpsError("invalid-argument", `unknown tenant '${tenantId}'`);
     }
     if (!["admin", "dev", "none"].includes(role)) {
       throw new HttpsError("invalid-argument", "role must be admin|dev|none");
+    }
+
+    // tenantId in the request body is the plaintext tenant NAME (for
+    // Secret Manager lookup). Derive the hash that the DB + rules use.
+    // Verify it matches the caller's claim (which may be hash OR plaintext
+    // for back-compat with tokens minted before the hashing change).
+    const tenantKey = tenantKeyFor(tenantId);
+    const callerCtx = resolveCallerTenant(req.auth.token.tenant_id);
+    if (tenantKey !== callerCtx.key) {
+      throw new HttpsError("permission-denied", "cross-tenant writes forbidden");
     }
 
     // Permission: dev can set any role. admin can only set admin or revoke admin.
@@ -321,12 +394,10 @@ exports.setRole = onCall(
     }
 
     const targetUserId = hmacUserId(tenantId, targetUsername);
-    const adminRef = db.ref(`tenants/${tenantId}/admin_users/${targetUserId}`);
-    const devRef = db.ref(`tenants/${tenantId}/dev_users/${targetUserId}`);
-    const userRef = db.ref(`tenants/${tenantId}/users/${targetUserId}`);
+    const adminRef = db.ref(`tenants/${tenantKey}/admin_users/${targetUserId}`);
+    const devRef = db.ref(`tenants/${tenantKey}/dev_users/${targetUserId}`);
+    const userRef = db.ref(`tenants/${tenantKey}/users/${targetUserId}`);
 
-    // Refresh the user's profile node with an encrypted username so admin
-    // listings can resolve the grantee even if they've never signed in yet.
     await userRef.update({
       username_ct: encryptUsername(tenantId, targetUsername.toLowerCase()),
       updated_at: new Date().toISOString(),
@@ -345,9 +416,9 @@ exports.setRole = onCall(
     }
 
     logger.info("setRole",
-      { tenantId, targetUserId, role, by: req.auth.token.user_id });
+      { tenantKey, targetUserId, role, by: req.auth.token.user_id });
 
-    return { ok: true, tenantId, userId: targetUserId, role };
+    return { ok: true, tenantId: tenantKey, userId: targetUserId, role };
   }
 );
 
@@ -373,26 +444,31 @@ exports.checkRole = onCall(
     }
     const d = req.data || {};
     const targetUsername = String(d.username || "").trim();
-    const tenantId = String(d.tenantId || "ces").trim().toLowerCase();
+    const tenantName = String(d.tenantId || "ces").trim().toLowerCase();
 
     if (!targetUsername) {
       throw new HttpsError("invalid-argument", "username required");
     }
-    if (!ALLOWED_TENANT_IDS.has(tenantId)) {
-      throw new HttpsError("invalid-argument", `unknown tenantId '${tenantId}'`);
+    if (!ALLOWED_TENANT_IDS.has(tenantName)) {
+      throw new HttpsError("invalid-argument", `unknown tenant '${tenantName}'`);
+    }
+    const tenantKey = tenantKeyFor(tenantName);
+    const callerCtx = resolveCallerTenant(req.auth.token.tenant_id);
+    if (tenantKey !== callerCtx.key) {
+      throw new HttpsError("permission-denied", "cross-tenant reads forbidden");
     }
 
-    const userId = hmacUserId(tenantId, targetUsername);
+    const userId = hmacUserId(tenantName, targetUsername);
     const [adminSnap, devSnap] = await Promise.all([
-      db.ref(`tenants/${tenantId}/admin_users/${userId}`).get(),
-      db.ref(`tenants/${tenantId}/dev_users/${userId}`).get(),
+      db.ref(`tenants/${tenantKey}/admin_users/${userId}`).get(),
+      db.ref(`tenants/${tenantKey}/dev_users/${userId}`).get(),
     ]);
 
     let role = "user";
     if (devSnap.val() === true) role = "dev";
     else if (adminSnap.val() === true) role = "admin";
 
-    return { role, tenantId, userId };
+    return { role, tenantId: tenantKey, userId };
   }
 );
 
@@ -416,26 +492,28 @@ exports.setCheatSheetEditor = onCall(
     }
     const d = req.data || {};
     const targetUsername = String(d.username || "").trim();
-    const tenantId = String(d.tenantId || req.auth.token.tenant_id || "ces")
-      .trim().toLowerCase();
+    // Plaintext tenant name from request body; hashed claim on the token.
+    const callerCtx = resolveCallerTenant(req.auth.token.tenant_id);
+    const tenantName = String(d.tenantId || "").trim().toLowerCase() || callerCtx.name;
+    const tenantKey = tenantKeyFor(tenantName);
     const enabled = d.enabled === true || d.enabled === "true";
 
     if (!targetUsername) {
       throw new HttpsError("invalid-argument", "username required");
     }
-    if (tenantId !== req.auth.token.tenant_id) {
+    if (!ALLOWED_TENANT_IDS.has(tenantName)) {
+      throw new HttpsError("invalid-argument", `unknown tenant '${tenantName}'`);
+    }
+    if (tenantKey !== callerCtx.key) {
       throw new HttpsError("permission-denied", "cross-tenant writes forbidden");
     }
-    if (!ALLOWED_TENANT_IDS.has(tenantId)) {
-      throw new HttpsError("invalid-argument", `unknown tenantId '${tenantId}'`);
-    }
 
-    const targetUserId = hmacUserId(tenantId, targetUsername);
-    const ref = db.ref(`tenants/${tenantId}/cheat_sheet_editors/${targetUserId}`);
-    const userRef = db.ref(`tenants/${tenantId}/users/${targetUserId}`);
+    const targetUserId = hmacUserId(tenantName, targetUsername);
+    const ref = db.ref(`tenants/${tenantKey}/cheat_sheet_editors/${targetUserId}`);
+    const userRef = db.ref(`tenants/${tenantKey}/users/${targetUserId}`);
 
     await userRef.update({
-      username_ct: encryptUsername(tenantId, targetUsername.toLowerCase()),
+      username_ct: encryptUsername(tenantName, targetUsername.toLowerCase()),
       updated_at: new Date().toISOString(),
     });
 
@@ -446,8 +524,8 @@ exports.setCheatSheetEditor = onCall(
     }
 
     logger.info("setCheatSheetEditor",
-      { tenantId, targetUserId, enabled, by: req.auth.token.user_id });
-    return { ok: true, tenantId, userId: targetUserId, enabled };
+      { tenantKey, targetUserId, enabled, by: req.auth.token.user_id });
+    return { ok: true, tenantId: tenantKey, userId: targetUserId, enabled };
   }
 );
 
@@ -470,33 +548,43 @@ exports.listTenantUsers = onCall(
     if (!req.auth || !["admin", "dev"].includes(req.auth.token.tier)) {
       throw new HttpsError("permission-denied", "admin or dev tier required");
     }
-    const callerTenant = req.auth.token.tenant_id;
-    if (!callerTenant || !ALLOWED_TENANT_IDS.has(callerTenant)) {
-      throw new HttpsError("permission-denied", "caller tenant unknown");
-    }
+    // The claim carries the HASH (or the plaintext for tokens minted before
+    // the hashing change -- resolveCallerTenant handles both). Resolve to
+    // both forms so we can use the hash for paths and the name for the AES
+    // key lookup that decrypts username_ct.
+    const { name: callerTenantName, key: callerTenantKey } =
+      resolveCallerTenant(req.auth.token.tenant_id);
 
-    const [usersSnap, adminSnap, devSnap, editorSnap] = await Promise.all([
-      db.ref(`tenants/${callerTenant}/users`).get(),
-      db.ref(`tenants/${callerTenant}/admin_users`).get(),
-      db.ref(`tenants/${callerTenant}/dev_users`).get(),
-      db.ref(`tenants/${callerTenant}/cheat_sheet_editors`).get(),
+    // Read from BOTH the hashed path (current) and the legacy plaintext path
+    // (pre-hashing) so admins still see users mid-migration without losing
+    // names. Merge results: hashed-path entries win on collision (newest).
+    const [usersHash, usersLegacy, adminHash, adminLegacy, devHash, devLegacy,
+           editorHash, editorLegacy] = await Promise.all([
+      db.ref(`tenants/${callerTenantKey}/users`).get(),
+      db.ref(`tenants/${callerTenantName}/users`).get(),
+      db.ref(`tenants/${callerTenantKey}/admin_users`).get(),
+      db.ref(`tenants/${callerTenantName}/admin_users`).get(),
+      db.ref(`tenants/${callerTenantKey}/dev_users`).get(),
+      db.ref(`tenants/${callerTenantName}/dev_users`).get(),
+      db.ref(`tenants/${callerTenantKey}/cheat_sheet_editors`).get(),
+      db.ref(`tenants/${callerTenantName}/cheat_sheet_editors`).get(),
     ]);
 
-    const profiles = usersSnap.val() || {};
-    const admins = adminSnap.val() || {};
-    const devs = devSnap.val() || {};
-    const editors = editorSnap.val() || {};
+    const profiles = { ...(usersLegacy.val() || {}), ...(usersHash.val() || {}) };
+    const admins = { ...(adminLegacy.val() || {}), ...(adminHash.val() || {}) };
+    const devs = { ...(devLegacy.val() || {}), ...(devHash.val() || {}) };
+    const editors = { ...(editorLegacy.val() || {}), ...(editorHash.val() || {}) };
 
     const users = [];
     for (const [userId, entry] of Object.entries(profiles)) {
       let username = "";
       try {
         username = entry?.username_ct
-          ? decryptUsername(callerTenant, entry.username_ct)
+          ? decryptUsername(callerTenantName, entry.username_ct)
           : "";
       } catch (e) {
         logger.warn("listTenantUsers: decrypt failed",
-          { tenantId: callerTenant, userId });
+          { tenantKey: callerTenantKey, userId });
         username = "[decrypt-failed]";
       }
       users.push({

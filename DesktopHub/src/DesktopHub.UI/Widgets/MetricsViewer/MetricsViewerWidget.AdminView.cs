@@ -34,6 +34,15 @@ public partial class MetricsViewerWidget
             var prevEnd = _adminRangeEnd.AddDays(-_adminRangeDays);
             _previousPeriodSummaries = await service.GetAllUsersSummariesAsync(prevStart, prevEnd);
 
+            // Resolve user_id hashes to decrypted usernames before rendering.
+            // TelemetryService stores user_id in the UserName field; we swap
+            // in the real name here so toggles, charts, and tables all show
+            // something human-readable. Admins never see other tenants --
+            // listTenantUsers enforces tenant isolation server-side.
+            await EnsureUserDirectoryLoadedAsync();
+            foreach (var s in _adminSummaries) s.UserName = ResolveUserLabel(s.UserName);
+            foreach (var s in _previousPeriodSummaries) s.UserName = ResolveUserLabel(s.UserName);
+
             AdminDateRangeLabel.Text = $"{_adminRangeStart:MMM dd} - {_adminRangeEnd:MMM dd}";
 
             // Build user list and toggles

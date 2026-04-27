@@ -25,6 +25,10 @@ public partial class DeveloperPanelWidget
         "users", "devices", "metrics", "events", "errors", "licenses"
     };
 
+    // Cache key = full RTDB path (what the click handler sends to GetNodeAsync).
+    // Display label = short friendly name shown on the pill.
+    private Dictionary<string, string> _nodePillDisplay = new();
+
     private async Task DiscoverNodePillsAsync()
     {
         NodePillsPanel.Children.Clear();
@@ -36,32 +40,36 @@ public partial class DeveloperPanelWidget
         }
 
         _nodeCache = new Dictionary<string, Dictionary<string, object>?>();
+        _nodePillDisplay = new Dictionary<string, string>();
         int found = 0;
 
         // 1. Flat root nodes (app_versions, project_tags, feature_flags, etc).
         foreach (var nodeName in KnownNodes)
         {
-            if (nodeName == "tenants") continue; // handled below
+            if (nodeName == "tenants") continue; // expanded below
             try
             {
                 var data = await _firebaseService.GetNodeAsync(nodeName);
                 if (data == null) continue;
                 _nodeCache[nodeName] = data;
+                _nodePillDisplay[nodeName] = nodeName;
                 found++;
             }
             catch { }
         }
 
-        // 2. This build's tenant subsections, displayed with a `tenant/` prefix
-        //    so admins can see at a glance which entries belong to tenant data.
+        // 2. Tenant subsections, keyed by full path (tenants/{tid}/section) so
+        //    the pill click handler can fetch them via the same GetNodeAsync
+        //    flow. Display label uses a short `tenant/section` prefix.
         foreach (var section in TenantSections)
         {
+            var fullPath = _firebaseService.TenantPath(section);
             try
             {
-                var data = await _firebaseService.GetNodeAsync(
-                    _firebaseService.TenantPath(section));
+                var data = await _firebaseService.GetNodeAsync(fullPath);
                 if (data == null) continue;
-                _nodeCache[$"tenant/{section}"] = data;
+                _nodeCache[fullPath] = data;
+                _nodePillDisplay[fullPath] = $"tenant/{section}";
                 found++;
             }
             catch { }
@@ -78,16 +86,17 @@ public partial class DeveloperPanelWidget
 
         foreach (var kvp in _nodeCache)
         {
-            var pill = CreateNodePill(kvp.Key, kvp.Value?.Count ?? 0);
+            var display = _nodePillDisplay.TryGetValue(kvp.Key, out var d) ? d : kvp.Key;
+            var pill = CreateNodePill(kvp.Key, display, kvp.Value?.Count ?? 0);
             NodePillsPanel.Children.Add(pill);
         }
     }
 
-    private UIElement CreateNodePill(string nodeName, int childCount)
+    private UIElement CreateNodePill(string nodeName, string displayLabel, int childCount)
     {
         var nameBlock = new TextBlock
         {
-            Text = nodeName,
+            Text = displayLabel,
             FontSize = 11,
             FontWeight = FontWeights.SemiBold,
             Foreground = FindBrush("TextPrimaryBrush"),
@@ -332,8 +341,41 @@ public partial class DeveloperPanelWidget
         }
     }
 
+    /// <summary>
+    /// If <paramref name="key"/> looks like an HMAC user_id hash we know about,
+    /// return "<hash>  (username)" so the tree shows real names inline while
+    /// admins browse tenant nodes. Returns the key unchanged otherwise.
+    /// </summary>
+    private string DecorateKeyWithUsername(string key)
+    {
+        // user_id is first 16 hex chars of HMAC-SHA256. Tight test: 16 lowercase hex.
+        if (key.Length != 16) return key;
+        for (int i = 0; i < key.Length; i++)
+        {
+            var c = key[i];
+            var isHex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+            if (!isHex) return key;
+        }
+        var match = _tenantUsers.FirstOrDefault(
+            u => string.Equals(u.UserId, key, StringComparison.OrdinalIgnoreCase));
+        return match != null && !string.IsNullOrEmpty(match.Username)
+            ? $"{key}  ({match.Username})"
+            : key;
+    }
+
     private TreeViewItem CreateTreeItem(string key, object? value)
     {
+        var rawKey = key;
+        key = DecorateKeyWithUsername(key);
+
+        // username_ct is AES-GCM ciphertext -- client cannot decrypt.
+        // Render a friendly placeholder instead of the raw base64 blob.
+        if (rawKey == "username_ct" && value is string)
+        {
+            var hidden = new TreeViewItem { IsExpanded = false };
+            hidden.Header = CreateTreeHeader(key, "enc", "(encrypted — server-only)", "#78909C");
+            return hidden;
+        }
         var item = new TreeViewItem { IsExpanded = false };
 
         if (value is Dictionary<string, object> dict)

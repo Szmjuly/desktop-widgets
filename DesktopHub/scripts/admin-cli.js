@@ -98,6 +98,18 @@ function hmacUserId(username) {
   const n = String(username || "").trim().toLowerCase();
   return crypto.createHmac("sha256", salt).update(n).digest("hex").slice(0, 16);
 }
+
+// Mirrors Cloud Functions' tenantKeyFor(). Hashes the plaintext tenant name
+// with a fixed version prefix so the DB-path segment reveals nothing about
+// which customers exist. MUST stay byte-for-byte identical with the
+// Cloud Functions implementation (see functions/index.js).
+function tenantKeyFor(plaintext) {
+  const n = String(plaintext || "").trim().toLowerCase();
+  return crypto.createHash("sha256")
+    .update("dh-tenant-v1:" + n)
+    .digest("hex")
+    .slice(0, 16);
+}
 function encryptUsername(username) {
   const iv = crypto.randomBytes(12);
   const c = crypto.createCipheriv("aes-256-gcm", encryptKey, iv);
@@ -132,7 +144,12 @@ admin.initializeApp({
   databaseURL: dbUrl,
 });
 const db = admin.database();
-const tRoot = `tenants/${TENANT}`;
+// `TENANT` is the plaintext tenant name (what the operator types, e.g. "ces").
+// `TENANT_KEY` is the DB-facing hash of that name -- every path we touch in
+// RTDB uses the hash. Secret Manager lookups + DPAPI cache still key off
+// the plaintext name because those layers are admin-only.
+const TENANT_KEY = tenantKeyFor(TENANT);
+const tRoot = `tenants/${TENANT_KEY}`;
 
 async function ensureUserProfile(userId, username) {
   // username_ct lives on the users/{user_id} profile node -- see
@@ -247,7 +264,7 @@ async function check(username) {
       }
       case "wipe-tenant": {
         // Delete /tenants/{--tenant} entirely.
-        const path = `tenants/${TENANT}`;
+        const path = `tenants/${TENANT_KEY}`;
         const snap = await db.ref(path).get();
         if (!snap.exists()) { console.log(`${path} does not exist`); break; }
         const sections = Object.keys(snap.val() || {});
@@ -267,7 +284,7 @@ async function check(username) {
         if (!SECTION || !ALLOWED.has(SECTION)) {
           usage(`wipe-section requires --section <${[...ALLOWED].join("|")}>`);
         }
-        const path = `tenants/${TENANT}/${SECTION}`;
+        const path = `tenants/${TENANT_KEY}/${SECTION}`;
         const snap = await db.ref(path).get();
         if (!snap.exists()) { console.log(`${path} does not exist`); break; }
         const count = Object.keys(snap.val() || {}).length;

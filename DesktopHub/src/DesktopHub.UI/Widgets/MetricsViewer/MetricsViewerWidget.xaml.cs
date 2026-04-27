@@ -194,6 +194,12 @@ public partial class MetricsViewerWidget : System.Windows.Controls.UserControl
     }
 
     private bool _isAdmin;
+    private bool _isDev;
+
+    // Cached user_id -> decrypted username for the caller's tenant. Populated
+    // lazily by EnsureUserDirectoryLoadedAsync() via listTenantUsers. Keeps
+    // the admin metrics view from showing 16-hex hashes as user labels.
+    private Dictionary<string, string> _userIdToUsername = new(StringComparer.OrdinalIgnoreCase);
 
     private async System.Threading.Tasks.Task CheckAdminStatusAsync()
     {
@@ -205,19 +211,84 @@ public partial class MetricsViewerWidget : System.Windows.Controls.UserControl
 
             if (firebaseService != null && firebaseService.IsInitialized)
             {
+                // Admin check is true for admin OR dev (dev is a superset).
                 _isAdmin = await firebaseService.IsUserAdminAsync();
+                _isDev   = await firebaseService.IsUserDevAsync();
             }
             else
             {
                 _isAdmin = false;
+                _isDev = false;
             }
         }
         catch
         {
             _isAdmin = false;
+            _isDev = false;
         }
 
-        AdminToggleButton.Visibility = _isAdmin ? Visibility.Visible : Visibility.Collapsed;
+        AdminToggleButton.Visibility     = _isAdmin ? Visibility.Visible : Visibility.Collapsed;
+        // Cross-tenant view is dev-only. Button is WIP -- click shows a notice
+        // until the server-side cross-tenant rule exemption is wired up.
+        DevCrossTenantButton.Visibility  = _isDev   ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// Pulls the tenant user directory from the central FirebaseService
+    /// cache (preloaded at startup). Rebuilds the local user_id -> username
+    /// lookup table each call so admin UI refreshes pick up newly added
+    /// users without a process restart.
+    /// </summary>
+    private async System.Threading.Tasks.Task EnsureUserDirectoryLoadedAsync()
+    {
+        try
+        {
+            var app = System.Windows.Application.Current as App;
+            var svc = app?.FirebaseManager?.FirebaseService;
+            if (svc == null || !svc.IsInitialized) return;
+
+            // Prime the central cache if it's empty; otherwise trust it.
+            if (svc.TenantUsers.Count == 0)
+                await svc.PreloadTenantUsersAsync();
+
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var u in svc.TenantUsers)
+            {
+                if (!string.IsNullOrEmpty(u.UserId))
+                    map[u.UserId] = u.Username;
+            }
+            _userIdToUsername = map;
+        }
+        catch { /* non-fatal; rows will show the raw hash */ }
+    }
+
+    /// <summary>
+    /// Maps a user_id hash back to its decrypted username. Returns the hash
+    /// unchanged if not in the directory (unknown device, recent sign-in
+    /// before cache refresh, etc.).
+    /// </summary>
+    private string ResolveUserLabel(string userIdOrName)
+    {
+        if (string.IsNullOrEmpty(userIdOrName)) return "unknown";
+        return _userIdToUsername.TryGetValue(userIdOrName, out var n) && !string.IsNullOrEmpty(n)
+            ? n
+            : userIdOrName;
+    }
+
+    private void DevCrossTenantButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        // Placeholder. Cross-tenant metrics require:
+        //   1. A `super_dev` claim minted by issueToken for approved users.
+        //   2. Rule exemption on tenants/{$tid}/metrics when that claim is set.
+        //   3. A UI that lets dev pick a tenant + renders its metrics.
+        // Tracked separately; this button is intentional WIP.
+        System.Windows.MessageBox.Show(
+            "Cross-tenant metrics view is WIP.\n\n" +
+            "Planned: dev-tier users select a target tenant and view its " +
+            "aggregated metrics without breaking the per-tenant isolation " +
+            "admins have today.",
+            "Coming soon",
+            MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)

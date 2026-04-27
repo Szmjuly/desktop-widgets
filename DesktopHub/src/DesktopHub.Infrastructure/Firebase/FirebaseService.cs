@@ -32,9 +32,76 @@ public class FirebaseService : IFirebaseService
 
     // Every user-scoped / license / device / telemetry path must be prefixed
     // with tenants/{tenantId}/. Raw root-level writes are locked out by rules.
-    private string T(string rel) => $"tenants/{_auth.TenantId ?? BuildConfig.TenantId}/{rel}";
+    // Prefix every user-scoped RTDB path with the tenant's HASHED id.
+    // _auth.TenantId is populated by issueToken's response (= the hash).
+    // The fallback uses BuildConfig.TenantKey -- NEVER the plaintext name --
+    // so early-init writes still land under the correct namespace.
+    private string T(string rel) => $"tenants/{_auth.TenantId ?? BuildConfig.TenantKey}/{rel}";
 
     public string TenantPath(string relative) => T(relative);
+
+    // Central cache of listTenantUsers response. Populated once by
+    // PreloadTenantUsersAsync (called from App.OnStartup's Firebase init
+    // continuation). Every UI surface that needs user_id -> username
+    // resolution reads from here instead of re-fetching.
+    private List<Models.TenantUserEntry> _tenantUsers = new();
+    private readonly SemaphoreSlim _tenantUsersGate = new(1, 1);
+
+    public IReadOnlyList<Models.TenantUserEntry> TenantUsers => _tenantUsers;
+
+    public async Task<bool> PreloadTenantUsersAsync(bool force = false)
+    {
+        if (!_isInitialized) return false;
+        if (!force && _tenantUsers.Count > 0) return true;
+
+        await _tenantUsersGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (!force && _tenantUsers.Count > 0) return true;
+
+            // listTenantUsers is admin/dev-gated server-side. Non-privileged
+            // users get permission-denied -- we silently accept that and
+            // leave the cache empty (their UI falls back to hash display).
+            var result = await _auth.CallFunctionAsync("listTenantUsers", new { })
+                .ConfigureAwait(false);
+            if (result == null)
+            {
+                InfraLogger.Log($"Firebase: PreloadTenantUsers skipped (tier={_auth.Tier ?? "?"})");
+                return false;
+            }
+
+            var list = new List<Models.TenantUserEntry>();
+            var root = result.Value;
+            if (root.TryGetProperty("users", out var users) &&
+                users.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                foreach (var u in users.EnumerateArray())
+                {
+                    list.Add(new Models.TenantUserEntry
+                    {
+                        UserId = u.TryGetProperty("userId", out var uid) ? uid.GetString() ?? "" : "",
+                        Username = u.TryGetProperty("username", out var un) ? un.GetString() ?? "" : "",
+                        IsAdmin = u.TryGetProperty("isAdmin", out var ia) && ia.ValueKind == System.Text.Json.JsonValueKind.True,
+                        IsDev = u.TryGetProperty("isDev", out var id) && id.ValueKind == System.Text.Json.JsonValueKind.True,
+                        IsEditor = u.TryGetProperty("isEditor", out var ie) && ie.ValueKind == System.Text.Json.JsonValueKind.True,
+                        LastSeen = u.TryGetProperty("lastSeen", out var ls) ? ls.GetString() : null,
+                    });
+                }
+            }
+            _tenantUsers = list;
+            InfraLogger.Log($"Firebase: PreloadTenantUsers loaded {list.Count} user(s) for tenant {_auth.TenantId}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            InfraLogger.Log($"Firebase: PreloadTenantUsers failed: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            _tenantUsersGate.Release();
+        }
+    }
 
     // Hashed user id issued by issueToken. Before sign-in completes, fall back
     // to a deterministic placeholder so any early probe fails cleanly rather
@@ -183,9 +250,12 @@ public class FirebaseService : IFirebaseService
             // Link device to user
             await PutDataAsync(T($"users/{UserKey}/devices/{_deviceInfo.DeviceId}"), true);
 
-            // Update devices/{device_id} — device info stored once
+            // Update devices/{device_id} -- device info stored once. user_id
+            // is REQUIRED for admin tooling to resolve devices back to their
+            // owning user (rules also key per-device access on this field).
             var deviceData = new Dictionary<string, object>
             {
+                ["user_id"] = _auth.UserId ?? "",
                 ["device_name"] = _deviceInfo.DeviceName,
                 ["mac_address"] = _deviceInfo.MacAddress ?? "unknown",
                 ["platform"] = "Windows",
@@ -226,10 +296,13 @@ public class FirebaseService : IFirebaseService
             var now = DateTime.UtcNow.ToString("o");
             var appVersion = GetAppVersion();
 
-            // Update devices/{id} with full info (including username) on every heartbeat
+            // Update devices/{id} on every heartbeat. user_id must be stamped
+            // on every write so it never drifts out of sync with the token's
+            // claim (rules enforce device ownership via this field).
             var licenseKey = await GetLicenseKeyAsync();
             await PatchDataAsync(T($"devices/{_deviceInfo.DeviceId}"), new Dictionary<string, object>
             {
+                ["user_id"] = _auth.UserId ?? "",
                 ["device_name"] = _deviceInfo.DeviceName,
                 ["mac_address"] = _deviceInfo.MacAddress ?? "unknown",
                 ["last_seen"] = now,
@@ -644,7 +717,10 @@ public class FirebaseService : IFirebaseService
 
     public Task<bool> IsUserDevAsync(string? windowsUsername = null)
     {
-        return Task.FromResult(_auth.Tier == "dev");
+        var tier = _auth.Tier;
+        var isDev = tier == "dev";
+        InfraLogger.Log($"Firebase: IsUserDevAsync -> {isDev} (tier='{tier ?? "null"}')");
+        return Task.FromResult(isDev);
     }
 
     public async Task<bool> IsCheatSheetEditorAsync(string? windowsUsername = null)

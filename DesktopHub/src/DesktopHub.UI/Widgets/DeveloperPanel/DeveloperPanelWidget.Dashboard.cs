@@ -52,13 +52,22 @@ public partial class DeveloperPanelWidget
             return;
         }
 
+        // Resolve user_id hashes to display names via the tenant directory.
+        await EnsureTenantUsersLoadedAsync();
+        var userIdToUsername = _tenantUsers.ToDictionary(
+            u => u.UserId, u => u.Username, StringComparer.OrdinalIgnoreCase);
+
         var rows = devices.Select(kvp =>
         {
             var d = kvp.Value;
             var plat = d.TryGetValue("platform", out var pl) ? pl?.ToString()?.Trim() ?? "" : "";
+            var uid = d.TryGetValue("user_id", out var u) ? u?.ToString() ?? "" : "";
+            var display = userIdToUsername.TryGetValue(uid, out var un) && !string.IsNullOrEmpty(un)
+                ? un
+                : (string.IsNullOrEmpty(uid) ? "unknown" : uid);
             return new HealthOverviewDevice(
                 kvp.Key,
-                d.TryGetValue("username", out var u) ? u?.ToString() ?? "unknown" : "unknown",
+                display,
                 d.TryGetValue("status", out var st) ? st?.ToString() ?? "unknown" : "unknown",
                 plat);
         }).ToList();

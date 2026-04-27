@@ -49,9 +49,8 @@ public partial class DeveloperPanelWidget
     {
         if (_firebaseService == null || !_firebaseService.IsInitialized) return;
 
-        // Ensure the user_id -> username map is populated before rendering devices.
-        if (_tenantUsers.Count == 0)
-            await RefreshPermissionDirectoryAsync();
+        // Ensure the user_id -> username map is populated before rendering.
+        await EnsureTenantUsersLoadedAsync();
 
         var userIdToUsername = _tenantUsers.ToDictionary(
             u => u.UserId, u => u.Username, StringComparer.OrdinalIgnoreCase);
@@ -500,7 +499,7 @@ public partial class DeveloperPanelWidget
         try
         {
             if (_tenantUsers.Count == 0)
-                await RefreshPermissionDirectoryAsync();
+                await EnsureTenantUsersLoadedAsync();
 
             var match = _tenantUsers.FirstOrDefault(
                 u => string.Equals(u.Username, normalized, StringComparison.OrdinalIgnoreCase));

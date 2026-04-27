@@ -24,6 +24,7 @@ Both are resolved once at import time; there is no live reload.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -75,12 +76,29 @@ INCLUDE_LICENSING: bool = _resolve_include_licensing(_CONFIG, NETWORK_FEATURES_E
 # Convenience for callers that want the reverse phrasing.
 OFFLINE_MODE: bool = not NETWORK_FEATURES_ENABLED
 
-# Tenant identity baked into this binary. Sent with every issueToken request;
-# server hashes the username under the matching tenant salt and gates every
-# RTDB path at /tenants/{TENANT_ID}/. External-customer builds override this
-# via build_config.json so a leaked license from one tenant cannot auth into
-# another tenant's data -- the binary is cryptographically bound to its tenant.
+# Tenant identity baked into this binary. TENANT_ID is the PLAINTEXT name
+# sent to the issueToken Cloud Function (so the server can look up the right
+# Secret Manager entry). TENANT_KEY is the hash used as the RTDB path
+# segment -- client + server compute it the same way, so a Firebase console
+# snapshot never leaks customer identities.
+#
+# The hash function MUST stay in lockstep with:
+#   - Cloud Functions: `tenantKeyFor()` in functions/index.js
+#   - DesktopHub C#:   `BuildConfig.TenantKey` / `ComputeTenantKey()`
 TENANT_ID: str = str(_CONFIG.get("tenant_id", "ces")).strip().lower() or "ces"
+
+
+def _compute_tenant_key(plaintext: str) -> str:
+    """Deterministic 16-hex hash of the plaintext tenant name.
+
+    SHA-256("dh-tenant-v1:" + lowercase(plaintext))[:16hex]
+    """
+    normalized = (plaintext or "").strip().lower()
+    digest = hashlib.sha256(("dh-tenant-v1:" + normalized).encode("utf-8")).hexdigest()
+    return digest[:16]
+
+
+TENANT_KEY: str = _compute_tenant_key(TENANT_ID)
 
 
 def why_offline() -> str | None:

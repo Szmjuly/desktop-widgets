@@ -43,7 +43,7 @@ except ImportError:
     except ImportError:
         APP_VERSION = "1.0.0"
 
-from src.build_config import TENANT_ID
+from src.build_config import TENANT_ID, TENANT_KEY
 from src.firebase_auth import FirebaseAuth, FirebaseAuthError
 from src.metrics import get_device_fingerprint, get_user_identifier, get_mac_hash
 
@@ -98,9 +98,13 @@ class SubscriptionManager:
         """Prefix a relative path with this build's tenant namespace.
 
         Every user-scoped / license / device / telemetry path MUST go through
-        here. Flat root-level writes are denied by the RTDB rules.
+        here. The segment is the HASHED tenant key (not the plaintext name)
+        so a DB snapshot never leaks which tenants exist.
         """
-        tid = self._auth.tenant_id or self._tenant_id
+        # _auth.tenant_id is set from issueToken's response claim (= the hash).
+        # Fallback to the build-time hash so early-init writes also land
+        # under the correct namespace.
+        tid = self._auth.tenant_id or TENANT_KEY
         return f"tenants/{tid}/{rel}"
 
     @property

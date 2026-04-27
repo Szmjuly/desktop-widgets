@@ -138,6 +138,7 @@ function Show-Menu {
     Write-Host "    [3]  Wipe devices node (all tenants)"
     Write-Host "    [4]  Backup entire database"
     Write-Host "    [5]  Wipe / reset submenu (full DB, non-tenant, tenant, section)"
+    Write-Host "    [6]  Full tenant reset (rotate secrets + wipe + re-grant)"
     Write-Host ""
     Write-Host "  PROJECT TAGS" -ForegroundColor Yellow
     Write-Host "    [10] Get tags for a project"
@@ -377,6 +378,13 @@ while ($true) {
         "3" { Invoke-Script "dump-database.ps1" @{WipeDevices=$true; Force=$true} }
         "4" { Invoke-Script "backup-database.ps1" }
         "5" { Invoke-WipeMenu }
+        "6" {
+            $t = Prompt-Input "Tenant id to reset" "ces"
+            $who = Prompt-Input "Re-grant admin+dev to" $env:USERNAME
+            if ($t) {
+                Invoke-Script "reset-tenant.ps1" @{ TenantId=$t; ReGrantUser=$who }
+            }
+        }
 
         # --- PROJECT TAGS ---
         "10" {

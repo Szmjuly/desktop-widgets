@@ -24,6 +24,15 @@ public partial class DeveloperPanelWidget
         try
         {
             HeartbeatList.Children.Clear();
+
+            // Populate the user_id -> username map before rendering so each
+            // row can show the real display name instead of the hash. Uses
+            // EnsureTenantUsersLoadedAsync (tab-agnostic -- works without
+            // the Permissions tab's UI being wired yet).
+            await EnsureTenantUsersLoadedAsync();
+            var userIdToUsername = _tenantUsers.ToDictionary(
+                u => u.UserId, u => u.Username, StringComparer.OrdinalIgnoreCase);
+
             var devices = await _firebaseService.GetDevicesAsync();
             if (devices == null || devices.Count == 0)
             {
@@ -36,10 +45,15 @@ public partial class DeveloperPanelWidget
                 .Select(kvp =>
                 {
                     var d = kvp.Value;
+                    // Read user_id (new schema); resolve to decrypted name.
+                    var uid = d.TryGetValue("user_id", out var u) ? u?.ToString() ?? "" : "";
+                    var displayName = userIdToUsername.TryGetValue(uid, out var un) && !string.IsNullOrEmpty(un)
+                        ? un
+                        : (string.IsNullOrEmpty(uid) ? "unknown" : uid);
                     return new HeartbeatDeviceLine
                     {
                         DeviceId = kvp.Key,
-                        Username = d.TryGetValue("username", out var u) ? u?.ToString() ?? "unknown" : "unknown",
+                        Username = displayName,
                         DeviceName = d.TryGetValue("device_name", out var dn) ? dn?.ToString() ?? "" : "",
                         Status = d.TryGetValue("status", out var st) ? st?.ToString() ?? "unknown" : "unknown",
                         LastSeen = d.TryGetValue("last_seen", out var ls) ? ls?.ToString() ?? "" : "",

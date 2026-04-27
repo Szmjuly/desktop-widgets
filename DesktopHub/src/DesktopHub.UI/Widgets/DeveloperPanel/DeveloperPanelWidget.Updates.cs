@@ -591,7 +591,10 @@ public partial class DeveloperPanelWidget
 
     private DeviceInvRow BuildDeviceInvRow(string deviceId, Dictionary<string, object> d, string latestPublished, string appId)
     {
-        var user = d.TryGetValue("username", out var u) ? u?.ToString() ?? "?" : "?";
+        // Device records carry user_id (HMAC hash); resolve to display name
+        // via the tenant directory cache populated by listTenantUsers.
+        var uid = d.TryGetValue("user_id", out var u) ? u?.ToString() ?? "" : "";
+        var user = ResolveUserDisplay(uid);
         var name = d.TryGetValue("device_name", out var dn) ? dn?.ToString() ?? "" : "";
         var lastSeen = d.TryGetValue("last_seen", out var ls) ? FormatDeviceLastSeen(ls?.ToString()) : "—";
         var installed = GetInstalledVersionForApp(d, appId);
@@ -788,11 +791,14 @@ public partial class DeveloperPanelWidget
         _ => 9,
     };
 
-    private static string ResolveDeviceUsername(Dictionary<string, Dictionary<string, object>>? devices, string deviceId)
+    private string ResolveDeviceUsername(Dictionary<string, Dictionary<string, object>>? devices, string deviceId)
     {
         if (devices == null || !devices.TryGetValue(deviceId, out var d))
             return "?";
-        return d.TryGetValue("username", out var u) ? u?.ToString() ?? "?" : "?";
+        // Pull user_id (HMAC hash) and resolve to decrypted display name
+        // via ResolveUserDisplay (defined in AdminOps.cs, same partial class).
+        var uid = d.TryGetValue("user_id", out var u) ? u?.ToString() ?? "" : "";
+        return string.IsNullOrEmpty(uid) ? "?" : ResolveUserDisplay(uid);
     }
 
     private UIElement BuildForceUpdateHeaderRow()

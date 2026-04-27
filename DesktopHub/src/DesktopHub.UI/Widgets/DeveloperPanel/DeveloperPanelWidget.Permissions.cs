@@ -94,66 +94,55 @@ public partial class DeveloperPanelWidget
         public bool IsEditor { get; set; }
     }
 
+    /// <summary>
+    /// Populates <see cref="_tenantUsers"/> from the central FirebaseService
+    /// cache (populated at startup by PreloadTenantUsersAsync). Falls back to
+    /// triggering a preload if the cache is empty. Callable from any tab --
+    /// doesn't depend on the Permissions tab's UI being wired.
+    /// </summary>
+    internal async Task<bool> EnsureTenantUsersLoadedAsync(bool force = false)
+    {
+        if (_firebaseService == null || !_firebaseService.IsInitialized) return false;
+
+        if (force || _firebaseService.TenantUsers.Count == 0)
+        {
+            await _firebaseService.PreloadTenantUsersAsync(force);
+        }
+
+        _tenantUsers = _firebaseService.TenantUsers
+            .Select(e => new TenantUser
+            {
+                UserId = e.UserId,
+                Username = e.Username,
+                IsAdmin = e.IsAdmin,
+                IsDev = e.IsDev,
+                IsEditor = e.IsEditor,
+            })
+            .ToList();
+        return _tenantUsers.Count > 0;
+    }
+
     private async Task RefreshPermissionDirectoryAsync()
     {
+        // Always refresh the underlying cache, then -- if the Permissions tab's
+        // UI is wired -- update the on-screen counters. Other tabs call
+        // EnsureTenantUsersLoadedAsync() directly to populate just the cache.
+        await EnsureTenantUsersLoadedAsync(force: true);
+
         if (PermDirAdminLine == null || PermDirEditorLine == null || PermDirDevLine == null)
             return;
 
-        void SetUnavailable()
+        if (_firebaseService == null || !_firebaseService.IsInitialized)
         {
             PermDirAdminLine.Text = "Admins: —";
             PermDirEditorLine.Text = "Editors: —";
             PermDirDevLine.Text = "Devs: —";
-        }
-
-        if (_firebaseService == null || !_firebaseService.IsInitialized)
-        {
-            SetUnavailable();
             return;
         }
 
-        try
-        {
-            // Cloud Function decrypts the user_directory and returns
-            // admin/dev/editor flags in one round trip. Client never sees
-            // the ciphertext directly.
-            var result = await _firebaseService.Auth.CallFunctionAsync(
-                "listTenantUsers", new { });
-            if (result == null)
-            {
-                SetUnavailable();
-                AppendOutput("ERROR: listTenantUsers call failed (are you admin/dev?).");
-                return;
-            }
-
-            var list = new List<TenantUser>();
-            var root = result.Value;
-            if (root.TryGetProperty("users", out var usersEl) &&
-                usersEl.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var u in usersEl.EnumerateArray())
-                {
-                    list.Add(new TenantUser
-                    {
-                        UserId = u.TryGetProperty("userId", out var uid) ? uid.GetString() ?? "" : "",
-                        Username = u.TryGetProperty("username", out var un) ? un.GetString() ?? "" : "",
-                        IsAdmin = u.TryGetProperty("isAdmin", out var ia) && ia.ValueKind == JsonValueKind.True,
-                        IsDev = u.TryGetProperty("isDev", out var id) && id.ValueKind == JsonValueKind.True,
-                        IsEditor = u.TryGetProperty("isEditor", out var ie) && ie.ValueKind == JsonValueKind.True,
-                    });
-                }
-            }
-            _tenantUsers = list;
-
-            PermDirAdminLine.Text = $"Admins: {list.Count(u => u.IsAdmin)}";
-            PermDirEditorLine.Text = $"Editors: {list.Count(u => u.IsEditor)} (cheat_sheet_editors)";
-            PermDirDevLine.Text = $"Devs: {list.Count(u => u.IsDev)}";
-        }
-        catch (Exception ex)
-        {
-            AppendOutput($"ERROR loading role directory: {ex.Message}");
-            SetUnavailable();
-        }
+        PermDirAdminLine.Text = $"Admins: {_tenantUsers.Count(u => u.IsAdmin)}";
+        PermDirEditorLine.Text = $"Editors: {_tenantUsers.Count(u => u.IsEditor)} (cheat_sheet_editors)";
+        PermDirDevLine.Text = $"Devs: {_tenantUsers.Count(u => u.IsDev)}";
     }
 
     private static int CountActiveRoleMembers(Dictionary<string, object>? node)

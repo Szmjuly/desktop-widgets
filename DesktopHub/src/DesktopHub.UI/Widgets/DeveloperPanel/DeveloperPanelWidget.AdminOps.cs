@@ -139,7 +139,7 @@ public partial class DeveloperPanelWidget
             }
 
             // Ensure user_id -> username map is cached before rendering.
-            if (_tenantUsers.Count == 0) await RefreshPermissionDirectoryAsync();
+            await EnsureTenantUsersLoadedAsync();
 
             var outdatedCount = 0;
             foreach (var (deviceId, deviceObj) in devices)
