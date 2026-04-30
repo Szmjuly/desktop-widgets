@@ -1,0 +1,893 @@
+<Window x:Class="LoadExtractor.UI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Load Extractor"
+        Width="1300" Height="850"
+        MinWidth="1000" MinHeight="600"
+        Background="{StaticResource BackgroundBrush}"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- App / extractor page title (active mode updates with tab) -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock Text="Load Extractor"
+                       Foreground="{StaticResource TextMutedBrush}"
+                       FontSize="12"
+                       Margin="0,0,0,4"/>
+            <TextBlock x:Name="PageExtractorTitle"
+                       Text="HAP Extractor"
+                       Foreground="{StaticResource TextPrimaryBrush}"
+                       FontSize="26"
+                       FontWeight="Bold"/>
+            <Grid Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="PageExtractorSubtitle"
+                           Grid.Column="0"
+                           Text="Load Zone Sizing Summary + Space Design Load Summary PDFs to extract and export component loads"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           FontSize="13"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Top"/>
+                <CheckBox x:Name="SinglePdfModeToggle"
+                          Grid.Column="1"
+                          Content="Single combined PDF"
+                          Style="{StaticResource ToggleSwitchCheckBox}"
+                          Foreground="{StaticResource TextSecondaryBrush}"
+                          FontSize="12"
+                          VerticalAlignment="Top"
+                          Margin="16,0,0,0"
+                          ToolTip="Enable to drop one merged HAP report PDF (the app will detect which pages belong to each report)."
+                          Checked="SinglePdfModeToggle_Changed"
+                          Unchecked="SinglePdfModeToggle_Changed"/>
+            </Grid>
+        </StackPanel>
+
+        <!-- Input shell: tab strip + tab content in one card -->
+        <Border Grid.Row="1"
+                Background="{StaticResource SurfaceBrush}"
+                CornerRadius="8"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="1"
+                Padding="0">
+            <TabControl x:Name="MainExtractorTabs"
+                        Style="{StaticResource ExtractorTabControl}"
+                        Padding="8,8,8,12"
+                        SelectionChanged="MainExtractorTabs_SelectionChanged">
+        <TabItem Header="HAP"
+                 Style="{StaticResource ExtractorTabItem}">
+    <Grid Margin="8,4,8,12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Dual PDF input bar -->
+        <Border Grid.Row="0" Background="{StaticResource CardBrush}"
+                CornerRadius="8" Padding="16" Margin="0,0,0,12"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+            <StackPanel>
+                <!-- Three PDF browse rows (hidden when Single combined PDF is on) -->
+                <StackPanel x:Name="PdfInputRowsPanel">
+                <!-- PDF 1: Zone Sizing Summary -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="300"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                        <TextBlock x:Name="Pdf1StatusDot" Text="●" FontSize="10" Margin="0,0,6,0"
+                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Zone Sizing Summary"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" Background="{StaticResource CardBrush}"
+                            CornerRadius="5" Padding="10,6" Margin="0,0,8,0"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <TextBlock x:Name="Pdf1PathText"
+                                   Text="Not loaded"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   VerticalAlignment="Center" FontSize="12"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </Border>
+                    <Button Grid.Column="2" Content="Browse"
+                            Style="{StaticResource SubtleButton}"
+                            Click="BrowsePdf1_Click" Padding="14,6" FontSize="12"/>
+                </Grid>
+                <Border Height="8"/>
+
+                <!-- PDF 2: Space Design Load Summary -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="300"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                        <TextBlock x:Name="Pdf2StatusDot" Text="●" FontSize="10" Margin="0,0,6,0"
+                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Space Design Load Summary"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" Background="{StaticResource CardBrush}"
+                            CornerRadius="5" Padding="10,6" Margin="0,0,8,0"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <TextBlock x:Name="Pdf2PathText"
+                                   Text="Not loaded"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   VerticalAlignment="Center" FontSize="12"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </Border>
+                    <Button Grid.Column="2" Content="Browse"
+                            Style="{StaticResource SubtleButton}"
+                            Click="BrowsePdf2_Click" Padding="14,6" FontSize="12"/>
+                </Grid>
+                <Border Height="8"/>
+
+                <!-- PDF 3: Air System Sizing Summary (optional) -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="300"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                        <TextBlock x:Name="Pdf3StatusDot" Text="●" FontSize="10" Margin="0,0,6,0"
+                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Air System Sizing Summary"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Text="(optional)"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   FontSize="11" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" Background="{StaticResource CardBrush}"
+                            CornerRadius="5" Padding="10,6" Margin="0,0,8,0"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <TextBlock x:Name="Pdf3PathText"
+                                   Text="Not loaded"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   VerticalAlignment="Center" FontSize="12"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </Border>
+                    <Button Grid.Column="2" Content="Browse"
+                            Style="{StaticResource SubtleButton}"
+                            Click="BrowsePdf3_Click" Padding="14,6" FontSize="12"/>
+                </Grid>
+                </StackPanel>
+
+                <!-- Single combined PDF row (shown when Single combined PDF is on) -->
+                <Grid x:Name="CombinedPdfInputRow" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="300"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                        <TextBlock x:Name="CombinedPdfStatusDot" Text="*" FontSize="13" Margin="0,0,6,0"
+                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Single Combined PDF"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" Background="{StaticResource CardBrush}"
+                            CornerRadius="5" Padding="10,6" Margin="0,0,8,0"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <TextBlock x:Name="CombinedPdfPathText"
+                                   Text="Not loaded"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   VerticalAlignment="Center" FontSize="12"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </Border>
+                    <Button Grid.Column="2" Content="Browse"
+                            Style="{StaticResource SubtleButton}"
+                            Click="BrowseCombinedPdf_Click" Padding="14,6" FontSize="12"/>
+                </Grid>
+
+                <Border Height="10"/>
+
+                <!-- Action buttons -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="ProcessButton" Content="Process &amp; Combine"
+                            Style="{StaticResource AccentButton}"
+                            Click="Process_Click" IsEnabled="False"
+                            Padding="20,8" FontSize="13" Margin="0,0,8,0"/>
+                    <Button x:Name="ExportExcelButton" Content="Export Excel"
+                            Style="{StaticResource SubtleButton}"
+                            Click="ExportExcel_Click" IsEnabled="False"
+                            Padding="16,8" FontSize="13" Margin="0,0,8,0"/>
+                    <Button x:Name="MattsWayButton" Content="Matt's Way"
+                            Style="{StaticResource SubtleButton}"
+                            Click="ExportMattsWay_Click" IsEnabled="False"
+                            Padding="16,8" FontSize="13" Margin="0,0,8,0"/>
+                    <Button x:Name="OpenExportLocationButton" Content="Open Save Location"
+                            Style="{StaticResource SubtleButton}"
+                            Click="OpenExportLocation_Click" IsEnabled="False"
+                            Padding="16,8" FontSize="13"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Results info card -->
+        <Border Grid.Row="1" x:Name="ResultsInfoCard"
+                Background="{StaticResource SurfaceBrush}"
+                CornerRadius="8" Padding="14" Margin="0,0,0,10"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Project:"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBlock x:Name="ProjectNameText"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           FontSize="13" FontWeight="SemiBold"
+                           VerticalAlignment="Center" Margin="0,0,24,0"/>
+                <TextBlock Text="Matched Spaces:"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBlock x:Name="MatchedCountText"
+                           Foreground="{StaticResource AccentBrush}"
+                           FontSize="13" FontWeight="SemiBold"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Main content area -->
+        <Grid Grid.Row="2" x:Name="ResultsPanel" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Mode tabs + search bar (always visible) -->
+            <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}"
+                    CornerRadius="8" Padding="8,6" Margin="0,0,0,8"
+                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <Button x:Name="ModeAllButton" Content="All"
+                                Style="{StaticResource AccentButton}"
+                                Click="ModeAll_Click" Padding="14,6" FontSize="11" Margin="0,0,4,0"/>
+                        <Button x:Name="ModeSystemButton" Content="Systems"
+                                Style="{StaticResource SubtleButton}"
+                                Click="ModeSystem_Click" Padding="14,6" FontSize="11" Margin="0,0,4,0"/>
+                        <Button x:Name="ModeZoneButton" Content="Zones"
+                                Style="{StaticResource SubtleButton}"
+                                Click="ModeZone_Click" Padding="14,6" FontSize="11"/>
+                    </StackPanel>
+
+                    <!-- Search box -->
+                    <Border Grid.Column="1" x:Name="SearchBar" Margin="12,0,0,0"
+                            Background="{StaticResource CardBrush}" CornerRadius="4"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                            Padding="8,4" Width="200" Visibility="Collapsed">
+                        <TextBox x:Name="SearchBox"
+                                 Background="Transparent"
+                                 Foreground="{StaticResource TextPrimaryBrush}"
+                                 BorderThickness="0" FontSize="12"
+                                 TextChanged="SearchBox_TextChanged"
+                                 VerticalAlignment="Center">
+                            <TextBox.Style>
+                                <Style TargetType="TextBox">
+                                    <Setter Property="CaretBrush" Value="{StaticResource TextPrimaryBrush}"/>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
+                    </Border>
+
+                    <TextBlock Grid.Column="3" x:Name="DataGridHeaderText"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="12" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+
+            <!-- Sidebar + DataGrid split -->
+            <Grid Grid.Row="1" x:Name="SidebarGrid">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="0"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left Sidebar (hidden in All mode) -->
+                <Border Grid.Column="0" x:Name="SidebarBorder" Background="{StaticResource SurfaceBrush}"
+                        CornerRadius="8" Margin="0,0,10,0"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                        Visibility="Collapsed">
+                    <ListBox x:Name="SidebarList"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Foreground="{StaticResource TextPrimaryBrush}"
+                             SelectionChanged="SidebarList_SelectionChanged"
+                             Padding="6">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="Bd" Background="Transparent"
+                                                    CornerRadius="4" Margin="2,1">
+                                                <ContentPresenter/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                                </Trigger>
+                                                <MultiTrigger>
+                                                    <MultiTrigger.Conditions>
+                                                        <Condition Property="IsMouseOver" Value="True"/>
+                                                        <Condition Property="IsSelected" Value="False"/>
+                                                    </MultiTrigger.Conditions>
+                                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource CardBrush}"/>
+                                                </MultiTrigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                    </ListBox>
+                </Border>
+
+                <!-- Right: DataGrid (multi-zone) -->
+                <Border Grid.Column="1" x:Name="DataGridPanel" Background="{StaticResource SurfaceBrush}"
+                        CornerRadius="8"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                    <DataGrid x:Name="CombinedDataGrid"
+                              Style="{StaticResource DarkDataGrid}"
+                              ColumnHeaderStyle="{StaticResource DarkColumnHeader}"
+                              CellStyle="{StaticResource DarkDataGridCell}"
+                              RowStyle="{StaticResource DarkDataGridRow}"
+                              Margin="1"
+                              CanUserSortColumns="False"
+                              HorizontalScrollBarVisibility="Auto"
+                              ColumnWidth="SizeToCells"/>
+                </Border>
+
+                <!-- Right: Single-zone card view -->
+                <Border Grid.Column="1" x:Name="SingleZonePanel" Background="{StaticResource SurfaceBrush}"
+                        CornerRadius="8"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                        Visibility="Collapsed">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+                        <StackPanel x:Name="SingleZoneContent" Margin="0,0,0,16"/>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- Empty state -->
+        <Border Grid.Row="2" x:Name="EmptyState"
+                Background="{StaticResource SurfaceBrush}"
+                CornerRadius="12"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="2"
+                AllowDrop="True" DragOver="EmptyState_DragOver" Drop="EmptyState_Drop">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="&#xE8E5;" FontFamily="Segoe MDL2 Assets"
+                           FontSize="48" HorizontalAlignment="Center"
+                           Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12"/>
+                <TextBlock Text="Drop both PDFs here, or use Browse above"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           FontSize="16" HorizontalAlignment="Center"/>
+                <TextBlock Text="1. Zone Sizing Summary  ·  2. Space Design Load Summary  ·  3. Air System Sizing Summary (optional)"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           FontSize="12" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Status bar -->
+        <Border Grid.Row="3" Margin="0,10,0,0" Padding="8,6"
+                Background="{StaticResource SurfaceBrush}"
+                CornerRadius="6">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="6"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" x:Name="StatusText"
+                           Text="Ready — load both PDFs to begin"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           FontSize="12"/>
+
+                <ProgressBar Grid.Row="2"
+                             x:Name="ProcessingProgressBar"
+                             Style="{StaticResource SlimAccentProgressBar}"
+                             Minimum="0" Maximum="100"
+                             Value="0"
+                             Visibility="Collapsed"
+                             IsIndeterminate="True"/>
+            </Grid>
+        </Border>
+    </Grid>
+        </TabItem>
+
+        <TabItem Header="Trane"
+                 Style="{StaticResource ExtractorTabItem}">
+            <Grid Margin="8,4,8,12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- PDF input bar -->
+                <Border Grid.Row="0" Background="{StaticResource CardBrush}"
+                        CornerRadius="8" Padding="16" Margin="0,0,0,12"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="300"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                                <TextBlock x:Name="TranePdfStatusDot" Text="*" FontSize="13" Margin="0,0,6,0"
+                                           Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="Room Checksums PDF"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <Border Grid.Column="1" Background="{StaticResource CardBrush}"
+                                    CornerRadius="5" Padding="10,6" Margin="0,0,8,0"
+                                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                                <TextBlock x:Name="TranePdfPathText"
+                                           Text="Not loaded"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           VerticalAlignment="Center" FontSize="12"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </Border>
+                            <Button Grid.Column="2" Content="Browse"
+                                    Style="{StaticResource SubtleButton}"
+                                    Click="BrowseTranePdf_Click" Padding="14,6" FontSize="12"/>
+                        </Grid>
+
+                        <Border Height="8"/>
+
+                        <!-- Optional: TRACE Design Cooling Load Summary (same auto-detect as other PDFs) -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="300"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                                <TextBlock x:Name="TraneDesignPdfStatusDot" Text="*" FontSize="13" Margin="0,0,6,0"
+                                           Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="Design Cooling Summary (optional)"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <Border Grid.Column="1" Background="{StaticResource CardBrush}"
+                                    CornerRadius="5" Padding="10,6" Margin="0,0,8,0"
+                                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                                <TextBlock x:Name="TraneDesignPdfPathText"
+                                           Text="Not loaded"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           VerticalAlignment="Center" FontSize="12"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </Border>
+                            <Button Grid.Column="2" Content="Browse"
+                                    Style="{StaticResource SubtleButton}"
+                                    Click="BrowseTraneDesignCoolingPdf_Click" Padding="14,6" FontSize="12" Margin="0,0,6,0"/>
+                            <Button Grid.Column="3" Content="Clear"
+                                    Style="{StaticResource SubtleButton}"
+                                    Click="ClearTraneDesignCoolingPdf_Click" Padding="12,6" FontSize="12"/>
+                        </Grid>
+
+                        <Border Height="10"/>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBlock Text="Delta T"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       FontSize="12"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,6,0"/>
+                            <Border Background="{StaticResource CardBrush}"
+                                    CornerRadius="4"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1"
+                                    Padding="8,4"
+                                    Width="58"
+                                    Margin="0,0,12,0">
+                                <TextBox x:Name="TraneDeltaTBox"
+                                         Text="20"
+                                         Background="Transparent"
+                                         Foreground="{StaticResource TextPrimaryBrush}"
+                                         BorderThickness="0"
+                                         FontSize="12"
+                                         Padding="0"
+                                         TextAlignment="Center"
+                                         HorizontalContentAlignment="Center"
+                                         VerticalContentAlignment="Center"
+                                         VerticalAlignment="Stretch"
+                                         HorizontalAlignment="Stretch"
+                                         TextChanged="TraneDeltaT_TextChanged"
+                                         ToolTip="Default Delta T for calculated airflow export"/>
+                            </Border>
+                            <Button x:Name="ProcessTraneButton" Content="Process Trane PDF"
+                                    Style="{StaticResource AccentButton}"
+                                    Click="ProcessTrane_Click" IsEnabled="False"
+                                    Padding="20,8" FontSize="13" Margin="0,0,8,0"/>
+                            <Button x:Name="ExportTraneExcelButton" Content="Export Excel"
+                                    Style="{StaticResource SubtleButton}"
+                                    Click="ExportTraneExcel_Click" IsEnabled="False"
+                                    Padding="16,8" FontSize="13" Margin="0,0,8,0"/>
+                            <Button x:Name="OpenTraneExportLocationButton" Content="Open Save Location"
+                                    Style="{StaticResource SubtleButton}"
+                                    Click="OpenTraneExportLocation_Click" IsEnabled="False"
+                                    Padding="16,8" FontSize="13"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Results info card -->
+                <Border Grid.Row="1" x:Name="TraneResultsInfoCard"
+                        Background="{StaticResource SurfaceBrush}"
+                        CornerRadius="8" Padding="14" Margin="0,0,0,10"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                        Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Project:"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBlock x:Name="TraneProjectNameText"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" Margin="0,0,24,0"/>
+                        <TextBlock Text="Rooms:"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBlock x:Name="TraneRoomCountText"
+                                   Foreground="{StaticResource AccentBrush}"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" Margin="0,0,24,0"/>
+                        <TextBlock Text="Calculated Airflow:"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBlock x:Name="TraneCalculatedAirflowText"
+                                   Foreground="{StaticResource AccentBrush}"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Results table -->
+                <Grid Grid.Row="2" x:Name="TraneResultsPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}"
+                            CornerRadius="8" Padding="0" Margin="0,0,0,8"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <Border.Resources>
+                            <Style x:Key="FilterUnitPanel" TargetType="StackPanel">
+                                <Setter Property="Orientation" Value="Horizontal"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Margin" Value="0,2,12,2"/>
+                            </Style>
+                            <Style x:Key="FilterLabel" TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                <Setter Property="FontSize" Value="11"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Margin" Value="0,0,6,0"/>
+                            </Style>
+                            <Style x:Key="FilterRangePill" TargetType="Border">
+                                <Setter Property="Background" Value="{StaticResource CardBrush}"/>
+                                <Setter Property="CornerRadius" Value="4"/>
+                                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                                <Setter Property="BorderThickness" Value="1"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                            </Style>
+                            <Style x:Key="FilterRangeBox" TargetType="TextBox">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="FontSize" Value="12"/>
+                                <Setter Property="Padding" Value="6,3"/>
+                                <Setter Property="MinWidth" Value="48"/>
+                                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                            </Style>
+                            <Style x:Key="FilterRangeDivider" TargetType="Border">
+                                <Setter Property="Width" Value="1"/>
+                                <Setter Property="Background" Value="{StaticResource BorderBrush}"/>
+                                <Setter Property="VerticalAlignment" Value="Stretch"/>
+                            </Style>
+                        </Border.Resources>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="Filters"
+                                       Foreground="{StaticResource AccentBrush}"
+                                       FontSize="13" FontWeight="SemiBold"
+                                       Margin="10,8,10,4"/>
+                            <Border Grid.Row="1" Background="Transparent" Padding="8,0,8,8">
+                        <WrapPanel Orientation="Horizontal">
+
+                            <StackPanel Style="{StaticResource FilterUnitPanel}">
+                                <TextBlock Text="Room" Style="{StaticResource FilterLabel}"/>
+                                <Border Style="{StaticResource FilterRangePill}" Width="160">
+                                    <TextBox x:Name="TraneRoomFilterBox"
+                                             Style="{StaticResource FilterRangeBox}"
+                                             ToolTip="Room name or room number"
+                                             TextChanged="TraneFilter_TextChanged"/>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Style="{StaticResource FilterUnitPanel}">
+                                <TextBlock Text="Tons" Style="{StaticResource FilterLabel}"/>
+                                <Border Style="{StaticResource FilterRangePill}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="TraneTonsMinFilterBox" Grid.Column="0"
+                                                 Style="{StaticResource FilterRangeBox}"
+                                                 ToolTip="Minimum tons"
+                                                 TextChanged="TraneFilter_TextChanged"/>
+                                        <Border Grid.Column="1" Style="{StaticResource FilterRangeDivider}"/>
+                                        <TextBox x:Name="TraneTonsMaxFilterBox" Grid.Column="2"
+                                                 Style="{StaticResource FilterRangeBox}"
+                                                 ToolTip="Maximum tons"
+                                                 TextChanged="TraneFilter_TextChanged"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Style="{StaticResource FilterUnitPanel}">
+                                <TextBlock Text="Tot MBh" Style="{StaticResource FilterLabel}"/>
+                                <Border Style="{StaticResource FilterRangePill}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="TraneTotalMbhMinFilterBox" Grid.Column="0"
+                                                 Style="{StaticResource FilterRangeBox}"
+                                                 ToolTip="Minimum total MBh"
+                                                 TextChanged="TraneFilter_TextChanged"/>
+                                        <Border Grid.Column="1" Style="{StaticResource FilterRangeDivider}"/>
+                                        <TextBox x:Name="TraneTotalMbhMaxFilterBox" Grid.Column="2"
+                                                 Style="{StaticResource FilterRangeBox}"
+                                                 ToolTip="Maximum total MBh"
+                                                 TextChanged="TraneFilter_TextChanged"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Style="{StaticResource FilterUnitPanel}">
+                                <TextBlock Text="Sens MBh" Style="{StaticResource FilterLabel}"/>
+                                <Border Style="{StaticResource FilterRangePill}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="TraneSensibleMbhMinFilterBox" Grid.Column="0"
+                                                 Style="{StaticResource FilterRangeBox}"
+                                                 ToolTip="Minimum sensible MBh"
+                                                 TextChanged="TraneFilter_TextChanged"/>
+                                        <Border Grid.Column="1" Style="{StaticResource FilterRangeDivider}"/>
+                                        <TextBox x:Name="TraneSensibleMbhMaxFilterBox" Grid.Column="2"
+                                                 Style="{StaticResource FilterRangeBox}"
+                                                 ToolTip="Maximum sensible MBh"
+                                                 TextChanged="TraneFilter_TextChanged"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Style="{StaticResource FilterUnitPanel}">
+                                <TextBlock Text="CFM" Style="{StaticResource FilterLabel}"/>
+                                <Border Style="{StaticResource FilterRangePill}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="TraneAirflowMinFilterBox" Grid.Column="0"
+                                                 Style="{StaticResource FilterRangeBox}"
+                                                 ToolTip="Minimum CFM"
+                                                 TextChanged="TraneFilter_TextChanged"/>
+                                        <Border Grid.Column="1" Style="{StaticResource FilterRangeDivider}"/>
+                                        <TextBox x:Name="TraneAirflowMaxFilterBox" Grid.Column="2"
+                                                 Style="{StaticResource FilterRangeBox}"
+                                                 ToolTip="Maximum CFM"
+                                                 TextChanged="TraneFilter_TextChanged"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Style="{StaticResource FilterUnitPanel}">
+                                <TextBlock Text="Area" Style="{StaticResource FilterLabel}"/>
+                                <Border Style="{StaticResource FilterRangePill}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="TraneAreaMinFilterBox" Grid.Column="0"
+                                                 Style="{StaticResource FilterRangeBox}"
+                                                 ToolTip="Minimum area"
+                                                 TextChanged="TraneFilter_TextChanged"/>
+                                        <Border Grid.Column="1" Style="{StaticResource FilterRangeDivider}"/>
+                                        <TextBox x:Name="TraneAreaMaxFilterBox" Grid.Column="2"
+                                                 Style="{StaticResource FilterRangeBox}"
+                                                 ToolTip="Maximum area"
+                                                 TextChanged="TraneFilter_TextChanged"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Style="{StaticResource FilterUnitPanel}">
+                                <TextBlock Text="sq ft/Ton" Style="{StaticResource FilterLabel}"/>
+                                <Border Style="{StaticResource FilterRangePill}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="TraneSqFtTonMinFilterBox" Grid.Column="0"
+                                                 Style="{StaticResource FilterRangeBox}"
+                                                 ToolTip="Minimum sq ft/Ton"
+                                                 TextChanged="TraneFilter_TextChanged"/>
+                                        <Border Grid.Column="1" Style="{StaticResource FilterRangeDivider}"/>
+                                        <TextBox x:Name="TraneSqFtTonMaxFilterBox" Grid.Column="2"
+                                                 Style="{StaticResource FilterRangeBox}"
+                                                 ToolTip="Maximum sq ft/Ton"
+                                                 TextChanged="TraneFilter_TextChanged"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Style="{StaticResource FilterUnitPanel}">
+                                <TextBlock Text="People" Style="{StaticResource FilterLabel}"/>
+                                <Border Style="{StaticResource FilterRangePill}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="TranePeopleMinFilterBox" Grid.Column="0"
+                                                 Style="{StaticResource FilterRangeBox}"
+                                                 ToolTip="Minimum people"
+                                                 TextChanged="TraneFilter_TextChanged"/>
+                                        <Border Grid.Column="1" Style="{StaticResource FilterRangeDivider}"/>
+                                        <TextBox x:Name="TranePeopleMaxFilterBox" Grid.Column="2"
+                                                 Style="{StaticResource FilterRangeBox}"
+                                                 ToolTip="Maximum people"
+                                                 TextChanged="TraneFilter_TextChanged"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <Button Content="Clear"
+                                    Style="{StaticResource SubtleButton}"
+                                    Click="ClearTraneFilters_Click"
+                                    Padding="10,4" FontSize="11"
+                                    VerticalAlignment="Center" Margin="0,2,0,2"/>
+                        </WrapPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="1" x:Name="TraneDataGridPanel"
+                            Background="{StaticResource SurfaceBrush}"
+                            CornerRadius="8"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <DataGrid x:Name="TraneDataGrid"
+                                  Style="{StaticResource DarkDataGrid}"
+                                  ColumnHeaderStyle="{StaticResource DarkColumnHeader}"
+                                  CellStyle="{StaticResource CompactDataGridCell}"
+                                  RowStyle="{StaticResource CompactDataGridRow}"
+                                  Margin="1"
+                                  CanUserSortColumns="True"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Auto"
+                                  RowHeight="24"
+                                  ColumnWidth="SizeToCells">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Room Number" Binding="{Binding RoomNumber}" Width="80"/>
+                                <DataGridTextColumn Header="Room Name" Binding="{Binding RoomName}" Width="260"/>
+                                <DataGridTextColumn Header="AHU" Binding="{Binding DesignCooling.SystemName, TargetNullValue=''}" Width="88"/>
+                                <DataGridTextColumn Header="Tons" Binding="{Binding TotalCapacityTons, StringFormat={}{0:N1}}" Width="58"/>
+                                <DataGridTextColumn Header="Total MBh" Binding="{Binding TotalCapacityMbh, StringFormat={}{0:N1}}" Width="72"/>
+                                <DataGridTextColumn Header="Sens MBh" Binding="{Binding SensibleCapacityMbh, StringFormat={}{0:N1}}" Width="72"/>
+                                <DataGridTextColumn Header="CFM" Binding="{Binding CoilAirflowCfm, StringFormat={}{0:N0}}" Width="64"/>
+                                <DataGridTextColumn Header="Area" Binding="{Binding GrossFloorAreaSqFt, StringFormat={}{0:N0}}" Width="64"/>
+                                <DataGridTextColumn Header="sq ft/Ton" Binding="{Binding SqFtPerTon, StringFormat={}{0:N2}}" Width="76"/>
+                                <DataGridTextColumn Header="People" Binding="{Binding NumberOfPeople, StringFormat={}{0:N1}}" Width="62"/>
+                                <DataGridTextColumn Header="Calc CFM" Binding="{Binding CalculatedAirflowCfm, StringFormat={}{0:N0}}" Width="76"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+
+                <!-- Empty state -->
+                <Border Grid.Row="2" x:Name="TraneEmptyState"
+                        Background="{StaticResource SurfaceBrush}"
+                        CornerRadius="12"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="2"
+                        AllowDrop="True" DragOver="TraneEmptyState_DragOver" Drop="TraneEmptyState_Drop">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <TextBlock Text="&#xE8E5;" FontFamily="Segoe MDL2 Assets"
+                                   FontSize="48" HorizontalAlignment="Center"
+                                   Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12"/>
+                        <TextBlock Text="Drop a Trane Room Checksums PDF here, or use Browse above"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="16" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Each matching room page becomes one clean Excel row"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   FontSize="12" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Status bar -->
+                <Border Grid.Row="3" Margin="0,10,0,0" Padding="8,6"
+                        Background="{StaticResource SurfaceBrush}"
+                        CornerRadius="6">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="6"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" x:Name="TraneStatusText"
+                                   Text="Ready - load a Trane Room Checksums PDF to begin"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   FontSize="12"/>
+
+                        <ProgressBar Grid.Row="2"
+                                     x:Name="TraneProcessingProgressBar"
+                                     Style="{StaticResource SlimAccentProgressBar}"
+                                     Minimum="0" Maximum="100"
+                                     Value="0"
+                                     Visibility="Collapsed"
+                                     IsIndeterminate="True"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </TabItem>
+            </TabControl>
+        </Border>
+    </Grid>
+</Window>
